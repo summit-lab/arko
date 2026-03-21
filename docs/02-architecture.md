@@ -33,6 +33,7 @@ arko/
 │   ├── API_DOCS.md
 │   ├── SKILLS.md
 │   ├── 05-environments-guide.md    # Guía de ambientes (local/staging/prod)
+│   ├── 06-github-stages-databases-guide.md # Guía maestra de GitHub del proyecto
 │   └── features/                   # Un .md por funcionalidad
 │       └── team-collaboration.md   # Onboarding, GitHub, trabajo en paralelo e IA
 ├── src/
@@ -68,6 +69,7 @@ arko/
 │   │   │   ├── client.ts           # Browser client
 │   │   │   ├── server.ts           # Server client (cookies)
 │   │   │   └── middleware.ts       # Session update helper
+│   │   ├── env.ts                  # Variables de entorno validadas y helpers por ambiente
 │   │   ├── openai/                 # Cliente OpenAI (pendiente)
 │   │   └── utils.ts                # cn() y utilidades generales
 │   ├── hooks/                      # Custom hooks

@@ -5,6 +5,22 @@
 
 ---
 
+## [0.8.1] — 2026-03-21
+
+### Added — Guía maestra de GitHub para humanos e IA
+
+- `docs/06-github-stages-databases-guide.md` — nueva guía central de GitHub del proyecto. Explica ramas, commits, push, Pull Requests, merges, releases, relación entre GitHub y local/staging/production, y cómo se coordina GitHub con Supabase y migraciones.
+
+### Changed — Reglas y documentación alineadas a la nueva guía de GitHub
+
+- `docs/02-architecture.md` — registrada la nueva guía en la estructura oficial del proyecto.
+- `.windsurfrules` — agregada la nueva guía a la lista de lectura obligatoria y tabla de lookup para tareas de GitHub.
+- `CLAUDE.md` — agregada la nueva guía a la tabla de documentación y lookup.
+- `.github/copilot-instructions.md` — agregada la nueva guía a la tabla de documentación y lookup.
+
+### Request original
+> necesito que me crees un doc, un .md donde le expliques TODO a la IA de como manejamos el proyecto en cuanto github, ftages, bses de datos necesito entender!!! y agrega ese doc en ruter, para que siempre que se hable de github sepa que hacer
+
 ## [0.8.0] — 2026-03-21
 
 ### Added — Sistema profesional de ambientes y configuración centralizada
