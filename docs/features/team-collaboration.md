@@ -177,6 +177,37 @@ Toda implementación debe dejar explícito:
 - cómo validar localmente
 - riesgos pendientes
 
+### 10.4 La IA maneja el flujo git completo
+
+En este proyecto la IA ejecuta todo el flujo git. El humano solo aprueba cada paso.
+
+**Referencia completa: `.github/AI_GIT_WORKFLOW.md`**
+
+#### Qué hace la IA
+1. `git checkout develop` + `git pull origin develop`
+2. `git checkout -b <tipo>/<nombre>` — confirmando el nombre antes
+3. implementar cambios
+4. actualizar docs y CHANGELOG
+5. `git add <archivos específicos>` — nunca `-A` sin revisar
+6. `git commit -m "<tipo>: <descripción>"` — confirmando el mensaje
+7. `git push origin <rama>` — **pedir confirmación explícita antes**
+8. sugerir título y cuerpo del PR al humano
+
+#### Qué hace el humano
+- aprobar cada comando de git
+- abrir el PR en GitHub
+- hacer el review
+- mergear el PR
+- hacer deploy
+
+#### Reglas que la IA nunca rompe
+- NUNCA pushear a `main` directamente
+- NUNCA pushear a `develop` directamente
+- NUNCA hacer merge
+- NUNCA hacer deploy
+- NUNCA usar `--force`
+- NUNCA commitear `.env` reales
+
 ## 11. Publicación del Repositorio
 Antes de hacer público/compartido el repo:
 - verificar `.gitignore`
@@ -208,6 +239,7 @@ Una tarea queda realmente lista cuando:
 - `docs/04-deployment.md`
 - `CHANGELOG.md`
 - `.github/copilot-instructions.md`
+- `.github/AI_GIT_WORKFLOW.md`
 - `.windsurfrules`
 - `.windsurf/workflows/team-onboarding.md`
 - `.github/PULL_REQUEST_TEMPLATE.md`

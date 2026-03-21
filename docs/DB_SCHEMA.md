@@ -6,6 +6,21 @@
 
 ---
 
+## Acceso MCP disponible
+
+La IA tiene acceso directo a Supabase vía MCP (`apps-y-dash`).
+
+Esto significa que podés pedirle a la IA:
+- consultar el schema real en tiempo real
+- generar migraciones SQL precisas basadas en el estado actual de la DB
+- verificar si una tabla o columna ya existe antes de crearla
+- generar tipos TypeScript alineados al schema actual
+
+**Regla:** los cambios siempre van por migraciones — nunca se ejecutan directo en production.
+**Guía completa del MCP:** `docs/07-mcp-guide.md`
+
+---
+
 ## Diagrama ER
 
 ```mermaid
