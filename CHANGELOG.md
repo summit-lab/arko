@@ -5,6 +5,35 @@
 
 ---
 
+## [0.8.0] — 2026-03-21
+
+### Added — Sistema profesional de ambientes y configuración centralizada
+
+- `src/lib/env.ts` — configuración centralizada de variables de entorno con validación Zod. Helpers: `getAppUrl()`, `getMetaRedirectUri()`, `isProduction()`, `isLocal()`. Si falta una variable obligatoria, la app no arranca y muestra el error exacto.
+- `docs/05-environments-guide.md` — guía operativa completa para humanos y IA. Explica qué es un ambiente, cómo configurar local/staging/production, matriz de ambientes, reglas de variables y paso a paso para cada escenario.
+- `APP_ENV` — nueva variable obligatoria (`local` | `staging` | `production`) para identificar el ambiente actual.
+
+### Changed — Eliminación de hardcodes y centralización de config
+
+- `src/app/api/v1/auth/meta/callback/route.ts` — eliminados `process.env` directos y fallback a `localhost`. Ahora usa `env`, `getAppUrl()` y `getMetaRedirectUri()`.
+- `src/app/api/v1/auth/meta/connect/route.ts` — eliminados `process.env` directos. Ahora usa `env` y `getMetaRedirectUri()`.
+- `src/services/instagram-sync.service.ts` — reemplazado `process.env.META_TOKENS_ENCRYPTION_KEY` por `env.META_TOKENS_ENCRYPTION_KEY`.
+- `src/services/ig-account-sync.service.ts` — idem.
+- `src/services/ads-sync.service.ts` — idem.
+- `src/app/api/v1/meta/explorer/route.ts` — idem.
+- `.env.example` — reorganizado con `APP_ENV`, comentarios claros por ambiente. Eliminada `META_REDIRECT_URI` (ahora se deriva automáticamente de `NEXT_PUBLIC_APP_URL`).
+- `README.md` — agregada referencia a `docs/05-environments-guide.md`.
+- `docs/02-architecture.md` — registrado `05-environments-guide.md` en la estructura oficial.
+- `docs/features/team-collaboration.md` — agregadas referencias a la guía de ambientes y `src/lib/env.ts`.
+- `.windsurfrules`, `CLAUDE.md`, `.github/copilot-instructions.md` — agregado `docs/05-environments-guide.md` a las tablas de documentación y lookup.
+
+### Removed
+
+- `META_REDIRECT_URI` como variable de entorno separada. Ahora se construye automáticamente desde `NEXT_PUBLIC_APP_URL + /api/v1/auth/meta/callback`.
+
+### Request original
+> como manejamos los ambientes? [...] como podemos hacer para manejar este proyecto profesionalmente y de manera robusta?
+
 ## [0.7.5] — 2026-03-21
 
 ### Changed — Metadata del repositorio y preparación de publicación inicial en GitHub

@@ -61,6 +61,8 @@ Copy-Item .env.example .env.local
 
 Luego completar `.env.local` con las credenciales del ambiente correspondiente.
 
+Guía completa de ambientes y variables: `docs/05-environments-guide.md`.
+
 ### 4. Levantar el proyecto
 
 ```bash
@@ -138,5 +140,6 @@ Antes de compartir el repositorio con otro integrante:
 - Arquitectura: `docs/02-architecture.md`
 - Seguridad: `docs/03-security.md`
 - Deploy: `docs/04-deployment.md`
+- Ambientes: `docs/05-environments-guide.md`
 - Colaboración: `docs/features/team-collaboration.md`
 - Historial: `CHANGELOG.md`

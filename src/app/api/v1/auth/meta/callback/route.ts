@@ -8,11 +8,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { api400, api500 } from '@/lib/api/response';
 
-const META_APP_ID = process.env.META_APP_ID!;
-const META_APP_SECRET = process.env.META_APP_SECRET!;
-const META_REDIRECT_URI = process.env.META_REDIRECT_URI!;
-const META_TOKENS_ENCRYPTION_KEY = process.env.META_TOKENS_ENCRYPTION_KEY!;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+import { env, getAppUrl, getMetaRedirectUri } from '@/lib/env';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -21,7 +17,7 @@ export async function GET(request: Request) {
   const errorParam = url.searchParams.get('error');
 
   if (errorParam) {
-    return NextResponse.redirect(`${APP_URL}/onboarding?error=${errorParam}`);
+    return NextResponse.redirect(`${getAppUrl()}/onboarding?error=${errorParam}`);
   }
 
   if (!code || !stateParam) {
@@ -39,9 +35,9 @@ export async function GET(request: Request) {
 
     // Step 2: Exchange code for short-lived access token (PRD 4.3)
     const tokenUrl = new URL('https://graph.facebook.com/v25.0/oauth/access_token');
-    tokenUrl.searchParams.set('client_id', META_APP_ID);
-    tokenUrl.searchParams.set('redirect_uri', META_REDIRECT_URI);
-    tokenUrl.searchParams.set('client_secret', META_APP_SECRET);
+    tokenUrl.searchParams.set('client_id', env.META_APP_ID!);
+    tokenUrl.searchParams.set('redirect_uri', getMetaRedirectUri());
+    tokenUrl.searchParams.set('client_secret', env.META_APP_SECRET!);
     tokenUrl.searchParams.set('code', code);
 
     const tokenRes = await fetch(tokenUrl.toString());
@@ -49,7 +45,7 @@ export async function GET(request: Request) {
 
     if (tokenData.error) {
       console.error('[meta-callback] Token exchange error:', tokenData.error);
-      return NextResponse.redirect(`${APP_URL}/onboarding?error=token_exchange_failed`);
+      return NextResponse.redirect(`${getAppUrl()}/onboarding?error=token_exchange_failed`);
     }
 
     const shortLivedToken = tokenData.access_token;
@@ -57,8 +53,8 @@ export async function GET(request: Request) {
     // Exchange for long-lived token (60 days)
     const longLivedUrl = new URL('https://graph.facebook.com/v25.0/oauth/access_token');
     longLivedUrl.searchParams.set('grant_type', 'fb_exchange_token');
-    longLivedUrl.searchParams.set('client_id', META_APP_ID);
-    longLivedUrl.searchParams.set('client_secret', META_APP_SECRET);
+    longLivedUrl.searchParams.set('client_id', env.META_APP_ID!);
+    longLivedUrl.searchParams.set('client_secret', env.META_APP_SECRET!);
     longLivedUrl.searchParams.set('fb_exchange_token', shortLivedToken);
 
     const longLivedRes = await fetch(longLivedUrl.toString());
@@ -118,7 +114,7 @@ export async function GET(request: Request) {
     await supabase.rpc('save_meta_connection', {
       p_workspace_id: workspace_id,
       p_access_token: accessToken,
-      p_encryption_key: META_TOKENS_ENCRYPTION_KEY,
+      p_encryption_key: env.META_TOKENS_ENCRYPTION_KEY!,
       p_token_expires_at: tokenExpiresAt,
       p_fb_user_id: meData.id,
       p_page_id: page?.id || null,
@@ -132,10 +128,10 @@ export async function GET(request: Request) {
 
     // Redirect to success page
     return NextResponse.redirect(
-      `${APP_URL}/onboarding?success=true&ig_username=${igUsername || ''}`
+      `${getAppUrl()}/onboarding?success=true&ig_username=${igUsername || ''}`
     );
   } catch (err) {
     console.error('[meta-callback] Error:', err);
-    return NextResponse.redirect(`${APP_URL}/onboarding?error=internal_error`);
+    return NextResponse.redirect(`${getAppUrl()}/onboarding?error=internal_error`);
   }
 }

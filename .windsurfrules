@@ -115,6 +115,7 @@
 # ├── DB_SCHEMA.md              ← Leer si se toca: tablas, columnas, migraciones, RLS
 # ├── API_DOCS.md               ← Leer si se toca: endpoints, API routes
 # ├── SKILLS.md                 ← Leer ANTES de implementar cualquier feature nueva
+# ├── 05-environments-guide.md  ← Leer si se toca: variables de entorno, URLs, ambientes, callbacks, env.ts
 # ├── features/team-collaboration.md ← Leer si se toca: onboarding, GitHub, setup, trabajo en paralelo o guías operativas
 # └── features/                 ← Leer el .md de la feature que se va a modificar
 #
@@ -134,3 +135,5 @@
 # .env.example                         → docs/features/team-collaboration.md + docs/03-security.md
 # .github/PULL_REQUEST_TEMPLATE.md     → docs/features/team-collaboration.md
 # .windsurf/workflows/*.md             → docs/features/team-collaboration.md
+# src/lib/env.ts                       → docs/05-environments-guide.md
+# .env.example                         → docs/05-environments-guide.md + docs/03-security.md

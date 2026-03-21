@@ -10,8 +10,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
-
-const META_TOKENS_ENCRYPTION_KEY = process.env.META_TOKENS_ENCRYPTION_KEY!;
+import { env } from '@/lib/env';
 const GRAPH_API_VERSION = 'v25.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
     // Decrypt token
     const { data: tokenData } = await supabase.rpc('get_meta_access_token', {
       p_workspace_id: auth.workspaceId,
-      p_encryption_key: META_TOKENS_ENCRYPTION_KEY,
+      p_encryption_key: env.META_TOKENS_ENCRYPTION_KEY!,
     });
 
     const accessToken = tokenData as string;

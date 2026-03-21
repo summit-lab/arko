@@ -8,9 +8,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { api401, api500 } from '@/lib/api/response';
 import crypto from 'crypto';
-
-const META_APP_ID = process.env.META_APP_ID!;
-const META_REDIRECT_URI = process.env.META_REDIRECT_URI!;
+import { env, getMetaRedirectUri } from '@/lib/env';
 
 const REQUIRED_SCOPES = [
   'instagram_basic',
@@ -55,8 +53,8 @@ export async function POST(request: Request) {
 
     // Build Meta OAuth URL (PRD 4.3 Step 1)
     const oauthUrl = new URL('https://www.facebook.com/v25.0/dialog/oauth');
-    oauthUrl.searchParams.set('client_id', META_APP_ID);
-    oauthUrl.searchParams.set('redirect_uri', META_REDIRECT_URI);
+    oauthUrl.searchParams.set('client_id', env.META_APP_ID!);
+    oauthUrl.searchParams.set('redirect_uri', getMetaRedirectUri());
     oauthUrl.searchParams.set('state', statePayload);
     oauthUrl.searchParams.set('response_type', 'code');
     oauthUrl.searchParams.set('scope', REQUIRED_SCOPES);

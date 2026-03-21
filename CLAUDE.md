@@ -65,6 +65,7 @@ Todo click o acción debe tener recompensa visual INMEDIATA. Sin excepción.
 | `docs/DB_SCHEMA.md` | Si se toca base de datos |
 | `docs/API_DOCS.md` | Si se toca endpoints/API |
 | `docs/SKILLS.md` | ANTES de implementar cualquier feature nueva |
+| `docs/05-environments-guide.md` | Si se toca: variables de entorno, URLs, ambientes, callbacks, env.ts |
 | `docs/features/team-collaboration.md` | Si se toca onboarding, GitHub, setup, trabajo en paralelo o guías operativas |
 | `docs/features/*.md` | El doc de la feature que se modifica |
 
@@ -77,4 +78,6 @@ Todo click o acción debe tener recompensa visual INMEDIATA. Sin excepción.
 | `.env.example` | `docs/features/team-collaboration.md` + `docs/03-security.md` |
 | `.github/PULL_REQUEST_TEMPLATE.md` | `docs/features/team-collaboration.md` |
 | `.windsurf/workflows/*.md` | `docs/features/team-collaboration.md` |
+| `src/lib/env.ts` | `docs/05-environments-guide.md` |
+| `.env.example` | `docs/05-environments-guide.md` + `docs/03-security.md` |
 | _(la IA agrega entradas conforme se crean features)_ | |

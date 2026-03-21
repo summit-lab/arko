@@ -9,8 +9,7 @@
  */
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
-
-const META_TOKENS_ENCRYPTION_KEY = process.env.META_TOKENS_ENCRYPTION_KEY!;
+import { env } from '@/lib/env';
 const GRAPH_API_VERSION = 'v25.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
@@ -119,7 +118,7 @@ export async function syncAdsMetrics(
 
     const { data: tokenData } = await supabase.rpc('get_meta_access_token', {
       p_workspace_id: workspaceId,
-      p_encryption_key: META_TOKENS_ENCRYPTION_KEY,
+      p_encryption_key: env.META_TOKENS_ENCRYPTION_KEY!,
     });
 
     const accessToken = tokenData as string;

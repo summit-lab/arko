@@ -32,6 +32,7 @@ arko/
 │   ├── DB_SCHEMA.md
 │   ├── API_DOCS.md
 │   ├── SKILLS.md
+│   ├── 05-environments-guide.md    # Guía de ambientes (local/staging/prod)
 │   └── features/                   # Un .md por funcionalidad
 │       └── team-collaboration.md   # Onboarding, GitHub, trabajo en paralelo e IA
 ├── src/

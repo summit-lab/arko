@@ -61,6 +61,8 @@ Cada integrante debe tener acceso a:
 - `.env.local` es local y privado
 - `.env.example` documenta TODAS las variables requeridas
 - cualquier variable nueva debe agregarse en ambos lugares: código + `.env.example` + documentación relevante
+- guía completa de ambientes y variables: `docs/05-environments-guide.md`
+- configuración centralizada en código: `src/lib/env.ts`
 
 ### 5.2 Clasificación operativa
 - **Públicas**: `NEXT_PUBLIC_*`
@@ -198,6 +200,8 @@ Una tarea queda realmente lista cuando:
 ## 13. Archivos Relacionados
 - `README.md`
 - `.env.example`
+- `docs/05-environments-guide.md`
+- `src/lib/env.ts`
 - `docs/01-project-overview.md`
 - `docs/02-architecture.md`
 - `docs/03-security.md`
