@@ -12,8 +12,8 @@ Arko es un SaaS analítico de alto valor que actúa como "Director de Marketing 
 ## Stack Técnico
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Frontend | React | 19.x |
-| Framework | Next.js (App Router) | 15.x |
+| Frontend | React | 19.2.3 |
+| Framework | Next.js (App Router) | 16.1.7 |
 | Backend | Next.js API Routes + Supabase Edge Functions | - |
 | Base de datos | Supabase (PostgreSQL) | - |
 | Estilos | TailwindCSS | 4.x |

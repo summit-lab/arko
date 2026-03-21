@@ -36,6 +36,25 @@
 3. **DOCUMENTACIÓN CONTINUA** — Actualizar docs + CHANGELOG después de cada cambio
 4. **SEGURIDAD** — Nunca deploy/push/cambios destructivos sin confirmación
 
+## UX Optimista (OBLIGATORIO en toda la app)
+Todo click o acción debe tener recompensa visual INMEDIATA. Sin excepción.
+
+### Reglas de Feedback Instantáneo
+| Acción | Feedback inmediato requerido |
+|--------|------------------------------|
+| Navegación entre páginas (sidebar) | `NavProgressBar` + estado activo optimista en sidebar |
+| Cambio de tab interno (ej: Reels→Posts) | `nav:start` event + `isPending` opacity en tabs |
+| Cambio de filtro (ej: 7d→90d) | `nav:start` event + opacity transition |
+| Botón de acción (sync, save, etc.) | Estado `loading` con spinner inmediato |
+| Click en cards/links | `cursor-pointer` + hover state visible |
+
+### Implementación estándar
+- **Navegación global**: `window.dispatchEvent(new Event("nav:start"))` antes de cualquier `router.push()`
+- **Progress bar**: `NavProgressBar` en `(dashboard)/layout.tsx` via `Suspense`
+- **Estado optimista**: `useTransition` + `isPending` para UI transitions
+- **Skeletons**: Cada ruta tiene su `loading.tsx` — deben matchear pixel-perfect el layout real
+- **Cursor**: Todo elemento interactivo tiene `cursor-pointer`
+
 ## Documentación del Proyecto
 | Doc | Cuándo leerlo |
 |-----|--------------|
@@ -46,6 +65,7 @@
 | `docs/DB_SCHEMA.md` | Si se toca base de datos |
 | `docs/API_DOCS.md` | Si se toca endpoints/API |
 | `docs/SKILLS.md` | ANTES de implementar cualquier feature nueva |
+| `docs/features/team-collaboration.md` | Si se toca onboarding, GitHub, setup, trabajo en paralelo o guías operativas |
 | `docs/features/*.md` | El doc de la feature que se modifica |
 
 ## Tabla de Lookup
@@ -53,4 +73,8 @@
 |------------------------|---------------------|
 | `src/app/api/**` | `docs/API_DOCS.md` + `docs/features/[feature].md` |
 | `supabase/migrations/*.sql` | `docs/DB_SCHEMA.md` |
+| `README.md` | `docs/features/team-collaboration.md` |
+| `.env.example` | `docs/features/team-collaboration.md` + `docs/03-security.md` |
+| `.github/PULL_REQUEST_TEMPLATE.md` | `docs/features/team-collaboration.md` |
+| `.windsurf/workflows/*.md` | `docs/features/team-collaboration.md` |
 | _(la IA agrega entradas conforme se crean features)_ | |

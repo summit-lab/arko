@@ -115,6 +115,7 @@
 # ├── DB_SCHEMA.md              ← Leer si se toca: tablas, columnas, migraciones, RLS
 # ├── API_DOCS.md               ← Leer si se toca: endpoints, API routes
 # ├── SKILLS.md                 ← Leer ANTES de implementar cualquier feature nueva
+# ├── features/team-collaboration.md ← Leer si se toca: onboarding, GitHub, setup, trabajo en paralelo o guías operativas
 # └── features/                 ← Leer el .md de la feature que se va a modificar
 #
 # CHANGELOG.md                   ← Historial de todos los cambios
@@ -129,3 +130,7 @@
 # src/services/auth.service.ts         → docs/features/auth.md + docs/03-security.md
 # supabase/migrations/*.sql            → docs/DB_SCHEMA.md
 # src/app/api/**                       → docs/API_DOCS.md + docs/features/[feature].md
+# README.md                            → docs/features/team-collaboration.md
+# .env.example                         → docs/features/team-collaboration.md + docs/03-security.md
+# .github/PULL_REQUEST_TEMPLATE.md     → docs/features/team-collaboration.md
+# .windsurf/workflows/*.md             → docs/features/team-collaboration.md

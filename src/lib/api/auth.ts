@@ -1,0 +1,58 @@
+/**
+ * API Auth helpers — Extract and validate user from request
+ * Used by all protected API routes
+ */
+
+import { createClient } from '@/lib/supabase/server';
+import { api401, api403 } from './response';
+
+interface AuthResult {
+  userId: string;
+  workspaceId: string;
+}
+
+/**
+ * Validate the request has a valid Supabase session and extract workspace_id.
+ * workspace_id comes from query param or header `x-workspace-id`.
+ */
+export async function authenticateRequest(
+  request: Request
+): Promise<AuthResult | Response> {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return api401();
+  }
+
+  // Get workspace_id from header or URL search params
+  const url = new URL(request.url);
+  const workspaceId =
+    request.headers.get('x-workspace-id') ||
+    url.searchParams.get('workspace_id');
+
+  if (!workspaceId) {
+    return api403('Falta workspace_id en la request');
+  }
+
+  // Verify user owns this workspace
+  const { data: workspace, error: wsError } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('id', workspaceId)
+    .eq('owner_id', user.id)
+    .single();
+
+  if (wsError || !workspace) {
+    return api403('No tienes acceso a este workspace');
+  }
+
+  return { userId: user.id, workspaceId };
+}
+
+/**
+ * Type guard to check if authenticateRequest returned an error Response
+ */
+export function isAuthError(result: AuthResult | Response): result is Response {
+  return result instanceof Response;
+}

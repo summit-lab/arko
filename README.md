@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Arko — AI Marketing Director
 
-## Getting Started
+Plataforma analítica para creadores y marcas personales que cruza métricas cuantitativas, datos cualitativos y análisis con IA en una sola operación de marketing.
 
-First, run the development server:
+## Repositorio Oficial
+
+- Proyecto: `arko`
+- Organización / usuario GitHub: `summit-lab`
+- Repositorio remoto: `https://github.com/summit-lab/arko.git`
+- Contacto operativo: `summit@nalify.marketing`
+
+## Stack Principal
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- TailwindCSS 4
+- shadcn/ui
+- Supabase (Auth, Postgres, Storage, Edge Functions)
+
+## Documentación Base
+
+Antes de tocar cualquier parte del proyecto, leer en este orden:
+
+1. `docs/01-project-overview.md`
+2. `docs/02-architecture.md`
+3. `docs/features/[feature].md`
+4. `docs/03-security.md` si se tocan credenciales, auth o permisos
+5. `docs/API_DOCS.md` si se tocan endpoints
+6. `docs/DB_SCHEMA.md` si se toca base de datos
+7. `docs/features/team-collaboration.md` para onboarding, GitHub y trabajo en paralelo
+
+## Setup Local
+
+### 1. Requisitos
+
+- Node.js 20+
+- npm 10+
+- Git
+- Acceso al proyecto Supabase del equipo
+
+### 2. Instalación
+
+```bash
+npm install
+```
+
+### 3. Variables de entorno
+
+Copiar el template y completar los valores reales:
+
+```bash
+cp .env.example .env.local
+```
+
+Si estás en Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Luego completar `.env.local` con las credenciales del ambiente correspondiente.
+
+### 4. Levantar el proyecto
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts Disponibles
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` — entorno local
+- `npm run build` — build de producción
+- `npm run start` — servir build
+- `npm run lint` — lint
+- `npx tsc --noEmit` — validación de tipos
 
-## Learn More
+## Flujo de Trabajo en Equipo
 
-To learn more about Next.js, take a look at the following resources:
+### Branches
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `main` → producción
+- `develop` → integración
+- `feature/*` → nuevas funcionalidades
+- `fix/*` → correcciones
+- `docs/*` → documentación
+- `chore/*` → mantenimiento técnico
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Flujo recomendado
 
-## Deploy on Vercel
+1. Actualizar `develop`
+2. Crear rama nueva desde `develop`
+3. Implementar el cambio
+4. Actualizar documentación y `CHANGELOG.md`
+5. Validar tipos/build
+6. Abrir Pull Request hacia `develop`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Más detalle en `docs/features/team-collaboration.md`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Trabajo con IA
+
+Este repo está preparado para asistentes como Windsurf, Cursor, Claude Code, Cline, Aider y GitHub Copilot.
+
+Archivos principales de reglas:
+
+- `.windsurfrules`
+- `.cursorrules`
+- `.clinerules`
+- `CLAUDE.md`
+- `.aider.conf.yml`
+- `.github/copilot-instructions.md`
+
+Regla clave: la IA debe leer documentación antes de modificar código.
+
+## Seguridad
+
+- No commitear `.env.local`
+- No pegar API keys reales en docs, PRs ni commits
+- `SUPABASE_SERVICE_ROLE_KEY` solo server-side
+- Si una credencial se expone, debe rotarse
+
+Ver `docs/03-security.md`.
+
+## Publicación del Repo
+
+Antes de compartir el repositorio con otro integrante:
+
+- verificar que `.env.example` no contenga valores reales
+- confirmar que `README.md` y docs estén actualizados
+- confirmar que `CHANGELOG.md` esté al día
+- revisar el flujo de ramas y PRs
+- dejar claros los accesos externos necesarios
+
+## Referencias Rápidas
+
+- Arquitectura: `docs/02-architecture.md`
+- Seguridad: `docs/03-security.md`
+- Deploy: `docs/04-deployment.md`
+- Colaboración: `docs/features/team-collaboration.md`
+- Historial: `CHANGELOG.md`

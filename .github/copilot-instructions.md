@@ -46,6 +46,7 @@
 | `docs/DB_SCHEMA.md` | Si se toca base de datos |
 | `docs/API_DOCS.md` | Si se toca endpoints/API |
 | `docs/SKILLS.md` | ANTES de implementar cualquier feature nueva |
+| `docs/features/team-collaboration.md` | Si se toca onboarding, GitHub, setup, trabajo en paralelo o guías operativas |
 | `docs/features/*.md` | El doc de la feature que se modifica |
 
 ## Tabla de Lookup
@@ -53,4 +54,8 @@
 |------------------------|---------------------|
 | `src/app/api/**` | `docs/API_DOCS.md` + `docs/features/[feature].md` |
 | `supabase/migrations/*.sql` | `docs/DB_SCHEMA.md` |
+| `README.md` | `docs/features/team-collaboration.md` |
+| `.env.example` | `docs/features/team-collaboration.md` + `docs/03-security.md` |
+| `.github/PULL_REQUEST_TEMPLATE.md` | `docs/features/team-collaboration.md` |
+| `.windsurf/workflows/*.md` | `docs/features/team-collaboration.md` |
 | _(la IA agrega entradas conforme se crean features)_ | |

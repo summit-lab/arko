@@ -16,6 +16,12 @@
 
 ## Variables de Entorno
 
+### Regla de publicación del repositorio
+- `.env.example` debe contener placeholders, nunca valores reales
+- `.env.local` nunca se commitea
+- ninguna credencial real debe aparecer en docs, PRs, issues o screenshots
+- antes de compartir el repo con terceros, revisar el diff y el historial reciente por exposición accidental
+
 ### Públicas (expuestas al cliente)
 | Variable | Riesgo si se expone | Mitigación |
 |----------|---------------------|------------|
@@ -28,6 +34,8 @@
 |----------|---------------------|------------|
 | `SUPABASE_SERVICE_ROLE_KEY` | CRÍTICO — bypass de RLS | Solo en server-side (API Routes, Edge Functions) |
 | `OPENAI_API_KEY` | ALTO — consumo de API con costo | Solo en server-side |
+| `APIFY_API_TOKEN` | ALTO — consumo de scraping/API con costo | Solo en server-side |
+| `GEMINI_API_KEY` | ALTO — consumo de API con costo | Solo en server-side |
 | `INSTAGRAM_CLIENT_SECRET` | ALTO — acceso a API de Instagram | Solo en server-side |
 | `YOUTUBE_API_KEY` | MEDIO — acceso a YouTube Data API | Solo en server-side |
 | `META_ADS_ACCESS_TOKEN` | ALTO — acceso a datos de Meta Ads | Solo en server-side |
@@ -41,6 +49,7 @@
 - SIEMPRE usar tipos para prevenir inyección
 - SIEMPRE usar prepared statements / query builders (Supabase client lo hace automáticamente)
 - SIEMPRE sanitizar datos de transcripciones y contenido externo antes de almacenar
+- SIEMPRE mantener proveedores externos de scraping como fuente complementaria y server-side, nunca desde el cliente
 
 ## Checklist de Seguridad Pre-Deploy
 - [ ] `.env.local` está en `.gitignore`
@@ -53,6 +62,13 @@
 - [ ] Input validation en todos los formularios (client + server)
 - [ ] Rate limiting en endpoints públicos
 - [ ] CORS configurado correctamente
+
+## Protocolo ante Exposición de Secretos
+- Rotar inmediatamente la credencial comprometida
+- Reemplazar cualquier valor real en `.env.example`, docs o archivos versionados
+- Confirmar que el secreto no siga presente en el diff actual
+- Documentar internamente el incidente si afectó a más integrantes del equipo
+- Confirmar que el equipo usa el nuevo secreto antes de seguir trabajando
 
 ## Datos Sensibles del Usuario
 - Tokens de APIs sociales (Instagram, YouTube, Meta Ads) → encriptados en DB

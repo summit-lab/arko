@@ -2,24 +2,40 @@
 
 **Base URL:** `/api/v1`
 **Autenticación:** Bearer Token (JWT via Supabase Auth)
-**Última actualización:** 2026-03-17 19:58
+**Última actualización:** 2026-03-18 00:30
+**PRD de referencia:** `docs/ARKO_PRD_INSTAGRAM_v1.md`
 
 ---
 
 ## Autenticación
 
-Endpoints protegidos requieren:
-```
-Authorization: Bearer {access_token}
-```
+Endpoints protegidos requieren sesión activa de Supabase Auth.
+Además, todos los endpoints protegidos requieren `workspace_id` via:
+- Header: `x-workspace-id`
+- Query param: `?workspace_id=...`
 
 ---
 
 ## Índice de Endpoints
 
-| Método | Ruta | Descripción | Auth |
-|--------|------|-------------|------|
-| GET | /api/v1/health | Estado del servidor | NO |
+| Método | Ruta | Descripción | Auth | PRD |
+|--------|------|-------------|------|-----|
+| GET | `/api/v1/health` | Estado del servidor | NO | — |
+| POST | `/api/v1/auth/meta/connect` | Iniciar OAuth de Meta | SI | 4.3 |
+| GET | `/api/v1/auth/meta/callback` | Callback OAuth de Meta | NO* | 4.3 |
+| GET | `/api/v1/workspaces` | Listar workspaces del usuario | SI | — |
+| POST | `/api/v1/workspaces` | Crear workspace | SI | — |
+| POST | `/api/v1/meta/explorer` | Ejecutar requests arbitrarias a Meta Graph API y devolver JSON crudo | SI | — |
+| GET | `/api/v1/reels` | Listar reels con métricas y badges | SI | 8.1 |
+| GET | `/api/v1/reels/[id]` | Ficha completa de un Reel | SI | 8.2 |
+| POST | `/api/v1/reels/[id]/arkoai-analyze` | Analizar Reel con ArkoAI y persistir resultado | SI | 8.2 |
+| POST | `/api/v1/reels/[id]/analyze` | Generar diagnóstico IA (bajo demanda) | SI | 9.3 |
+| GET | `/api/v1/dashboard/stats` | Stats agregados del dashboard | SI | 8.1 |
+| POST | `/api/v1/sync/instagram` | Trigger sync de IG + Ads | SI | 5.3 |
+| GET | `/api/v1/sync/status` | Estado de sync jobs | SI | — |
+| POST | `/api/v1/chat` | Chat analítico con grounding | SI | 8.3 |
+
+*El callback es redirigido por Meta, no requiere auth header pero valida state/CSRF.
 
 ---
 
@@ -27,32 +43,25 @@ Authorization: Bearer {access_token}
 
 ### Exitosa
 ```json
-{
-  "data": { },
-  "message": "Operación exitosa"
-}
+{ "data": { ... } }
 ```
 
 ### Paginada
 ```json
 {
-  "data": [ ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 100,
-    "totalPages": 10
-  }
+  "data": [ ... ],
+  "pagination": { "page": 1, "limit": 30, "total": 100, "totalPages": 4 }
 }
 ```
 
 ### Error
 ```json
-{
-  "error": "Tipo de error",
-  "message": "Descripción del error",
-  "details": { }
-}
+{ "error": "Bad Request", "message": "Descripción", "details": { } }
+```
+
+### Accepted (async)
+```json
+{ "data": { "job_id": "...", "status": "queued", "message": "..." } }
 ```
 
 ---
@@ -60,16 +69,82 @@ Authorization: Bearer {access_token}
 ## Endpoints
 
 ### Health Check
-
 **`GET /api/v1/health`** — Sin autenticación
 
-**Response 200:**
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-03-17T19:58:00Z"
-}
-```
+### Meta OAuth Connect
+**`POST /api/v1/auth/meta/connect`**
+- Body: `{ "workspace_id": "uuid" }`
+- Response: `{ "data": { "oauth_url": "https://facebook.com/..." } }`
+- El frontend redirige al usuario a `oauth_url`.
+
+### Meta OAuth Callback
+**`GET /api/v1/auth/meta/callback`**
+- Recibe `code` y `state` de Meta.
+- Intercambia por long-lived token, descubre assets (pages, IG account, ad accounts).
+- Persiste en `meta_connections` con tokens encriptados.
+- Redirige a `/onboarding?success=true`.
+
+### Workspaces
+**`GET /api/v1/workspaces`** — Lista workspaces del usuario.
+**`POST /api/v1/workspaces`** — Crea workspace. Body: `{ "name": "Mi Marca" }`.
+
+### Meta Explorer
+**`POST /api/v1/meta/explorer`**
+- Requiere `workspace_id` del workspace con conexión activa a Meta.
+- Body: `{ "path": "/{ig_account_id}/media", "params": { "fields": "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed,like_count,comments_count", "limit": "5" } }`
+- Reemplaza automáticamente placeholders de la conexión activa del workspace: `{ig_account_id}`, `{fb_user_id}`, `{fb_page_id}`, `{page_id}`.
+- Devuelve el JSON crudo de Meta junto con `meta_status`, `elapsed_ms`, `resolved_url` sanitizada y `connection_context` (`ig_business_account_id`, `ig_username`, `page_id`, `page_name`, `fb_user_id`).
+- La UI de `/meta` incluye presets alineados con la documentación actual de `/{media_id}/insights`, distinguiendo métricas activas versus deprecated y mostrando breakdowns válidos (`action_type`, `story_navigation_action_type`).
+- Uso previsto: debugging y descubrimiento de fields/metrics reales de Meta sin especular desde el código.
+
+### Reels (Listado)
+**`GET /api/v1/reels`**
+- Query: `workspace_id`, `page`, `limit`, `type`, `sort`, `order`
+- Response: `ReelCard[]` con `performer_multiple`, `is_top_performer`, `views_org/paid/total`
+
+### Reel (Detalle — Ficha)
+**`GET /api/v1/reels/[id]`**
+- Response: Reel completo + metrics + paid + transcript + narrative + visual + audio + diagnostics + benchmark
+- `computed` incluye además `reach_org/paid/total`, `impressions_org/paid/total`, `total_interactions`, `avg_watch_time_sec`, `watch_time_total_sec`, `paid_clicks`, `paid_video_plays`, `spend_cents`, `engagement_rate`, `paid_ctr`, `paid_cpm` y `paid_cpv`.
+- `paid_clicks` prioriza `outbound_clicks` o `inline_link_clicks` de Marketing API cuando Meta los devuelve; usa `clicks` genérico solo como fallback.
+- Si `APIFY_API_TOKEN` está configurado y el Reel es público, la respuesta incluye `external_public_data` con transcript público, view/play count públicos, shares públicas, hashtags, mentions, audio, tagged/coauthor usernames y últimos comentarios públicos.
+
+### Reel Analyze with ArkoAI
+**`POST /api/v1/reels/[id]/arkoai-analyze`**
+- Requiere `video_url` pública en el body: `{ "video_url": "https://...mp4" }`.
+- Ejecuta análisis completo con ArkoAI sobre el video.
+- Persiste el resultado en `reel_transcripts`, `reel_narrative_analysis`, `reel_visual_analysis` y `reel_audio_analysis` reutilizando las tablas analíticas existentes.
+- La ruta anterior se mantiene como alias interno por compatibilidad, pero la UI debe usar `arkoai-analyze`.
+- Response 200: `{ "data": { "analysis": { ... } } }`
+
+### Reel Analyze (Diagnóstico IA)
+**`POST /api/v1/reels/[id]/analyze`**
+- Requiere transcripción completada.
+- Crea `reel_diagnostics` en estado `pending`.
+- Response 202: `{ "diagnostic_id": "...", "status": "pending" }`
+
+### Dashboard Stats
+**`GET /api/v1/dashboard/stats`**
+- Response: `total_reels`, `total_views`, `avg_views`, `total_views_org/paid`, `top_performers_count`, `benchmark`
+
+### Sync Instagram
+**`POST /api/v1/sync/instagram`**
+- Requiere `meta_connections` activa.
+- Crea `sync_jobs` en estado `queued`.
+- Cuando corre `steps=all` o `steps=media`, además de sincronizar Reels y Ads recalcula el snapshot persistido `reel_benchmarks` del workspace para que la ficha lea promedios de cuenta ya materializados.
+- Response 200: `{ "data": { "status", "reels", "ads", "benchmark", "account", "errors" } }`
+
+### Sync Status
+**`GET /api/v1/sync/status`**
+- Query: `workspace_id`, `job_id` (opcional)
+- Response: último(s) sync job(s)
+
+### Chat Analítico
+**`POST /api/v1/chat`**
+- Body: `{ "workspace_id", "session_id?", "message", "context_reel_ids?" }`
+- Grounding: consulta benchmark + últimos 20 reels + narrative analysis.
+- Audit log automático por cada respuesta.
+- Response: `{ "session_id", "message": { "id", "role", "content", "created_at" } }`
 
 ---
 
@@ -79,7 +154,7 @@ Authorization: Bearer {access_token}
 |--------|-------------|
 | 400 | Datos inválidos |
 | 401 | Token inválido/expirado |
-| 403 | Sin permisos |
+| 403 | Sin permisos / workspace inválido |
 | 404 | No encontrado |
 | 429 | Rate limit excedido |
 | 500 | Error del servidor |
