@@ -4,10 +4,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  HeartIcon, BookmarkSimpleIcon, ChatCircleIcon, ShareNetworkIcon,
-  PlayIcon, ClockIcon, ArrowUpRightIcon, MegaphoneIcon, WarningIcon,
-  UserPlusIcon, CaretDownIcon, ArrowsDownUpIcon, CheckIcon,
-} from "@phosphor-icons/react";
+  Heart, Bookmark, MessageCircle, Share2,
+  Play, Clock, ArrowUpRight, Megaphone, AlertTriangle,
+  UserPlus, ChevronDown, ArrowUpDown, Check,
+} from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ function Select({
         className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/8"
       >
         <span>{selected?.label}</span>
-        <CaretDownIcon size={12} weight="bold" className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} strokeWidth={2.5} className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
@@ -117,7 +117,7 @@ function Select({
               }`}
             >
               <span>{o.label}</span>
-              {o.value === value && <CheckIcon size={12} weight="bold" className="text-white" />}
+              {o.value === value && <Check size={12} strokeWidth={2.5} className="text-white" />}
             </button>
           ))}
         </div>
@@ -243,7 +243,7 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
             className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-zinc-200 text-[11px] font-medium rounded-lg px-3 py-1.5 hover:bg-white/8 hover:border-white/20 transition-colors"
           >
-            <ArrowsDownUpIcon size={12} weight="bold" />
+            <ArrowUpDown size={12} strokeWidth={2.5} />
             {sortDir === "desc" ? "Mayor → Menor" : "Menor → Mayor"}
           </button>
 
@@ -331,13 +331,13 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
                   <img src={reel.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <PlayIcon size={20} weight="fill" className="text-white/10" />
+                    <Play size={20} className="text-white/10" />
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/30" />
                 {/* Duration */}
                 <div className="absolute bottom-1.5 left-1 right-1 flex items-center justify-center gap-0.5 rounded bg-black/70 py-0.5 text-[8px] text-white/70 backdrop-blur-sm">
-                  <ClockIcon size={7} weight="fill" />
+                  <Clock size={7} />
                   {durationStr}
                 </div>
               </div>
@@ -353,16 +353,16 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
                     )}
                     {reel.reel_type === "trial_likely" && (
                       <span className="flex items-center gap-0.5 rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[9px] leading-none text-amber-300">
-                        <WarningIcon size={8} weight="fill" />Trial
+                        <AlertTriangle size={8} />Trial
                       </span>
                     )}
                     {isPromotedReel && (
                       <span className="flex items-center gap-0.5 rounded border border-purple-500/30 bg-purple-500/15 px-1.5 py-0.5 text-[9px] leading-none text-purple-300">
-                        <MegaphoneIcon size={8} weight="fill" />Ads
+                        <Megaphone size={8} />Ads
                       </span>
                     )}
                   </div>
-                  <ArrowUpRightIcon size={12} className="shrink-0 text-zinc-600 group-hover:text-white transition-colors" />
+                  <ArrowUpRight size={12} className="shrink-0 text-zinc-600 group-hover:text-white transition-colors" />
                 </div>
 
                 {/* Título */}
@@ -395,19 +395,19 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
                 {/* Métricas discretas */}
                 <div className="flex items-center gap-3 border-t border-white/[0.05] pt-2">
                   {[
-                    { value: reel.likes, icon: HeartIcon, color: "text-zinc-500" },
-                    { value: reel.saves, icon: BookmarkSimpleIcon, color: "text-zinc-500" },
-                    { value: reel.comments, icon: ChatCircleIcon, color: "text-zinc-500" },
-                    { value: reel.shares, icon: ShareNetworkIcon, color: "text-zinc-500" },
+                    { value: reel.likes, icon: Heart, color: "text-zinc-500" },
+                    { value: reel.saves, icon: Bookmark, color: "text-zinc-500" },
+                    { value: reel.comments, icon: MessageCircle, color: "text-zinc-500" },
+                    { value: reel.shares, icon: Share2, color: "text-zinc-500" },
                   ].map((m, i) => (
                     <div key={i} className="flex items-center gap-1">
-                      <m.icon size={10} weight="fill" className={m.color} />
+                      <m.icon size={10} strokeWidth={1.5} className={m.color} />
                       <span className="text-[10px] text-zinc-500">{formatNumber(m.value)}</span>
                     </div>
                   ))}
                   {reel.follows > 0 && (
                     <div className="ml-auto flex items-center gap-1 text-[9px] text-cyan-500">
-                      <UserPlusIcon size={9} weight="fill" />
+                      <UserPlus size={9} strokeWidth={1.5} />
                       +{reel.follows}
                     </div>
                   )}

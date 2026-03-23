@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { RefreshCw } from "lucide-react";
 
 interface SyncButtonProps {
   workspaceId: string;
@@ -55,7 +55,7 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
         className="flex items-center gap-1.5 text-[13px] font-medium text-white/70 hover:text-white px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
         style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.05)" }}
       >
-        <ArrowsClockwiseIcon size={14} className={loading ? "animate-spin" : ""} />
+        <RefreshCw size={14} strokeWidth={2} className={loading ? "animate-spin" : ""} />
         {loading ? "Sincronizando..." : "Sincronizar"}
       </button>
       {result?.status === "error" && result.errors?.[0] && (

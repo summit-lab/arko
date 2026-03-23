@@ -4,24 +4,24 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useTransition, useCallback } from "react";
 import {
-  SquaresFourIcon,
-  InstagramLogoIcon,
-  YoutubeLogoIcon,
-  MegaphoneIcon,
-  UsersIcon,
-  RobotIcon,
-  GearIcon,
-  SignOutIcon,
-} from "@phosphor-icons/react";
+  LayoutGrid,
+  Instagram,
+  Youtube,
+  Megaphone,
+  Users,
+  Bot,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 
 const navItems = [
-  { name: "Dashboard",        href: "/",               icon: SquaresFourIcon },
-  { name: "Instagram",        href: "/instagram",      icon: InstagramLogoIcon },
-  { name: "YouTube",          href: "/youtube",        icon: YoutubeLogoIcon },
-  { name: "Ads Intelligence", href: "/ads",            icon: MegaphoneIcon },
-  { name: "Customer Voice",   href: "/customer-voice", icon: UsersIcon },
-  { name: "AI Agents",        href: "/agents",         icon: RobotIcon },
+  { name: "Dashboard",        href: "/",               icon: LayoutGrid },
+  { name: "Instagram",        href: "/instagram",      icon: Instagram },
+  { name: "YouTube",          href: "/youtube",        icon: Youtube },
+  { name: "Ads Intelligence", href: "/ads",            icon: Megaphone },
+  { name: "Customer Voice",   href: "/customer-voice", icon: Users },
+  { name: "AI Agents",        href: "/agents",         icon: Bot },
 ];
 
 export function Sidebar() {
@@ -100,7 +100,7 @@ export function Sidebar() {
             >
               <item.icon
                 size={20}
-                weight={isActive ? "fill" : "regular"}
+                strokeWidth={isActive ? 2.5 : 1.5}
                 className="transition-colors relative z-10 shrink-0"
                 style={{ color: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.45)" }}
               />
@@ -142,7 +142,7 @@ export function Sidebar() {
           onClick={(e) => handleNav("/settings", e)}
           className="group relative flex items-center gap-3 px-3 h-[32px] rounded-lg transition-all duration-200 hover:bg-white/[0.03]"
         >
-          <GearIcon size={16} weight="regular" className="text-white/40 transition-colors group-hover:text-white/70" />
+          <Settings size={16} strokeWidth={1.5} className="text-white/40 transition-colors group-hover:text-white/70" />
           <span className="text-[14px] tracking-wide font-normal text-white/40 transition-colors group-hover:text-white/70">Settings</span>
         </Link>
 
@@ -151,7 +151,7 @@ export function Sidebar() {
             type="submit"
             className="w-full relative flex items-center gap-3 px-3 h-[32px] rounded-lg transition-all duration-200 hover:bg-red-500/[0.05] text-red-400/60 hover:text-red-400"
           >
-            <SignOutIcon size={16} weight="regular" />
+            <LogOut size={16} strokeWidth={1.5} />
             <span className="text-[14px] tracking-wide font-normal">Log out</span>
           </button>
         </form>

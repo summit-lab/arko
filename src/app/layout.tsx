@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Montserrat } from "next/font/google";
-import { SmoothScroll } from "@/components/providers/SmoothScroll";
 import "./globals.css";
 
 const shAdGrotesk = localFont({
@@ -29,9 +28,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className={`${montserrat.className} ${shAdGrotesk.variable} antialiased bg-black text-white`}>
-        <SmoothScroll>
-          {children}
-        </SmoothScroll>
+        {children}
       </body>
     </html>
   );
