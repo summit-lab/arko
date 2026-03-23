@@ -98,6 +98,7 @@ Nadie tiene que cambiar código. Solo cambian las variables.
 | `GEMINI_API_KEY` | Si trabajás con análisis de video (Gemini) |
 | `APIFY_API_TOKEN` | Si trabajás con enriquecimiento de Reels |
 | `YOUTUBE_API_KEY` | Si trabajás con YouTube Intelligence |
+| `SYNC_SECRET` | Obligatoria — autentica llamadas a Supabase Edge Functions |
 
 Si no estás trabajando en esa feature, no necesitás esa variable.
 La app arranca igual sin las opcionales.

@@ -54,6 +54,17 @@ Módulo que conecta con la cuenta de Instagram del usuario y analiza los Reels e
 - Transcripción de audio vía OpenAI Whisper.
 - Análisis cualitativo vía GPT-4.
 
+## Arquitectura de Sync — Supabase Edge Functions
+
+El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagram`) para evitar costos de Vercel Functions:
+
+- **Next.js route** (`/api/v1/sync/instagram`) actúa como thin proxy: autentica al usuario y delega el trabajo pesado a la Edge Function via `supabase.functions.invoke()`.
+- **Edge Function** (`supabase/functions/sync-instagram/index.ts`) ejecuta todo el sync: media fetch, insights, ads, benchmarks, account insights y enriquecimiento de duración.
+- **Autenticación**: header `x-sync-secret` valida que la llamada viene del proxy autorizado.
+- **Costo**: $0 (Supabase incluye 500K invocaciones/mes gratis).
+- **Secrets requeridos en Supabase**: `SYNC_SECRET`, `META_TOKENS_ENCRYPTION_KEY`, `APIFY_API_TOKEN`.
+- Los archivos en `src/services/` (instagram-sync, ads-sync, ig-account-sync, reel-benchmarks) quedan como referencia pero ya no se invocan directamente.
+
 ## Notas Técnicas de Métricas
 - Para Reel media insights, Meta sí expone `views`, `reach`, `likes`, `comments`, `shares`, `saved`, `total_interactions`, `ig_reels_avg_watch_time` e `ig_reels_video_view_total_time`.
 - Para Reel media insights, Meta no expone `profile_visits`, `follows` ni `profile_activity`; cuando no existan fuentes alternativas, la UI debe mostrarlos como no disponibles y no como `0` falso.

@@ -140,6 +140,32 @@ Las siguientes migraciones fueron aplicadas en orden a Prod Arko y Dev Arko:
 
 ---
 
+## [0.9.0] — 2026-03-23
+
+### Added — Migración de Instagram Sync a Supabase Edge Functions
+
+- `supabase/functions/sync-instagram/index.ts` — Edge Function completa que ejecuta el sync de Instagram (media, insights, ads, benchmarks, account insights, duración Apify). Reemplaza la ejecución pesada en Vercel Functions para eliminar costos de invocación.
+- `supabase/functions/_shared/supabase-client.ts` — Cliente Supabase con service-role para Deno Edge Functions.
+- `supabase/functions/_shared/types.ts` — Tipos compartidos para las Edge Functions.
+- `SYNC_SECRET` — Nueva variable de entorno para autenticar llamadas del proxy Next.js a la Edge Function.
+
+### Changed — Thin Proxy en Next.js
+
+- `src/app/api/v1/sync/instagram/route.ts` — Reescrito como thin proxy: solo autentica y delega a la Edge Function via `supabase.functions.invoke()`. Reduce la ejecución en Vercel a ~1s (auth only).
+- `src/lib/env.ts` — Agregada `SYNC_SECRET` al schema de validación.
+- `.env.example` — Agregada `SYNC_SECRET` con instrucciones de generación.
+- `docs/features/ig-intelligence.md` — Documentada la nueva arquitectura de sync con Edge Functions.
+
+### Motivation
+
+- Vercel Functions cobraba ~$0.60 por 12 invocaciones (~$1/hora con 1 usuario activo), insostenible a escala.
+- Supabase Edge Functions son gratis (500K invocaciones/mes incluidas) y no tienen límite de duración como Vercel.
+
+### Request original
+> elimina lo de vercel ahora, y haz lo de supabase
+
+---
+
 ## [0.8.1] — 2026-03-21
 
 ### Added — Guía maestra de GitHub para humanos e IA
