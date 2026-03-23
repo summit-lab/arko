@@ -38,6 +38,9 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   APIFY_API_TOKEN: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
+
+  // ─── Supabase Edge Function sync secret ───
+  SYNC_SECRET: z.string().optional(),
 });
 
 // ─── Parsear y validar ───────────────────────────────────────────────────────
@@ -56,6 +59,7 @@ function parseEnv() {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     APIFY_API_TOKEN: process.env.APIFY_API_TOKEN,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
+    SYNC_SECRET: process.env.SYNC_SECRET,
   });
 
   if (!result.success) {

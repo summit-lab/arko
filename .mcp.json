@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "arko": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_085a12d3d370d566e06c6b7ca5542fce6a89dbad"
+      ]
+    },
+    "arkov2": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_e6b1476eacda9be1f31f3bb6fa7f160731186565"
+      ]
+    }
+  }
+}

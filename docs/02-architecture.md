@@ -25,17 +25,29 @@
 ```
 arko/
 ├── docs/                           # Documentación (Método AInnovate)
-│   ├── 01-project-overview.md
-│   ├── 02-architecture.md
-│   ├── 03-security.md
-│   ├── 04-deployment.md
-│   ├── DB_SCHEMA.md
-│   ├── API_DOCS.md
-│   ├── SKILLS.md
-│   ├── 05-environments-guide.md    # Guía de ambientes (local/staging/prod)
-│   ├── 06-github-stages-databases-guide.md # Guía maestra de GitHub del proyecto
+│   ├── 01-project-overview.md      # Visión, stack, módulos, estado
+│   ├── 02-architecture.md          # Estructura, convenciones, ADRs
+│   ├── 03-security.md              # Auth, credenciales, RLS
+│   ├── 04-deployment.md            # Deploy, CI/CD, Vercel
+│   ├── 05-environments-guide.md    # Ambientes, variables, env.ts
+│   ├── 06-github-stages-databases-guide.md # GitHub, ramas, staging, Supabase
+│   ├── 07-mcp-guide.md             # MCPs conectados (Supabase)
+│   ├── 08-design-system.md         # Glassmorphism, tipografía, estilos
+│   ├── DB_SCHEMA.md                # Schema de DB, tablas, RLS, migraciones
+│   ├── API_DOCS.md                 # Endpoints, contratos
+│   ├── SKILLS.md                   # Skills y MCP servers disponibles
+│   ├── ARKO_PRD_INSTAGRAM_v1.md    # PRD completo de Instagram Intelligence
+│   ├── ADR-005-prd-technical-decisions.md # Decisiones técnicas del PRD
+│   ├── skills/                     # Docs de skills especializadas
+│   │   └── meta-api-expert.md
 │   └── features/                   # Un .md por funcionalidad
-│       └── team-collaboration.md   # Onboarding, GitHub, trabajo en paralelo e IA
+│       ├── team-collaboration.md   # Onboarding, GitHub, trabajo en paralelo e IA
+│       ├── ig-intelligence.md      # Instagram Intelligence
+│       ├── yt-intelligence.md      # YouTube Intelligence
+│       ├── ads-intelligence.md     # Ads Intelligence
+│       ├── customer-voice.md       # Customer Voice
+│       ├── ai-agents.md            # Agentes de IA (chat)
+│       └── dashboard-layout.md     # Layout del dashboard
 ├── src/
 │   ├── app/                        # App Router (páginas y layouts)
 │   │   ├── (auth)/                 # Grupo de rutas de auth (login, register)
@@ -88,8 +100,9 @@ arko/
 ├── .aider.conf.yml                 # Reglas para IA (Aider)
 ├── .github/
 │   ├── copilot-instructions.md     # Reglas para IA (GitHub Copilot)
-│   ├── workflows/                  # GitHub Actions (CI de lint, types y build)
-│   └── PULL_REQUEST_TEMPLATE.md    # Template estándar de Pull Requests
+│   ├── AI_GIT_WORKFLOW.md          # Flujo git completo para la IA
+│   ├── PULL_REQUEST_TEMPLATE.md    # Template estándar de Pull Requests
+│   └── workflows/                  # GitHub Actions (CI de lint, types y build)
 ├── .windsurf/
 │   └── workflows/                  # Workflows operativos reutilizables por IA/equipo
 ├── CHANGELOG.md                    # Historial de cambios

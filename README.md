@@ -20,15 +20,16 @@ Plataforma analítica para creadores y marcas personales que cruza métricas cua
 
 ## Documentación Base
 
+El hub central de documentación es `CLAUDE.md` — ahí está el router completo a todos los docs.
+
 Antes de tocar cualquier parte del proyecto, leer en este orden:
 
-1. `docs/01-project-overview.md`
-2. `docs/02-architecture.md`
-3. `docs/features/[feature].md`
-4. `docs/03-security.md` si se tocan credenciales, auth o permisos
-5. `docs/API_DOCS.md` si se tocan endpoints
-6. `docs/DB_SCHEMA.md` si se toca base de datos
-7. `docs/features/team-collaboration.md` para onboarding, GitHub y trabajo en paralelo
+1. `CLAUDE.md` — reglas, router de docs, flujo git, autogestión
+2. `docs/01-project-overview.md` — visión, stack, estado
+3. `docs/02-architecture.md` — estructura, convenciones
+4. `docs/features/[feature].md` — la feature que se va a tocar
+5. `docs/03-security.md` — si se tocan credenciales, auth o permisos
+6. `docs/07-mcp-guide.md` — si se va a consultar la DB o generar migraciones
 
 ## Setup Local
 
@@ -137,9 +138,14 @@ Antes de compartir el repositorio con otro integrante:
 
 ## Referencias Rápidas
 
+- Hub central (router): `CLAUDE.md`
 - Arquitectura: `docs/02-architecture.md`
 - Seguridad: `docs/03-security.md`
 - Deploy: `docs/04-deployment.md`
 - Ambientes: `docs/05-environments-guide.md`
+- GitHub y flujo operativo: `docs/06-github-stages-databases-guide.md`
+- MCP (acceso a Supabase): `docs/07-mcp-guide.md`
+- Design system: `docs/08-design-system.md`
 - Colaboración: `docs/features/team-collaboration.md`
+- Flujo git para IA: `.github/AI_GIT_WORKFLOW.md`
 - Historial: `CHANGELOG.md`

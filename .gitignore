@@ -34,9 +34,14 @@ yarn-error.log*
 .env*
 !.env.example
 
+# MCP config (contiene tokens — no commitear)
+.mcp.json
+
 # vercel
 .vercel
+.vercel-env-*.env
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+supabase/.temp/

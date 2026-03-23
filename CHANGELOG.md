@@ -1,7 +1,168 @@
 # Changelog — Arko
-
+ 
 > Formato: [Semantic Versioning](https://semver.org/)
 > Cada entrada incluye: fecha, tipo, archivos afectados, request original.
+ 
+---
+ 
+## [0.9.6] — 2026-03-23
+
+### Enhanced — Benchmark extendido con métricas compuestas + UPSERT
+
+- **5 métricas nuevas en `reel_benchmarks`:** `avg_engagement_rate`, `avg_retention_rate`, `avg_duration_seconds`, `avg_reach_per_view`, `avg_saves_per_reach`.
+- **INSERT → UPSERT:** `reel_benchmarks` ahora mantiene solo 1 fila por workspace (UNIQUE en `workspace_id`). Cada sync sobrescribe el snapshot anterior en vez de acumular filas.
+- **UPDATE RLS policy** agregada para soportar UPSERT.
+- **Service actualizado:** `reel-benchmarks.service.ts` calcula las 5 métricas nuevas y usa `upsert(..., { onConflict: 'workspace_id' })`.
+- **Types actualizados:** `ReelBenchmark` en `database.ts` incluye las nuevas columnas.
+- **Ficha [id]** consume `avg_engagement_rate`, `avg_retention_rate`, `avg_duration_seconds`, `avg_reach_per_view` del benchmark de DB.
+- **Grilla /instagram** ya usaba benchmark de DB (single source of truth desde v0.9.5).
+
+#### Archivos afectados
+- `supabase/migrations/20260323000011_benchmark_extended_metrics_upsert.sql` (nuevo)
+- `src/services/reel-benchmarks.service.ts` (modificado por Windsurf)
+- `src/types/database.ts` (modificado por Windsurf)
+- `src/app/(dashboard)/instagram/[id]/page.tsx` (modificado por Windsurf)
+- `docs/DB_SCHEMA.md` (actualizado)
+
+#### Migración aplicada en
+- DEV (`hrsvglgswatwklivkoyp`) — aplicada por Windsurf
+- PROD (`zphvrohosizkbrnxtppj`) — aplicada por Claude Code via MCP
+
+### Request original
+> Agregar avg_engagement_rate, avg_retention_rate, avg_duration_seconds, avg_reach_per_view, avg_saves_per_reach al benchmark. Cambiar INSERT a UPSERT. Unificar grilla para usar benchmark de DB. Actualizar consumidores UI.
+
+---
+
+## [0.9.5] — 2026-03-23
+
+### Changed — Sync performance v2: paralelización completa + auto-sync en segundo plano
+
+- **`src/services/instagram-sync.service.ts`** — insights de media ahora se fetchean en paralelo con `runConcurrent()` (concurrency=5) en vez de secuencial. Apify corre en paralelo (concurrency=3). Límite de insights subido de 30 a 50. Límite de Apify subido de 5 a 10.
+- **`src/app/api/v1/sync/instagram/route.ts`** — Ads sync + Account insights ahora corren en paralelo después de media sync, en vez de secuencialmente. Benchmark se calcula al final con datos completos.
+- **`src/lib/concurrency.ts`** — nueva utilidad `runConcurrent()` con worker pool controlado para ejecutar tareas async con concurrencia limitada sin exceder rate limits.
+- **`src/app/api/v1/sync/cron/route.ts`** — nuevo endpoint `GET /api/v1/sync/cron` para sincronización automática en segundo plano. Itera todos los workspaces activos y ejecuta full sync. Protegido por `CRON_SECRET`.
+- **`vercel.json`** — configuración de Vercel Cron para ejecutar background sync cada 6 horas (`0 */6 * * *`).
+- **`src/lib/env.ts`** — agregada variable `CRON_SECRET` al schema de validación.
+- **`.env.example`** — documentada `CRON_SECRET` para producción.
+- **`docs/features/ig-intelligence.md`** / **`docs/API_DOCS.md`** — documentación actualizada con secciones de performance v2, background sync y nuevo endpoint cron.
+
+### Request original
+> fueron unos 200 segundos de sincronización inicial, hay forma de acelerar eso? [...] necesito que las métricas se sincronizen solas en segundo plano cada x tiempo
+
+---
+
+## [0.9.4] — 2026-03-23
+ 
+### Added — Desconexión manual de cuenta Instagram/Meta desde Settings
+ 
+- **`src/app/api/v1/auth/meta/disconnect/route.ts`** — nuevo endpoint para desconectar una cuenta Meta del workspace autenticado limpiando tokens, permisos e identificadores sensibles y dejando el estado en `revoked`.
+- **`src/components/meta/DisconnectMetaButton.tsx`** — nuevo botón client-side con confirmación, estado loading y refresh inmediato de la UI.
+- **`src/app/(dashboard)/settings/page.tsx`** — Settings ahora muestra una acción explícita para desconectar la cuenta activa y volver a probar o reconectar otra cuenta.
+- **`docs/features/ig-intelligence.md`** / **`docs/API_DOCS.md`** — documentación actualizada para reflejar el nuevo flujo de desconexión.
+ 
+### Request original
+> bien, ahora necesito un botón de desconectar la cuenta de instagram. para volver a probar el test y que quede ya porque quizas unna persona la quiere desconectar
+ 
+---
+ 
+## [0.9.3] — 2026-03-23
+ 
+### Added — Primera sincronización automática de Instagram con pantalla de bootstrap
+ 
+- **`src/app/api/v1/auth/meta/callback/route.ts`** — después de conectar Meta exitosamente, el usuario ya no vuelve a una vista vacía; ahora entra a un flujo de bootstrap de Instagram.
+- **`src/app/(dashboard)/instagram/bootstrap/page.tsx`** — nueva pantalla protegida para la preparación inicial del workspace después de conectar una cuenta.
+- **`src/components/instagram/InitialInstagramSyncScreen.tsx`** — nueva experiencia visual de primera sincronización con loader, progreso estimado, etapas descriptivas y manejo de error/reintento.
+- **Primera sync automática** — el bootstrap dispara `POST /api/v1/sync/instagram` automáticamente para traer contenido histórico, métricas de cuenta y benchmark inicial sin requerir acción manual del usuario.
+- **`docs/features/ig-intelligence.md`** / **`docs/API_DOCS.md`** — documentación actualizada para reflejar el nuevo flujo post-conexión.
+ 
+### Request original
+> como podemos manejar la primser sincronización de un usuario? me gustaría que como va a demorar bastante en traer toda la info de los ultimos 90 días que se comienze automáticamente al conectar cualquier cuenta, ahora vamos con IG pero que mientras lo haga que aparezca una buena pantalla de carga con loadres, y textos de que está haciendo
+ 
+---
+ 
+## [0.9.2] — 2026-03-23
+ 
+### Fixed — Login de Instagram no queda trabado en `pending`
+ 
+- **`src/app/api/v1/auth/meta/callback/route.ts`** — el callback de Meta ahora marca la conexión como `error` cuando el OAuth falla, el usuario cancela, faltan parámetros o no existe una cuenta de Instagram Business válida. Antes podía quedar en `pending` y generar una UX confusa.
+- **`src/app/api/v1/auth/meta/connect/route.ts`** — al reiniciar el login limpia `last_error` anterior para que el nuevo intento arranque limpio.
+- **`src/app/(dashboard)/settings/page.tsx`** — Settings ahora trata la conexión como binaria a nivel visual: solo `active` se muestra como conectada; cualquier otro estado se muestra como no conectada con CTA para reintentar.
+- **`src/app/(dashboard)/onboarding/page.tsx`** — Onboarding ahora muestra errores legibles de Meta y mantiene disponible el botón para reiniciar el login cuando la conexión no está activa.
+- **`docs/features/ig-intelligence.md`** / **`docs/API_DOCS.md`** — documentación actualizada para reflejar el flujo correcto de reintento y errores del OAuth de Meta.
+ 
+### Request original
+> quiero que arregles esto, no se porque cuando no se logra loguear dice pendiente pero no me deja rieniciar nuevamente el login de instagram. no se si debería exioster el estado pendiente, o está conectada o no
+ 
+---
+ 
+## [0.9.1] — 2026-03-23
+ 
+### Fixed — Auto-creación de workspace al registrarse (fix "workspace_id is required")
+ 
+- **`handle_new_user()` trigger actualizado** — ahora crea automáticamente un workspace + workspace_member al registrarse un usuario nuevo. Antes solo creaba el profile, lo que causaba el error "workspace_id is required" al intentar conectar Instagram.
+- **Backfill incluido** — usuarios existentes sin workspace recibieron uno automáticamente al aplicar la migración.
+- **ConnectMetaButton** — ahora se deshabilita si no hay workspaceId y muestra un mensaje informativo en vez de fallar silenciosamente.
+ 
+#### Archivos afectados
+- `supabase/migrations/20260323000010_auto_create_workspace_on_signup.sql` (nuevo)
+- `src/components/meta/ConnectMetaButton.tsx` (modificado)
+- `docs/DB_SCHEMA.md` (actualizado)
+ 
+#### Migración aplicada en
+- DEV (`hrsvglgswatwklivkoyp`) via MCP
+- PROD (`zphvrohosizkbrnxtppj`) via MCP
+ 
+### Request original
+> workspace_id is required me da este error al querer abrir la cuenta de IG, que falta?
+ 
+---
+ 
+## [0.9.0] — 2026-03-23
+ 
+### Added — Migración a nuevos proyectos Supabase (arkov2)
+ 
+- **Prod Arko** (`zphvrohosizkbrnxtppj`, us-east-2) — nuevo proyecto Supabase de producción. Schema completo aplicado con las 11 migraciones.
+- **Dev Arko** (`hrsvglgswatwklivkoyp`, us-west-2) — nuevo proyecto Supabase de desarrollo/staging. Schema completo aplicado con las 11 migraciones.
+- `.mcp.json` — agregado servidor MCP `arkov2` apuntando a los nuevos proyectos.
+
+### Changed — Variables de entorno actualizadas a los nuevos proyectos
+
+- `.env.example` — actualizado con URLs y anon keys de Dev Arko y Prod Arko. Los valores de Dev Arko son los predeterminados para local.
+- `docs/05-environments-guide.md` — actualizada la matriz de ambientes y agregada tabla de claves por proyecto.
+- `docs/06-github-stages-databases-guide.md` — actualizada la sección 6.1 con los IDs reales de los proyectos Supabase.
+
+### Infra — Migraciones aplicadas a ambos proyectos nuevos
+Las siguientes migraciones fueron aplicadas en orden a Prod Arko y Dev Arko:
+`core_infrastructure` → `meta_connections` → `reels_and_metrics` → `ai_pipeline` → `chat` → `sync_and_rls` → `auth_profiles_members` → `reel_metrics_watch_time` → `ig_account_insights` → `add_account_insights_job_type` → `get_meta_access_token_rpc`
+
+### Request original
+> necesito migrar lo que tenemos en arko en supabase a estos dos nuevos proyectos. por ahora solo migra las tablas, relaciones etc. haz un espejo tal cual de lo que tenemos. y hay que cambiar las claves para que apunten al nuevo proyecto.
+
+---
+
+## [0.9.0] — 2026-03-23
+
+### Added — Migración de Instagram Sync a Supabase Edge Functions
+
+- `supabase/functions/sync-instagram/index.ts` — Edge Function completa que ejecuta el sync de Instagram (media, insights, ads, benchmarks, account insights, duración Apify). Reemplaza la ejecución pesada en Vercel Functions para eliminar costos de invocación.
+- `supabase/functions/_shared/supabase-client.ts` — Cliente Supabase con service-role para Deno Edge Functions.
+- `supabase/functions/_shared/types.ts` — Tipos compartidos para las Edge Functions.
+- `SYNC_SECRET` — Nueva variable de entorno para autenticar llamadas del proxy Next.js a la Edge Function.
+
+### Changed — Thin Proxy en Next.js
+
+- `src/app/api/v1/sync/instagram/route.ts` — Reescrito como thin proxy: solo autentica y delega a la Edge Function via `supabase.functions.invoke()`. Reduce la ejecución en Vercel a ~1s (auth only).
+- `src/lib/env.ts` — Agregada `SYNC_SECRET` al schema de validación.
+- `.env.example` — Agregada `SYNC_SECRET` con instrucciones de generación.
+- `docs/features/ig-intelligence.md` — Documentada la nueva arquitectura de sync con Edge Functions.
+
+### Motivation
+
+- Vercel Functions cobraba ~$0.60 por 12 invocaciones (~$1/hora con 1 usuario activo), insostenible a escala.
+- Supabase Edge Functions son gratis (500K invocaciones/mes incluidas) y no tienen límite de duración como Vercel.
+
+### Request original
+> elimina lo de vercel ahora, y haz lo de supabase
 
 ---
 

@@ -32,9 +32,11 @@ relevante.
 
 ## MCP Servers Conectados
 
+> Guía completa de MCPs: `docs/07-mcp-guide.md`
+
 | # | Servidor | Herramientas | Descripción | Usar cuando |
 |---|----------|-------------|-------------|-------------|
-| 1 | summit (Supabase) | apply_migration, execute_sql, list_tables, deploy_edge_function, etc. | Gestión completa de Supabase (DB, migrations, Edge Functions, auth) | Cualquier operación con Supabase |
+| 1 | apps-y-dash (Supabase) | apply_migration, execute_sql, list_tables, deploy_edge_function, etc. | Gestión completa de Supabase (DB, migrations, Edge Functions, auth) | Cualquier operación con Supabase |
 | 2 | n8n-mcp | Herramientas n8n | Gestión de workflows n8n | Automatizaciones y workflows |
 
 ---

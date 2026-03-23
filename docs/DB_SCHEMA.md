@@ -6,6 +6,21 @@
 
 ---
 
+## Acceso MCP disponible
+
+La IA tiene acceso directo a Supabase vía MCP (`apps-y-dash`).
+
+Esto significa que podés pedirle a la IA:
+- consultar el schema real en tiempo real
+- generar migraciones SQL precisas basadas en el estado actual de la DB
+- verificar si una tabla o columna ya existe antes de crearla
+- generar tipos TypeScript alineados al schema actual
+
+**Regla:** los cambios siempre van por migraciones — nunca se ejecutan directo en production.
+**Guía completa del MCP:** `docs/07-mcp-guide.md`
+
+---
+
 ## Diagrama ER
 
 ```mermaid
@@ -45,7 +60,7 @@ erDiagram
 | 4 | `reel_metrics` | Organic metrics (PRD 6.2) | 000003, 000008 | ✅ |
 | 5 | `reel_metrics_paid` | Paid metrics (PRD 6.2) | 000003 | ✅ |
 | 6 | `ad_mappings` | Reel ↔ Ad mapping (PRD 5.2) | 000003 | ✅ |
-| 7 | `reel_benchmarks` | 90-day benchmarks (PRD 6.4) | 000003 | ✅ |
+| 7 | `reel_benchmarks` | 90-day benchmarks (PRD 6.4) — UPSERT, 1 row/workspace | 000003, 000011 | ✅ |
 | 8 | `reel_transcripts` | ASR transcription (PRD 7.2) | 000004 | ✅ |
 | 9 | `reel_narrative_analysis` | LLM narrative (PRD 7.3) | 000004 | ✅ |
 | 10 | `reel_visual_analysis` | Visual frames (PRD 7.4) | 000004 | ✅ |
@@ -83,7 +98,7 @@ erDiagram
 | `updated_at` | timestamptz | NO | now() | — |
 
 **RLS:** Users ven su propio perfil. Admin ve todos. Service role puede insertar.
-**Trigger:** `handle_new_user()` — asigna role='admin' si email = emendoza@ainnovateagency.com.
+**Trigger:** `handle_new_user()` — al registrarse un usuario, crea automáticamente: (1) profile con role='admin' si email = emendoza@ainnovateagency.com, (2) un workspace default, (3) un workspace_member con role='owner'. Actualizado en migración 000010.
 
 ### workspace_members
 > Many-to-many entre users y workspaces. Soporta roles por workspace.
@@ -180,10 +195,24 @@ erDiagram
 | 6 | `20260318000006_sync_and_rls.sql` | 2026-03-18 | sync_jobs, RLS policies (all tables), storage buckets |
 | 8 | `20260318000008_reel_metrics_extended_watch_time.sql` | 2026-03-18 | `watch_time_total_sec` en `reel_metrics` |
 | 9 | `20260318000009_ig_account_insights.sql` | 2026-03-18 | ig_account_insights (daily metrics), ig_account_demographics (lifetime demographics) |
+| 10 | `20260323000010_auto_create_workspace_on_signup.sql` | 2026-03-23 | Actualiza handle_new_user() para auto-crear workspace + workspace_member al signup. Backfill de usuarios existentes. |
+| 11 | `20260323000011_benchmark_extended_metrics_upsert.sql` | 2026-03-23 | Agrega avg_engagement_rate, avg_retention_rate, avg_duration_seconds, avg_reach_per_view, avg_saves_per_reach a reel_benchmarks. UNIQUE(workspace_id) + UPDATE RLS para UPSERT. |
 
 ---
 
 ## Funciones de Base de Datos
+
+### handle_new_user()
+> Trigger on `auth.users` AFTER INSERT. Crea profile + workspace + workspace_member automáticamente al registrarse.
+
+```sql
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+-- 1) Crea profile (con role='admin' si es emendoza@ainnovateagency.com)
+-- 2) Crea workspace default ("{nombre}'s Workspace")
+-- 3) Crea workspace_member con role='owner'
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
 
 ### handle_updated_at()
 > Auto-actualiza `updated_at` en cada UPDATE.
@@ -225,7 +254,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 | `reel_metrics` | is_workspace_member | is_workspace_member | is_workspace_member | — |
 | `reel_metrics_paid` | is_workspace_member | is_workspace_member | is_workspace_member | — |
 | `ad_mappings` | is_workspace_member | is_workspace_member | is_workspace_member | — |
-| `reel_benchmarks` | is_workspace_member | is_workspace_member | — | — |
+| `reel_benchmarks` | is_workspace_member | is_workspace_member | is_workspace_member | — |
 | `reel_transcripts` | is_workspace_member | is_workspace_member | is_workspace_member | — |
 | `reel_narrative_analysis` | is_workspace_member | is_workspace_member | is_workspace_member | — |
 | `reel_visual_analysis` | is_workspace_member | is_workspace_member | is_workspace_member | — |

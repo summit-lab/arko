@@ -1,21 +1,26 @@
 import { Bell, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { cache } from "react";
 
-export async function Header() {
+const getUserProfile = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let profile: { full_name: string | null; role: string; email: string } | null = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("full_name, role, email")
-      .eq("id", user.id)
-      .single();
-    profile = data;
-  }
+  if (!user) return { user: null, profile: null };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, role, email")
+    .eq("id", user.id)
+    .single();
+
+  return { user, profile };
+});
+
+export async function Header() {
+  const { user, profile } = await getUserProfile();
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
   const username = profile?.email?.split("@")[0] || "user";

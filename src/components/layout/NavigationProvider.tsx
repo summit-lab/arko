@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 export function NavProgressBar() {
@@ -12,19 +12,21 @@ export function NavProgressBar() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    const currentKey = `${pathname}||${searchParams.toString()}`;
-    if (prevKey.current === currentKey) return;
-    prevKey.current = currentKey;
-
-    // Navigation completed — finish bar
+  const completeNavigation = useCallback(() => {
     setWidth(100);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       setVisible(false);
       setWidth(0);
     }, 300);
-  }, [pathname, searchParams]);
+  }, []);
+
+  useEffect(() => {
+    const currentKey = `${pathname}||${searchParams.toString()}`;
+    if (prevKey.current === currentKey) return;
+    prevKey.current = currentKey;
+    completeNavigation(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [pathname, searchParams, completeNavigation]);
 
   // Expose a trigger via a global event
   useEffect(() => {

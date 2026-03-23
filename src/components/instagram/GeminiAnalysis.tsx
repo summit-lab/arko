@@ -366,7 +366,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis 
               <div className="flex flex-wrap gap-1.5">
                 {analysis.audio.filler_words_detected.map((word) => (
                   <span key={word} className="rounded border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[11px] text-rose-300">
-                    "{word}"
+                    &ldquo;{word}&rdquo;
                   </span>
                 ))}
               </div>
