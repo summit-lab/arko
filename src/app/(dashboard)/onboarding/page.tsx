@@ -3,13 +3,24 @@ import { Instagram, CheckCircle2, ArrowRight, Shield, Zap, BarChart3, Link2 } fr
 import Link from "next/link";
 import { ConnectMetaButton } from "@/components/meta/ConnectMetaButton";
 
-export default async function OnboardingPage() {
+const ERROR_MESSAGES: Record<string, string> = {
+  access_denied: "Cancelaste el login con Meta. Podés volver a intentarlo.",
+  token_exchange_failed: "Meta no devolvió un token válido. Intentá nuevamente.",
+  instagram_business_account_not_found: "No encontramos una cuenta de Instagram Business vinculada a la página seleccionada.",
+  missing_code_or_state: "La validación del login quedó incompleta. Intentá nuevamente.",
+  internal_error: "Ocurrió un error inesperado al conectar Instagram. Intentá nuevamente.",
+};
+
+export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string; ig_username?: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const params = await searchParams;
 
   let connectionStatus: string | null = null;
   let igUsername: string | null = null;
   let workspaceId: string | null = null;
+  const errorCode = params.error;
+  const errorMessage = errorCode ? (ERROR_MESSAGES[errorCode] || "No pudimos completar la conexión con Meta. Intentá nuevamente.") : null;
 
   if (user) {
     const { data: workspace } = await supabase
@@ -28,7 +39,7 @@ export default async function OnboardingPage() {
         .single();
 
       connectionStatus = connection?.status || null;
-      igUsername = connection?.ig_username || null;
+      igUsername = connection?.ig_username || params.ig_username || null;
     }
   }
 
@@ -71,6 +82,12 @@ export default async function OnboardingPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {errorMessage ? (
+            <div className="glass-panel rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+              <p className="text-sm text-red-300">{errorMessage}</p>
+            </div>
+          ) : null}
+
           {/* Connect Card */}
           <div className="glass-panel rounded-2xl p-8 text-center border border-white/10">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 flex items-center justify-center mx-auto mb-5">
@@ -81,6 +98,9 @@ export default async function OnboardingPage() {
             <p className="text-sm text-zinc-400 mb-6 max-w-sm mx-auto">
               Usamos Meta OAuth para conectarnos de forma segura. Solo necesitamos permisos de lectura.
             </p>
+            {connectionStatus && connectionStatus !== "active" ? (
+              <p className="text-xs text-zinc-500 mb-6">La conexión actual no está activa. Podés reiniciar el login desde acá.</p>
+            ) : null}
 
             <ConnectMetaButton workspaceId={workspaceId || ""} />
 

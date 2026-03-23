@@ -42,7 +42,7 @@ export function ConnectMetaButton({ workspaceId }: ConnectMetaButtonProps) {
     <div className="flex flex-col items-center gap-3">
       <button
         onClick={handleConnect}
-        disabled={loading}
+        disabled={loading || !workspaceId}
         className="inline-flex items-center gap-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30"
       >
         {loading ? (
@@ -53,6 +53,11 @@ export function ConnectMetaButton({ workspaceId }: ConnectMetaButtonProps) {
         {loading ? "Conectando..." : "Conectar con Meta"}
         {!loading && <ArrowRight className="h-4 w-4" />}
       </button>
+      {!workspaceId && (
+        <p className="text-xs text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg">
+          workspace_id no disponible. Cerrá sesión y volvé a ingresar.
+        </p>
+      )}
       {error && (
         <p className="text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg">{error}</p>
       )}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, TrendingUp, Zap, Bookmark, MessageSquare, Heart, Megaphone } from "lucide-react";
+import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncButton } from "@/components/instagram/SyncButton";
@@ -68,8 +68,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const activeTab = (params.tab as TabKey) || "reels";
   const periodDays = parseInt(params.days || "90", 10);
-  const periodLabel = `${periodDays}d`;
-  const periodStartIso = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString();
+  const periodStartIso = new Date(new Date().getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString();
 
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
@@ -103,9 +102,10 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
             .limit(200)
         : null;
 
-      const [connectionResult, mediaResult] = await Promise.all([
+      const [connectionResult, mediaResult, benchmarkResult] = await Promise.all([
         supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).single(),
         mediaQuery ?? Promise.resolve({ data: null as null }),
+        supabase.from("reel_benchmarks").select("avg_views_90d").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       connectionStatus = connectionResult.data?.status || null;
@@ -124,19 +124,9 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           const reelsData = mediaData.filter((r) => r.media_product_type === "REELS");
           const postsData = mediaData.filter((r) => r.media_product_type !== "REELS");
 
-          // Build reels with benchmark
+          // Build reels with benchmark from DB (single source of truth)
           if (reelsData.length > 0) {
-            const benchmarkReels = reelsData
-              .filter((r) => r.reel_type !== "trial_likely")
-              .map((r) => {
-                const m = getMetrics(r.reel_metrics);
-                const p = getPaid(r.reel_metrics_paid);
-                return { views: (m?.views_org || 0) + (p?.views_paid || 0), likes: m?.likes_total || 0, saves: m?.saves_total || 0, comments: m?.comments_total || 0, shares: m?.shares_total || 0 };
-              })
-              .filter((r) => r.views > 0);
-
-            const bmCount = benchmarkReels.length || 1;
-            const avgViews = benchmarkReels.reduce((s, r) => s + r.views, 0) / bmCount || 1;
+            const avgViews = benchmarkResult.data?.avg_views_90d || 1;
 
             reels = reelsData.map((r) => {
               const m = getMetrics(r.reel_metrics);
@@ -232,8 +222,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       }
   }
 
-  // Aggregate stats for Reels KPI bar (only shown on reels/all tabs)
-  const showReelsKpis = activeTab === "reels" || activeTab === "all";
+  // Aggregate stats for Reels KPI bar
   const totalViews = reels.reduce((s, r) => s + r.views_total, 0);
   const totalViewsOrg = reels.reduce((s, r) => s + r.views_org, 0);
   const totalViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);

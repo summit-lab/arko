@@ -32,10 +32,11 @@ MCP (Model Context Protocol) permite que la IA se conecte directamente a servici
 
 ### Reglas de uso
 
-- La IA **puede consultar y leer** libremente para entender el schema
+- La IA **puede consultar y leer** libremente para entender el schema (en ambos proyectos)
 - La IA **puede generar SQL** para migraciones
-- Los cambios de DB **siempre van por migraciones** — nunca ejecutar cambios destructivos directo desde el MCP
-- El MCP apunta al proyecto **dev/staging** para trabajo diario — nunca conectar production al MCP de trabajo
+- **Durante desarrollo:** la IA **solo aplica migraciones en Dev Arko** (`hrsvglgswatwklivkoyp`). Prod Arko es solo lectura.
+- **Durante release:** cuando el developer pide explícitamente un deploy a producción, la IA puede aplicar migraciones en Prod Arko (`zphvrohosizkbrnxtppj`) siguiendo el protocolo de release (listar, mostrar SQL, pedir confirmación, aplicar de a una).
+- Ver `CLAUDE.md` sección 7 para las reglas completas y el protocolo de release.
 
 ---
 

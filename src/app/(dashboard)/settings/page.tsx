@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { User, Building2, Shield, Instagram, Mail, Calendar, Globe } from "lucide-react";
+import { DisconnectMetaButton } from "@/components/meta/DisconnectMetaButton";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -7,7 +9,7 @@ export default async function SettingsPage() {
 
   let profile: { full_name: string | null; role: string; email: string; created_at: string } | null = null;
   let workspace: { id: string; name: string; slug: string; plan: string; reels_limit: number; created_at: string } | null = null;
-  let connection: { status: string; ig_username: string | null; ig_business_account_id: string | null; last_validated_at: string | null } | null = null;
+  let connection: { status: string; ig_username: string | null; ig_business_account_id: string | null; last_validated_at: string | null; last_error: string | null } | null = null;
 
   if (user) {
     const { data: p } = await supabase
@@ -28,7 +30,7 @@ export default async function SettingsPage() {
     if (workspace) {
       const { data: c } = await supabase
         .from("meta_connections")
-        .select("status, ig_username, ig_business_account_id, last_validated_at")
+        .select("status, ig_username, ig_business_account_id, last_validated_at, last_error")
         .eq("workspace_id", workspace.id)
         .single();
       connection = c;
@@ -36,6 +38,7 @@ export default async function SettingsPage() {
   }
 
   const isAdmin = profile?.role === "admin";
+  const hasActiveConnection = connection?.status === "active";
 
   return (
     <div className="p-8 max-w-4xl space-y-6">
@@ -124,44 +127,57 @@ export default async function SettingsPage() {
           <Instagram className="h-4 w-4 text-zinc-400" />
           Conexión Meta / Instagram
         </h3>
-        {connection ? (
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <p className="text-[10px] text-zinc-500 mb-1">Estado</p>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                connection.status === "active" ? "text-emerald-400 bg-emerald-400/10" :
-                connection.status === "expired" ? "text-amber-400 bg-amber-400/10" :
-                "text-red-400 bg-red-400/10"
-              }`}>
-                {connection.status}
-              </span>
+        {hasActiveConnection && connection ? (
+          <div className="space-y-5">
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <p className="text-[10px] text-zinc-500 mb-1">Estado</p>
+                <span className="text-xs font-medium px-2 py-0.5 rounded text-emerald-400 bg-emerald-400/10">
+                  conectada
+                </span>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 mb-1">Cuenta IG</p>
+                <p className="text-sm text-zinc-200">@{connection.ig_username || "--"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 mb-1">IG Account ID</p>
+                <code className="text-[10px] text-zinc-400">{connection.ig_business_account_id || "--"}</code>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 mb-1">Última validación</p>
+                <p className="text-xs text-zinc-400">
+                  {connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleDateString("es-AR") : "--"}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 mb-1">Cuenta IG</p>
-              <p className="text-sm text-zinc-200">@{connection.ig_username || "--"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 mb-1">IG Account ID</p>
-              <code className="text-[10px] text-zinc-400">{connection.ig_business_account_id || "--"}</code>
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 mb-1">Última validación</p>
-              <p className="text-xs text-zinc-400">
-                {connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleDateString("es-AR") : "--"}
-              </p>
-            </div>
+
+            {workspace ? (
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-4">
+                <div>
+                  <p className="text-sm text-zinc-200">¿Querés volver a conectar otra cuenta?</p>
+                  <p className="text-xs text-zinc-500 mt-1">Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.</p>
+                </div>
+                <DisconnectMetaButton workspaceId={workspace.id} />
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="text-center py-6">
             <Instagram className="h-8 w-8 text-zinc-700 mx-auto mb-3" />
-            <p className="text-sm text-zinc-500 mb-4">No hay cuenta de Instagram conectada.</p>
-            <a
+            <p className="text-sm text-zinc-500 mb-2">No hay cuenta de Instagram conectada.</p>
+            {connection?.last_error ? (
+              <p className="text-xs text-red-400 mb-4">La última conexión no se completó. Podés volver a intentarlo.</p>
+            ) : (
+              <p className="text-xs text-zinc-500 mb-4">Conectá tu cuenta para habilitar Instagram Intelligence.</p>
+            )}
+            <Link
               href="/onboarding"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-sm text-pink-300 px-5 py-2.5 rounded-lg hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
             >
               <Instagram className="h-4 w-4" />
-              Conectar cuenta
-            </a>
+              {connection ? "Reintentar conexión" : "Conectar cuenta"}
+            </Link>
           </div>
         )}
       </div>

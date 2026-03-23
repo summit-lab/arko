@@ -187,11 +187,27 @@ Esas variables también se configuran en el panel de Vercel.
 
 ## Matriz de ambientes
 
-| Ambiente | URL | Branch | Supabase | Quién lo usa |
+| Ambiente | URL | Branch | Supabase proyecto | Quién lo usa |
 |---|---|---|---|---|
-| local | `http://localhost:3000` | cualquier rama | proyecto dev | cada developer en su máquina |
-| staging | `https://staging.arko.app` | `develop` | proyecto staging | equipo para verificar integración |
-| production | `https://app.arko.app` | `main` | proyecto prod | usuarios finales |
+| local | `http://localhost:3000` | cualquier rama | **Dev Arko** (`hrsvglgswatwklivkoyp`) | cada developer en su máquina |
+| staging | `https://staging.arko.app` | `develop` | **Dev Arko** (`hrsvglgswatwklivkoyp`) | equipo para verificar integración |
+| production | `https://app.arko.app` | `main` | **Prod Arko** (`zphvrohosizkbrnxtppj`) | usuarios finales |
+
+## Claves Supabase por proyecto
+
+### Dev Arko (local + staging)
+```
+NEXT_PUBLIC_SUPABASE_URL=https://hrsvglgswatwklivkoyp.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyODE2NTgsImV4cCI6MjA4OTg1NzY1OH0.A5q2JZ21gWdz0claQ37IWFeKjVLNmgA8cAdHAWYNV9w
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI4MTY1OCwiZXhwIjoyMDg5ODU3NjU4fQ.XJIzfhuv3IxdAagcpvtdciGRrsZsLpffvQ8_IpPT6FM
+```
+
+### Prod Arko (production)
+```
+NEXT_PUBLIC_SUPABASE_URL=https://zphvrohosizkbrnxtppj.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwaHZyb2hvc2l6a2Jybnh0cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjY4MTgsImV4cCI6MjA4OTgwMjgxOH0.ot3t_O6EY_yRGVcUaQ2sGadCaASDtr1007J-xk5B2gw
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwaHZyb2hvc2l6a2Jybnh0cHBqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDIyNjgxOCwiZXhwIjoyMDg5ODAyODE4fQ.pq4rdGlsGYPHG37ViVpYwNjBW5YNz7JErqEXCiTHkWU
+```
 
 ---
 

@@ -5,8 +5,12 @@
  *
  * Body: { workspace_id: string }
  *
- * MVP: Runs sync inline (blocking).
- * Production: Will move to Edge Function for async processing.
+ * Performance optimizations (v2):
+ *   - Media insights fetched with concurrency=5 (not sequential)
+ *   - Apify duration enrichment with concurrency=3 (not sequential)
+ *   - Ads sync + Account insights run in parallel after media phase
+ *   - Benchmark refresh runs after both ads+media are done
+ *   - Background auto-sync via /api/v1/sync/cron for production pg_cron
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -16,6 +20,20 @@ import { syncInstagramReels } from '@/services/instagram-sync.service';
 import { syncAdsMetrics } from '@/services/ads-sync.service';
 import { syncAccountInsights } from '@/services/ig-account-sync.service';
 import { refreshReelBenchmarks } from '@/services/reel-benchmarks.service';
+
+interface AdsSyncResult {
+  adsProcessed: number;
+  adsMapped: number;
+  adsUnmapped: number;
+  reelsUpdated: number;
+  errors: string[];
+}
+
+interface AccountSyncResult {
+  daysUpserted: number;
+  demographicsUpserted: boolean;
+  errors: string[];
+}
 
 export async function POST(request: Request) {
   try {
@@ -64,9 +82,12 @@ export async function POST(request: Request) {
       return api500();
     }
 
-    // ── Step 1+2: Media + Ads (skip if steps=account) ───────────
+    // ── Step 1: Media sync (must complete before ads can map) ────
     let reelsResult = { reelsSynced: 0, reelsSkipped: 0, insightsFetched: 0, errors: [] as string[] };
-    let adsResult = null;
+    const parallelResults: {
+      ads: AdsSyncResult | null;
+      account: AccountSyncResult | null;
+    } = { ads: null, account: null };
     let benchmarkResult: {
       snapshot_id: string;
       reels_in_window: number;
@@ -75,25 +96,61 @@ export async function POST(request: Request) {
     } | null = null;
 
     if (steps === 'all' || steps === 'media') {
-      console.log('[sync/instagram] Step 1: Starting reels sync...');
+      console.log('[sync/instagram] Step 1: Starting reels sync (parallel insights + Apify)...');
       const t1 = Date.now();
       reelsResult = await syncInstagramReels(auth.workspaceId, reelsJob.id);
       console.log(`[sync/instagram] Step 1 done in ${Date.now() - t1}ms:`, JSON.stringify({ synced: reelsResult.reelsSynced, skipped: reelsResult.reelsSkipped, insights: reelsResult.insightsFetched, errors: reelsResult.errors.length }));
 
+      // ── Step 2: Ads + Account run in PARALLEL ──────────────────
+      console.log('[sync/instagram] Step 2: Starting ads + account sync in parallel...');
+      const t2 = Date.now();
+
+      const parallelTasks: Promise<void>[] = [];
+
+      // Ads sync (only if ad accounts exist)
       if (connection.ad_account_ids?.length) {
-        console.log('[sync/instagram] Step 2: Starting ads sync...');
-        const t2 = Date.now();
-        const { data: adsJob } = await supabase
-          .from('sync_jobs')
-          .insert({ workspace_id: auth.workspaceId, job_type: 'ads_insights', status: 'queued' })
-          .select().single();
-        if (adsJob) {
-          adsResult = await syncAdsMetrics(auth.workspaceId, adsJob.id);
-          console.log(`[sync/instagram] Step 2 done in ${Date.now() - t2}ms:`, JSON.stringify({ processed: adsResult.adsProcessed, mapped: adsResult.adsMapped, errors: adsResult.errors.length }));
-        }
+        parallelTasks.push(
+          (async () => {
+            const { data: adsJob } = await supabase
+              .from('sync_jobs')
+              .insert({ workspace_id: auth.workspaceId, job_type: 'ads_insights', status: 'queued' })
+              .select().single();
+            if (adsJob) {
+              parallelResults.ads = await syncAdsMetrics(auth.workspaceId, adsJob.id);
+              console.log(`[sync/instagram] Ads sync done in ${Date.now() - t2}ms:`, JSON.stringify({ processed: parallelResults.ads.adsProcessed, mapped: parallelResults.ads.adsMapped, errors: parallelResults.ads.errors.length }));
+            }
+          })()
+        );
       }
 
-      console.log('[sync/instagram] Step 2b: Refreshing reel benchmarks...');
+      // Account insights (always run when steps=all)
+      if (connection.ig_business_account_id) {
+        parallelTasks.push(
+          (async () => {
+            try {
+              const { data: accountJob, error: accountJobError } = await supabase
+                .from('sync_jobs')
+                .insert({ workspace_id: auth.workspaceId, job_type: 'account_insights', status: 'queued' })
+                .select().single();
+
+              if (accountJobError) {
+                console.error('[sync/instagram] Account job creation failed:', accountJobError);
+              } else if (accountJob) {
+                parallelResults.account = await syncAccountInsights(auth.workspaceId, accountJob.id);
+                console.log(`[sync/instagram] Account sync done in ${Date.now() - t2}ms:`, JSON.stringify(parallelResults.account));
+              }
+            } catch (err) {
+              console.error('[sync/instagram] Account sync CRASHED:', err);
+            }
+          })()
+        );
+      }
+
+      await Promise.all(parallelTasks);
+      console.log(`[sync/instagram] Parallel phase (ads+account) done in ${Date.now() - t2}ms`);
+
+      // ── Step 3: Benchmark refresh (after ads are done) ─────────
+      console.log('[sync/instagram] Step 3: Refreshing reel benchmarks...');
       const tBench = Date.now();
       try {
         const snapshot = await refreshReelBenchmarks(auth.workspaceId);
@@ -103,21 +160,18 @@ export async function POST(request: Request) {
           window_start: snapshot.windowStart,
           window_end: snapshot.windowEnd,
         };
-        console.log(`[sync/instagram] Step 2b done in ${Date.now() - tBench}ms:`, JSON.stringify(benchmarkResult));
+        console.log(`[sync/instagram] Step 3 done in ${Date.now() - tBench}ms:`, JSON.stringify(benchmarkResult));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         reelsResult.errors.push(`Benchmark refresh: ${message}`);
-        console.error('[sync/instagram] Step 2b failed:', message);
+        console.error('[sync/instagram] Step 3 failed:', message);
       }
-    } else {
+    } else if (steps === 'account') {
       // Mark the reels job as skipped
       await supabase.from('sync_jobs').update({ status: 'completed', completed_at: new Date().toISOString(), metadata: { skipped: 'steps=account' } as Record<string, unknown> }).eq('id', reelsJob.id);
-    }
 
-    // ── Step 3: Account Insights (always run unless steps=media) ──
-    let accountResult = null;
-    if (steps === 'all' || steps === 'account') {
-      console.log('[sync/instagram] Step 3: Starting account insights sync...');
+      // Account-only sync
+      console.log('[sync/instagram] Account-only sync...');
       const t3 = Date.now();
       try {
         if (connection.ig_business_account_id) {
@@ -127,20 +181,23 @@ export async function POST(request: Request) {
             .select().single();
 
           if (accountJobError) {
-            console.error('[sync/instagram] Step 3: Failed to create job:', accountJobError);
+            console.error('[sync/instagram] Account job creation failed:', accountJobError);
           } else if (accountJob) {
-            accountResult = await syncAccountInsights(auth.workspaceId, accountJob.id);
-            console.log(`[sync/instagram] Step 3 done in ${Date.now() - t3}ms:`, JSON.stringify(accountResult));
+            parallelResults.account = await syncAccountInsights(auth.workspaceId, accountJob.id);
+            console.log(`[sync/instagram] Account sync done in ${Date.now() - t3}ms:`, JSON.stringify(parallelResults.account));
           }
-        } else {
-          console.log('[sync/instagram] Step 3 skipped: no ig_business_account_id');
         }
       } catch (err) {
-        console.error('[sync/instagram] Step 3 CRASHED:', err);
+        console.error('[sync/instagram] Account sync CRASHED:', err);
       }
+    } else if (steps === 'media') {
+      // Media-only already ran above, mark reels job as done
+      await supabase.from('sync_jobs').update({ status: 'completed', completed_at: new Date().toISOString(), metadata: { skipped: 'steps=media, no account sync' } as Record<string, unknown> }).eq('id', reelsJob.id);
     }
 
     console.log(`[sync/instagram] Total sync time: ${Date.now() - t0}ms`);
+
+    const { ads: adsResult, account: accountResult } = parallelResults;
 
     const combinedErrors = [
       ...reelsResult.errors,

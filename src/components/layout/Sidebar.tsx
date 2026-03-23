@@ -32,7 +32,7 @@ export function Sidebar() {
 
   // Reset optimistic state when pathname catches up
   useEffect(() => {
-    setOptimisticHref(null);
+    setOptimisticHref(null); // eslint-disable-line react-hooks/set-state-in-effect
   }, [pathname]);
 
   const handleNav = useCallback((href: string, e: React.MouseEvent) => {

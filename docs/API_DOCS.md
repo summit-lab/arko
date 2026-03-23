@@ -22,6 +22,7 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 |--------|------|-------------|------|-----|
 | GET | `/api/v1/health` | Estado del servidor | NO | — |
 | POST | `/api/v1/auth/meta/connect` | Iniciar OAuth de Meta | SI | 4.3 |
+| POST | `/api/v1/auth/meta/disconnect` | Desconectar cuenta de Meta/Instagram | SI | 4.3 |
 | GET | `/api/v1/auth/meta/callback` | Callback OAuth de Meta | NO* | 4.3 |
 | GET | `/api/v1/workspaces` | Listar workspaces del usuario | SI | — |
 | POST | `/api/v1/workspaces` | Crear workspace | SI | — |
@@ -32,6 +33,7 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 | POST | `/api/v1/reels/[id]/analyze` | Generar diagnóstico IA (bajo demanda) | SI | 9.3 |
 | GET | `/api/v1/dashboard/stats` | Stats agregados del dashboard | SI | 8.1 |
 | POST | `/api/v1/sync/instagram` | Trigger sync de IG + Ads | SI | 5.3 |
+| GET | `/api/v1/sync/cron` | Background auto-sync (Vercel Cron) | CRON_SECRET | 5.3 |
 | GET | `/api/v1/sync/status` | Estado de sync jobs | SI | — |
 | POST | `/api/v1/chat` | Chat analítico con grounding | SI | 8.3 |
 
@@ -75,6 +77,7 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 **`POST /api/v1/auth/meta/connect`**
 - Body: `{ "workspace_id": "uuid" }`
 - Response: `{ "data": { "oauth_url": "https://facebook.com/..." } }`
+- Al iniciar un nuevo intento, la conexión del workspace se marca temporalmente como `pending` y se limpia `last_error` previo.
 - El frontend redirige al usuario a `oauth_url`.
 
 ### Meta OAuth Callback
@@ -82,7 +85,15 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 - Recibe `code` y `state` de Meta.
 - Intercambia por long-lived token, descubre assets (pages, IG account, ad accounts).
 - Persiste en `meta_connections` con tokens encriptados.
-- Redirige a `/onboarding?success=true`.
+- Si falla el intercambio de token, el usuario cancela OAuth, falta `code/state` o no se encuentra una cuenta de Instagram Business válida, actualiza `meta_connections.status` a `error`, persiste `last_error` y redirige a `/onboarding?error=...`.
+- Si completa correctamente el flujo, redirige a `/instagram/bootstrap` para disparar la sincronización inicial automática y mostrar una pantalla de preparación del workspace.
+
+### Meta Disconnect
+**`POST /api/v1/auth/meta/disconnect`**
+- Requiere `workspace_id` del workspace autenticado.
+- Limpia tokens, IDs y permisos almacenados en `meta_connections`.
+- Cambia el estado a `revoked` para que la UI trate la cuenta como desconectada y permita volver a iniciar OAuth.
+- Response 200: `{ "data": { "status": "disconnected" } }`
 
 ### Workspaces
 **`GET /api/v1/workspaces`** — Lista workspaces del usuario.
@@ -131,8 +142,19 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 **`POST /api/v1/sync/instagram`**
 - Requiere `meta_connections` activa.
 - Crea `sync_jobs` en estado `queued`.
+- Se usa tanto para sincronización manual desde `/instagram` como para la sincronización inicial automática inmediatamente después de conectar una cuenta de Instagram.
 - Cuando corre `steps=all` o `steps=media`, además de sincronizar Reels y Ads recalcula el snapshot persistido `reel_benchmarks` del workspace para que la ficha lea promedios de cuenta ya materializados.
+- **Performance v2:** insights se fetchean en paralelo (concurrency=5), Apify en paralelo (concurrency=3), Ads + Account corren en paralelo después de media. `MAX_INSIGHTS_PER_SYNC=50`.
 - Response 200: `{ "data": { "status", "reels", "ads", "benchmark", "account", "errors" } }`
+
+### Sync Cron (Background Auto-Sync)
+**`GET /api/v1/sync/cron`**
+- Endpoint para sincronización automática en segundo plano. Diseñado para Vercel Cron.
+- Autenticación: header `Authorization: Bearer <CRON_SECRET>`. Sin `CRON_SECRET` configurado retorna noop.
+- Itera todos los workspaces con conexión Meta activa y ejecuta full sync (media + ads + account + benchmark) para cada uno.
+- Frecuencia recomendada: cada 6 horas (`0 */6 * * *` en `vercel.json`).
+- `maxDuration=300` (5 min) para Vercel Pro.
+- Response 200: `{ "data": { "status", "workspaces_synced", "total_duration_ms", "summaries" } }`
 
 ### Sync Status
 **`GET /api/v1/sync/status`**

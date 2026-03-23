@@ -6,22 +6,56 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { api400, api500 } from '@/lib/api/response';
 
 import { env, getAppUrl, getMetaRedirectUri } from '@/lib/env';
+
+function getWorkspaceIdFromState(stateParam: string | null) {
+  if (!stateParam) {
+    return null;
+  }
+
+  try {
+    const statePayload = JSON.parse(
+      Buffer.from(stateParam, 'base64url').toString()
+    ) as { workspace_id?: string };
+
+    return statePayload.workspace_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function markConnectionAsError(workspaceId: string | null, message: string) {
+  if (!workspaceId) {
+    return;
+  }
+
+  const supabase = await createClient();
+
+  await supabase
+    .from('meta_connections')
+    .update({
+      status: 'error',
+      last_error: message,
+    })
+    .eq('workspace_id', workspaceId);
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
   const stateParam = url.searchParams.get('state');
   const errorParam = url.searchParams.get('error');
+  const workspaceIdFromState = getWorkspaceIdFromState(stateParam);
 
   if (errorParam) {
+    await markConnectionAsError(workspaceIdFromState, errorParam);
     return NextResponse.redirect(`${getAppUrl()}/onboarding?error=${errorParam}`);
   }
 
   if (!code || !stateParam) {
-    return api400('Missing code or state parameter');
+    await markConnectionAsError(workspaceIdFromState, 'missing_code_or_state');
+    return NextResponse.redirect(`${getAppUrl()}/onboarding?error=missing_code_or_state`);
   }
 
   try {
@@ -45,6 +79,7 @@ export async function GET(request: Request) {
 
     if (tokenData.error) {
       console.error('[meta-callback] Token exchange error:', tokenData.error);
+      await markConnectionAsError(workspace_id, 'token_exchange_failed');
       return NextResponse.redirect(`${getAppUrl()}/onboarding?error=token_exchange_failed`);
     }
 
@@ -98,6 +133,14 @@ export async function GET(request: Request) {
       igUsername = igData.instagram_business_account?.username || null;
     }
 
+    if (!page || !igBusinessAccountId || !igUsername) {
+      await markConnectionAsError(workspace_id, 'instagram_business_account_not_found');
+
+      return NextResponse.redirect(
+        `${getAppUrl()}/onboarding?error=instagram_business_account_not_found`
+      );
+    }
+
     // List ad accounts
     const adAccountsRes = await fetch(
       `https://graph.facebook.com/v25.0/${meData.id}/adaccounts?fields=id,name,account_status&access_token=${accessToken}`
@@ -128,10 +171,11 @@ export async function GET(request: Request) {
 
     // Redirect to success page
     return NextResponse.redirect(
-      `${getAppUrl()}/onboarding?success=true&ig_username=${igUsername || ''}`
+      `${getAppUrl()}/instagram/bootstrap`
     );
   } catch (err) {
     console.error('[meta-callback] Error:', err);
+    await markConnectionAsError(workspaceIdFromState, 'internal_error');
     return NextResponse.redirect(`${getAppUrl()}/onboarding?error=internal_error`);
   }
 }

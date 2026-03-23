@@ -27,28 +27,13 @@ interface ReelBenchmarkRow {
   window_start: string;
   window_end: string;
   reels_in_window: number;
-  avg_views_90d: number;
-  avg_comments_90d: number;
-  avg_saves_90d: number;
-  avg_follows_90d: number;
-  avg_likes_90d: number;
-  avg_shares_90d: number;
-  avg_reach_90d: number;
-  avg_watch_time_90d: number;
-  avg_likes_per_view: number;
-  avg_comments_per_view: number;
-  avg_shares_per_view: number;
-  avg_saves_per_view: number;
-  avg_follows_per_view: number;
-  exclude_trials: boolean;
-  min_views_threshold: number;
-  created_at: string;
 }
 
 interface ReelRow {
   id: string;
   reel_type: string | null;
   published_at: string | null;
+  duration_seconds: number | null;
   reel_metrics: ReelMetricsRow | ReelMetricsRow[] | null;
   reel_metrics_paid: ReelMetricsPaidRow | ReelMetricsPaidRow[] | null;
 }
@@ -98,6 +83,7 @@ export async function refreshReelBenchmarks(
       id,
       reel_type,
       published_at,
+      duration_seconds,
       reel_metrics (
         views_org,
         likes_total,
@@ -137,6 +123,8 @@ export async function refreshReelBenchmarks(
       const saves = organic?.saves_total ?? 0;
       const follows = organic?.follows_generated ?? 0;
       const avgWatchTime = organic?.avg_watch_time_sec ?? null;
+      const totalInteractions = likes + comments + shares + saves;
+      const durationSeconds = reel.duration_seconds ?? null;
 
       return {
         reelType: reel.reel_type,
@@ -149,6 +137,8 @@ export async function refreshReelBenchmarks(
         saves,
         follows,
         avgWatchTime,
+        totalInteractions,
+        durationSeconds,
       };
     })
     .filter((reel) => {
@@ -159,6 +149,11 @@ export async function refreshReelBenchmarks(
 
   const withViews = eligible.filter((reel) => reel.viewsTotal > 0);
   const withWatchTime = eligible.filter((reel) => reel.avgWatchTime != null);
+  const withDuration = eligible.filter((reel) => reel.durationSeconds != null && reel.durationSeconds > 0);
+  const withRetention = eligible.filter(
+    (reel) => reel.avgWatchTime != null && reel.durationSeconds != null && reel.durationSeconds > 0,
+  );
+  const withReach = eligible.filter((reel) => reel.reachTotal > 0);
 
   const payload = {
     workspace_id: workspaceId,
@@ -166,6 +161,7 @@ export async function refreshReelBenchmarks(
     window_start: windowStart,
     window_end: windowEnd,
     reels_in_window: eligible.length,
+    // Absolute averages
     avg_views_90d: average(eligible.map((reel) => reel.viewsTotal)),
     avg_comments_90d: average(eligible.map((reel) => reel.comments)),
     avg_saves_90d: average(eligible.map((reel) => reel.saves)),
@@ -174,26 +170,45 @@ export async function refreshReelBenchmarks(
     avg_shares_90d: average(eligible.map((reel) => reel.shares)),
     avg_reach_90d: average(eligible.map((reel) => reel.reachTotal)),
     avg_watch_time_90d: average(withWatchTime.map((reel) => reel.avgWatchTime ?? 0)),
+    // Per-view ratios
     avg_likes_per_view: average(withViews.map((reel) => reel.likes / reel.viewsTotal)),
     avg_comments_per_view: average(withViews.map((reel) => reel.comments / reel.viewsTotal)),
     avg_shares_per_view: average(withViews.map((reel) => reel.shares / reel.viewsTotal)),
     avg_saves_per_view: average(withViews.map((reel) => reel.saves / reel.viewsTotal)),
     avg_follows_per_view: average(withViews.map((reel) => reel.follows / reel.viewsTotal)),
+    // New composite metrics
+    avg_engagement_rate: average(
+      withViews.map((reel) => (reel.totalInteractions / reel.viewsTotal) * 100),
+    ),
+    avg_retention_rate: average(
+      withRetention.map((reel) =>
+        Math.min(100, ((reel.avgWatchTime ?? 0) / (reel.durationSeconds ?? 1)) * 100),
+      ),
+    ),
+    avg_duration_seconds: average(
+      withDuration.map((reel) => reel.durationSeconds ?? 0),
+    ),
+    avg_reach_per_view: average(
+      withViews.map((reel) => reel.reachTotal / reel.viewsTotal),
+    ),
+    avg_saves_per_reach: average(
+      withReach.map((reel) => reel.saves / reel.reachTotal),
+    ),
     exclude_trials: EXCLUDE_TRIALS,
     min_views_threshold: MIN_VIEWS_THRESHOLD,
   };
 
-  const { data: inserted, error: insertError } = await supabase
+  const { data: upserted, error: upsertError } = await supabase
     .from('reel_benchmarks')
-    .insert(payload)
+    .upsert(payload, { onConflict: 'workspace_id' })
     .select('id, reels_in_window, window_start, window_end')
     .single();
 
-  if (insertError || !inserted) {
-    throw new Error(`No se pudo guardar reel_benchmarks: ${insertError?.message ?? 'sin respuesta'}`);
+  if (upsertError || !upserted) {
+    throw new Error(`No se pudo guardar reel_benchmarks: ${upsertError?.message ?? 'sin respuesta'}`);
   }
 
-  const snapshot = inserted as Pick<ReelBenchmarkRow, 'id' | 'reels_in_window' | 'window_start' | 'window_end'>;
+  const snapshot = upserted as Pick<ReelBenchmarkRow, 'id' | 'reels_in_window' | 'window_start' | 'window_end'>;
 
   return {
     snapshotId: snapshot.id,

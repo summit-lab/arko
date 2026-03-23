@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(claude mcp:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "mcp__arko__list_projects",
+      "mcp__arkov2__list_projects",
+      "mcp__arko__list_migrations",
+      "mcp__arko__list_tables",
+      "mcp__arko__execute_sql",
+      "mcp__arkov2__get_publishable_keys",
+      "mcp__arkov2__apply_migration",
+      "mcp__arkov2__get_project"
     ]
   },
   "enableAllProjectMcpServers": true,

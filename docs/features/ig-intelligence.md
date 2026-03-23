@@ -109,5 +109,36 @@ Módulo que conecta con la cuenta de Instagram del usuario y analiza los Reels e
  - Para evitar falsos “bajones” del último punto, la UI excluye el día actual parcial y renderiza `metric_date` en formato seguro para UTC, evitando corrimientos de fecha por timezone local.
  - Mientras Meta siga devolviendo `follower_count` con semántica diaria/no acumulada en este flujo, la sección Comunidad lo presenta como captación diaria de seguidores y no como total histórico de followers.
 
- ## Ruta
+### 8. Estado de conexión Meta / Instagram
+ - A nivel de experiencia de usuario, Arko debe tratar la conexión como binaria: **conectada** solo cuando `meta_connections.status = active`; cualquier otro estado se considera **no conectada** y debe ofrecer reintento del login.
+ - El estado `pending` puede existir internamente durante el inicio del OAuth, pero no debe bloquear al usuario ni presentarse como una conexión usable en Settings u Onboarding.
+ - Si el callback de Meta falla, el usuario cancela el login o no existe una cuenta de Instagram Business válida, Arko debe persistir `status = error`, guardar `last_error` y redirigir nuevamente a `/onboarding` con opción de reintento.
+ - Settings debe mostrar CTA de reconexión para cualquier conexión no activa, aunque exista una fila previa en `meta_connections`.
+ - Settings debe permitir además **desconectar** manualmente la cuenta activa. La desconexión debe limpiar tokens y datos sensibles guardados en `meta_connections`, cambiar el estado a `revoked` y dejar visible el CTA para volver a conectar cuando el usuario quiera.
+
+### 9. Primera sincronización automática
+- Cuando un usuario conecta Instagram exitosamente por primera vez, Arko debe iniciar automáticamente un `full_sync` sin requerir click manual en el botón `Sincronizar`.
+- El callback exitoso de Meta debe redirigir a una pantalla intermedia de bootstrap (`/instagram/bootstrap`) en vez de llevar al usuario directo a una grilla vacía.
+- Esa pantalla debe disparar `POST /api/v1/sync/instagram?workspace_id=...` automáticamente, mostrar loaders, etapas percibidas y textos claros de qué está haciendo el sistema mientras se procesan los últimos 90 días.
+- Al terminar la sincronización inicial, la UI debe redirigir automáticamente a `/instagram` ya con datos reales cargados.
+- Si la sincronización inicial falla, la pantalla de bootstrap debe mostrar el error y ofrecer reintento sin obligar al usuario a navegar manualmente por la app.
+
+### 10. Performance de sincronización (v2)
+- **Insights en paralelo:** las métricas de cada media item se fetchean con concurrencia controlada (`META_INSIGHTS_CONCURRENCY=5`) en vez de secuencial. Esto reduce la fase de insights de ~120s a ~25-40s para 50 items.
+- **Apify en paralelo:** el enriquecimiento de duración vía Apify corre con `APIFY_CONCURRENCY=3` y un límite de `MAX_DURATION_ENRICHMENTS=10` por sync. Antes era secuencial con límite de 5.
+- **Ads + Account en paralelo:** después de terminar el sync de media, Ads sync y Account insights corren simultáneamente en vez de secuencialmente. Esto ahorra el tiempo total del más corto de los dos.
+- **Límite de insights subido:** `MAX_INSIGHTS_PER_SYNC` pasó de 30 a 50 para cubrir más media en la primera sync sin requerir múltiples pasadas.
+- **Benchmark al final:** el refresh de `reel_benchmarks` corre después de que media+ads terminaron para incluir datos paid en el snapshot.
+- **Utilidad de concurrencia:** `src/lib/concurrency.ts` provee `runConcurrent()` con worker pool controlado, usado por insights y Apify.
+
+### 11. Sincronización automática en segundo plano (background sync)
+- En producción, Arko sincroniza métricas automáticamente cada 6 horas sin intervención del usuario, usando Vercel Cron.
+- El endpoint `GET /api/v1/sync/cron` itera todos los workspaces con conexión Meta activa y ejecuta un full sync (media + ads + account + benchmark) para cada uno.
+- El cron está protegido por `CRON_SECRET` (header `Authorization: Bearer <secret>`). Sin esta variable, el endpoint retorna noop.
+- La frecuencia de 4 veces/día (cada 6h) mantiene los dashboards frescos sin exceder rate limits de Meta.
+- Configurado en `vercel.json` con schedule `0 */6 * * *`.
+- En local/dev el cron no corre automáticamente. Se puede probar manualmente enviando el header correcto.
+- Variable de entorno: `CRON_SECRET` (opcional, solo producción). Generar con `openssl rand -hex 32`.
+
+## Ruta
  `/instagram` con tabs: `?tab=reels` | `?tab=posts` | `?tab=all` | `?tab=metrics`
