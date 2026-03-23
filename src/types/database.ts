@@ -205,6 +205,11 @@ export interface ReelBenchmark {
   avg_shares_per_view: number;
   avg_saves_per_view: number;
   avg_follows_per_view: number;
+  avg_engagement_rate: number;
+  avg_retention_rate: number;
+  avg_duration_seconds: number;
+  avg_reach_per_view: number;
+  avg_saves_per_reach: number;
   exclude_trials: boolean;
   min_views_threshold: number;
   created_at: string;

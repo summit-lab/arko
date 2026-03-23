@@ -152,7 +152,7 @@ const DEMO_REEL = {
     avg_pause_duration: 0.8,
   },
   diagnostic: null as null | { status: string; summary: string; strengths: string[]; improvements: string[] },
-  benchmark: { avg_views: 45000 as number | null, avg_likes_pct: 2.8 as number | null, avg_saves_pct: 1.2 as number | null, avg_comments_pct: 0.15 as number | null, avg_shares_pct: 0.6 as number | null, reels_in_window: 24 },
+  benchmark: { avg_views: 45000 as number | null, avg_likes_pct: 2.8 as number | null, avg_saves_pct: 1.2 as number | null, avg_comments_pct: 0.15 as number | null, avg_shares_pct: 0.6 as number | null, avg_engagement_rate: 4.75 as number | null, avg_retention_rate: 62 as number | null, avg_duration_seconds: 38 as number | null, avg_reach_per_view: 0.82 as number | null, reels_in_window: 24 },
 };
 
 // ─── Page ───
@@ -188,7 +188,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           .single(),
         supabase
           .from("reel_benchmarks")
-          .select("reels_in_window, avg_views_90d, avg_likes_per_view, avg_saves_per_view, avg_comments_per_view, avg_shares_per_view")
+          .select("reels_in_window, avg_views_90d, avg_likes_per_view, avg_saves_per_view, avg_comments_per_view, avg_shares_per_view, avg_engagement_rate, avg_retention_rate, avg_duration_seconds, avg_reach_per_view")
           .eq("workspace_id", workspaceId)
           .order("calculated_at", { ascending: false })
           .limit(1)
@@ -250,6 +250,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               avg_saves_pct: benchmarkData.avg_saves_per_view > 0 ? benchmarkData.avg_saves_per_view * 100 : null,
               avg_comments_pct: benchmarkData.avg_comments_per_view > 0 ? benchmarkData.avg_comments_per_view * 100 : null,
               avg_shares_pct: benchmarkData.avg_shares_per_view > 0 ? benchmarkData.avg_shares_per_view * 100 : null,
+              avg_engagement_rate: benchmarkData.avg_engagement_rate > 0 ? benchmarkData.avg_engagement_rate : null,
+              avg_retention_rate: benchmarkData.avg_retention_rate > 0 ? benchmarkData.avg_retention_rate : null,
+              avg_duration_seconds: benchmarkData.avg_duration_seconds > 0 ? benchmarkData.avg_duration_seconds : null,
+              avg_reach_per_view: benchmarkData.avg_reach_per_view > 0 ? benchmarkData.avg_reach_per_view : null,
               reels_in_window: benchmarkData.reels_in_window || 0,
             }
           : {
@@ -258,6 +262,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               avg_saves_pct: null,
               avg_comments_pct: null,
               avg_shares_pct: null,
+              avg_engagement_rate: null,
+              avg_retention_rate: null,
+              avg_duration_seconds: null,
+              avg_reach_per_view: null,
               reels_in_window: 0,
             };
         const performerMultiple = benchmarkSnapshot.avg_views != null && benchmarkSnapshot.avg_views > 0

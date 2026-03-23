@@ -167,13 +167,63 @@ El developer hace todo eso desde GitHub Desktop.
 
 ## 7. MCP — Conexiones activas
 
-Este proyecto tiene el MCP de Supabase configurado (`apps-y-dash`).
+Este proyecto tiene el MCP de Supabase configurado.
 
 - **Úsalo** para consultar el schema real antes de generar migraciones
 - **Úsalo** para verificar tablas, columnas y políticas RLS existentes
 - **Úsalo** para generar tipos TypeScript desde el schema actual
-- **Nunca** ejecutes cambios destructivos en production vía MCP — siempre por migraciones
 - **Guía completa:** `docs/07-mcp-guide.md`
+
+### Regla INVIOLABLE de bases de datos
+
+> **Durante el desarrollo, la IA SOLO aplica migraciones en Dev Arko (`hrsvglgswatwklivkoyp`).**
+> **La IA NUNCA toca Prod Arko durante el desarrollo, ni aunque el humano lo pida.**
+
+#### Dos modos de operación
+
+| Modo | Cuándo | Qué puede hacer la IA en Prod Arko |
+|------|--------|-------------------------------------|
+| **Desarrollo** | Mientras se trabaja en features/fixes | Solo SELECT (lectura). **Nada de escritura.** |
+| **Release** | El developer pide explícitamente un deploy a producción | Aplicar las migraciones ya testeadas en DEV |
+
+#### Cómo distinguir un release de desarrollo normal
+
+Un release se identifica cuando el developer dice algo como:
+- "Pasá las migraciones a PROD"
+- "Hacé el deploy a producción"
+- "Release a PROD"
+- "Mové la DB a producción"
+
+Si no hay una instrucción explícita de release, **siempre es desarrollo** y PROD es intocable.
+
+#### Qué PUEDE hacer la IA con MCP
+
+| Acción | Dev Arko (siempre) | Prod Arko (desarrollo) | Prod Arko (release) |
+|--------|-------------------|----------------------|-------------------|
+| Consultar schema | SÍ | SÍ | SÍ |
+| Leer datos (SELECT) | SÍ | SÍ | SÍ |
+| Aplicar migraciones | SÍ | **NUNCA** | SÍ |
+| Ejecutar DDL | SÍ | **NUNCA** | SÍ |
+| Ejecutar DML | SÍ | **NUNCA** | Solo si es parte de la migración |
+
+#### Protocolo de release a PROD
+
+Cuando el developer solicita un release, la IA debe:
+
+1. **Listar** todas las migraciones pendientes en PROD (comparar DEV vs PROD)
+2. **Mostrar** el SQL que se va a ejecutar para que el developer lo revise
+3. **Pedir confirmación explícita** antes de ejecutar cada migración
+4. **Aplicar** una migración a la vez, verificando éxito antes de la siguiente
+5. **Verificar** el estado final de PROD (schema, constraints, policies)
+
+### 7.1 Flujo de migraciones DEV → PROD
+
+```
+Desarrollo:  IA aplica migración en DEV → Developer testea → PR → Merge a main
+Release:     Developer pide release → IA lista pendientes → Confirmación → IA aplica en PROD → Vercel deploya
+```
+
+El orden es: **DB primero, código después** (o simultáneo). Nunca código antes que DB.
 
 ---
 

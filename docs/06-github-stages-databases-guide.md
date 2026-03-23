@@ -279,16 +279,18 @@ Production representa lo aprobado para `main`.
 
 ## 6.1 Modelo recomendado para Arko
 
-La recomendación operativa del proyecto es usar **2 proyectos Supabase**:
+El proyecto usa **2 proyectos Supabase** en la organización `arkov2`:
 
-- **Supabase staging/dev**
-- **Supabase production**
+| Proyecto | ID | Región | Uso |
+|---|---|---|---|
+| **Dev Arko** | `hrsvglgswatwklivkoyp` | us-west-2 | local + staging |
+| **Prod Arko** | `zphvrohosizkbrnxtppj` | us-east-2 | production |
 
-### Distribución recomendada
+### Distribución
 
-- **local** → Supabase staging/dev
-- **staging** → Supabase staging/dev
-- **production** → Supabase production
+- **local** → Dev Arko
+- **staging** → Dev Arko
+- **production** → Prod Arko
 
 Con eso ya tienen una estructura profesional sin complicarse con 3 bases distintas.
 

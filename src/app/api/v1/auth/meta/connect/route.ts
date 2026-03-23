@@ -49,6 +49,7 @@ export async function POST(request: Request) {
     await supabase.from('meta_connections').upsert({
       workspace_id: workspaceId,
       status: 'pending',
+      last_error: null,
     }, { onConflict: 'workspace_id' });
 
     // Build Meta OAuth URL (PRD 4.3 Step 1)

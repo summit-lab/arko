@@ -9,13 +9,22 @@
  *   4. Upsert into reels + reel_metrics tables
  *   5. Classify reel_type via heuristic (PRD 2.3)
  *   6. Update sync_job progress
+ *
+ * Performance:
+ *   - Insights are fetched in parallel with controlled concurrency (META_INSIGHTS_CONCURRENCY)
+ *   - Apify duration enrichment runs in parallel (APIFY_CONCURRENCY)
+ *   - DB upserts for base media are batched
  */
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { fetchApifyReelPublicData } from '@/services/apify-reel.service';
+import { runConcurrent } from '@/lib/concurrency';
 import { env } from '@/lib/env';
 const GRAPH_API_VERSION = 'v25.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+
+const META_INSIGHTS_CONCURRENCY = 5;
+const APIFY_CONCURRENCY = 3;
 
 // ── Types ──────────────────────────────────────────────────────
 interface IGMedia {
@@ -118,15 +127,11 @@ export async function syncInstagramReels(
         .map((r) => r.ig_media_id)
     );
 
-    // 4. Process each Reel — limit insights fetches to avoid timeout
-    const MAX_INSIGHTS_PER_SYNC = 30;
-    let insightsFetchCount = 0;
+    // 4. Upsert all media base data (sequential — DB writes are fast)
+    const reelIdMap = new Map<string, string>(); // ig_media_id → reel.id
 
-    for (let i = 0; i < allMedia.length; i++) {
-      const media = allMedia[i];
-
+    for (const media of allMedia) {
       try {
-        // Upsert reel base data (always — fast, no API call)
         const reelType = classifyReelType(media);
         const { data: reel, error: reelError } = await supabase
           .from('reels')
@@ -153,66 +158,9 @@ export async function syncInstagramReels(
         if (reelError || !reel) {
           result.errors.push(`Reel ${media.id}: upsert failed — ${reelError?.message}`);
           result.reelsSkipped++;
-          continue;
-        }
-
-        result.reelsSynced++;
-
-        // Skip insights if already fetched recently or limit reached
-        if (reelsWithRecentMetrics.has(media.id)) {
-          result.reelsSkipped++;
-          continue;
-        }
-
-        if (insightsFetchCount >= MAX_INSIGHTS_PER_SYNC) {
-          continue;
-        }
-
-        // 5. Fetch insights for this media (Reel vs Post use different metrics)
-        const isReel = media.media_product_type === 'REELS';
-        const insights = isReel
-          ? await fetchReelInsights(media.id, accessToken)
-          : await fetchPostInsights(media.id, accessToken);
-        insightsFetchCount++;
-
-        if (insights) {
-          const { error: metricsError } = await supabase
-            .from('reel_metrics')
-            .upsert(
-              {
-                reel_id: reel.id,
-                workspace_id: workspaceId,
-                views_org: insights.views ?? null,
-                impressions_org: null,
-                reach_org: insights.reach ?? null,
-                likes_total: insights.likes ?? null,
-                comments_total: insights.comments ?? null,
-                shares_total: insights.shares ?? null,
-                saves_total: insights.saved ?? null,
-                total_interactions: insights.total_interactions ?? null,
-                profile_visits: null,
-                follows_generated: null,
-                avg_watch_time_sec: insights.ig_reels_avg_watch_time
-                  ? insights.ig_reels_avg_watch_time / 1000
-                  : null,
-                fetched_at: new Date().toISOString(),
-              },
-              { onConflict: 'reel_id' }
-            );
-
-          if (metricsError) {
-            result.errors.push(`Reel ${media.id}: metrics upsert failed — ${metricsError.message}`);
-          } else {
-            result.insightsFetched++;
-          }
-        }
-
-        // Update progress
-        if (i % 5 === 0 || i === allMedia.length - 1) {
-          await supabase
-            .from('sync_jobs')
-            .update({ processed_items: i + 1 })
-            .eq('id', syncJobId);
+        } else {
+          result.reelsSynced++;
+          reelIdMap.set(media.id, reel.id);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -221,8 +169,79 @@ export async function syncInstagramReels(
       }
     }
 
-    // 5. Enrich durations for reels missing them (limited batch to avoid timeout)
-    const MAX_DURATION_ENRICHMENTS = 5;
+    // Update progress after base upserts
+    await supabase
+      .from('sync_jobs')
+      .update({ processed_items: allMedia.length })
+      .eq('id', syncJobId);
+
+    // 5. Fetch insights in parallel with concurrency limit
+    const MAX_INSIGHTS_PER_SYNC = 50;
+    const mediaToFetchInsights = allMedia.filter((media) => {
+      if (!reelIdMap.has(media.id)) return false;
+      if (reelsWithRecentMetrics.has(media.id)) return false;
+      return true;
+    }).slice(0, MAX_INSIGHTS_PER_SYNC);
+
+    console.log(`[ig-sync] Fetching insights for ${mediaToFetchInsights.length} media items (concurrency=${META_INSIGHTS_CONCURRENCY})...`);
+    const tInsights = Date.now();
+
+    const insightTasks = mediaToFetchInsights.map((media) => ({
+      fn: async () => {
+        const isReel = media.media_product_type === 'REELS';
+        const insights = isReel
+          ? await fetchReelInsights(media.id, accessToken)
+          : await fetchPostInsights(media.id, accessToken);
+        return { media, insights };
+      },
+    }));
+
+    const insightResults = await runConcurrent(insightTasks, META_INSIGHTS_CONCURRENCY);
+
+    // Write metrics to DB
+    for (const settled of insightResults) {
+      if (settled.status === 'rejected') continue;
+      const { media, insights } = settled.value;
+      if (!insights) continue;
+
+      const reelId = reelIdMap.get(media.id);
+      if (!reelId) continue;
+
+      const { error: metricsError } = await supabase
+        .from('reel_metrics')
+        .upsert(
+          {
+            reel_id: reelId,
+            workspace_id: workspaceId,
+            views_org: insights.views ?? null,
+            impressions_org: null,
+            reach_org: insights.reach ?? null,
+            likes_total: insights.likes ?? null,
+            comments_total: insights.comments ?? null,
+            shares_total: insights.shares ?? null,
+            saves_total: insights.saved ?? null,
+            total_interactions: insights.total_interactions ?? null,
+            profile_visits: null,
+            follows_generated: null,
+            avg_watch_time_sec: insights.ig_reels_avg_watch_time
+              ? insights.ig_reels_avg_watch_time / 1000
+              : null,
+            fetched_at: new Date().toISOString(),
+          },
+          { onConflict: 'reel_id' }
+        );
+
+      if (metricsError) {
+        result.errors.push(`Reel ${media.id}: metrics upsert failed — ${metricsError.message}`);
+      } else {
+        result.insightsFetched++;
+      }
+    }
+
+    console.log(`[ig-sync] Insights phase done in ${Date.now() - tInsights}ms — fetched: ${result.insightsFetched}`);
+
+    // 6. Enrich durations via Apify in parallel
+    const MAX_DURATION_ENRICHMENTS = 10;
     const { data: reelsMissingDuration } = await supabase
       .from('reels')
       .select('id, permalink')
@@ -233,23 +252,34 @@ export async function syncInstagramReels(
       .limit(MAX_DURATION_ENRICHMENTS);
 
     if (reelsMissingDuration && reelsMissingDuration.length > 0) {
-      for (const reel of reelsMissingDuration) {
-        try {
+      console.log(`[ig-sync] Enriching ${reelsMissingDuration.length} durations via Apify (concurrency=${APIFY_CONCURRENCY})...`);
+      const tApify = Date.now();
+
+      const apifyTasks = reelsMissingDuration.map((reel) => ({
+        fn: async () => {
           const apifyData = await fetchApifyReelPublicData(reel.permalink!);
-          if (apifyData?.video_duration_seconds) {
-            await supabase
-              .from('reels')
-              .update({ duration_seconds: apifyData.video_duration_seconds })
-              .eq('id', reel.id);
-            result.durationsEnriched++;
-          }
-        } catch {
-          // Non-blocking: if Apify fails, continue
+          return { reelId: reel.id, duration: apifyData?.video_duration_seconds ?? null };
+        },
+      }));
+
+      const apifyResults = await runConcurrent(apifyTasks, APIFY_CONCURRENCY);
+
+      for (const settled of apifyResults) {
+        if (settled.status === 'rejected') continue;
+        const { reelId, duration } = settled.value;
+        if (duration) {
+          await supabase
+            .from('reels')
+            .update({ duration_seconds: duration })
+            .eq('id', reelId);
+          result.durationsEnriched++;
         }
       }
+
+      console.log(`[ig-sync] Apify phase done in ${Date.now() - tApify}ms — enriched: ${result.durationsEnriched}`);
     }
 
-    // 6. Mark job as completed
+    // 7. Mark job as completed
     await supabase
       .from('sync_jobs')
       .update({
