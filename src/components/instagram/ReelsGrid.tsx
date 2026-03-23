@@ -165,7 +165,7 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
 
   // Reset pagination when filters/sort change
   useEffect(() => {
-    setPage(1); // eslint-disable-line react-hooks/set-state-in-effect
+    setPage(1);
   }, [sortKey, sortDir, typeFilter, distFilter]);
 
   const filtered = useMemo(() => {
