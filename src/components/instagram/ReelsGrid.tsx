@@ -312,7 +312,7 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
               prefetch
               onMouseEnter={() => router.prefetch(`/instagram/${reel.id}`)}
               onFocus={() => router.prefetch(`/instagram/${reel.id}`)}
-              className="group relative flex flex-row overflow-hidden rounded-2xl border border-white/[0.08] transition-all duration-300 min-h-[180px]"
+              className="group relative flex flex-row overflow-hidden rounded-xl border border-white/[0.08] transition-all duration-300 min-h-[180px]"
               style={{
                 background: "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0.04) 100%)",
                 backdropFilter: "blur(12px)",
@@ -322,7 +322,7 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
               {/* Glass shimmer top */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] z-10"
                 style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 30%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.2) 70%, transparent 100%)" }} />
-              <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              <div className="pointer-events-none absolute inset-0 z-10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                 style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06) 0%, transparent 60%)" }} />
 
               {/* ── Thumbnail 9:16 a la izquierda ── */}

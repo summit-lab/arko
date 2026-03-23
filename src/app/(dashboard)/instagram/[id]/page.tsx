@@ -545,7 +545,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               { label: "% Shares / Views", value: `${sharesPct.toFixed(2)}%`, raw: formatNumber(reel.shares), icon: Share2, comp: sharesComp, color: "text-blue-400" },
               { label: "% Comments / Views", value: `${commentsPct.toFixed(2)}%`, raw: formatNumber(reel.comments), icon: MessageSquare, comp: commentsComp, color: "text-emerald-400" },
             ].map((m) => (
-              <div key={m.label} className="glass-panel min-h-[122px] rounded-2xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <div key={m.label} className="glass-panel min-h-[122px] rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
                 <div className="flex items-center gap-2 mb-1">
                   <m.icon className={`h-3.5 w-3.5 ${m.color}`} />
                   <span className="text-[11px] font-medium text-zinc-300">{m.label}</span>
@@ -559,7 +559,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             ))}
           </div>
 
-          <div className="glass-panel rounded-2xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
+          <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
               <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
               Métricas Extendidas
@@ -618,7 +618,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="glass-panel rounded-2xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-5">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-5">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Volumen absoluto y ratios claros</h3>
           <p className="mb-4 text-xs text-zinc-300">Acá no hay barras sin base: arriba ves valores absolutos y abajo barras del tipo x de y.</p>
           <div className="grid grid-cols-2 gap-3">
@@ -687,7 +687,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        <div className="glass-panel rounded-2xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-4">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-4">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Interacción sobre views vs promedio 90d</h3>
           <p className="mb-4 text-xs text-zinc-300">Cada fila compara el porcentaje actual sobre views totales del Reel contra el benchmark de los últimos 90 días.</p>
           {hasInteractionBenchmark ? (
@@ -725,7 +725,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        <div className="glass-panel rounded-2xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-3">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-3">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Retención estimada</h3>
           <p className="mb-4 text-xs text-zinc-300">Calculado con avg watch time (Meta) + duración (Apify). No es curva real por segundo.</p>
           {retentionRows.length > 0 ? (
@@ -787,7 +787,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       )}
 
       {/* SECTION 6: AI Diagnosis — on demand (PRD 8.2) */}
-      <div className="glass-panel rounded-2xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl">
+      <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl">
         <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-zinc-100">
           <Brain className="h-4 w-4 text-zinc-300" />
           Diagnóstico IA

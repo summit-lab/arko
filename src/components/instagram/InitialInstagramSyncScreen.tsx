@@ -111,7 +111,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
       <div className="mx-auto flex min-h-[calc(100vh-180px)] max-w-5xl items-center justify-center">
         <div className="grid w-full gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <section className="glass-section rounded-[28px] p-10">
-            <div className="mb-8 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-pink-500/30 bg-gradient-to-br from-pink-500/20 to-purple-500/20">
+            <div className="mb-8 inline-flex h-16 w-16 items-center justify-center rounded-xl border border-pink-500/30 bg-gradient-to-br from-pink-500/20 to-purple-500/20">
               <Instagram className="h-8 w-8 text-pink-400" />
             </div>
 
@@ -172,7 +172,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
                 return (
                   <div
                     key={phase.title}
-                    className={`rounded-2xl border p-4 transition-all ${
+                    className={`rounded-xl border p-4 transition-all ${
                       isCurrent
                         ? "border-violet-400/30 bg-violet-400/10"
                         : "border-white/8 bg-white/[0.025]"
@@ -209,10 +209,10 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
             <div className="glass-card rounded-[28px] p-7">
               <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Qué vas a ver al entrar</p>
               <div className="mt-4 space-y-3 text-sm font-light text-white/55">
-                <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3">Tus Reels y posts recientes</div>
-                <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3">KPIs orgánicos y pagados</div>
-                <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3">Benchmark inicial de 90 días</div>
-                <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3">IG Metrics a nivel de cuenta</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Tus Reels y posts recientes</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">KPIs orgánicos y pagados</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Benchmark inicial de 90 días</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">IG Metrics a nivel de cuenta</div>
               </div>
             </div>
 

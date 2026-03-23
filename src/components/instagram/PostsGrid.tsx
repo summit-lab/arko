@@ -175,7 +175,7 @@ export function PostsGrid({ posts }: PostsGridProps) {
           return (
             <div
               key={post.id}
-              className="group overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-xl shadow-black/20 transition-all hover:border-white/20 hover:bg-black/40"
+              className="group overflow-hidden rounded-xl border border-white/10 bg-black/30 shadow-xl shadow-black/20 transition-all hover:border-white/20 hover:bg-black/40"
             >
               <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-pink-500/10 to-purple-500/10">
                 {imageUrl ? (

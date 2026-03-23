@@ -98,9 +98,11 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 - `APIFY_API_TOKEN` debe guardarse como token raw `apify_api_...`; si se pega una URL completa del endpoint, Arko extrae automáticamente el `token=`. Si la credencial es inválida, la ficha degrada a `null` sin romper la página.
 
 ### 5. Navegación por Tabs
-- La ruta `/instagram` ahora soporta navegación por tabs usando `searchParams`: `?tab=reels` (default), `?tab=posts`, `?tab=all`, `?tab=metrics`.
+- La ruta `/instagram` ahora soporta navegación por tabs usando `searchParams`: `?tab=dashboard` (default), `?tab=reels`, `?tab=posts`, `?tab=metrics`.
 - El componente `InstagramTabs` (client) lee y escribe `?tab=` preservando el resto de parámetros como `?days=`.
 - `PeriodFilter` preserva `?tab=` al cambiar el período temporal.
+- Tab "Dashboard" es la vista principal con panel unificado (rendimiento, conversión, crecimiento, desglose orgánico/pagado, interacciones, mejor reel, reels recientes).
+- Tab "Demografía" (ex "IG Metrics") muestra evolución temporal y datos demográficos de audiencia.
 
 ### 6. Posts (Imágenes / Carousels)
 - El sync ahora trae ALL media types de la cuenta IG (no solo REELS), incluyendo `IMAGE` y `CAROUSEL_ALBUM`.
@@ -151,5 +153,25 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 - En local/dev el cron no corre automáticamente. Se puede probar manualmente enviando el header correcto.
 - Variable de entorno: `CRON_SECRET` (opcional, solo producción). Generar con `openssl rand -hex 32`.
 
+### 12. Métricas diarias por reel (reel_metrics_daily)
+- Nueva tabla `reel_metrics_daily` almacena un snapshot de métricas por reel por día (UPSERT con UNIQUE(reel_id, metric_date)).
+- Se ejecuta automáticamente al final de cada sync de media (`snapshotDailyMetrics`).
+- Permite gráficas de evolución temporal: views, likes, saves, comments por reel a lo largo del tiempo.
+- Incluye métricas orgánicas y pagas en cada snapshot.
+- Diseñada para escalar a 100+ usuarios × 75+ reels × 365 días (~2.7M filas/año).
+- Índices compuestos: `(workspace_id, metric_date DESC)` para queries de dashboard, `(reel_id, metric_date DESC)` para charts per-reel.
+
+### 13. Dashboard unificado
+- La vista principal de `/instagram` (tab "Dashboard") muestra un panel tipo control room con:
+  - **Rendimiento de visitas:** AreaChart con impresiones y alcance diarios + trend vs período anterior.
+  - **Conversión de perfil:** tasa de conversión profile_views → followers.
+  - **Crecimiento de perfil:** total de seguidores + ganados en el período.
+  - **Desglose orgánico/pagado:** PieChart con distribución de views orgánicas vs pagas.
+  - **Interacciones clave:** likes, comentarios, guardados, compartidos del período.
+  - **Mejor Reel:** thumbnail + métricas del top performer.
+  - **Reels recientes:** strip horizontal con thumbnails y views.
+- Componente: `IGDashboard.tsx` (client, Recharts).
+- Datos: combina `ig_account_insights` (daily) + `reels` + `reel_metrics` + `reel_metrics_paid`.
+
 ## Ruta
- `/instagram` con tabs: `?tab=reels` | `?tab=posts` | `?tab=all` | `?tab=metrics`
+ `/instagram` con tabs: `?tab=dashboard` (default) | `?tab=reels` | `?tab=posts` | `?tab=metrics` (demografía)

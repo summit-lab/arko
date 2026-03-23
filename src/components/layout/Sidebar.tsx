@@ -55,7 +55,7 @@ export function Sidebar() {
   return (
     <aside
       className="w-[260px] h-screen fixed left-0 top-0 z-40 flex flex-col"
-      style={{ background: "#0e0d14", fontFamily: "'Graphicus DT', sans-serif" }}
+      style={{ background: "rgba(0, 0, 0, 0.35)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
     >
       {/* ── Logo ── */}
       <div className="flex items-center gap-3 px-5 pt-6 pb-5 shrink-0">

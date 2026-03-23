@@ -44,6 +44,7 @@
 2. **NO ROMPER LO QUE FUNCIONA** — Detenerse si hay conflicto con la arquitectura
 3. **DOCUMENTACIÓN CONTINUA** — Actualizar docs + CHANGELOG después de cada cambio
 4. **SEGURIDAD** — Nunca cambios destructivos en producción sin confirmación del humano
+5. **DISEÑAR PARA 100+ USUARIOS** — Toda tabla, query, índice y flujo de datos debe pensarse como si lo van a usar 100 personas con múltiples reels/videos cada una. Incluir índices compuestos para queries frecuentes, verificar que RLS funcione multi-tenant, y nunca diseñar asumiendo un solo workspace.
 
 ---
 

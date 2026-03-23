@@ -34,7 +34,8 @@ export async function Header() {
 
   return (
     <header
-      className="h-[80px] w-full flex items-center justify-between px-8 z-30 sticky top-0 bg-[#0e0d14]"
+      className="h-[80px] w-full flex items-center justify-between px-8 z-30 sticky top-0"
+      style={{ background: "rgba(0, 0, 0, 0.35)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
     >
       {/* Left — User Profile (Stakent Style) */}
       <div className="flex items-center gap-3.5 cursor-pointer group">

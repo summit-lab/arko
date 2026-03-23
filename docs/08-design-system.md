@@ -6,9 +6,9 @@ Inspiración: Stakent, paneles DeFi premium — **glassmorphism real** con `back
 
 ## 1. Fondo
 
-- **Body:** `#08080c` — negro profundo abisal.
+- **Body:** `#000000` — negro puro 100%.
 - **Sin imagen**, sin overlay `::before`, sin textura.
-- Definido en `globals.css` → `body { background: #08080c; }`.
+- Definido en `globals.css` → `body { background: #000000; }`.
 
 ## 2. Superficies / Tarjetas
 
@@ -20,10 +20,11 @@ border: 1px solid rgba(255, 255, 255, 0.08)
 box-shadow: 0 8px 32px rgba(0,0,0,0.3),
             inset 0 1px 0 rgba(255,255,255,0.06),
             inset 0 -1px 0 rgba(255,255,255,0.02)
-rounded-2xl
+rounded-xl
 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1)
 ```
 **Hover:** `bg → rgba(255,255,255,0.06)`, `border → 0.12`, shadow más profunda.
+**Reflejos laterales:** `::before` (izquierda, más brillante) y `::after` (derecha, sutil) con gradient vertical blanco que simula reflejo de luz ambiental en vidrio.
 
 ### `.glass-section` (Secciones grandes)
 ```css
@@ -32,7 +33,7 @@ background: rgba(255, 255, 255, 0.025)
 border: 1px solid rgba(255, 255, 255, 0.06)
 box-shadow: 0 8px 40px rgba(0,0,0,0.35),
             inset 0 1px 0 rgba(255,255,255,0.05)
-rounded-[20px]
+rounded-xl
 ```
 
 ### `.glass-panel` (legacy compat)
@@ -42,8 +43,10 @@ background: rgba(255, 255, 255, 0.03)
 border: 1px solid rgba(255, 255, 255, 0.08)
 box-shadow: 0 8px 32px rgba(0,0,0,0.4),
             inset 0 1px 0 rgba(255,255,255,0.06)
-rounded-2xl
+rounded-xl
 ```
+
+> **Border radius estándar:** `rounded-xl` (12px) para TODA la app. No usar `rounded-2xl` (16px) ni `rounded-[20px]`.
 
 **Principio:** El `inset` top y bottom simula un reflejo de luz ambiental (liquid glass). **SIEMPRE usar `backdrop-blur-xl`** para el efecto glass real.
 
@@ -58,8 +61,8 @@ rounded-2xl
 | Subtítulos | inline | `text-[13px] font-light text-white/35` |
 | Página título | `.page-title` | `font-extralight tracking-[-0.03em]` clamp `2rem–2.75rem` |
 
-- **Fuente body:** Montserrat
-- **Fuente headings:** Sh Ad Grotesk → fallback Montserrat
+- **Fuente body:** Manrope Light (`/fonts/manrope.light.otf`)
+- **Fuente headings:** Manrope Bold (`/fonts/manrope.bold.otf`)
 - **Regla:** Los números SIEMPRE son `font-light` o `font-extralight`. NUNCA `font-bold` para datos numéricos. Esto es lo que da el look Stakent.
 
 ## 4. Gráficos (Recharts)

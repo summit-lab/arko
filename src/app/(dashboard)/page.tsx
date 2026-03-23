@@ -47,7 +47,7 @@ export default function Home() {
       {/* ROW 1: Chart + Monthly Goals + Key Metrics */}
       <div className="grid grid-cols-12 gap-6">
         {/* Organic Views Chart (mimicking the wireframe graph) */}
-        <div className="col-span-5 glass-panel rounded-2xl p-6">
+        <div className="col-span-5 glass-panel rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-zinc-300">Organic Views vs Ads Views</h3>
             <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 outline-none">
@@ -81,7 +81,7 @@ export default function Home() {
         </div>
 
         {/* Monthly Goals */}
-        <div className="col-span-4 glass-panel rounded-2xl p-6">
+        <div className="col-span-4 glass-panel rounded-xl p-6">
           <h3 className="text-sm font-semibold text-zinc-300 mb-4">Monthly Goals</h3>
           <div className="space-y-4">
             {goals.map((g) => {
@@ -128,7 +128,7 @@ export default function Home() {
       {/* ROW 2: Views by Country + Top Performing Content */}
       <div className="grid grid-cols-12 gap-6">
         {/* Views by country: Organic vs Ads */}
-        <div className="col-span-5 glass-panel rounded-2xl p-6">
+        <div className="col-span-5 glass-panel rounded-xl p-6">
           <h3 className="text-sm font-semibold text-zinc-300 mb-4">Views por País</h3>
           <div className="grid grid-cols-2 gap-6">
             {/* Organic */}
@@ -165,7 +165,7 @@ export default function Home() {
         </div>
 
         {/* Top Performing Content */}
-        <div className="col-span-7 glass-panel rounded-2xl p-6">
+        <div className="col-span-7 glass-panel rounded-xl p-6">
           <h3 className="text-sm font-semibold text-zinc-300 mb-4">Top Performing Content</h3>
           <div className="space-y-2">
             {/* Table header */}

@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Montserrat } from "next/font/google";
 import "./globals.css";
 
-const shAdGrotesk = localFont({
-  src: "../../public/Sh Ad Grotesk Regular.ttf",
+const manropeBold = localFont({
+  src: "../../public/fonts/manrope.bold.otf",
   variable: "--font-heading-local",
   display: "swap",
 });
 
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const manropeLight = localFont({
+  src: "../../public/fonts/manrope.light.otf",
+  variable: "--font-body-local",
   display: "swap",
 });
 
@@ -27,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark">
-      <body className={`${montserrat.className} ${shAdGrotesk.variable} antialiased bg-black text-white`}>
+      <body className={`${manropeLight.className} ${manropeLight.variable} ${manropeBold.variable} antialiased bg-black text-white`}>
         {children}
       </body>
     </html>

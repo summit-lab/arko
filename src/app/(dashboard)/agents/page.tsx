@@ -64,7 +64,7 @@ export default function AgentsPage() {
 
       <div className="flex-1 flex gap-6 min-h-0">
         {/* Agents Sidebar */}
-        <div className="w-72 shrink-0 glass-panel rounded-2xl p-4 flex flex-col">
+        <div className="w-72 shrink-0 glass-panel rounded-xl p-4 flex flex-col">
           <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4 px-2">Agentes Disponibles</h3>
           <div className="space-y-2 flex-1">
             {agents.map((agent) => (
@@ -99,7 +99,7 @@ export default function AgentsPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden">
+        <div className="flex-1 glass-panel rounded-xl flex flex-col overflow-hidden">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {messages.map((msg, i) => (
@@ -112,7 +112,7 @@ export default function AgentsPage() {
                     </div>
                   )}
                   <div
-                    className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                    className={`p-4 rounded-xl text-sm leading-relaxed ${
                       msg.role === "user"
                         ? "bg-white/10 border border-white/10 text-zinc-200"
                         : "bg-white/5 border border-white/5 text-zinc-300"

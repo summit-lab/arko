@@ -88,7 +88,7 @@ export default function CustomerVoicePage() {
 
       <div className="grid grid-cols-12 gap-6">
         {/* Form Responses */}
-        <div className="col-span-7 glass-panel rounded-2xl p-6">
+        <div className="col-span-7 glass-panel rounded-xl p-6">
           <div className="flex items-center gap-2 mb-5">
             <FileText className="h-4 w-4 text-zinc-400" />
             <h3 className="text-sm font-semibold text-zinc-300">Respuestas de Formularios (Typeform)</h3>
@@ -109,7 +109,7 @@ export default function CustomerVoicePage() {
         {/* Pain Points + Quotes */}
         <div className="col-span-5 space-y-6">
           {/* Pain Points */}
-          <div className="glass-panel rounded-2xl p-6">
+          <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center gap-2 mb-5">
               <AlertCircle className="h-4 w-4 text-amber-400" />
               <h3 className="text-sm font-semibold text-zinc-300">Dolores Más Mencionados</h3>
@@ -130,7 +130,7 @@ export default function CustomerVoicePage() {
           </div>
 
           {/* Quotes for Copy */}
-          <div className="glass-panel rounded-2xl p-6">
+          <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center gap-2 mb-5">
               <Quote className="h-4 w-4 text-cyan-400" />
               <h3 className="text-sm font-semibold text-zinc-300">Frases para Copy</h3>
@@ -147,7 +147,7 @@ export default function CustomerVoicePage() {
       </div>
 
       {/* Call Transcripts */}
-      <div className="glass-panel rounded-2xl p-6">
+      <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Phone className="h-4 w-4 text-zinc-400" />

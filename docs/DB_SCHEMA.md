@@ -1,7 +1,7 @@
 # Esquema de Base de Datos
 
 **Base de datos:** Supabase (PostgreSQL)
-**Última actualización:** 2026-03-18 01:00
+**Última actualización:** 2026-03-23
 **PRD de referencia:** `docs/ARKO_PRD_INSTAGRAM_v1.md`
 
 ---
@@ -43,6 +43,7 @@ erDiagram
     reels ||--o| reel_visual_analysis : has
     reels ||--o| reel_audio_analysis : has
     reels ||--o{ reel_diagnostics : has
+    reels ||--o{ reel_metrics_daily : has_daily_snapshots
     chat_sessions ||--o{ chat_messages : contains
 ```
 
@@ -72,6 +73,7 @@ erDiagram
 | 16 | `sync_jobs` | Sync job tracking | 000006 | ✅ |
 | 17 | `ig_account_insights` | Daily account-level metrics (IG User Insights API) | 000009 | ✅ |
 | 18 | `ig_account_demographics` | Lifetime audience demographics snapshots | 000009 | ✅ |
+| 19 | `reel_metrics_daily` | Daily snapshots of per-reel metrics for time-series charts | 000012 | ✅ |
 
 **Views:**
 | View | Descripción |
@@ -181,6 +183,35 @@ erDiagram
 ### sync_jobs
 > Ver detalle completo en migración `20260318000006_sync_and_rls.sql`
 
+### reel_metrics_daily
+> Daily snapshots de métricas por reel para gráficas de evolución temporal. Diseñada para escalar a 100+ usuarios.
+
+| Columna | Tipo | Nullable | Default | Descripción |
+|---------|------|----------|---------|-------------|
+| `id` | uuid PK | NO | gen_random_uuid() | — |
+| `reel_id` | uuid FK | NO | — | FK → reels(id) ON DELETE CASCADE |
+| `workspace_id` | uuid FK | NO | — | FK → workspaces(id) ON DELETE CASCADE |
+| `metric_date` | date | NO | — | Fecha del snapshot |
+| `views_org` | bigint | SÍ | 0 | Views orgánicas acumuladas |
+| `reach_org` | bigint | SÍ | 0 | Alcance orgánico |
+| `impressions_org` | bigint | SÍ | 0 | Impresiones orgánicas |
+| `likes_total` | bigint | SÍ | 0 | Likes totales |
+| `comments_total` | bigint | SÍ | 0 | Comentarios totales |
+| `shares_total` | bigint | SÍ | 0 | Compartidos totales |
+| `saves_total` | bigint | SÍ | 0 | Guardados totales |
+| `total_interactions` | bigint | SÍ | 0 | Interacciones totales |
+| `avg_watch_time_sec` | real | SÍ | — | Tiempo promedio de visualización (s) |
+| `views_paid` | bigint | SÍ | 0 | Views pagas |
+| `impressions_paid` | bigint | SÍ | 0 | Impresiones pagas |
+| `reach_paid` | bigint | SÍ | 0 | Alcance pago |
+| `spend_cents` | bigint | SÍ | 0 | Gasto en centavos |
+| `fetched_at` | timestamptz | NO | now() | Última actualización |
+| `created_at` | timestamptz | NO | now() | — |
+
+**UNIQUE:** (reel_id, metric_date)
+**Índices:** `(workspace_id, metric_date DESC)`, `(reel_id, metric_date DESC)`
+**RLS:** SELECT/INSERT/UPDATE via is_workspace_member(workspace_id)
+
 ---
 
 ## Historial de Migraciones
@@ -197,6 +228,7 @@ erDiagram
 | 9 | `20260318000009_ig_account_insights.sql` | 2026-03-18 | ig_account_insights (daily metrics), ig_account_demographics (lifetime demographics) |
 | 10 | `20260323000010_auto_create_workspace_on_signup.sql` | 2026-03-23 | Actualiza handle_new_user() para auto-crear workspace + workspace_member al signup. Backfill de usuarios existentes. |
 | 11 | `20260323000011_benchmark_extended_metrics_upsert.sql` | 2026-03-23 | Agrega avg_engagement_rate, avg_retention_rate, avg_duration_seconds, avg_reach_per_view, avg_saves_per_reach a reel_benchmarks. UNIQUE(workspace_id) + UPDATE RLS para UPSERT. |
+| 12 | `20260323000012_reel_metrics_daily.sql` | 2026-03-23 | reel_metrics_daily para snapshots diarios de métricas por reel. Índices compuestos + RLS. |
 
 ---
 
@@ -264,6 +296,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 | `chat_messages` | is_workspace_member | is_workspace_member | — | — |
 | `audit_logs` | is_workspace_member | is_workspace_member | — | — |
 | `sync_jobs` | is_workspace_member | is_workspace_member | is_workspace_member | — |
+| `reel_metrics_daily` | is_workspace_member | is_workspace_member | is_workspace_member | — |
 
 ## Storage Buckets
 

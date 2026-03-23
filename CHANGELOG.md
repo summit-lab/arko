@@ -5,6 +5,49 @@
  
 ---
  
+## [0.9.8] — 2026-03-23
+
+### Changed — Tipografía global: Manrope Bold + Manrope Light
+
+- Reemplazadas todas las fuentes de la app: `Sh Ad Grotesk` y `Montserrat` eliminadas.
+- Títulos/headings: `Manrope Bold` (`/fonts/manrope.bold.otf`).
+- Texto body/secundario: `Manrope Light` (`/fonts/manrope.light.otf`).
+- Carga optimizada con `next/font/local` (sin dependencia de Google Fonts).
+
+#### Archivos afectados
+- `src/app/layout.tsx` (modificado — nuevas fuentes locales Manrope)
+- `src/app/globals.css` (modificado — @font-face, CSS variables, base font-family)
+- `docs/08-design-system.md` (modificado — tipografía actualizada)
+- `docs/features/dashboard-layout.md` (modificado — tipografía actualizada)
+
+---
+
+## [0.9.7] — 2026-03-23
+
+### Added — Dashboard unificado IG Intelligence + métricas diarias por reel
+
+- **Nueva tabla `reel_metrics_daily`:** snapshots diarios de métricas por reel (orgánico + pagado). Permite gráficas de evolución temporal. Índices compuestos para queries multi-tenant (workspace_id + metric_date). RLS completo.
+- **Dashboard unificado:** nueva vista principal de `/instagram` con layout tipo panel de control — rendimiento de visitas (AreaChart), conversión de perfil, crecimiento, desglose orgánico/pagado (PieChart), interacciones clave, mejor Reel, reels recientes.
+- **Tabs reorganizados:** Dashboard (default) → Reels → Posts → Demografía. Se elimina la tab "Todos" redundante.
+- **Fix `follower_count = 0`:** el sync ahora usa `profileData.followers_count` como fallback cuando Meta devuelve 0 en el endpoint daily.
+- **Snapshots diarios automáticos:** cada sync de media ahora guarda un snapshot en `reel_metrics_daily` con UPSERT por (reel_id, metric_date).
+
+#### Archivos afectados
+- `supabase/migrations/20260323000012_reel_metrics_daily.sql` (nuevo)
+- `supabase/functions/sync-instagram/index.ts` (modificado — fix follower_count + snapshotDailyMetrics)
+- `src/components/instagram/IGDashboard.tsx` (nuevo)
+- `src/components/instagram/IGDashboardClient.tsx` (nuevo)
+- `src/components/instagram/InstagramTabs.tsx` (modificado — nueva tab Dashboard)
+- `src/app/(dashboard)/instagram/page.tsx` (modificado — layout unificado)
+- `src/app/(dashboard)/instagram/loading.tsx` (modificado — skeleton del dashboard)
+- `docs/DB_SCHEMA.md` (actualizado)
+- `docs/features/ig-intelligence.md` (actualizado)
+
+#### Migración aplicada en
+- DEV (`hrsvglgswatwklivkoyp`) — aplicada via MCP
+
+---
+
 ## [0.9.6] — 2026-03-23
 
 ### Enhanced — Benchmark extendido con métricas compuestas + UPSERT

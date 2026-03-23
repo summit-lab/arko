@@ -11,7 +11,7 @@ export default function YouTubeLoading() {
       </div>
 
       {/* AI Insights */}
-      <div className="glass-card rounded-2xl p-4">
+      <div className="glass-card rounded-xl p-4">
         <div className="flex gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-8 rounded-lg bg-white/[0.04] flex-1" />
@@ -31,7 +31,7 @@ export default function YouTubeLoading() {
       </div>
 
       {/* Videos Table */}
-      <div className="glass-card rounded-2xl p-6">
+      <div className="glass-card rounded-xl p-6">
         <div className="h-4 w-32 rounded bg-white/[0.06] mb-5" />
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (

@@ -3,7 +3,8 @@
 ## 1. Descripción General
 El layout principal de la aplicación Arko. El dashboard usa un diseño inmersivo con una imagen de fondo global (`public/backgrownd.PNG`) que se mantiene fija y cubre toda la pantalla. Sobre este fondo, los componentes como el Sidebar, el Header y las tarjetas de contenido utilizan un estilo "glassmorphism" (cristal oscuro translúcido) para crear profundidad y una sensación premium.
 
-- Tipografía global: `public/Sh Ad Grotesk Regular.ttf` aplicada como fuente principal del sistema en headings y body.
+- Tipografía headings: `public/fonts/manrope.bold.otf` (Manrope Bold) para títulos y encabezados.
+- Tipografía body: `public/fonts/manrope.light.otf` (Manrope Light) para texto general.
 - Implementación técnica: carga con `next/font/local` en `src/app/layout.tsx` y aplicación global en el `<body>`.
 
 ## 2. Componentes Principales
@@ -40,8 +41,8 @@ El layout principal de la aplicación Arko. El dashboard usa un diseño inmersiv
 - Estilo visual: degradado más agresivo blanco → plateado oscuro con `bg-clip-text` y presencia más marcada.
 - Jerarquía: tamaño aumentado con `clamp(...)` para verse más grande en desktop y mobile.
 - Tipografía: espaciado adicional (`tracking-[0.06em]`) para una lectura más premium.
-- Fuente de títulos: `Sh Ad Grotesk` (local) para conservar identidad de marca.
+- Fuente de títulos: `Manrope Bold` (local) para conservar identidad de marca.
 
 ### 2.7 Tipografía secundaria
-- Texto secundario, descripciones y contenido general usando `Montserrat` como fuente base global.
-- Implementación en `src/app/layout.tsx` con `next/font/google` para carga optimizada.
+- Texto secundario, descripciones y contenido general usando `Manrope Light` como fuente base global.
+- Implementación en `src/app/layout.tsx` con `next/font/local` para carga optimizada.

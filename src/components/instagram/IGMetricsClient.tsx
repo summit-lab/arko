@@ -8,8 +8,8 @@ const IGMetrics = dynamic(
     ssr: false,
     loading: () => (
       <div className="animate-pulse space-y-4">
-        <div className="h-64 rounded-2xl bg-white/[0.04]" />
-        <div className="h-64 rounded-2xl bg-white/[0.04]" />
+        <div className="h-64 rounded-xl bg-white/[0.04]" />
+        <div className="h-64 rounded-xl bg-white/[0.04]" />
       </div>
     ),
   }

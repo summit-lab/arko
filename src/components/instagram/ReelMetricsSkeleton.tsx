@@ -6,7 +6,7 @@ export function ReelMetricsSkeleton() {
       {/* Quick stats row */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-8 mb-6">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="min-h-[100px] rounded-2xl backdrop-blur-xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div key={i} className="min-h-[100px] rounded-xl backdrop-blur-xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="h-4 w-20 rounded bg-white/[0.05] mb-4"></div>
             <div className="h-8 w-24 rounded bg-white/[0.08]"></div>
           </div>
@@ -14,7 +14,7 @@ export function ReelMetricsSkeleton() {
       </div>
 
       {/* Extended metrics */}
-      <div className="rounded-[20px] backdrop-blur-xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="rounded-xl backdrop-blur-xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="h-4 w-32 rounded bg-white/10 mb-3" />
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-10">
           {[1, 2, 3, 4, 5, 6, 7].map((i) => (
@@ -39,7 +39,7 @@ export function ReelMetricsSkeleton() {
 
 export function ReelAnalysisSkeleton() {
   return (
-    <div className="animate-pulse rounded-[20px] backdrop-blur-xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="animate-pulse rounded-xl backdrop-blur-xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="h-4 w-40 rounded bg-white/10 mb-4" />
       <div className="grid grid-cols-2 gap-3">
         {[1, 2, 3, 4].map((i) => (
@@ -55,7 +55,7 @@ export function ReelAnalysisSkeleton() {
 
 export function ReelRetentionSkeleton() {
   return (
-    <div className="animate-pulse rounded-[20px] backdrop-blur-xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="animate-pulse rounded-xl backdrop-blur-xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="h-4 w-32 rounded bg-white/10 mb-4" />
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (

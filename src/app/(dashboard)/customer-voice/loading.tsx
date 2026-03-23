@@ -26,7 +26,7 @@ export default function CustomerVoiceLoading() {
 
       {/* Form Responses + Pain Points */}
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-7 glass-card rounded-2xl p-6">
+        <div className="col-span-7 glass-card rounded-xl p-6">
           <div className="h-4 w-52 rounded bg-white/[0.06] mb-5" />
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -39,7 +39,7 @@ export default function CustomerVoiceLoading() {
         </div>
 
         <div className="col-span-5 space-y-6">
-          <div className="glass-card rounded-2xl p-6">
+          <div className="glass-card rounded-xl p-6">
             <div className="h-4 w-40 rounded bg-white/[0.06] mb-5" />
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -54,7 +54,7 @@ export default function CustomerVoiceLoading() {
             </div>
           </div>
 
-          <div className="glass-card rounded-2xl p-6">
+          <div className="glass-card rounded-xl p-6">
             <div className="h-4 w-32 rounded bg-white/[0.06] mb-5" />
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -66,7 +66,7 @@ export default function CustomerVoiceLoading() {
       </div>
 
       {/* Calls */}
-      <div className="glass-card rounded-2xl p-6">
+      <div className="glass-card rounded-xl p-6">
         <div className="h-4 w-52 rounded bg-white/[0.06] mb-5" />
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
