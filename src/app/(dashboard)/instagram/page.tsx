@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, TrendingUp, Zap, Bookmark, MessageSquare, Heart, Megaphone } from "lucide-react";
+import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncButton } from "@/components/instagram/SyncButton";
@@ -68,8 +68,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const activeTab = (params.tab as TabKey) || "reels";
   const periodDays = parseInt(params.days || "90", 10);
-  const periodLabel = `${periodDays}d`;
-  const periodStartIso = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString();
+  const periodStartIso = new Date(new Date().getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString();
 
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
@@ -223,8 +222,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       }
   }
 
-  // Aggregate stats for Reels KPI bar (only shown on reels/all tabs)
-  const showReelsKpis = activeTab === "reels" || activeTab === "all";
+  // Aggregate stats for Reels KPI bar
   const totalViews = reels.reduce((s, r) => s + r.views_total, 0);
   const totalViewsOrg = reels.reduce((s, r) => s + r.views_org, 0);
   const totalViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);

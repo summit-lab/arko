@@ -10,8 +10,8 @@
  * Only runs in production/staging — returns 200 noop in local.
  *
  * Frequency recommendation (configured in vercel.json):
- *   - Every 6 hours (4x/day) for media + ads + account + benchmark
- *   - Enough to keep dashboards fresh without burning API quotas
+ *   - Every 12 hours (2x/day) for media + ads + account + benchmark
+ *   - Enough to keep dashboards fresh without burning API quotas or Vercel function costs
  */
 
 import { createClient } from '@/lib/supabase/server';
