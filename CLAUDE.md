@@ -126,12 +126,23 @@
 **La IA NO hace:**
 - `git pull`, `git push`, `git commit`, `git checkout`, `git add`, ni ningún otro comando git
 - Crear ramas, cambiar de ramas, hacer merge, ni nada relacionado con git
+- **NUNCA pushear a `main`** — main es producción con usuarios reales
+- **NUNCA sugerir pushear directo a `main`** — siempre pasar por `develop` primero
 
 **La IA SÍ puede:**
 - Sugerir el nombre de rama a crear (el developer la crea en GitHub Desktop)
 - Sugerir el mensaje de commit (el developer lo escribe en GitHub Desktop)
-- Sugerir el título y descripción del PR (el developer lo abre desde GitHub)
+- Sugerir el título y descripción del PR **hacia `develop`** (nunca directo a `main`)
 - Indicar qué archivos se cambiaron y deben commitearse
+
+### Regla de deploy a producción
+
+El único camino a `main` (producción) es:
+1. PR de `develop` → `main`
+2. CI en verde
+3. **Un humano** decide mergear manualmente
+
+La IA nunca mergea a main. La IA nunca sugiere saltear staging.
 
 ### Nomenclatura de ramas (referencia para el developer)
 
