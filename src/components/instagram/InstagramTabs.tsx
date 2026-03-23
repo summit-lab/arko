@@ -2,14 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useCallback } from "react";
-import { FilmSlateIcon, ImageIcon, ChartBarIcon } from "@phosphor-icons/react";
+import { Clapperboard, Image, BarChart3 } from "lucide-react";
 
 export type TabKey = "reels" | "posts" | "all" | "metrics";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "reels", label: "Reels", icon: FilmSlateIcon },
-  { key: "posts", label: "Posts", icon: ImageIcon },
-  { key: "metrics", label: "IG Metrics", icon: ChartBarIcon },
+  { key: "reels", label: "Reels", icon: Clapperboard },
+  { key: "posts", label: "Posts", icon: Image },
+  { key: "metrics", label: "IG Metrics", icon: BarChart3 },
 ];
 
 export function InstagramTabs() {
@@ -50,7 +50,7 @@ export function InstagramTabs() {
           >
             <tab.icon
               size={15}
-              weight={active ? "fill" : "regular"}
+              strokeWidth={active ? 2.5 : 1.5}
               style={{ color: active ? "#ffffff" : "rgba(255,255,255,0.4)" }}
             />
             {tab.label}

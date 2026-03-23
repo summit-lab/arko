@@ -14,9 +14,10 @@ MCP (Model Context Protocol) permite que la IA se conecte directamente a servici
 ## MCP activo: Supabase
 
 ### Identificación
-- **Nombre del servidor:** `apps-y-dash`
+- **Nombre del servidor:** `arko`
 - **Paquete:** `@supabase/mcp-server-supabase`
-- **Archivo de config (local, fuera del repo):** `C:\Users\emanu\.claude\claude_mcp_config.json`
+- **Archivo de config:** `.mcp.json` (raíz del repo — se commitea)
+- **Token:** lee `SUPABASE_ACCESS_TOKEN` desde las variables de entorno del sistema
 
 ### Qué puede hacer la IA con este MCP
 
@@ -38,38 +39,75 @@ MCP (Model Context Protocol) permite que la IA se conecte directamente a servici
 
 ---
 
-## Configuración en una máquina nueva
+## Cómo funciona la configuración
 
-Cada developer configura el MCP localmente. El archivo **no se commitea al repo**.
+### Scope: solo proyecto (no global)
 
-Crear `C:\Users\<usuario>\.claude\claude_mcp_config.json`:
+El MCP está configurado **únicamente** en `.mcp.json` (raíz del repo) con scope `project`. **No está configurado globalmente** — cada proyecto tiene sus propios MCPs.
+
+Regla: nunca usar `claude mcp add --scope user` para este servidor. Si accidentalmente se agrega globalmente, eliminarlo con:
+```bash
+claude mcp remove arko --scope user
+```
+
+### Archivo de config actual
 
 ```json
 {
   "mcpServers": {
-    "apps-y-dash": {
+    "arko": {
       "command": "npx",
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--access-token",
-        "TU_SUPABASE_ACCESS_TOKEN"
+        "sbp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
       ]
     }
   }
 }
 ```
 
-### Dónde obtener el access token
+> El token real está en `.mcp.json`. Este archivo **no se commitea al repo** (está en `.gitignore`).
+
+### Verificar que está conectado
+```bash
+claude mcp list
+```
+Debe aparecer `arko: ... - ✓ Connected`.
+
+---
+
+## Configuración en una máquina nueva
+
+### 1. Obtener el access token
 Supabase → Account → Access Tokens → Generate new token.
 
 Si sos un developer nuevo, pedírselo al responsable del proyecto (`summit@nalify.marketing`).
 
-### Verificar que funciona
-Después de guardar el archivo, reiniciar Claude Code y pedirle:
-> "Usá el MCP de Supabase para listarme las tablas del proyecto"
+### 2. Crear el `.mcp.json` en la raíz del proyecto
+```json
+{
+  "mcpServers": {
+    "arko": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_tu_token_aqui"
+      ]
+    }
+  }
+}
+```
 
-Si responde con las tablas reales, está funcionando.
+### 3. Verificar que funciona
+Reiniciar Claude Code y correr:
+```bash
+claude mcp list
+```
+Si aparece `✓ Connected`, está listo.
 
 ---
 
@@ -81,10 +119,14 @@ A medida que se agreguen nuevas conexiones MCP al proyecto, documentarlas en est
 - reglas de uso
 - cómo configurar
 
+Agregar el servidor en `.mcp.json` y la variable en `.env.example`.
+
 ---
 
 ## Archivos relacionados
 
+- `.mcp.json` — configuración de MCPs del proyecto (se commitea)
+- `.env.example` — template con `SUPABASE_ACCESS_TOKEN`
 - `docs/DB_SCHEMA.md` — schema completo de la base de datos
 - `docs/06-github-stages-databases-guide.md` — relación entre ambientes y Supabase
 - `docs/03-security.md` — seguridad, credenciales y accesos
