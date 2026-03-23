@@ -9,7 +9,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-[#0e0d14]">
+    <div className="flex min-h-screen">
       {/* ── Crossing & Fading Divider Lines ── */}
       {/* Vertical Line */}
       <div 
@@ -39,7 +39,7 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex-1 flex flex-col pl-[260px]">
         <Suspense fallback={
-          <div className="h-[80px] w-full shrink-0 bg-[#0e0d14]" />
+          <div className="h-[80px] w-full shrink-0" />
         }>
           <Header />
         </Suspense>

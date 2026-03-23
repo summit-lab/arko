@@ -88,7 +88,7 @@ export default function AdsPage() {
       </div>
 
       {/* AI Insights */}
-      <div className="glass-panel rounded-2xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <div className="flex items-center gap-3 overflow-x-auto pb-1">
           {insights.map((insight, i) => (
             <div
@@ -128,7 +128,7 @@ export default function AdsPage() {
 
       <div className="grid grid-cols-12 gap-6">
         {/* Campaigns Table */}
-        <div className="col-span-7 glass-panel rounded-2xl p-6">
+        <div className="col-span-7 glass-panel rounded-xl p-6">
           <h3 className="text-sm font-semibold text-zinc-300 mb-5">Campañas</h3>
           <div className="space-y-2">
             <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-500 uppercase tracking-wider pb-2 border-b border-white/5 px-2">
@@ -175,7 +175,7 @@ export default function AdsPage() {
         </div>
 
         {/* Geographic Comparison: Organic vs Ads */}
-        <div className="col-span-5 glass-panel rounded-2xl p-6">
+        <div className="col-span-5 glass-panel rounded-xl p-6">
           <div className="flex items-center gap-2 mb-5">
             <Globe className="h-4 w-4 text-zinc-400" />
             <h3 className="text-sm font-semibold text-zinc-300">Leads por País: Orgánico vs Ads</h3>

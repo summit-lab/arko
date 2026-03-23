@@ -2,21 +2,22 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useCallback } from "react";
-import { Clapperboard, Image, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Clapperboard, Image, BarChart3 } from "lucide-react";
 
-export type TabKey = "reels" | "posts" | "all" | "metrics";
+export type TabKey = "dashboard" | "reels" | "posts" | "metrics";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { key: "reels", label: "Reels", icon: Clapperboard },
   { key: "posts", label: "Posts", icon: Image },
-  { key: "metrics", label: "IG Metrics", icon: BarChart3 },
+  { key: "metrics", label: "Demografía", icon: BarChart3 },
 ];
 
 export function InstagramTabs() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const current = (searchParams.get("tab") as TabKey) || "reels";
+  const current = (searchParams.get("tab") as TabKey) || "dashboard";
 
   const handleSelect = useCallback((key: TabKey) => {
     if (key === current) return;

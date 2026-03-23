@@ -22,7 +22,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="glass-panel rounded-2xl p-8 border border-white/10">
+    <div className="glass-panel rounded-xl p-8 border border-white/10">
       <div className="flex flex-col items-center mb-8">
         <Image
           src="/Arcadia Logo.png"

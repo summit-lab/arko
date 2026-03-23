@@ -9,7 +9,7 @@ export default function AgentsLoading() {
 
       <div className="flex-1 flex gap-6 min-h-0">
         {/* Agents Sidebar */}
-        <div className="w-72 shrink-0 glass-card rounded-2xl p-4 flex flex-col">
+        <div className="w-72 shrink-0 glass-card rounded-xl p-4 flex flex-col">
           <div className="h-3 w-36 rounded bg-white/[0.04] mb-4 px-2" />
           <div className="space-y-2 flex-1">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -26,11 +26,11 @@ export default function AgentsLoading() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 glass-card rounded-2xl flex flex-col overflow-hidden">
+        <div className="flex-1 glass-card rounded-xl flex flex-col overflow-hidden">
           <div className="flex-1 p-6 space-y-6">
             {/* User message */}
             <div className="flex justify-end">
-              <div className="max-w-[70%] p-4 rounded-2xl bg-white/[0.06]">
+              <div className="max-w-[70%] p-4 rounded-xl bg-white/[0.06]">
                 <div className="h-3 w-full rounded bg-white/[0.06]" />
                 <div className="h-3 w-3/4 rounded bg-white/[0.04] mt-2" />
               </div>
@@ -42,7 +42,7 @@ export default function AgentsLoading() {
                   <div className="h-3.5 w-3.5 rounded bg-white/[0.06]" />
                   <div className="h-3 w-32 rounded bg-white/[0.04]" />
                 </div>
-                <div className="p-4 rounded-2xl bg-white/[0.03] space-y-2">
+                <div className="p-4 rounded-xl bg-white/[0.03] space-y-2">
                   <div className="h-3 w-full rounded bg-white/[0.04]" />
                   <div className="h-3 w-full rounded bg-white/[0.04]" />
                   <div className="h-3 w-5/6 rounded bg-white/[0.04]" />

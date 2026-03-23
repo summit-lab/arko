@@ -66,7 +66,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
       {/* Status Card */}
       {isConnected ? (
-        <div className="glass-panel rounded-2xl p-8 text-center border border-emerald-500/20">
+        <div className="glass-panel rounded-xl p-8 text-center border border-emerald-500/20">
           <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-white mb-2">Cuenta conectada</h2>
           <p className="text-sm text-zinc-400 mb-4">
@@ -83,14 +83,14 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
       ) : (
         <div className="space-y-6">
           {errorMessage ? (
-            <div className="glass-panel rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+            <div className="glass-panel rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
               <p className="text-sm text-red-300">{errorMessage}</p>
             </div>
           ) : null}
 
           {/* Connect Card */}
-          <div className="glass-panel rounded-2xl p-8 text-center border border-white/10">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 flex items-center justify-center mx-auto mb-5">
+          <div className="glass-panel rounded-xl p-8 text-center border border-white/10">
+            <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 flex items-center justify-center mx-auto mb-5">
               <Instagram className="h-8 w-8 text-pink-400" />
             </div>
 
@@ -110,7 +110,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           </div>
 
           {/* What we need */}
-          <div className="glass-panel rounded-2xl p-6">
+          <div className="glass-panel rounded-xl p-6">
             <h3 className="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
               <Shield className="h-4 w-4 text-zinc-400" />
               Permisos requeridos

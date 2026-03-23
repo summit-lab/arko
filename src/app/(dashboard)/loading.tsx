@@ -10,7 +10,7 @@ export default function DashboardLoading() {
       {/* ROW 1: Chart + Goals + Numbers */}
       <div className="grid grid-cols-12 gap-6">
         {/* Chart */}
-        <div className="col-span-5 glass-card rounded-2xl p-6">
+        <div className="col-span-5 glass-card rounded-xl p-6">
           <div className="h-4 w-40 rounded bg-white/[0.06] mb-4" />
           <div className="flex items-end gap-3 h-40">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -23,7 +23,7 @@ export default function DashboardLoading() {
         </div>
 
         {/* Goals */}
-        <div className="col-span-4 glass-card rounded-2xl p-6">
+        <div className="col-span-4 glass-card rounded-xl p-6">
           <div className="h-4 w-32 rounded bg-white/[0.06] mb-4" />
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -54,7 +54,7 @@ export default function DashboardLoading() {
 
       {/* ROW 2: Country + Top Content */}
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-5 glass-card rounded-2xl p-6">
+        <div className="col-span-5 glass-card rounded-xl p-6">
           <div className="h-4 w-32 rounded bg-white/[0.06] mb-4" />
           <div className="grid grid-cols-2 gap-6">
             {Array.from({ length: 2 }).map((_, col) => (
@@ -71,7 +71,7 @@ export default function DashboardLoading() {
           </div>
         </div>
 
-        <div className="col-span-7 glass-card rounded-2xl p-6">
+        <div className="col-span-7 glass-card rounded-xl p-6">
           <div className="h-4 w-44 rounded bg-white/[0.06] mb-4" />
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (

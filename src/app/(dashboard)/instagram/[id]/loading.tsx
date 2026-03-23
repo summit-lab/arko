@@ -7,7 +7,7 @@ export default function ReelDetailLoading() {
       <div className="grid grid-cols-12 gap-8">
         {/* Left — Thumbnail + basic info */}
         <div className="col-span-4 space-y-4">
-          <div className="aspect-[9/16] rounded-2xl bg-white/[0.04]" />
+          <div className="aspect-[9/16] rounded-xl bg-white/[0.04]" />
           <div className="space-y-2">
             <div className="h-4 w-full rounded bg-white/[0.04]" />
             <div className="h-4 w-3/4 rounded bg-white/[0.04]" />
@@ -31,7 +31,7 @@ export default function ReelDetailLoading() {
           </div>
 
           {/* Extended metrics */}
-          <div className="glass-card rounded-2xl p-6">
+          <div className="glass-card rounded-xl p-6">
             <div className="h-4 w-36 rounded bg-white/[0.06] mb-4" />
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-7">
               {Array.from({ length: 7 }).map((_, i) => (
@@ -44,7 +44,7 @@ export default function ReelDetailLoading() {
           </div>
 
           {/* Analysis section */}
-          <div className="glass-card rounded-2xl p-6">
+          <div className="glass-card rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="h-4 w-44 rounded bg-white/[0.06]" />
               <div className="h-9 w-40 rounded-lg bg-white/[0.04]" />

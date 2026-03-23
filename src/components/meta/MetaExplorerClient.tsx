@@ -266,7 +266,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
       </div>
 
       {connectionContext && (
-        <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-4 backdrop-blur-xl">
+        <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-4 backdrop-blur-xl">
           <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-emerald-300">Cuenta conectada</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div>
@@ -293,7 +293,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
         </div>
       )}
 
-      <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4 backdrop-blur-xl">
+      <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 p-4 backdrop-blur-xl">
         <div className="space-y-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wider text-amber-300">Instagram Media Insights Reference</p>
@@ -347,7 +347,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
       </div>
 
       {recentMedia.length > 0 && (
-        <div className="rounded-2xl border border-sky-500/15 bg-sky-500/5 p-4 backdrop-blur-xl">
+        <div className="rounded-xl border border-sky-500/15 bg-sky-500/5 p-4 backdrop-blur-xl">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wider text-sky-300">Media IDs recientes</p>
@@ -371,7 +371,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
       )}
 
       {/* Presets */}
-      <div className="rounded-2xl border border-white/10 bg-black/35 backdrop-blur-xl">
+      <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur-xl">
         <button
           onClick={() => setPresetsOpen((v) => !v)}
           className="flex w-full items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors"
@@ -403,7 +403,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
       </div>
 
       {/* Request builder */}
-      <div className="rounded-2xl border border-white/10 bg-black/35 p-5 backdrop-blur-xl space-y-4">
+      <div className="rounded-xl border border-white/10 bg-black/35 p-5 backdrop-blur-xl space-y-4">
         <div>
           <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-zinc-400">
             Path (Graph API endpoint)
@@ -484,7 +484,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-black/35 backdrop-blur-xl overflow-hidden">
+          <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
               <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Respuesta JSON</p>
               <button

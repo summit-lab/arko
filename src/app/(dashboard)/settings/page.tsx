@@ -49,7 +49,7 @@ export default async function SettingsPage() {
 
       <div className="grid grid-cols-2 gap-6">
         {/* Profile */}
-        <div className="glass-panel rounded-2xl p-6 space-y-4">
+        <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
             <User className="h-4 w-4 text-zinc-400" />
             Perfil
@@ -88,7 +88,7 @@ export default async function SettingsPage() {
         </div>
 
         {/* Workspace */}
-        <div className="glass-panel rounded-2xl p-6 space-y-4">
+        <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-zinc-400" />
             Workspace
@@ -122,7 +122,7 @@ export default async function SettingsPage() {
       </div>
 
       {/* Meta Connection */}
-      <div className="glass-panel rounded-2xl p-6">
+      <div className="glass-panel rounded-xl p-6">
         <h3 className="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
           <Instagram className="h-4 w-4 text-zinc-400" />
           Conexión Meta / Instagram
@@ -153,7 +153,7 @@ export default async function SettingsPage() {
             </div>
 
             {workspace ? (
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-4">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/[0.025] px-4 py-4">
                 <div>
                   <p className="text-sm text-zinc-200">¿Querés volver a conectar otra cuenta?</p>
                   <p className="text-xs text-zinc-500 mt-1">Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.</p>
