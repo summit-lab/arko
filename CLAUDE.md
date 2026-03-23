@@ -43,7 +43,7 @@
 1. **LEER ANTES DE ACTUAR** — Consultar docs antes de cualquier cambio
 2. **NO ROMPER LO QUE FUNCIONA** — Detenerse si hay conflicto con la arquitectura
 3. **DOCUMENTACIÓN CONTINUA** — Actualizar docs + CHANGELOG después de cada cambio
-4. **SEGURIDAD** — Nunca deploy/push/cambios destructivos sin confirmación
+4. **SEGURIDAD** — Nunca cambios destructivos en producción sin confirmación del humano
 
 ---
 
@@ -91,8 +91,8 @@
 
 | Doc | Tema | Cuándo leerlo |
 |-----|------|---------------|
-| `.github/AI_GIT_WORKFLOW.md` | Flujo git completo para la IA | Si se va a hacer commit, push o PR |
-| `.github/PULL_REQUEST_TEMPLATE.md` | Template de PRs | Al abrir un PR |
+| `.github/GITHUB_DESKTOP_GUIDE.md` | Guía de GitHub Desktop para developers | Referencia para developers, no para la IA |
+| `.github/PULL_REQUEST_TEMPLATE.md` | Template de PRs | Al sugerir descripción de un PR |
 | `.github/workflows/ci.yml` | CI que corre en cada PR | Si falla el CI |
 | `CHANGELOG.md` | Historial de todos los cambios | Después de cada cambio (para agregar entrada) |
 | `METODO_AINNOVATE.md` | Método completo de trabajo | Referencia general |
@@ -112,43 +112,28 @@
 | `src/lib/env.ts` | `docs/05-environments-guide.md` |
 | `.env.example` | `docs/05-environments-guide.md` + `docs/03-security.md` |
 | `.github/**` | `docs/06-github-stages-databases-guide.md` |
-| `.github/AI_GIT_WORKFLOW.md` | Ese archivo ES la referencia — leerlo completo |
 | `README.md` | `docs/features/team-collaboration.md` |
 
 ---
 
-## 6. Flujo Git — Reglas ABSOLUTAS
+## 6. Flujo Git — Responsabilidades
 
-> La IA maneja el flujo git completo EXCEPTO mergear. El humano solo aprueba cada comando.
-> Guía completa: `.github/AI_GIT_WORKFLOW.md`
+> **El flujo git es 100% responsabilidad del developer usando GitHub Desktop.**
+> **La IA NUNCA ejecuta comandos git de ningún tipo.**
 
-### Reglas inviolables
+### Regla absoluta
 
-| Regla | Detalle |
-|-------|---------|
-| NUNCA pushear directo a `main` | Sin excepción. Ni hotfixes. |
-| NUNCA pushear directo a `develop` | Todo entra por Pull Request |
-| SIEMPRE partir desde `develop` actualizado | `git pull origin develop` antes de crear rama |
-| SIEMPRE crear rama antes de cambiar código | Nunca trabajar en rama existente sin confirmar |
-| SIEMPRE pedir confirmación antes de push | Mostrar qué se va a pushear y esperar aprobación |
-| NUNCA hacer merge | El merge lo hace el humano desde GitHub |
-| NUNCA usar `--force` | Ni en ramas de feature |
-| NUNCA commitear `.env*` reales | Solo `.env.example` |
+**La IA NO hace:**
+- `git pull`, `git push`, `git commit`, `git checkout`, `git add`, ni ningún otro comando git
+- Crear ramas, cambiar de ramas, hacer merge, ni nada relacionado con git
 
-### Flujo estándar
+**La IA SÍ puede:**
+- Sugerir el nombre de rama a crear (el developer la crea en GitHub Desktop)
+- Sugerir el mensaje de commit (el developer lo escribe en GitHub Desktop)
+- Sugerir el título y descripción del PR (el developer lo abre desde GitHub)
+- Indicar qué archivos se cambiaron y deben commitearse
 
-```
-1. git checkout develop
-2. git pull origin develop
-3. git checkout -b <tipo>/<nombre-descriptivo>
-4. [implementar cambios]
-5. git add <archivos específicos>
-6. git commit -m "<tipo>: <descripción clara>"
-7. git push origin <rama>  ← pedir confirmación antes
-8. Mostrar URL del PR para que el humano lo abra
-```
-
-### Nomenclatura de ramas
+### Nomenclatura de ramas (referencia para el developer)
 
 | Tipo de cambio | Prefijo | Ejemplo |
 |----------------|---------|---------|
@@ -157,7 +142,7 @@
 | Documentación | `docs/` | `docs/guia-onboarding` |
 | Mantenimiento | `chore/` | `chore/update-dependencies` |
 
-### Formato de commits (Conventional Commits)
+### Formato de commits — Conventional Commits (referencia para el developer)
 
 ```
 feat: agrega sistema de analytics al dashboard
@@ -166,18 +151,17 @@ docs: actualiza guía de onboarding del equipo
 chore: actualiza dependencias de next.js
 ```
 
-### Responsabilidades
+### Cómo trabaja la IA al terminar un cambio
 
-| Acción | Responsable |
-|--------|-------------|
-| pull de develop | IA (con confirmación) |
-| crear rama | IA (con confirmación) |
-| commits | IA (con confirmación) |
-| push | IA (con confirmación explícita) |
-| abrir PR | humano (la IA da la URL y el texto) |
-| review del PR | humano |
-| merge | humano SIEMPRE |
-| deploy | humano SIEMPRE |
+Al finalizar una tarea, la IA indica:
+1. Qué archivos fueron modificados y deben commitearse
+2. El mensaje de commit sugerido
+3. El nombre de rama sugerido (si aplica)
+4. El título y descripción sugeridos para el PR
+
+El developer hace todo eso desde GitHub Desktop.
+
+> Guía de GitHub Desktop para developers: `.github/GITHUB_DESKTOP_GUIDE.md`
 
 ---
 
@@ -257,7 +241,7 @@ La IA DEBE verificar estos puntos antes de dar una tarea por terminada:
 | Doc numerado (guía del proyecto) | `docs/XX-nombre-descriptivo.md` | `docs/09-testing-guide.md` |
 | Doc de feature | `docs/features/nombre-feature.md` | `docs/features/youtube-sync.md` |
 | Doc de referencia (schema, api, skills) | `docs/NOMBRE_CAPS.md` | `docs/DB_SCHEMA.md` |
-| Doc operativo de IA | `.github/NOMBRE_CAPS.md` | `.github/AI_GIT_WORKFLOW.md` |
+| Doc operativo / guía developer | `.github/NOMBRE_CAPS.md` | `.github/GITHUB_DESKTOP_GUIDE.md` |
 | ADR (decisión arquitectónica) | `docs/ADR-XXX-nombre.md` | `docs/ADR-006-caching-strategy.md` |
 | Skill doc | `docs/skills/nombre-skill.md` | `docs/skills/meta-api-expert.md` |
 
