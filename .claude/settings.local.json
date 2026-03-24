@@ -10,7 +10,9 @@
       "mcp__arko__execute_sql",
       "mcp__arkov2__get_publishable_keys",
       "mcp__arkov2__apply_migration",
-      "mcp__arkov2__get_project"
+      "mcp__arkov2__get_project",
+      "Bash(grep -i \"goal\\\\|meta\\\\|target\" /c/Users/emanu/OneDrive/Documentos/GitHub/arko/supabase/migrations/*.sql)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -282,21 +282,6 @@
     @apply text-foreground min-h-screen antialiased;
     background: #000000;
   }
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: url("/backgrownd.PNG") no-repeat center center fixed;
-    background-size: cover;
-    opacity: 0.4;
-    filter: grayscale(100%);
-    z-index: 0;
-    pointer-events: none;
-  }
-  body > * {
-    position: relative;
-    z-index: 1;
-  }
   html, body {
     font-family: var(--font-body-local), "Manrope Light", ui-sans-serif, system-ui, sans-serif;
   }

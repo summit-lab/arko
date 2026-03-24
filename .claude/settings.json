@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__arko__apply_migration",
+      "mcp__arkov2__deploy_edge_function",
+      "Bash(find /c/Users/emanu/OneDrive/Documentos/GitHub/arko -name vercel.json -o -name .vercelrc*)",
+      "Bash(grep -r \"vercel\\\\|cron\\\\|schedule\" /c/Users/emanu/OneDrive/Documentos/GitHub/arko/next.config.*)",
+      "Bash(xargs grep:*)",
+      "Bash(git -C /c/Users/emanu/OneDrive/Documentos/GitHub/arko status --short)",
+      "Bash(git -C /c/Users/emanu/OneDrive/Documentos/GitHub/arko log --oneline)",
+      "Bash(git -C /c/Users/emanu/OneDrive/Documentos/GitHub/arko show main:vercel.json)",
+      "Bash(git -C /c/Users/emanu/OneDrive/Documentos/GitHub/arko ls-tree -r main)",
+      "mcp__arkov2__list_extensions",
+      "mcp__arkov2__execute_sql",
+      "mcp__arkov2__get_project_url",
+      "mcp__arkov2__get_logs"
+    ]
+  }
+}

@@ -1,4 +1,7 @@
 import { FileText, Phone, MessageSquare, TrendingUp, Quote, ChevronRight, Users, AlertCircle, ThumbsUp, Search } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceId } from "@/lib/workspace";
+import { GoalEditor } from "@/components/features/goals/GoalEditor";
 
 const formResponses = [
   { question: "¿Qué te hizo comprarme?", topAnswer: "Tu contenido en Reels me demostró que sabías de lo que hablabas", count: 34 },
@@ -52,7 +55,24 @@ const quotesForCopy = [
   "\"Tu contenido es el único que no se siente como humo\"",
 ];
 
-export default function CustomerVoicePage() {
+export default async function CustomerVoicePage() {
+  const workspaceId = await getWorkspaceId();
+  let goals: { metric: string; target_value: number }[] = [];
+
+  if (workspaceId) {
+    const supabase = await createClient();
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+
+    const { data } = await supabase
+      .from("workspace_goals")
+      .select("metric, target_value")
+      .eq("workspace_id", workspaceId)
+      .eq("period_start", periodStart);
+
+    goals = data ?? [];
+  }
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -145,6 +165,9 @@ export default function CustomerVoicePage() {
           </div>
         </div>
       </div>
+
+      {/* Monthly Goals */}
+      <GoalEditor goals={goals} />
 
       {/* Call Transcripts */}
       <div className="glass-panel rounded-xl p-6">
