@@ -20,6 +20,8 @@
 - `docs/08-design-system.md` (modificado — tipografía actualizada)
 - `docs/features/dashboard-layout.md` (modificado — tipografía actualizada)
 
+Aguante la merca
+
 ---
 
 ## [0.9.7] — 2026-03-23
