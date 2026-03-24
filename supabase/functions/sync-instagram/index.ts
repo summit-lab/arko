@@ -81,6 +81,16 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ status: "error", error: "Failed to decrypt access token" }, 500);
     }
 
+    // ── QUICK SYNC: Only latest media + insights, return fast ──
+    if (steps === "quick") {
+      return await handleQuickSync(supabase, workspace_id, connection.ig_business_account_id, accessToken);
+    }
+
+    // ── CHECK: Just check if there are new media items (for polling) ──
+    if (steps === "check") {
+      return await handleCheckNewMedia(supabase, workspace_id, connection.ig_business_account_id, accessToken);
+    }
+
     // Create sync job
     const { data: reelsJob } = await supabase
       .from("sync_jobs")
@@ -184,7 +194,186 @@ function jsonResponse(data: Record<string, unknown>, status = 200): Response {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// INSTAGRAM REELS SYNC
+// DATA DECAY — Tiered staleness based on reel age
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Returns how long insights stay "fresh" based on reel age.
+ * Hot reels (< 7d) change fast → refresh every 1h.
+ * Warm reels (7-30d) slow down → refresh every 24h.
+ * Cold reels (> 30d) are stable → refresh every 7 days.
+ */
+function getInsightStalenessMs(publishedAt: string | null): number {
+  if (!publishedAt) return 6 * 60 * 60 * 1000; // 6h fallback for unknown age
+  const ageMs = Date.now() - new Date(publishedAt).getTime();
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  if (ageMs < SEVEN_DAYS) return 60 * 60 * 1000;         // Hot:  1 hour
+  if (ageMs < THIRTY_DAYS) return 24 * 60 * 60 * 1000;   // Warm: 24 hours
+  return 7 * 24 * 60 * 60 * 1000;                         // Cold: 7 days
+}
+
+/** Check if a reel's insights are stale based on its age tier */
+function isInsightStale(publishedAt: string | null, fetchedAt: string | null): boolean {
+  if (!fetchedAt) return true; // never fetched
+  const threshold = getInsightStalenessMs(publishedAt);
+  const fetchedMs = new Date(fetchedAt).getTime();
+  return Date.now() - fetchedMs > threshold;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK SYNC — Latest media + smart insight refresh (~3-6s)
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: string, accessToken: string): Promise<Response> {
+  const t0 = Date.now();
+  const QUICK_LIMIT = 12;
+
+  try {
+    // 1) Fetch latest 12 media from IG + existing metrics timestamps in parallel
+    const fields = "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed";
+    const [igRes, existingRes] = await Promise.all([
+      fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=${fields}&limit=${QUICK_LIMIT}&access_token=${accessToken}`),
+      supabase
+        .from("reels")
+        .select("ig_media_id, reel_metrics(fetched_at)")
+        .eq("workspace_id", workspaceId)
+        .order("published_at", { ascending: false })
+        .limit(QUICK_LIMIT),
+    ]);
+
+    const igData = await igRes.json();
+    if (igData.error) throw new Error(`IG API: ${igData.error.message}`);
+    const media: IGMedia[] = igData.data || [];
+
+    // 2) Batch upsert all reels (1 query)
+    const rows = media.map((m) => ({
+      workspace_id: workspaceId,
+      ig_media_id: m.id,
+      caption: m.caption || null,
+      media_type: m.media_type,
+      media_product_type: m.media_product_type,
+      permalink: m.permalink || null,
+      media_url: m.media_url || null,
+      thumbnail_url: m.thumbnail_url || null,
+      is_shared_to_feed: m.is_shared_to_feed ?? null,
+      published_at: m.timestamp || null,
+      reel_type: classifyReelType(m),
+      sync_status: "synced",
+    }));
+
+    const { data: upserted } = await supabase
+      .from("reels")
+      .upsert(rows, { onConflict: "workspace_id,ig_media_id" })
+      .select("id, ig_media_id");
+
+    const reelIdMap = new Map<string, string>();
+    for (const r of upserted || []) reelIdMap.set(r.ig_media_id, r.id);
+
+    // 3) Determine which reels need fresh insights (data decay tiers)
+    //    Hot (<7d) → 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d
+    const existingMetricsMap = new Map<string, { fetched_at: string | null; published_at: string | null }>();
+    for (const r of existingRes.data || []) {
+      const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
+      const fetchedAt = Array.isArray(metricsArr) ? metricsArr[0]?.fetched_at : null;
+      existingMetricsMap.set(r.ig_media_id, { fetched_at: fetchedAt, published_at: null });
+    }
+
+    const mediaNeedingInsights = media.filter((m) => {
+      const existing = existingMetricsMap.get(m.id);
+      return isInsightStale(m.timestamp || null, existing?.fetched_at ?? null);
+    });
+    const insightsSkipped = media.length - mediaNeedingInsights.length;
+
+    // 4) Fetch insights only for stale/new reels — all in parallel (max ~6)
+    let insightsFetched = 0;
+    if (mediaNeedingInsights.length > 0) {
+      await Promise.all(mediaNeedingInsights.map(async (m) => {
+        const reelId = reelIdMap.get(m.id);
+        if (!reelId) return;
+        try {
+          const isReel = m.media_product_type === "REELS";
+          const insights = isReel
+            ? await fetchReelInsights(m.id, accessToken)
+            : await fetchPostInsights(m.id, accessToken);
+          if (insights) {
+            await supabase.from("reel_metrics").upsert({
+              reel_id: reelId,
+              workspace_id: workspaceId,
+              views_org: insights.views ?? null,
+              impressions_org: null,
+              reach_org: insights.reach ?? null,
+              likes_total: insights.likes ?? null,
+              comments_total: insights.comments ?? null,
+              shares_total: insights.shares ?? null,
+              saves_total: insights.saved ?? null,
+              total_interactions: insights.total_interactions ?? null,
+              avg_watch_time_sec: insights.ig_reels_avg_watch_time ? insights.ig_reels_avg_watch_time / 1000 : null,
+              fetched_at: new Date().toISOString(),
+            }, { onConflict: "reel_id" });
+            insightsFetched++;
+          }
+        } catch { /* non-blocking */ }
+      }));
+    }
+
+    return jsonResponse({
+      status: "completed",
+      mode: "quick",
+      duration_ms: Date.now() - t0,
+      reels_synced: upserted?.length ?? 0,
+      insights_fetched: insightsFetched,
+      insights_skipped: insightsSkipped,
+    });
+  } catch (err) {
+    return jsonResponse({
+      status: "error",
+      mode: "quick",
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHECK NEW MEDIA — Compare latest IG media IDs vs DB (~1-2s)
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function handleCheckNewMedia(supabase: any, workspaceId: string, igAccountId: string, accessToken: string): Promise<Response> {
+  try {
+    // Fetch only latest 5 media IDs from IG (minimal fields, fast)
+    const res = await fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=id,timestamp&limit=5&access_token=${accessToken}`);
+    const data = await res.json();
+    if (data.error) throw new Error(`IG API: ${data.error.message}`);
+    const latestIds: string[] = (data.data || []).map((m: { id: string }) => m.id);
+
+    // Check which ones we already have
+    const { data: existing } = await supabase
+      .from("reels")
+      .select("ig_media_id")
+      .eq("workspace_id", workspaceId)
+      .in("ig_media_id", latestIds);
+
+    const existingIds = new Set((existing || []).map((r: { ig_media_id: string }) => r.ig_media_id));
+    const newIds = latestIds.filter((id) => !existingIds.has(id));
+
+    return jsonResponse({
+      status: "ok",
+      has_new_content: newIds.length > 0,
+      new_count: newIds.length,
+      latest_timestamp: data.data?.[0]?.timestamp || null,
+    });
+  } catch (err) {
+    return jsonResponse({
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INSTAGRAM REELS SYNC (FULL)
 // ═══════════════════════════════════════════════════════════════
 
 // deno-lint-ignore no-explicit-any
@@ -197,22 +386,19 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
     const allMedia = await fetchAllMedia(igAccountId, accessToken);
     await supabase.from("sync_jobs").update({ total_items: allMedia.length }).eq("id", syncJobId);
 
-    // Get existing reels with recent metrics to skip
+    // Get existing reels with metrics timestamps + published_at for decay tiers
     const { data: existingReels } = await supabase
       .from("reels")
-      .select("ig_media_id, reel_metrics(fetched_at)")
+      .select("ig_media_id, published_at, reel_metrics(fetched_at)")
       .eq("workspace_id", workspaceId);
 
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-    const reelsWithRecentMetrics = new Set(
-      (existingReels || [])
-        .filter((r: { reel_metrics: Array<{ fetched_at: string }> | null }) => {
-          const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
-          const m = metricsArr?.[0];
-          return m?.fetched_at && m.fetched_at > sixHoursAgo;
-        })
-        .map((r: { ig_media_id: string }) => r.ig_media_id)
-    );
+    // Build lookup: ig_media_id → { fetched_at, published_at }
+    const existingMetricsLookup = new Map<string, { fetched_at: string | null; published_at: string | null }>();
+    for (const r of existingReels || []) {
+      const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
+      const fetchedAt = Array.isArray(metricsArr) ? metricsArr[0]?.fetched_at : null;
+      existingMetricsLookup.set(r.ig_media_id, { fetched_at: fetchedAt, published_at: r.published_at });
+    }
 
     const MAX_INSIGHTS_PER_SYNC = 30;
     let insightsFetchCount = 0;
@@ -253,16 +439,35 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       }
     }
 
-    await supabase.from("sync_jobs").update({ processed_items: allMedia.length }).eq("id", syncJobId);
+    // ── Phase 2: Fetch insights using data decay tiers ──
+    // Hot (<7d) → stale after 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d
+    const mediaNeedingInsights = allMedia.filter((m) => {
+      if (!reelIdMap.has(m.id)) return false;
+      const existing = existingMetricsLookup.get(m.id);
+      const publishedAt = m.timestamp || existing?.published_at || null;
+      return isInsightStale(publishedAt, existing?.fetched_at ?? null);
+    });
 
-    // ── Phase 2: Fetch insights in parallel batches of 5 ──
-    const mediaNeedingInsights = allMedia.filter(
-      (m) => !reelsWithRecentMetrics.has(m.id) && reelIdMap.has(m.id)
-    ).slice(0, MAX_INSIGHTS_PER_SYNC);
+    // Sort by priority: hot first, then warm, then cold
+    mediaNeedingInsights.sort((a, b) => {
+      const ageA = a.timestamp ? Date.now() - new Date(a.timestamp).getTime() : Infinity;
+      const ageB = b.timestamp ? Date.now() - new Date(b.timestamp).getTime() : Infinity;
+      return ageA - ageB; // newest first
+    });
+
+    const insightsToFetch = mediaNeedingInsights.slice(0, MAX_INSIGHTS_PER_SYNC);
+
+    // Update progress: total = media upserted + insights to fetch
+    const totalWork = allMedia.length + insightsToFetch.length;
+    let processedWork = allMedia.length; // media upsert done
+    await supabase.from("sync_jobs").update({
+      total_items: totalWork,
+      processed_items: processedWork,
+    }).eq("id", syncJobId);
 
     const CONCURRENCY = 5;
-    for (let i = 0; i < mediaNeedingInsights.length; i += CONCURRENCY) {
-      const batch = mediaNeedingInsights.slice(i, i + CONCURRENCY);
+    for (let i = 0; i < insightsToFetch.length; i += CONCURRENCY) {
+      const batch = insightsToFetch.slice(i, i + CONCURRENCY);
       const promises = batch.map(async (media) => {
         try {
           const isReel = media.media_product_type === "REELS";
@@ -298,6 +503,10 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       });
       await Promise.all(promises);
       insightsFetchCount += batch.length;
+
+      // Incremental progress update after each batch
+      processedWork += batch.length;
+      await supabase.from("sync_jobs").update({ processed_items: processedWork }).eq("id", syncJobId);
     }
 
     // Enrich durations via Apify
@@ -332,7 +541,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
 
     await supabase.from("sync_jobs").update({
       status: "completed",
-      processed_items: allMedia.length,
+      processed_items: totalWork,
       completed_at: new Date().toISOString(),
       metadata: result as unknown as Record<string, unknown>,
     }).eq("id", syncJobId);

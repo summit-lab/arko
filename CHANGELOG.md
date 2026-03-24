@@ -5,6 +5,47 @@
  
 ---
  
+## [0.10.0] — 2026-03-24
+
+### Added — Data Decay + pg_cron Scheduled Sync + Quick Sync mejorado
+
+- **Data Decay**: Insights se refrescan por tier de antigüedad del reel: Hot (<7d) cada 1h, Warm (7-30d) cada 24h, Cold (>30d) cada 7d. Reduce insight calls de ~30 a ~8-15 por full sync, eliminando timeouts.
+- **pg_cron Scheduled Sync**: Sincronización automática cada 6 horas usando `pg_cron` + `pg_net` dentro de Supabase. No depende de Vercel. Función `trigger_scheduled_sync()` itera workspaces activos y llama a la Edge Function directamente.
+- **Supabase Vault**: `SYNC_SECRET` almacenado en `vault.decrypted_secrets` para uso seguro desde pg_cron.
+- **Progreso Incremental**: Edge Function actualiza `sync_jobs.processed_items` después de cada batch de insights.
+
+#### Archivos afectados
+- `supabase/functions/sync-instagram/index.ts` (modificado — data decay, progreso incremental, ordenamiento por prioridad)
+- `supabase/migrations/20260324000014_pg_cron_scheduled_sync.sql` (nuevo — pg_cron + pg_net + trigger_scheduled_sync)
+- `src/components/instagram/SyncButton.tsx` (modificado — simplificado)
+- `src/components/instagram/SyncControls.tsx` (modificado — simplificado)
+- `src/hooks/useSyncJobProgress.ts` (nuevo — hook disponible para futuro uso)
+- `docs/features/ig-intelligence.md` (modificado — sección 11 y 14 actualizadas)
+
+---
+
+## [0.9.9] — 2026-03-24
+
+### Added — Quick Sync + Auto-Polling de contenido nuevo
+
+- **Quick Sync**: Click en "Sincronizar" trae los últimos 12 media + insights en ~3-5s (antes 2+ min). Full sync corre en background después del reload.
+- **Auto-Polling**: Hook `useNewContentPolling` chequea cada 3 min si hay media nuevo en IG. Muestra badge "N nuevos" sin intervención del usuario.
+- **Check endpoint**: Nuevo step `steps=check` compara últimos 5 media IDs de IG vs DB (~1-2s).
+- **Batch upsert**: Reels se upsertean en batches de 20 (antes 1 por 1).
+- **Parallel insights**: Concurrencia de 5 para fetch de insights (antes secuencial).
+- **SyncControls**: Nuevo componente que combina SyncButton + badge de polling.
+
+#### Archivos afectados
+- `supabase/functions/sync-instagram/index.ts` (modificado — quick sync, check, batch upsert, parallel insights)
+- `src/app/api/v1/sync/instagram/route.ts` (modificado — soporte steps=quick|check)
+- `src/components/instagram/SyncButton.tsx` (modificado — 2-phase UX)
+- `src/components/instagram/SyncControls.tsx` (nuevo — sync + polling badge)
+- `src/hooks/useNewContentPolling.ts` (nuevo — auto-polling hook)
+- `src/app/(dashboard)/instagram/page.tsx` (modificado — usa SyncControls)
+- `docs/features/ig-intelligence.md` (modificado — sección 14)
+
+---
+
 ## [0.9.8] — 2026-03-23
 
 ### Changed — Tipografía global: Manrope Bold + Manrope Light

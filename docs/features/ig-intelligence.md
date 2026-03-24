@@ -144,14 +144,16 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 - **Benchmark al final:** el refresh de `reel_benchmarks` corre después de que media+ads terminaron para incluir datos paid en el snapshot.
 - **Utilidad de concurrencia:** `src/lib/concurrency.ts` provee `runConcurrent()` con worker pool controlado, usado por insights y Apify.
 
-### 11. Sincronización automática en segundo plano (background sync)
-- En producción, Arko sincroniza métricas automáticamente cada 6 horas sin intervención del usuario, usando Vercel Cron.
-- El endpoint `GET /api/v1/sync/cron` itera todos los workspaces con conexión Meta activa y ejecuta un full sync (media + ads + account + benchmark) para cada uno.
-- El cron está protegido por `CRON_SECRET` (header `Authorization: Bearer <secret>`). Sin esta variable, el endpoint retorna noop.
-- La frecuencia de 4 veces/día (cada 6h) mantiene los dashboards frescos sin exceder rate limits de Meta.
-- Configurado en `vercel.json` con schedule `0 */6 * * *`.
-- En local/dev el cron no corre automáticamente. Se puede probar manualmente enviando el header correcto.
-- Variable de entorno: `CRON_SECRET` (opcional, solo producción). Generar con `openssl rand -hex 32`.
+### 11. Sincronización automática en segundo plano (pg_cron)
+- Arko sincroniza métricas automáticamente **cada 6 horas** sin intervención del usuario, usando `pg_cron` + `pg_net` dentro de Supabase.
+- La función `trigger_scheduled_sync()` en Postgres itera todos los workspaces con conexión Meta activa y dispara un `POST` HTTP directo a la Edge Function `sync-instagram` con `steps=all`.
+- **No depende de Vercel** — corre 100% dentro de Supabase (más confiable, gratis).
+- El `SYNC_SECRET` se almacena en Supabase Vault (`vault.decrypted_secrets`).
+- Schedule: `0 */6 * * *` (00:00, 06:00, 12:00, 18:00 UTC).
+- Para probar manualmente: `SELECT public.trigger_scheduled_sync();` desde SQL Editor.
+- Para ver el estado del cron: `SELECT * FROM cron.job;`
+- Para ver ejecuciones pasadas: `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10;`
+- Migración: `20260324000014_pg_cron_scheduled_sync.sql`.
 
 ### 12. Métricas diarias por reel (reel_metrics_daily)
 - Nueva tabla `reel_metrics_daily` almacena un snapshot de métricas por reel por día (UPSERT con UNIQUE(reel_id, metric_date)).
@@ -172,6 +174,18 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
   - **Reels recientes:** strip horizontal con thumbnails y views.
 - Componente: `IGDashboard.tsx` (client, Recharts).
 - Datos: combina `ig_account_insights` (daily) + `reels` + `reel_metrics` + `reel_metrics_paid`.
+
+### 14. Quick Sync + Auto-Polling + Data Decay (v4)
+- **Data Decay**: Los insights se refrescan según la antigüedad del reel:
+  - **Hot** (< 7 días): cada 1 hora
+  - **Warm** (7-30 días): cada 24 horas
+  - **Cold** (> 30 días): cada 7 días
+  - Esto reduce los insight calls de ~30 a ~8-15 por full sync (elimina timeouts).
+- **Quick Sync**: `steps=quick` trae los últimos 12 media + insights solo de reels que lo necesitan según data decay (~3-5s). `router.refresh()` soft en vez de full page reload.
+- **Background Progress**: Después del quick sync, el full sync corre en background. `useSyncJobProgress` hook pollea `/api/v1/sync/status` cada 4s. Muestra barra de progreso con porcentaje real (`sync_jobs.processed_items / total_items`). Auto-refresh al completar.
+- **Check New Media**: `steps=check` compara últimos 5 IDs (~1-2s). `useNewContentPolling` cada 3 min.
+- **Progreso Incremental**: El full sync actualiza `sync_jobs.processed_items` después de cada batch de 5 insights.
+- Componentes: `SyncControls.tsx` (SyncButton + polling badge + progress bar), `useSyncJobProgress.ts`.
 
 ## Ruta
  `/instagram` con tabs: `?tab=dashboard` (default) | `?tab=reels` | `?tab=posts` | `?tab=metrics` (demografía)

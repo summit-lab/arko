@@ -229,10 +229,20 @@ erDiagram
 | 10 | `20260323000010_auto_create_workspace_on_signup.sql` | 2026-03-23 | Actualiza handle_new_user() para auto-crear workspace + workspace_member al signup. Backfill de usuarios existentes. |
 | 11 | `20260323000011_benchmark_extended_metrics_upsert.sql` | 2026-03-23 | Agrega avg_engagement_rate, avg_retention_rate, avg_duration_seconds, avg_reach_per_view, avg_saves_per_reach a reel_benchmarks. UNIQUE(workspace_id) + UPDATE RLS para UPSERT. |
 | 12 | `20260323000012_reel_metrics_daily.sql` | 2026-03-23 | reel_metrics_daily para snapshots diarios de métricas por reel. Índices compuestos + RLS. |
+| 14 | `20260324000014_pg_cron_scheduled_sync.sql` | 2026-03-24 | pg_cron + pg_net + `trigger_scheduled_sync()` para sync automático cada 6h. |
 
 ---
 
 ## Funciones de Base de Datos
+
+### trigger_scheduled_sync()
+> Función invocada por `pg_cron` cada 6 horas. Itera workspaces con conexión Meta activa y dispara HTTP POST a la Edge Function `sync-instagram` vía `pg_net`. SYNC_SECRET se obtiene de Supabase Vault.
+
+```sql
+-- Schedule: 0 */6 * * * (cada 6 horas)
+-- Probar manualmente: SELECT public.trigger_scheduled_sync();
+-- Ver cron jobs: SELECT * FROM cron.job;
+```
 
 ### handle_new_user()
 > Trigger on `auth.users` AFTER INSERT. Crea profile + workspace + workspace_member automáticamente al registrarse.

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
-import { SyncButton } from "@/components/instagram/SyncButton";
+import { SyncControls } from "@/components/instagram/SyncControls";
 import { PeriodFilter } from "@/components/instagram/PeriodFilter";
 import { InstagramTabs } from "@/components/instagram/InstagramTabs";
 import { ReelsGrid } from "@/components/instagram/ReelsGrid";
@@ -290,7 +290,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
             </Link>
           )}
           {workspaceId && connectionStatus === "active" && (
-            <SyncButton workspaceId={workspaceId} currentTab={activeTab} />
+            <SyncControls workspaceId={workspaceId} currentTab={activeTab} />
           )}
         </div>
       </div>

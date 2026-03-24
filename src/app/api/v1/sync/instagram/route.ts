@@ -3,8 +3,11 @@
  * Thin proxy that authenticates the user and delegates heavy sync work
  * to a Supabase Edge Function (free, no Vercel function costs).
  *
- * Body: { workspace_id: string }
- * Query: ?steps=all|media|account
+ * Query: ?steps=quick|all|media|account|check
+ *
+ * steps=quick  → Syncs latest 12 media + insights (~3-5s), returns fast
+ * steps=all    → Full sync (all media, ads, account insights, benchmarks)
+ * steps=check  → Just checks if there are new media items (~1-2s)
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -21,16 +24,12 @@ export async function POST(request: Request) {
     const steps = url.searchParams.get('steps') || 'all';
 
     const supabase = await createClient();
+    const syncHeaders = { 'x-sync-secret': env.SYNC_SECRET ?? '' };
 
     // Invoke the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke('sync-instagram', {
-      body: {
-        workspace_id: auth.workspaceId,
-        steps,
-      },
-      headers: {
-        'x-sync-secret': env.SYNC_SECRET ?? '',
-      },
+      body: { workspace_id: auth.workspaceId, steps },
+      headers: syncHeaders,
     });
 
     if (error) {
