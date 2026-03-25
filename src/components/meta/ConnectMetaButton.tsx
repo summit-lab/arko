@@ -39,7 +39,7 @@ export function ConnectMetaButton({ workspaceId }: ConnectMetaButtonProps) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-start gap-3">
       <button
         onClick={handleConnect}
         disabled={loading || !workspaceId}

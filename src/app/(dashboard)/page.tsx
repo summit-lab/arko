@@ -140,8 +140,8 @@ export default function Home() {
             <div className="space-y-5">
               {goals.map((g) => {
                 const pct = Math.min(100, Math.round((g.current / g.target) * 100));
-                const displayCurrent = g.unit === "K" ? `${g.current}K` : g.current.toLocaleString();
-                const displayTarget = g.unit === "K" ? `${g.target}K` : g.target.toLocaleString();
+                const displayCurrent = g.unit === "K" ? `${g.current}K` : new Intl.NumberFormat("en-US").format(g.current);
+                const displayTarget = g.unit === "K" ? `${g.target}K` : new Intl.NumberFormat("en-US").format(g.target);
                 return (
                   <div key={g.label}>
                     <div className="flex items-center justify-between mb-2">

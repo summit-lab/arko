@@ -34,7 +34,7 @@ export async function Header() {
     .slice(0, 2);
 
   return (
-    <header className="h-[80px] w-full flex items-center justify-center px-6 z-30 sticky top-0">
+    <header className="h-[80px] w-full flex items-center justify-center px-6 z-30 sticky top-0 backdrop-blur-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
       {/* ── Pill Container ── */}
       <div
         className="flex items-center justify-between w-full max-w-full h-[52px] px-4 rounded-2xl"

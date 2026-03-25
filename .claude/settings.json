@@ -13,7 +13,14 @@
       "mcp__arkov2__list_extensions",
       "mcp__arkov2__execute_sql",
       "mcp__arkov2__get_project_url",
-      "mcp__arkov2__get_logs"
+      "mcp__arkov2__get_logs",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh api:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\emanu\\OneDrive\\Documentos\\GitHub\\arko\\src\\app\\(auth)\\invite"
     ]
   }
 }

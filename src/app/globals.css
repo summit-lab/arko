@@ -378,6 +378,16 @@
   }
 }
 
+/* ── Autofill override for dark theme inputs ── */
+.autofill-dark:-webkit-autofill,
+.autofill-dark:-webkit-autofill:hover,
+.autofill-dark:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.95) inset !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.8) !important;
+  caret-color: rgba(255, 255, 255, 0.8);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

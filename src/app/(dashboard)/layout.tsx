@@ -2,12 +2,15 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { NavProgressBar } from "@/components/layout/NavigationProvider";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const isAdmin = cookieStore.get("arko_user_role")?.value === "admin";
   return (
     <div className="flex min-h-screen">
       {/* ── Crossing & Fading Divider Lines ── */}
@@ -36,7 +39,7 @@ export default function DashboardLayout({
       <Suspense fallback={null}>
         <NavProgressBar />
       </Suspense>
-      <Sidebar />
+      <Sidebar isAdmin={isAdmin} />
       <div className="flex-1 flex flex-col pl-[260px]">
         <Suspense fallback={
           <div className="h-[80px] w-full shrink-0" />
