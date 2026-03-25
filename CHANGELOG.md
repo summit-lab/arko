@@ -5,6 +5,70 @@
  
 ---
  
+## [0.11.0] — 2026-03-25
+
+### Added — Admin Panel + Sistema de Invitaciones + Onboarding Schema
+
+- **Admin Panel**: Panel de administración en `/admin` con dashboard de stats globales, lista de clientes, y gestión de invitaciones. Protección defense-in-depth (middleware + layout server component + RLS).
+- **Sistema de Invitaciones**: Registro solo por invitación. Admin genera links con token UUID, usuario se registra con email pre-filled. Trigger `handle_new_user()` marca invitación como usada automáticamente.
+- **Onboarding Schema**: 6 tablas para contexto de marca (workspace_profile, workspace_strategies, workspace_competitors, workspace_market, workspace_references, workspace_brand). Schema only, UI pendiente.
+- **Bloqueo de Registro Público**: `/register` redirige a `/login`. Login page muestra "Acceso solo por invitación".
+- **Admin Link en Sidebar**: Link al admin panel visible solo para usuarios con role='admin' (Shield icon, amber accent).
+- **RPC `validate_invitation`**: SECURITY DEFINER function para validar tokens sin exponer la tabla de invitaciones.
+
+#### Archivos creados
+- `supabase/migrations/20260325000015_invitations_and_onboarding.sql`
+- `src/app/(admin)/layout.tsx`
+- `src/app/(admin)/admin/page.tsx` + `loading.tsx`
+- `src/app/(admin)/admin/clients/page.tsx` + `loading.tsx`
+- `src/app/(admin)/admin/invitations/page.tsx` + `loading.tsx` + `actions.ts`
+- `src/app/(admin)/admin/invitations/InvitationForm.tsx`
+- `src/app/(admin)/admin/invitations/InvitationList.tsx`
+- `src/components/layout/AdminSidebar.tsx`
+- `src/app/(auth)/invite/[token]/page.tsx`
+- `src/app/(auth)/invite/[token]/InviteRegisterForm.tsx`
+- `docs/features/admin-panel.md`
+
+#### Archivos modificados
+- `src/lib/supabase/middleware.ts` (admin route protection, block /register, allow /invite)
+- `src/app/(auth)/actions.ts` (registerWithInvite, logout clears cookies)
+- `src/app/(auth)/login/page.tsx` (removed register link)
+- `src/app/(auth)/register/page.tsx` (replaced with redirect)
+- `src/types/database.ts` (added invitation + onboarding types)
+- `src/components/layout/Sidebar.tsx` (admin link for admin users, custom SVG icons replacing Lucide icons)
+- `src/app/(dashboard)/layout.tsx` (pass isAdmin to Sidebar)
+- `docs/DB_SCHEMA.md` (new tables, migration, RLS, functions)
+
+### Fixed — Post-testing Fixes
+
+- **RLS infinite recursion (42P17):** Admin profiles policy queried profiles table, causing recursion. Created `is_admin()` SECURITY DEFINER function. Migration: `20260325000016_fix_profiles_admin_rls_recursion.sql`.
+- **Admin can view all workspaces/meta_connections:** Added RLS policies for admin SELECT on workspaces and meta_connections.
+- **Plan simplificado a 'pro' único:** Eliminados planes 'free' y 'agency'. CHECK constraint actualizado, columna Plan removida de UI de clientes. Migration: `20260325000017_simplify_plan_to_pro_only.sql`.
+- **Hydration mismatch:** Fixed `toLocaleString()` → `Intl.NumberFormat("en-US")` in dashboard goals.
+- **PostgREST FK join error:** Split clients query into two separate queries (workspaces + profiles) since no FK exists.
+- **Admin filtered from clients:** Admin workspaces excluded from `/admin/clients` list.
+- **Onboarding page redesign:** Left-aligned layout, descriptive permission scopes (no technical names).
+- **Custom SVG icons in sidebar:** Replaced Lucide icons with custom SVGs from `/public/svgs/`.
+- **Settings cleanup:** Removed `reels_limit` display, added Admin Panel link (admin-only).
+- **Invitation form autofill:** CSS fix for dark theme autofill override.
+
+#### Archivos creados
+- `supabase/migrations/20260325000016_fix_profiles_admin_rls_recursion.sql`
+- `supabase/migrations/20260325000017_simplify_plan_to_pro_only.sql`
+- `public/svgs/` (dashboard, instagram, youtube, megaphone, person-voice, robot SVGs)
+
+#### Archivos modificados
+- `src/app/(admin)/admin/clients/page.tsx` (separate queries, admin filter)
+- `src/app/(dashboard)/page.tsx` (hydration fix)
+- `src/app/(dashboard)/settings/page.tsx` (remove reels_limit, add admin link)
+- `src/app/(dashboard)/onboarding/page.tsx` (left-aligned, descriptive scopes)
+- `src/components/layout/Sidebar.tsx` (custom SVG icons)
+- `src/components/meta/ConnectMetaButton.tsx` (left-aligned)
+- `src/app/(admin)/admin/invitations/InvitationForm.tsx` (autofill fix)
+- `src/app/globals.css` (autofill-dark CSS)
+
+---
+
 ## [0.10.0] — 2026-03-24
 
 ### Added — Data Decay + pg_cron Scheduled Sync + Quick Sync mejorado

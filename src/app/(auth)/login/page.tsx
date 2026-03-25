@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import Image from 'next/image'
 import { login } from '../actions'
 import { LogIn, Eye, EyeOff } from 'lucide-react'
@@ -96,10 +95,7 @@ export default function LoginPage() {
 
       <div className="mt-6 text-center">
         <p className="text-sm text-zinc-500">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-white hover:text-zinc-300 transition-colors font-medium">
-            Create one
-          </Link>
+          Acceso solo por invitación.
         </p>
       </div>
     </div>

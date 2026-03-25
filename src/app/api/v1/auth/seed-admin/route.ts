@@ -55,7 +55,7 @@ export async function POST() {
       owner_id: data.user.id,
       name: 'AInnovate Agency',
       slug: 'ainnovate',
-      plan: 'agency',
+      plan: 'pro',
       reels_limit: 1000,
     })
     .select('id')

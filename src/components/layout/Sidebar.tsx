@@ -1,30 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useTransition, useCallback } from "react";
 import {
-  LayoutGrid,
-  Instagram,
-  Youtube,
-  Megaphone,
-  Users,
-  Bot,
   Settings,
   LogOut,
+  Shield,
 } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 
 const navItems = [
-  { name: "Dashboard",        href: "/",               icon: LayoutGrid },
-  { name: "Instagram",        href: "/instagram",      icon: Instagram },
-  { name: "YouTube",          href: "/youtube",        icon: Youtube },
-  { name: "Ads Intelligence", href: "/ads",            icon: Megaphone },
-  { name: "Customer Voice",   href: "/customer-voice", icon: Users },
-  { name: "AI Agents",        href: "/agents",         icon: Bot },
+  { name: "Dashboard",        href: "/",               svg: "/svgs/dashboard_21.svg" },
+  { name: "Instagram",        href: "/instagram",      svg: "/svgs/instagram_5.svg" },
+  { name: "YouTube",          href: "/youtube",        svg: "/svgs/youtube_16.svg" },
+  { name: "Ads Intelligence", href: "/ads",            svg: "/svgs/megaphone_9.svg" },
+  { name: "Customer Voice",   href: "/customer-voice", svg: "/svgs/person-voice_1.svg" },
+  { name: "AI Agents",        href: "/agents",         svg: "/svgs/robot_6.svg" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isAdmin?: boolean;
+}
+
+export function Sidebar({ isAdmin = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
@@ -54,8 +54,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className="w-[260px] h-screen fixed left-0 top-0 z-40 flex flex-col"
-      style={{ background: "rgba(0, 0, 0, 0.6)" }}
+      className="w-[260px] h-screen fixed left-0 top-0 z-40 flex flex-col backdrop-blur-xl"
+      style={{ background: "rgba(0, 0, 0, 0.4)", borderRight: "1px solid rgba(255,255,255,0.06)" }}
     >
       {/* ── Logo ── */}
       <div className="flex items-center gap-3 px-5 pt-6 pb-5 shrink-0">
@@ -109,11 +109,16 @@ export function Sidebar() {
                 />
               )}
 
-              <item.icon
-                size={20}
-                strokeWidth={isActive ? 2 : 1.5}
-                className="transition-colors relative z-10 shrink-0"
-                style={{ color: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.4)" }}
+              <Image
+                src={item.svg}
+                alt={item.name}
+                width={20}
+                height={20}
+                className="relative z-10 shrink-0 transition-opacity"
+                style={{
+                  filter: "brightness(0) invert(1)",
+                  opacity: isActive ? 1 : 0.4,
+                }}
               />
               <span
                 className={`text-[14px] transition-colors relative z-10 ${
@@ -141,6 +146,16 @@ export function Sidebar() {
 
       {/* ── Bottom ── */}
       <div className="px-3 py-6 space-y-1 border-t border-white/[0.06]">
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={(e) => handleNav("/admin", e)}
+            className="group relative flex items-center gap-3 px-3 h-[32px] rounded-lg transition-all duration-200 hover:bg-amber-500/[0.05]"
+          >
+            <Shield size={16} strokeWidth={1.5} className="text-amber-400/60 transition-colors group-hover:text-amber-400" />
+            <span className="text-[14px] tracking-wide font-normal text-amber-400/60 transition-colors group-hover:text-amber-400">Admin</span>
+          </Link>
+        )}
         <Link
           href="/settings"
           onClick={(e) => handleNav("/settings", e)}

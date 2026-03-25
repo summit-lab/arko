@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/api/v1/health', '/api/v1/auth/meta/callback']
+// Public routes: no auth required
+const PUBLIC_ROUTES = ['/login', '/invite', '/api/v1/health', '/api/v1/auth/meta/callback']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -45,6 +46,13 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
   const isApiRoute = pathname.startsWith('/api/')
 
+  // Block /register — registration only via /invite/[token]
+  if (pathname === '/register') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
   // If not authenticated and trying to access protected route → redirect to login
   if (!user && !isPublicRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
@@ -52,30 +60,75 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If authenticated and trying to access auth pages → redirect to dashboard
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  // If authenticated and trying to access login page → redirect to dashboard
+  if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
-  // Cache workspace_id in cookie to avoid querying it on every page
-  if (user && !request.cookies.get('arko_workspace_id')) {
-    const { data: workspace } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', user.id)
-      .limit(1)
-      .single()
-
-    if (workspace) {
-      supabaseResponse.cookies.set('arko_workspace_id', workspace.id, {
+  // Admin route protection: only role='admin' can access /admin/*
+  if (user && pathname.startsWith('/admin')) {
+    let userRole: string = request.cookies.get('arko_user_role')?.value ?? ''
+    if (!userRole) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      userRole = profile?.role ?? 'user'
+      supabaseResponse.cookies.set('arko_user_role', userRole, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24, // 24 hours
+        maxAge: 60 * 60, // 1 hour (shorter TTL for security)
         path: '/',
       })
+    }
+    if (userRole !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Cache workspace_id and user role in cookies
+  if (user) {
+    if (!request.cookies.get('arko_workspace_id')) {
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id)
+        .limit(1)
+        .single()
+
+      if (workspace) {
+        supabaseResponse.cookies.set('arko_workspace_id', workspace.id, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24, // 24 hours
+          path: '/',
+        })
+      }
+    }
+
+    // Cache role for admin checks
+    if (!request.cookies.get('arko_user_role')) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      if (profile) {
+        supabaseResponse.cookies.set('arko_user_role', profile.role, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60, // 1 hour
+          path: '/',
+        })
+      }
     }
   }
 
