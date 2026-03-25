@@ -143,15 +143,20 @@ Cuando el developer dice **"inicio de sesión"**, **"empiezo a trabajar"**, o si
 
 ### 6.3 Cierre de sesión
 
-Cuando el developer dice **"cierre de sesión"**, **"terminé"**, **"commitea"**, o similar, la IA DEBE:
+Cuando el developer dice **"cierre de sesión"**, **"terminé"**, **"commitea"**, **"da por terminado"**, **"termina la sesión"**, o similar, la IA DEBE **ejecutar el flujo completo automáticamente** (no solo dar un resumen textual):
 
-1. **Verificar que los cambios fueron testeados** — NUNCA commitear/pushear sin que el developer haya confirmado que testeó y validó los cambios. Si no hay confirmación explícita de testing, PREGUNTAR antes de continuar.
-2. `git status` + `git diff` — mostrar qué cambió
-3. Crear commit con mensaje descriptivo (Conventional Commits)
+1. **Verificar que los cambios fueron testeados** — Si el developer estuvo testeando durante la sesión y no reportó problemas pendientes, los cambios se consideran validados. Solo preguntar si hay duda real de que algo no fue testeado.
+2. `git add` — stagear todos los archivos relevantes
+3. `git commit` — con mensaje descriptivo (Conventional Commits)
 4. `git push origin feature/nombre` — subir la rama al remote
-5. Crear **Pull Request** de `feature/nombre` → `develop` usando `gh pr create`
-6. Reportar: link del PR creado, archivos cambiados, resumen
+5. `gh pr create` — crear **Pull Request** de `feature/nombre` → `develop`
+6. **Resumen de cierre** — reportar:
+   - Link del PR creado
+   - Qué se hizo en la sesión (cambios principales)
+   - Qué queda pendiente para la próxima sesión
+   - Migraciones aplicadas en DEV que están pendientes en PROD
 
+> **REGLA:** La IA EJECUTA el cierre, no lo describe. Cuando el developer pide terminar, la IA hace commit + push + PR en ese momento. No esperar a que el developer lo pida por separado.
 > **REGLA:** Commits y PRs son SOLO para cambios ya testeados y validados por el developer. No se commitea al terminar de escribir código — se commitea después de confirmar que funciona.
 
 ### 6.4 Reglas INVIOLABLES de git
