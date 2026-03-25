@@ -8,6 +8,7 @@ import {
   Eye, Users, TrendingUp, Heart, MessageSquare, Bookmark, Share2,
   UserPlus, BarChart3, Globe,
 } from "lucide-react";
+import { CountUp } from "@/components/ui/CountUp";
 
 // ─── Types (match DB schema) ─────────────────────────────────────────────────
 
@@ -171,19 +172,19 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
           <div className="mb-2 relative z-10">
             <p className="stat-label">Impresiones</p>
           </div>
-          <p className="stat-number-xl relative z-10">{formatNumber(totalImpressions)}</p>
+          <CountUp value={formatNumber(totalImpressions)} className="stat-number-xl relative z-10" />
         </div>
         <div className="glass-card px-6 py-5 flex flex-col justify-center">
           <div className="mb-2 relative z-10">
             <p className="stat-label">Alcance / día</p>
           </div>
-          <p className="stat-number-xl relative z-10">{formatNumber(avgReach)}</p>
+          <CountUp value={formatNumber(avgReach)} className="stat-number-xl relative z-10" />
         </div>
         <div className="glass-card px-6 py-5 flex flex-col justify-center">
           <div className="mb-2 relative z-10">
             <p className="stat-label">Interacciones</p>
           </div>
-          <p className="stat-number-xl relative z-10">{formatNumber(totalInteractions)}</p>
+          <CountUp value={formatNumber(totalInteractions)} className="stat-number-xl relative z-10" />
         </div>
       </div>
 
@@ -199,7 +200,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
         ].map((s) => (
           <div key={s.label} className="glass-card px-6 py-5 flex flex-col justify-center">
             <p className="stat-label mb-2 relative z-10">{s.label}</p>
-            <p className="text-[24px] font-medium tracking-tight text-white leading-none relative z-10">{s.value}</p>
+            <CountUp value={s.value} className="text-[24px] font-light tracking-tight text-white leading-none relative z-10" />
           </div>
         ))}
       </div>

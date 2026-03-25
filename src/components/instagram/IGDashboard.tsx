@@ -9,6 +9,7 @@ import {
   Trophy, Play, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import Image from "next/image";
+import { CountUp } from "@/components/ui/CountUp";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -335,7 +336,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
                 <TrendingUp className="h-[16px] w-[16px]" />
               </div>
             </div>
-            <p className="stat-number-xl text-violet-400">{conversionRate}%</p>
+            <CountUp value={`${conversionRate}%`} className="stat-number-xl text-violet-400" />
             <div className="flex items-center gap-4 mt-2">
               <span className="text-[13px] font-light text-white/50">{fmt(totalProfileViews)} visitas</span>
               <span className="text-[13px] font-light text-white/50">→ {fmt(totalFollowersGained)} seguidores</span>
@@ -355,7 +356,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
                 <Users className="h-[16px] w-[16px]" />
               </div>
             </div>
-            <p className="stat-number-xl">{fmt(totalFollowers)}</p>
+            <CountUp value={fmt(totalFollowers)} className="stat-number-xl" />
             <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(totalFollowersGained)} en el período</p>
           </div>
         </div>

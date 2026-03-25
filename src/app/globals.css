@@ -140,11 +140,26 @@
 
   /* ── Glass panels ── */
   .glass-panel {
-    @apply backdrop-blur-xl border border-white/[0.15] rounded-xl;
-    background: rgba(255, 255, 255, 0.03);
+    @apply rounded-xl;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.03) 40%, rgba(255,255,255,0.025) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .glass-panel:hover {
+    background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.045) 40%, rgba(255,255,255,0.04) 100%);
+    border-color: rgba(255, 255, 255, 0.14);
+    border-top-color: rgba(255, 255, 255, 0.2);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
   }
   .glass-panel-hover {
     @apply hover:bg-white/[0.06] transition-all duration-300;
@@ -152,14 +167,17 @@
 
   /* ── Liquid Glass Cards ── */
   .glass-card {
-    @apply rounded-xl relative overflow-hidden backdrop-blur-xl;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    @apply rounded-xl relative overflow-hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.04) 35%, rgba(255,255,255,0.035) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
       inset 0 -1px 0 rgba(255, 255, 255, 0.02);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Glass Reflection - Borde izquierdo luminoso */
@@ -190,16 +208,19 @@
   }
 
   .glass-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: linear-gradient(180deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.055) 100%);
+    border-color: rgba(255, 255, 255, 0.18);
+    border-top-color: rgba(255, 255, 255, 0.24);
     box-shadow:
-      0 8px 40px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 12px 40px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255,255,255,0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
       inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+    transform: translateY(-2px);
   }
 
   .glass-section {
-    @apply rounded-xl backdrop-blur-xl;
+    @apply rounded-xl;
     background: rgba(255, 255, 255, 0.025);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
@@ -207,18 +228,37 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* ── Page title — clean saas ── */
+  /* ── Page title — clean saas with underline animation ── */
   .page-title {
-    @apply text-[40px] font-medium tracking-tight text-white leading-none;
+    @apply text-[40px] font-light tracking-[-0.03em] text-white leading-none relative inline-block pb-2;
+  }
+  .page-title::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.05) 100%);
+    border-radius: 1px;
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: underlineScaleIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+  }
+  .page-title:hover::after {
+    animation: underlineReplay 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   }
   .stat-number {
-    @apply text-[32px] font-medium tracking-tight text-white leading-none;
+    @apply text-[34px] font-light tracking-[-0.02em] text-white leading-none;
   }
   .stat-number-xl {
-    @apply text-[40px] font-medium tracking-tight text-white leading-none;
+    @apply text-[48px] font-extralight tracking-[-0.03em] text-white leading-none;
+  }
+  .stat-number-hero {
+    @apply text-[56px] font-extralight tracking-[-0.03em] text-white leading-none;
   }
   .stat-label {
-    @apply text-[11px] font-bold text-[#8a8a93] uppercase tracking-[0.08em];
+    @apply text-[11px] font-medium text-[#8a8a93] uppercase tracking-[0.1em];
   }
 
   /* ── Pill badges ── */
@@ -253,9 +293,42 @@
   .glow-yellow { box-shadow: 0 0 16px rgba(250, 204, 21, 0.25); }
   .glow-purple { box-shadow: 0 0 16px rgba(192, 132, 252, 0.25); }
 
+  /* ── Animations — Premium Entrance ── */
+  .animate-fade-in {
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .animate-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+
+  /* ── Shimmer effect for buttons ── */
+  .shimmer-hover {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-hover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.08) 55%, transparent 60%);
+    transform: translateX(-100%);
+    transition: none;
+    pointer-events: none;
+  }
+  .shimmer-hover:hover::after {
+    transform: translateX(100%);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   /* ── Backward compat aliases ── */
   .card-dark {
-    @apply backdrop-blur-xl rounded-xl;
+    @apply rounded-xl;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
@@ -265,7 +338,7 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .card-dark-lg {
-    @apply backdrop-blur-xl rounded-xl;
+    @apply rounded-xl;
     background: rgba(255, 255, 255, 0.025);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow:
@@ -286,10 +359,10 @@
     content: "";
     position: fixed;
     inset: 0;
-    background: url("/backgrownd.PNG") no-repeat center center fixed;
-    background-size: cover;
-    opacity: 0.4;
-    filter: grayscale(100%);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 40%, rgba(255,255,255,0.02) 0%, transparent 70%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.018'/%3E%3C/svg%3E");
+    background-size: cover, 200px 200px;
     z-index: 0;
     pointer-events: none;
   }
@@ -303,5 +376,31 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading-local), "Manrope Bold", ui-sans-serif, system-ui, sans-serif;
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes underlineScaleIn {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes underlineReplay {
+  0% { transform: scaleX(1); }
+  40% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+@keyframes countFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes barGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
 }
 
