@@ -1,6 +1,7 @@
-import { Bell, ChevronDown } from "lucide-react";
+import { Bell, ChevronDown, Search, TrendingUp, Eye, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
+import { HeaderClient } from "./HeaderClient";
 
 const getUserProfile = cache(async () => {
   const supabase = await createClient();
@@ -33,68 +34,101 @@ export async function Header() {
     .slice(0, 2);
 
   return (
-    <header
-      className="h-[80px] w-full flex items-center justify-between px-8 z-30 sticky top-0"
-      style={{ background: "rgba(0, 0, 0, 0.35)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-    >
-      {/* Left — User Profile (Stakent Style) */}
-      <div className="flex items-center gap-3.5 cursor-pointer group">
-        {/* Avatar */}
-        <div
-          className="h-10 w-10 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0"
-          style={{
-            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-          }}
-        >
-          {initials}
-        </div>
-
-        {/* Info */}
-        <div className="hidden md:flex flex-col justify-center">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[12px] font-medium text-white/40 group-hover:text-white/60 transition-colors">
-              @{username}
-            </span>
-            <span
-              className="text-[9px] font-semibold px-1.5 py-[1px] rounded leading-none flex items-center"
-              style={{
-                background: isAdmin
-                  ? "rgba(99,102,241,0.15)"
-                  : "rgba(255,255,255,0.04)",
-                color: isAdmin ? "#a5b4fc" : "rgba(255,255,255,0.4)",
-                border: isAdmin
-                  ? "1px solid rgba(99,102,241,0.2)"
-                  : "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              {isAdmin ? "ADMIN" : "PRO"}
-            </span>
+    <header className="h-[80px] w-full flex items-center justify-center px-6 z-30 sticky top-0">
+      {/* ── Pill Container ── */}
+      <div
+        className="flex items-center justify-between w-full max-w-full h-[52px] px-4 rounded-2xl"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.025) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderTop: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Left — User Profile */}
+        <div className="flex items-center gap-3 cursor-pointer group">
+          <div
+            className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+            style={{
+              background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+              boxShadow: "0 0 12px rgba(99,102,241,0.3)",
+            }}
+          >
+            {initials}
           </div>
-          <span className="text-[15px] font-medium text-white tracking-tight leading-none mt-1 group-hover:text-white/80 transition-colors">
-            {displayName}
-          </span>
+          <div className="hidden md:flex flex-col justify-center">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-medium text-white tracking-tight leading-none group-hover:text-white/80 transition-colors">
+                {displayName}
+              </span>
+              <span
+                className="text-[8px] font-semibold px-1.5 py-[2px] rounded-full leading-none"
+                style={{
+                  background: isAdmin ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)",
+                  color: isAdmin ? "#a5b4fc" : "rgba(255,255,255,0.35)",
+                  border: isAdmin ? "1px solid rgba(99,102,241,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                {isAdmin ? "ADMIN" : "PRO"}
+              </span>
+            </div>
+          </div>
+          <ChevronDown className="w-3.5 h-3.5 text-white/15 group-hover:text-white/40 transition-colors" />
         </div>
 
-        <ChevronDown className="w-4 h-4 text-white/20 ml-1 group-hover:text-white/50 transition-colors" />
-      </div>
+        {/* Center — Quick Stats Ticker */}
+        <div className="hidden lg:flex items-center gap-5">
+          {[
+            { icon: Eye, label: "Views", value: "1.2M", color: "text-blue-400" },
+            { icon: Users, label: "Followers", value: "19K", color: "text-violet-400" },
+            { icon: TrendingUp, label: "Eng. Rate", value: "6.1%", color: "text-emerald-400" },
+          ].map((stat, i) => (
+            <div key={stat.label} className="flex items-center">
+              {i > 0 && <div className="w-[1px] h-5 mr-5" style={{ background: "rgba(255,255,255,0.06)" }} />}
+              <div className="flex items-center gap-2.5">
+                <stat.icon className={`h-4 w-4 ${stat.color} opacity-60`} strokeWidth={1.8} />
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-white/20 font-medium uppercase tracking-[0.1em] leading-none">{stat.label}</span>
+                  <span className="text-[15px] font-light text-white leading-none mt-1 tracking-[-0.01em]">{stat.value}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
-      {/* Right — Actions */}
-      <div className="flex items-center gap-3">
-        {/* Bell */}
-        <button
-          className="h-9 w-9 flex items-center justify-center rounded-xl relative transition-colors hover:bg-white/[0.08]"
-          style={{
-            background: "rgba(255,255,255,0.03)",
-            color: "rgba(255,255,255,0.45)",
-            border: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          <Bell className="h-4 w-4" />
-          <span
-            className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full"
-            style={{ background: "#ef4444", boxShadow: "0 0 6px #ef4444" }}
-          />
-        </button>
+        {/* Right — Search, Date, Bell */}
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div
+            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/[0.05] hover:border-white/[0.1]"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.05)",
+            }}
+          >
+            <Search className="h-3.5 w-3.5 text-white/20" strokeWidth={1.8} />
+            <span className="text-[11px] text-white/20 font-light">Search...</span>
+            <span className="text-[9px] text-white/12 font-medium ml-3 px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.04)" }}>⌘K</span>
+          </div>
+
+          <HeaderClient />
+
+          {/* Bell */}
+          <button
+            className="h-8 w-8 flex items-center justify-center rounded-xl relative transition-all duration-200 hover:bg-white/[0.08]"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.4)",
+              border: "1px solid rgba(255,255,255,0.05)",
+            }}
+          >
+            <Bell className="h-3.5 w-3.5" strokeWidth={1.8} />
+            <span
+              className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
+              style={{ background: "#ef4444", boxShadow: "0 0 6px #ef4444" }}
+            />
+          </button>
+        </div>
       </div>
     </header>
   );

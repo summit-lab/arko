@@ -30,29 +30,33 @@ export function InstagramTabs() {
   }, [router, searchParams, current]);
 
   return (
-    <div className={`inline-flex items-center gap-1 transition-opacity duration-150 ${isPending ? "opacity-60" : "opacity-100"}`}>
+    <div
+      className={`inline-flex items-center gap-1 p-1 rounded-full transition-opacity duration-150 ${isPending ? "opacity-60" : "opacity-100"}`}
+      style={{
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
       {TABS.map((tab) => {
         const active = current === tab.key;
         return (
           <button
             key={tab.key}
             onClick={() => handleSelect(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 cursor-pointer ${
-              active ? "text-white" : "text-white/40 hover:text-white/60"
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-250 cursor-pointer ${
+              active
+                ? "text-black"
+                : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
             }`}
             style={active ? {
-              background: "#17171f",
-              border: "1px solid rgba(255,255,255,0.1)",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
-            } : {
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.05)",
-            }}
+              background: "rgba(255,255,255,0.95)",
+              boxShadow: "0 2px 8px rgba(255,255,255,0.1), 0 1px 2px rgba(0,0,0,0.3)",
+            } : undefined}
           >
             <tab.icon
-              size={15}
-              strokeWidth={active ? 2.5 : 1.5}
-              style={{ color: active ? "#ffffff" : "rgba(255,255,255,0.4)" }}
+              size={14}
+              strokeWidth={active ? 2.2 : 1.6}
+              style={{ color: active ? "#000000" : undefined }}
             />
             {tab.label}
           </button>

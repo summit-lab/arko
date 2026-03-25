@@ -350,6 +350,72 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
                   </div>
                 ))}
               </div>
+
+              {/* ── Performance Overview Strip ── */}
+              <div className="glass-panel rounded-xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Resumen de Rendimiento</h3>
+                  <span className="text-[11px] text-white/25 font-light">Últimos {reels.length} reels</span>
+                </div>
+                <div className="grid grid-cols-3 gap-6">
+                  {/* Engagement Rate */}
+                  <div>
+                    <p className="text-[11px] text-white/30 font-medium uppercase tracking-[0.08em] mb-2">Engagement Rate</p>
+                    <p className="text-[28px] font-light text-white tracking-[-0.02em] leading-none">
+                      {totalViews > 0 ? ((totalLikes + totalSaves + totalComments) / totalViews * 100).toFixed(1) : "0"}%
+                    </p>
+                    <p className="text-[11px] text-white/20 font-light mt-1">likes + saves + comments / views</p>
+                  </div>
+
+                  {/* Organic vs Paid Split */}
+                  <div>
+                    <p className="text-[11px] text-white/30 font-medium uppercase tracking-[0.08em] mb-3">Distribución de Tráfico</p>
+                    <div className="h-[6px] w-full rounded-full overflow-hidden flex" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <div
+                        className="h-full rounded-l-full"
+                        style={{ width: `${100 - paidPct}%`, background: "linear-gradient(90deg, #818cf8, #a78bfa)" }}
+                      />
+                      <div
+                        className="h-full rounded-r-full"
+                        style={{ width: `${paidPct}%`, background: "linear-gradient(90deg, #f472b6, #fb7185)" }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />
+                        <span className="text-[11px] text-white/40 font-light">Orgánico {100 - paidPct}%</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#f472b6]" />
+                        <span className="text-[11px] text-white/40 font-light">Pagado {paidPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top 5 by views — mini bars */}
+                  <div>
+                    <p className="text-[11px] text-white/30 font-medium uppercase tracking-[0.08em] mb-3">Top 5 Reels por Views</p>
+                    <div className="space-y-2">
+                      {reels
+                        .sort((a, b) => b.views_total - a.views_total)
+                        .slice(0, 5)
+                        .map((r, i) => {
+                          const maxV = reels[0]?.views_total || 1;
+                          const pct = Math.round((r.views_total / maxV) * 100);
+                          return (
+                            <div key={r.id} className="flex items-center gap-2">
+                              <span className="text-[10px] text-white/20 w-3 text-right font-light">{i + 1}</span>
+                              <div className="flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+                                <div className="h-full rounded-full bg-white/20" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-[10px] text-white/40 font-light w-10 text-right">{formatNumber(r.views_total)}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           <ReelsGrid reels={reels} />

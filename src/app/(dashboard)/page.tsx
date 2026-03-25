@@ -1,382 +1,193 @@
-import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
-import { redirect } from "next/navigation";
-import { Eye, Heart, Bookmark, MessageSquare, Target } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
+import { Eye, Heart, Bookmark, MessageSquare, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { CountUp } from "@/components/ui/CountUp";
 
-export default async function Home() {
-  const workspaceId = await getWorkspaceId();
-  if (!workspaceId) redirect("/onboarding");
+export default function Home() {
+  const goals = [
+    { label: "Seguidores IG", current: 19000, target: 25000, color: "from-violet-500 to-violet-400" },
+    { label: "Subs YouTube", current: 4200, target: 5000, color: "from-red-500 to-red-400" },
+    { label: "Views Orgánicas", current: 310, target: 500, unit: "K", color: "from-cyan-500 to-cyan-400" },
+    { label: "Leads Mes", current: 87, target: 120, color: "from-emerald-500 to-emerald-400" },
+  ];
 
-  const supabase = await createClient();
+  const topContent = [
+    { title: "Errores que te cuestan $10K/mes", platform: "IG Reel", views: "234K", saves: "3.2K", likes: "8.1K", retention: "62%", trend: "up" as const },
+    { title: "Cómo escalar sin equipo", platform: "IG Reel", views: "189K", saves: "2.8K", likes: "6.4K", retention: "58%", trend: "up" as const },
+    { title: "Mi sistema de contenido", platform: "YouTube", views: "45K", saves: "1.1K", likes: "2.3K", retention: "44%", trend: "down" as const },
+    { title: "3 ads que convirtieron", platform: "IG Reel", views: "156K", saves: "2.1K", likes: "5.9K", retention: "55%", trend: "up" as const },
+  ];
 
-  // Fetch all data in parallel
-  const [
-    { data: latestInsight },
-    { data: reelAggs },
-    { data: demographics },
-    { data: topReels },
-    { data: metaConn },
-    { data: goalsData },
-  ] = await Promise.all([
-    // Latest account insight (follower count, impressions, etc.)
-    supabase
-      .from("ig_account_insights")
-      .select("follower_count, impressions, reach, profile_views, likes, comments, saves, shares, total_interactions, metric_date")
-      .eq("workspace_id", workspaceId)
-      .order("metric_date", { ascending: false })
-      .limit(1)
-      .single(),
-
-    // Aggregated reel metrics from computed view
-    supabase
-      .from("reel_computed")
-      .select("views_total, views_org, views_paid, likes_total, comments_total, saves_total, shares_total, retention_ratio")
-      .eq("workspace_id", workspaceId),
-
-    // Demographics (audience country)
-    supabase
-      .from("ig_account_demographics")
-      .select("audience_country")
-      .eq("workspace_id", workspaceId)
-      .order("snapshot_date", { ascending: false })
-      .limit(1)
-      .single(),
-
-    // Top 5 reels by views
-    supabase
-      .from("reels")
-      .select("caption, permalink, thumbnail_url, media_product_type, reel_metrics(views_org, likes_total, saves_total, avg_watch_time_sec, duration_sec), reel_metrics_paid(views_paid)")
-      .eq("workspace_id", workspaceId)
-      .order("published_at", { ascending: false })
-      .limit(50),
-
-    // Meta connection status
-    supabase
-      .from("meta_connections")
-      .select("ig_username, status")
-      .eq("workspace_id", workspaceId)
-      .single(),
-
-    // Monthly goals
-    (() => {
-      const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      return supabase
-        .from("workspace_goals")
-        .select("metric, target_value")
-        .eq("workspace_id", workspaceId)
-        .eq("period_start", periodStart);
-    })(),
-  ]);
-
-  // Aggregate reel totals
-  const totalViews = reelAggs?.reduce((s, r) => s + (r.views_total || 0), 0) ?? 0;
-  const totalLikes = reelAggs?.reduce((s, r) => s + (r.likes_total || 0), 0) ?? 0;
-  const totalSaves = reelAggs?.reduce((s, r) => s + (r.saves_total || 0), 0) ?? 0;
-  const totalComments = reelAggs?.reduce((s, r) => s + (r.comments_total || 0), 0) ?? 0;
-  const totalShares = reelAggs?.reduce((s, r) => s + (r.shares_total || 0), 0) ?? 0;
-  const totalReels = reelAggs?.length ?? 0;
-
-  // Sort top reels by total views
-  const sortedReels = (topReels ?? [])
-    .map((r) => {
-      const org = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
-      const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
-      const viewsTotal = (org?.views_org ?? 0) + (paid?.views_paid ?? 0);
-      const duration = org?.duration_sec ?? 1;
-      const avgWatch = org?.avg_watch_time_sec ?? 0;
-      const retention = duration > 0 ? Math.round((avgWatch / duration) * 100) : 0;
-      return {
-        caption: r.caption?.substring(0, 50) || "Sin título",
-        type: r.media_product_type === "REELS" ? "Reel" : r.media_product_type === "IMAGE" ? "Post" : "Carousel",
-        views: viewsTotal,
-        likes: org?.likes_total ?? 0,
-        saves: org?.saves_total ?? 0,
-        retention,
-        permalink: r.permalink,
-        thumbnail: r.thumbnail_url,
-      };
-    })
-    .sort((a, b) => b.views - a.views)
-    .slice(0, 5);
-
-  // Country data
-  const countryRaw = (demographics?.audience_country ?? {}) as Record<string, number>;
-  const countryTotal = Object.values(countryRaw).reduce((s, v) => s + v, 0) || 1;
-  const countryFlags: Record<string, string> = {
-    AR: "🇦🇷", ES: "🇪🇸", MX: "🇲🇽", CO: "🇨🇴", CL: "🇨🇱", PE: "🇵🇪",
-    US: "🇺🇸", UY: "🇺🇾", EC: "🇪🇨", BR: "🇧🇷", VE: "🇻🇪", BO: "🇧🇴",
-  };
-  const countryNames: Record<string, string> = {
-    AR: "Argentina", ES: "España", MX: "México", CO: "Colombia", CL: "Chile",
-    PE: "Perú", US: "Estados Unidos", UY: "Uruguay", EC: "Ecuador", BR: "Brasil",
-    VE: "Venezuela", BO: "Bolivia",
-  };
-  const topCountries = Object.entries(countryRaw)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 6)
-    .map(([code, count]) => ({
-      label: `${countryFlags[code] || "🌍"} ${countryNames[code] || code}`,
-      pct: Math.round((count / countryTotal) * 100),
-    }));
-
-  // Account metrics
-  const followers = latestInsight?.follower_count ?? 0;
-  const impressions = latestInsight?.impressions ?? 0;
-  const reach = latestInsight?.reach ?? 0;
-  const profileViews = latestInsight?.profile_views ?? 0;
-
-  // Connection status
-  const isConnected = metaConn?.status === "active";
-  const igUsername = metaConn?.ig_username;
-
-  // Goals with current progress
-  const METRIC_LABELS: Record<string, string> = {
-    views: "Views totales", followers: "Seguidores", likes: "Likes",
-    saves: "Guardados", reach: "Alcance", engagement_rate: "Engagement Rate",
-  };
-  const metricCurrentValues: Record<string, number> = {
-    views: totalViews, followers, likes: totalLikes,
-    saves: totalSaves, reach, engagement_rate: totalViews > 0 ? ((totalLikes + totalComments + totalSaves + totalShares) / totalViews) * 100 : 0,
-  };
-  const goals = (goalsData ?? []).map((g) => ({
-    metric: g.metric as string,
-    label: METRIC_LABELS[g.metric as string] || g.metric,
-    target: Number(g.target_value),
-    current: metricCurrentValues[g.metric as string] ?? 0,
-  }));
-
-  // Key metrics for cards
-  const keyMetrics = [
-    { label: "Total Views", value: fmt(totalViews), icon: Eye, color: "text-blue-400" },
-    { label: "Guardados", value: fmt(totalSaves), icon: Bookmark, color: "text-amber-400" },
-    { label: "Likes", value: fmt(totalLikes), icon: Heart, color: "text-rose-400" },
-    { label: "Comentarios", value: fmt(totalComments), icon: MessageSquare, color: "text-emerald-400" },
+  const kpis = [
+    { label: "Total Views", value: "1.2M", change: "+18.2%", up: true, icon: Eye, color: "text-blue-400" },
+    { label: "Guardados", value: "12.4K", change: "+24.5%", up: true, icon: Bookmark, color: "text-amber-400" },
+    { label: "Likes", value: "45.2K", change: "+12.1%", up: true, icon: Heart, color: "text-rose-400" },
+    { label: "Comentarios", value: "3.8K", change: "-3.2%", up: false, icon: MessageSquare, color: "text-emerald-400" },
   ];
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
+    <div className="px-8 py-10">
+      {/* Header */}
+      <div className="animate-slide-up mb-10">
         <h1 className="page-title">Dashboard</h1>
-        <p className="text-zinc-400 mt-1 text-sm">
-          Resumen global de tu marca personal.
-          {isConnected && igUsername && (
-            <span className="text-white/50 ml-2">@{igUsername}</span>
-          )}
-        </p>
+        <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
       </div>
 
-      {/* ROW 1: Account Overview + Key Metrics */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Account Overview */}
-        <div className="col-span-5 glass-panel rounded-xl p-6">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-5">Resumen de Cuenta</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Seguidores</p>
-              <p className="text-2xl font-bold text-white mt-1">{fmt(followers)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Impresiones</p>
-              <p className="text-2xl font-bold text-white mt-1">{fmt(impressions)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Alcance</p>
-              <p className="text-2xl font-bold text-white mt-1">{fmt(reach)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Visitas Perfil</p>
-              <p className="text-2xl font-bold text-white mt-1">{fmt(profileViews)}</p>
-            </div>
-          </div>
-          <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Total Contenido</p>
-              <p className="text-lg font-bold text-white mt-0.5">{totalReels} publicaciones</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Interacciones</p>
-              <p className="text-lg font-bold text-white mt-0.5">{fmt(totalLikes + totalComments + totalSaves + totalShares)}</p>
-            </div>
-          </div>
-        </div>
+      {/* Main 70/30 Layout */}
+      <div className="flex gap-6">
+        {/* ── LEFT: Main Content (70%) ── */}
+        <div className="flex-1 min-w-0 space-y-6">
 
-        {/* Audience by Country */}
-        <div className="col-span-4 glass-panel rounded-xl p-6">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-5">Audiencia por País</h3>
-          {topCountries.length > 0 ? (
-            <div className="space-y-3">
-              {topCountries.map((c) => (
-                <div key={c.label}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-zinc-300">{c.label}</span>
-                    <span className="text-xs font-medium text-zinc-400">{c.pct}%</span>
+          {/* Hero KPIs */}
+          <div className="grid grid-cols-4 gap-5">
+            {kpis.map((m, i) => (
+              <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                  <p className="stat-label">{m.label}</p>
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center ${m.color}`} style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <m.icon className="h-[18px] w-[18px]" />
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
-                      style={{ width: `${c.pct}%` }}
-                    />
+                </div>
+                <CountUp value={m.value} className="stat-number-xl relative z-10" />
+                <div className="flex items-center gap-1.5 mt-3 relative z-10">
+                  {m.up ? (
+                    <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                  )}
+                  <span className={`text-[12px] font-medium ${m.up ? "text-emerald-400" : "text-red-400"}`}>{m.change}</span>
+                  <span className="text-[11px] text-white/25 ml-1">vs prev</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Charts Row — Recharts */}
+          <div className="animate-slide-up stagger-5">
+            <DashboardCharts />
+          </div>
+
+          {/* Top Performing Content */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-[15px] font-light text-white tracking-wide">Top Performing Content</h3>
+              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Últimos 90 días</span>
+            </div>
+            <div className="space-y-1">
+              {/* Table header */}
+              <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
+                <div className="col-span-1">#</div>
+                <div className="col-span-4">Título</div>
+                <div className="col-span-2 text-right">Views</div>
+                <div className="col-span-1 text-right">Saves</div>
+                <div className="col-span-1 text-right">Likes</div>
+                <div className="col-span-1 text-center">Ret.</div>
+                <div className="col-span-2 text-center">Plataforma</div>
+              </div>
+              {topContent.map((c, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-center py-3.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer group">
+                  <div className="col-span-1">
+                    <span className="text-[13px] font-light text-white/25">{i + 1}</span>
+                  </div>
+                  <div className="col-span-4 flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                      {c.platform.includes("IG") ? <Instagram className="h-4 w-4 text-pink-400/70" /> : <Youtube className="h-4 w-4 text-red-400/70" />}
+                    </div>
+                    <span className="text-[13px] font-light text-white/70 group-hover:text-white truncate transition-colors">{c.title}</span>
+                  </div>
+                  <div className="col-span-2 text-right text-[13px] font-light text-white">{c.views}</div>
+                  <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.saves}</div>
+                  <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.likes}</div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-[11px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">{c.retention}</span>
+                  </div>
+                  <div className="col-span-2 text-center">
+                    <span className="pill-badge">{c.platform}</span>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-xs text-zinc-500">Sin datos demográficos aún. Sincronizá tu cuenta de Instagram.</p>
-          )}
+          </div>
         </div>
 
-        {/* Key Numbers */}
-        <div className="col-span-3 grid grid-rows-4 gap-3">
-          {keyMetrics.map((m) => (
-            <div key={m.label} className="glass-panel rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-zinc-500 mb-0.5">{m.label}</p>
-                <p className="text-lg font-bold text-white">{m.value}</p>
-              </div>
-              <m.icon className={`h-5 w-5 ${m.color} opacity-60`} />
+        {/* ── RIGHT: Summary Panel (30%) ── */}
+        <div className="w-[320px] shrink-0 space-y-6">
+          {/* Quick Stats */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
+            <div className="space-y-5">
+              {[
+                { label: "Alcance Total", value: "892K", sub: "últimos 30 días" },
+                { label: "Engagement Rate", value: "6.1%", sub: "+0.8% vs anterior" },
+                { label: "Mejor Reel", value: "1.1M", sub: "views" },
+                { label: "Nuevos Follows", value: "2.3K", sub: "esta semana" },
+              ].map((s) => (
+                <div key={s.label} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[12px] text-white/35 font-light">{s.label}</p>
+                    <p className="text-[11px] text-white/20 font-light mt-0.5">{s.sub}</p>
+                  </div>
+                  <CountUp value={s.value} className="text-[22px] font-light tracking-[-0.02em] text-white" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* ROW 2: Monthly Goals */}
-      {goals.length > 0 ? (
-        <div className="glass-panel rounded-xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-cyan-400" />
-              <h3 className="text-sm font-semibold text-zinc-300">Metas del Mes</h3>
+          {/* Monthly Goals */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Monthly Goals</h3>
+            <div className="space-y-5">
+              {goals.map((g) => {
+                const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+                const displayCurrent = g.unit === "K" ? `${g.current}K` : g.current.toLocaleString();
+                const displayTarget = g.unit === "K" ? `${g.target}K` : g.target.toLocaleString();
+                return (
+                  <div key={g.label}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[12px] text-white/50 font-light">{g.label}</span>
+                      <span className="text-[12px] font-light text-white/70">
+                        {displayCurrent} <span className="text-white/25">/ {displayTarget}</span>
+                      </span>
+                    </div>
+                    <div className="h-[5px] w-full rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${g.color} transition-all duration-700`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-end mt-1">
+                      <span className="text-[10px] text-white/20 font-light">{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <Link
-              href="/customer-voice"
-              className="text-[10px] text-cyan-400/60 hover:text-cyan-400 transition-colors"
-            >
-              Configurar →
-            </Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            {goals.map((g) => {
-              const pct = g.metric === "engagement_rate"
-                ? Math.min(100, Math.round((g.current / g.target) * 100))
-                : Math.min(100, Math.round((g.current / g.target) * 100));
-              const isComplete = pct >= 100;
-              return (
-                <div key={g.metric} className="p-4 rounded-xl bg-white/5 border border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-zinc-400">{g.label}</span>
-                    <span className={`text-[10px] font-medium ${isComplete ? "text-emerald-400" : "text-zinc-500"}`}>
-                      {pct}%
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-1.5 mb-3">
-                    <span className="text-lg font-bold text-white">
-                      {g.metric === "engagement_rate" ? `${g.current.toFixed(1)}%` : fmt(g.current)}
-                    </span>
-                    <span className="text-[10px] text-zinc-500">
-                      / {g.metric === "engagement_rate" ? `${g.target}%` : fmt(g.target)}
-                    </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        isComplete
-                          ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
-                          : "bg-gradient-to-r from-cyan-500 to-blue-400"
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="glass-panel rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-zinc-500" />
-              <p className="text-sm text-zinc-400">
-                No tenés metas configuradas.
-              </p>
-            </div>
-            <Link
-              href="/customer-voice"
-              className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              Configurar metas →
-            </Link>
-          </div>
-        </div>
-      )}
 
-      {/* ROW 3: Top Performing Content */}
-      <div className="glass-panel rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-zinc-300 mb-4">Top Performing Content</h3>
-        {sortedReels.length > 0 ? (
-          <div className="space-y-2">
-            {/* Table header */}
-            <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-500 uppercase tracking-wider pb-2 border-b border-white/5">
-              <div className="col-span-5">Título</div>
-              <div className="col-span-1 text-center">Views</div>
-              <div className="col-span-1 text-center">Saves</div>
-              <div className="col-span-1 text-center">Likes</div>
-              <div className="col-span-2 text-center">Retención</div>
-              <div className="col-span-2 text-center">Tipo</div>
+          {/* Views by Country */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-4">
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Top Países</h3>
+            <div className="space-y-3">
+              {[
+                { country: "España", pct: 38, flag: "🇪🇸" },
+                { country: "México", pct: 22, flag: "🇲🇽" },
+                { country: "Argentina", pct: 18, flag: "🇦🇷" },
+                { country: "Colombia", pct: 12, flag: "🇨🇴" },
+                { country: "Chile", pct: 10, flag: "🇨🇱" },
+              ].map((c) => (
+                <div key={c.country} className="flex items-center gap-3">
+                  <span className="text-[14px]">{c.flag}</span>
+                  <span className="text-[12px] font-light text-white/60 w-20">{c.country}</span>
+                  <div className="flex-1 h-[4px] rounded-full bg-white/[0.05] overflow-hidden">
+                    <div className="h-full rounded-full bg-white/20" style={{ width: `${c.pct}%` }} />
+                  </div>
+                  <span className="text-[11px] text-white/30 font-light w-8 text-right">{c.pct}%</span>
+                </div>
+              ))}
             </div>
-            {sortedReels.map((c, i) => (
-              <a
-                key={i}
-                href={c.permalink ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/5 transition-colors px-1 cursor-pointer group"
-              >
-                <div className="col-span-5 flex items-center gap-3">
-                  {c.thumbnail ? (
-                    <img
-                      src={c.thumbnail}
-                      alt=""
-                      className="h-10 w-10 rounded-lg object-cover border border-white/10 shrink-0"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-lg bg-white/5 border border-white/10 shrink-0" />
-                  )}
-                  <span className="text-sm text-zinc-200 group-hover:text-white truncate transition-colors">
-                    {c.caption}
-                  </span>
-                </div>
-                <div className="col-span-1 text-center text-xs font-medium text-zinc-300">{fmt(c.views)}</div>
-                <div className="col-span-1 text-center text-xs text-zinc-400">{fmt(c.saves)}</div>
-                <div className="col-span-1 text-center text-xs text-zinc-400">{fmt(c.likes)}</div>
-                <div className="col-span-2 text-center">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    c.retention >= 50
-                      ? "text-emerald-400 bg-emerald-400/10"
-                      : c.retention >= 30
-                        ? "text-amber-400 bg-amber-400/10"
-                        : "text-zinc-400 bg-white/5"
-                  }`}>
-                    {c.retention}%
-                  </span>
-                </div>
-                <div className="col-span-2 text-center">
-                  <span className="text-[10px] font-medium text-zinc-500 bg-white/5 px-2 py-1 rounded">{c.type}</span>
-                </div>
-              </a>
-            ))}
           </div>
-        ) : (
-          <p className="text-xs text-zinc-500 py-4">No hay contenido aún. Conectá tu cuenta de Instagram y sincronizá.</p>
-        )}
+        </div>
       </div>
     </div>
   );
