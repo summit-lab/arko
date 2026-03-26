@@ -55,6 +55,9 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // DEBUG: verificar si las env vars llegan al runtime
+        console.log('[chat] ENV CHECK — OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY, '| length:', process.env.OPENAI_API_KEY?.length ?? 0);
+
         const auth = await authenticateRequest(request);
         if (isAuthError(auth)) {
           controller.enqueue(sseEvent({ type: 'error', message: 'No autorizado' }));
