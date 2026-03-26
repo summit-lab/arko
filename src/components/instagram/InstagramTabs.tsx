@@ -2,14 +2,13 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useCallback } from "react";
-import { LayoutDashboard, Clapperboard, Image, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Clapperboard, BarChart3 } from "lucide-react";
 
-export type TabKey = "dashboard" | "reels" | "posts" | "metrics";
+export type TabKey = "dashboard" | "reels" | "metrics";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { key: "reels", label: "Reels", icon: Clapperboard },
-  { key: "posts", label: "Posts", icon: Image },
   { key: "metrics", label: "Demografía", icon: BarChart3 },
 ];
 

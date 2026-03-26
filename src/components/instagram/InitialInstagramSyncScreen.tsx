@@ -22,7 +22,7 @@ const PHASES: SyncPhase[] = [
   },
   {
     title: "Descargando tus contenidos",
-    description: "Estamos trayendo Reels, posts y carousels de los últimos 90 días.",
+    description: "Estamos trayendo tus Reels de los últimos 90 días.",
   },
   {
     title: "Procesando métricas y Ads",
@@ -209,7 +209,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
             <div className="glass-card rounded-[28px] p-7">
               <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Qué vas a ver al entrar</p>
               <div className="mt-4 space-y-3 text-sm font-light text-white/55">
-                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Tus Reels y posts recientes</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Tus Reels recientes</div>
                 <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">KPIs orgánicos y pagados</div>
                 <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Benchmark inicial de 90 días</div>
                 <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">IG Metrics a nivel de cuenta</div>

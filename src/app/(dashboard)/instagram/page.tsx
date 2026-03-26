@@ -6,7 +6,7 @@ import { SyncControls } from "@/components/instagram/SyncControls";
 import { PeriodFilter } from "@/components/instagram/PeriodFilter";
 import { InstagramTabs } from "@/components/instagram/InstagramTabs";
 import { ReelsGrid } from "@/components/instagram/ReelsGrid";
-import { PostsGrid } from "@/components/instagram/PostsGrid";
+
 import { IGMetricsClient } from "@/components/instagram/IGMetricsClient";
 import { IGDashboardClient } from "@/components/instagram/IGDashboardClient";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
@@ -44,24 +44,7 @@ interface ReelCard {
   is_top_performer: boolean;
 }
 
-interface PostCard {
-  id: string;
-  caption: string | null;
-  thumbnail_url: string | null;
-  media_url: string | null;
-  permalink: string | null;
-  published_at: string | null;
-  media_type: string | null;
-  media_product_type: string | null;
-  impressions: number;
-  reach: number;
-  likes: number;
-  saves: number;
-  comments: number;
-  shares: number;
-}
-
-type TabKey = "dashboard" | "reels" | "posts" | "metrics";
+type TabKey = "dashboard" | "reels" | "metrics";
 
 // ─── Page Component ───
 
@@ -75,7 +58,6 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const workspaceId = await getWorkspaceId();
 
   let reels: ReelCard[] = [];
-  let posts: PostCard[] = [];
   let dailyInsights: Array<{
     metric_date: string; impressions: number; reach: number; profile_views: number;
     accounts_engaged: number; total_interactions: number; likes: number; comments: number;
@@ -86,7 +68,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   let totalFollowers = 0;
 
   if (workspaceId) {
-    const needsMedia = activeTab === "reels" || activeTab === "posts" || activeTab === "dashboard";
+    const needsMedia = activeTab === "reels" || activeTab === "dashboard";
     const needsInsights = activeTab === "dashboard" || activeTab === "metrics";
 
     // ── Build queries ──
@@ -170,7 +152,6 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         const getPaid = (raw: unknown): PaidShape | null => Array.isArray(raw) ? (raw as PaidShape[])[0] : (raw as PaidShape | null);
 
         const reelsData = mediaData.filter((r) => r.media_product_type === "REELS");
-        const postsData = mediaData.filter((r) => r.media_product_type !== "REELS");
 
         if (reelsData.length > 0) {
           const avgViewsBenchmark = benchmarkResult.data?.avg_views_90d || 1;
@@ -207,27 +188,6 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           });
         }
 
-        if (postsData.length > 0) {
-          posts = postsData.map((r) => {
-            const m = getMetrics(r.reel_metrics);
-            return {
-              id: r.id,
-              caption: r.caption,
-              thumbnail_url: r.thumbnail_url,
-              media_url: r.media_url ?? null,
-              permalink: r.permalink,
-              published_at: r.published_at,
-              media_type: r.media_type ?? null,
-              media_product_type: r.media_product_type ?? null,
-              impressions: m?.impressions_org || 0,
-              reach: m?.reach_org || 0,
-              likes: m?.likes_total || 0,
-              saves: m?.saves_total || 0,
-              comments: m?.comments_total || 0,
-              shares: m?.shares_total || 0,
-            };
-          });
-        }
       }
     }
   }
@@ -243,7 +203,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const avgViews = reels.length > 0 ? Math.round(totalViews / reels.length) : 0;
   const paidPct = totalViews > 0 ? Math.round((totalViewsPaid / totalViews) * 100) : 0;
 
-  const hasRealData = reels.length > 0 || posts.length > 0 || dailyInsights.length > 0;
+  const hasRealData = reels.length > 0 || dailyInsights.length > 0;
   const reelsMissingDuration = reels.filter((r) => r.duration_seconds === null).length;
 
   // Dashboard reels summary
@@ -420,11 +380,6 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           )}
           <ReelsGrid reels={reels} />
         </>
-      )}
-
-      {/* ── TAB: Posts ────────────────────────────────────────────── */}
-      {activeTab === "posts" && (
-        <PostsGrid posts={posts} />
       )}
 
       {/* ── TAB: Demografía ──────────────────────────────────────── */}

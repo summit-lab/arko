@@ -178,7 +178,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           .from("reels")
           .select(`
             id, caption, permalink, thumbnail_url, media_url, published_at,
-            duration_seconds, reel_type, has_ads,
+            duration_seconds, reel_type, has_ads, media_type, media_product_type,
             reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, total_interactions, follows_generated, profile_visits, avg_watch_time_sec, completion_rate),
             reel_metrics_paid (views_paid, impressions_paid, reach_paid, clicks, spend_cents, video_plays),
             reel_transcripts (*),
@@ -501,6 +501,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const reelPlaybackUrl = reel.media_url || null;
   const reelPosterUrl = reel.thumbnail_url || null;
 
+  // ─── REEL detail layout ─────────────────────────────────────────
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       {/* Back nav */}

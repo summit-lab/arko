@@ -101,8 +101,9 @@ export async function syncInstagramReels(
 
     const igAccountId = connection.ig_business_account_id;
 
-    // 2. Fetch all media (Reels + Posts + Carousels, paginated)
-    const allMedia = await fetchAllMedia(igAccountId, accessToken);
+    // 2. Fetch all media and filter to Reels only
+    const allMediaRaw = await fetchAllMedia(igAccountId, accessToken);
+    const allMedia = allMediaRaw.filter((m) => m.media_product_type === 'REELS');
 
     // Update total items
     await supabase
@@ -207,14 +208,16 @@ export async function syncInstagramReels(
       const reelId = reelIdMap.get(media.id);
       if (!reelId) continue;
 
+      const isReel = media.media_product_type === 'REELS';
+
       const { error: metricsError } = await supabase
         .from('reel_metrics')
         .upsert(
           {
             reel_id: reelId,
             workspace_id: workspaceId,
-            views_org: insights.views ?? null,
-            impressions_org: null,
+            views_org: isReel ? (insights.views ?? null) : null,
+            impressions_org: insights.impressions ?? null,
             reach_org: insights.reach ?? null,
             likes_total: insights.likes ?? null,
             comments_total: insights.comments ?? null,
@@ -223,7 +226,7 @@ export async function syncInstagramReels(
             total_interactions: insights.total_interactions ?? null,
             profile_visits: null,
             follows_generated: null,
-            avg_watch_time_sec: insights.ig_reels_avg_watch_time
+            avg_watch_time_sec: isReel && insights.ig_reels_avg_watch_time
               ? insights.ig_reels_avg_watch_time / 1000
               : null,
             fetched_at: new Date().toISOString(),
@@ -435,12 +438,9 @@ async function fetchPostInsights(
     const data: { data?: IGInsight[]; error?: { message: string; code: number } } = await res.json();
 
     if (data.error) {
-      // Carousel albums may not support all metrics
-      if (data.error.code === 100 || data.error.code === 3001) {
-        return await fetchPostInsightsFallback(igMediaId, accessToken);
-      }
-      console.error(`[ig-sync] Post insights error for ${igMediaId}:`, data.error);
-      return null;
+      console.warn(`[ig-sync] Post insights error for ${igMediaId} (code=${data.error.code}):`, data.error.message);
+      // Carousel albums and some post types don't support all insights metrics
+      return await fetchPostInsightsFallback(igMediaId, accessToken);
     }
 
     const result: Record<string, number> = {};
@@ -462,20 +462,57 @@ async function fetchPostInsightsFallback(
   igMediaId: string,
   accessToken: string
 ): Promise<Record<string, number> | null> {
+  // Try reduced insights first (without shares/total_interactions which carousels don't support)
   const metrics = ['impressions', 'reach', 'likes', 'comments', 'saved'].join(',');
   try {
     const res: Response = await fetch(
       `${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`
     );
     const data: { data?: IGInsight[]; error?: { message: string } } = await res.json();
-    if (data.error) return null;
-    const result: Record<string, number> = {};
-    for (const insight of (data.data || []) as IGInsight[]) {
-      result[insight.name] = insight.values?.[0]?.value ?? 0;
+    if (!data.error && data.data && data.data.length > 0) {
+      const result: Record<string, number> = {};
+      for (const insight of data.data as IGInsight[]) {
+        result[insight.name] = insight.values?.[0]?.value ?? 0;
+      }
+      if (result.saved !== undefined) result.saves = result.saved;
+      return result;
     }
-    if (result.saved !== undefined) result.saves = result.saved;
-    return result;
   } catch {
+    // Fall through to direct fields
+  }
+
+  // Final fallback: use direct media fields (works for ALL media types including carousels)
+  return fetchMediaFieldsFallback(igMediaId, accessToken);
+}
+
+/**
+ * Fallback for media types where /insights endpoint is not supported (e.g. carousels).
+ * Fetches like_count and comments_count directly from the media object fields.
+ */
+async function fetchMediaFieldsFallback(
+  igMediaId: string,
+  accessToken: string
+): Promise<Record<string, number> | null> {
+  try {
+    const fields = 'like_count,comments_count';
+    const res: Response = await fetch(
+      `${GRAPH_BASE}/${igMediaId}?fields=${fields}&access_token=${accessToken}`
+    );
+    const data: { like_count?: number; comments_count?: number; error?: { message: string } } = await res.json();
+
+    if (data.error) {
+      console.error(`[ig-sync] Media fields fallback error for ${igMediaId}:`, data.error);
+      return null;
+    }
+
+    console.log(`[ig-sync] Media fields fallback for ${igMediaId}: likes=${data.like_count}, comments=${data.comments_count}`);
+
+    return {
+      likes: data.like_count ?? 0,
+      comments: data.comments_count ?? 0,
+    };
+  } catch (err) {
+    console.error(`[ig-sync] Media fields fallback failed for ${igMediaId}:`, err);
     return null;
   }
 }
