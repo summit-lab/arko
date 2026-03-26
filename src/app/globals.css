@@ -375,6 +375,26 @@
   }
 }
 
+/* ── Custom scrollbar — Glass style (global) ── */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
+}
+
 /* ── Autofill override for dark theme inputs ── */
 .autofill-dark:-webkit-autofill,
 .autofill-dark:-webkit-autofill:hover,

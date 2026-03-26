@@ -677,10 +677,81 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             ))}
           </div>
 
-          <span className="ml-auto text-[11px] text-zinc-600">
-            {Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length}
-          </span>
-        </div>
+      {/* Grid */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        {filtered.length === 0 && (
+          <div className="col-span-3 py-16 text-center text-zinc-500 text-sm">
+            No hay reels que coincidan con los filtros seleccionados.
+          </div>
+        )}
+        {filtered.slice(0, page * PAGE_SIZE).map((reel) => {
+          const multiple = reel.performer_multiple || 0;
+          const isPromotedReel = reel.has_ads || reel.views_paid > 0;
+          const pillLabel = `x${multiple.toFixed(1)}`;
+          const pillStyle =
+            multiple >= 8
+              ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black"
+              : multiple >= 5
+              ? "bg-gradient-to-r from-emerald-400 to-green-500 text-black"
+              : multiple >= 3
+              ? "bg-gradient-to-r from-blue-400 to-cyan-500 text-black"
+              : multiple >= 1
+              ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300"
+              : multiple >= 0.5
+              ? "bg-zinc-500/20 border border-zinc-500/30 text-zinc-300"
+              : "bg-red-500/20 border border-red-500/30 text-red-300";
+          const glowColor =
+            multiple >= 8 ? "rgba(251,191,36,0.08)"
+            : multiple >= 5 ? "rgba(52,211,153,0.08)"
+            : multiple >= 3 ? "rgba(96,165,250,0.06)"
+            : "transparent";
+          const captionPreview = reel.caption
+            ? reel.caption.length > 76
+              ? reel.caption.slice(0, 76) + "..."
+              : reel.caption
+            : "Sin caption";
+          const roundedDuration = reel.duration_seconds ? Math.round(reel.duration_seconds) : null;
+          const durationStr = roundedDuration
+            ? `${Math.floor(roundedDuration / 60)}:${String(roundedDuration % 60).padStart(2, "0")}`
+            : "--";
+
+
+          return (
+            <Link
+              key={reel.id}
+              href={`/instagram/${reel.id}`}
+              prefetch
+              onMouseEnter={() => router.prefetch(`/instagram/${reel.id}`)}
+              onFocus={() => router.prefetch(`/instagram/${reel.id}`)}
+              className="group relative flex flex-row overflow-hidden rounded-xl border border-white/[0.08] transition-all duration-300 min-h-[180px]"
+              style={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0.04) 100%)",
+                backdropFilter: "blur(12px)",
+                boxShadow: `0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.4), 0 0 24px ${glowColor}`,
+              }}
+            >
+              {/* Glass shimmer top */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] z-10"
+                style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 30%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.2) 70%, transparent 100%)" }} />
+              <div className="pointer-events-none absolute inset-0 z-10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06) 0%, transparent 60%)" }} />
+
+              {/* ── Thumbnail 9:16 a la izquierda ── */}
+              <div className="relative w-[110px] shrink-0 self-stretch overflow-hidden bg-zinc-900">
+                {reel.thumbnail_url ? (
+                  <img src={reel.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Play size={20} className="text-white/10" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/30" />
+                {/* Duration */}
+                <div className="absolute bottom-1.5 left-1 right-1 flex items-center justify-center gap-0.5 rounded bg-black/70 py-0.5 text-[8px] text-white/70 backdrop-blur-sm">
+                  <Clock size={7} />
+                  {durationStr}
+                </div>
+              </div>
 
       {/* Grid + Sidebar row — sidebar aligns with grid top */}
       <div className="flex gap-5 items-start">

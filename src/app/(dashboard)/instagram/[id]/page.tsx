@@ -4,7 +4,7 @@ import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemin
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 import { GeminiAnalysis } from "@/components/instagram/GeminiAnalysis";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
-import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChart";
+import { ReelDailyChart } from "@/components/instagram/ReelDailyChart";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
@@ -166,11 +166,13 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   let reel = DEMO_REEL;
   let isDemo = true;
   let initialGeminiAnalysis: GeminiVideoAnalysis | null = null;
+  const reelDailyData: { date: string; views: number; likes: number; saves: number; comments: number; shares: number }[] = [];
 
   if (workspaceId && !id.startsWith("demo")) {
       const [
         { data: reelData },
         { data: benchmarkData },
+        { data: dailySnapshots },
       ] = await Promise.all([
         supabase
           .from("reels")
@@ -194,6 +196,13 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           .order("calculated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("reel_metrics_daily")
+          .select("metric_date, views_org, likes_total, saves_total, comments_total, shares_total, views_paid")
+          .eq("reel_id", id)
+          .eq("workspace_id", workspaceId)
+          .order("metric_date", { ascending: true })
+          .limit(90),
       ]);
 
       if (reelData) {
@@ -316,6 +325,36 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           diagnostic: null,
           benchmark: benchmarkSnapshot,
         };
+
+        // Process daily snapshots into daily deltas for the chart
+        const snapshots = dailySnapshots ?? [];
+        if (snapshots.length > 1) {
+          for (let i = 1; i < snapshots.length; i++) {
+            const curr = snapshots[i];
+            const prev = snapshots[i - 1];
+            const d = new Date(curr.metric_date);
+            reelDailyData.push({
+              date: `${d.getDate()}/${d.getMonth() + 1}`,
+              views: Math.max(0, (curr.views_org ?? 0) + (curr.views_paid ?? 0) - (prev.views_org ?? 0) - (prev.views_paid ?? 0)),
+              likes: Math.max(0, (curr.likes_total ?? 0) - (prev.likes_total ?? 0)),
+              saves: Math.max(0, (curr.saves_total ?? 0) - (prev.saves_total ?? 0)),
+              comments: Math.max(0, (curr.comments_total ?? 0) - (prev.comments_total ?? 0)),
+              shares: Math.max(0, (curr.shares_total ?? 0) - (prev.shares_total ?? 0)),
+            });
+          }
+        } else if (snapshots.length === 1) {
+          // Only one snapshot — show absolute values as first day
+          const snap = snapshots[0];
+          const d = new Date(snap.metric_date);
+          reelDailyData.push({
+            date: `${d.getDate()}/${d.getMonth() + 1}`,
+            views: (snap.views_org ?? 0) + (snap.views_paid ?? 0),
+            likes: snap.likes_total ?? 0,
+            saves: snap.saves_total ?? 0,
+            comments: snap.comments_total ?? 0,
+            shares: snap.shares_total ?? 0,
+          });
+        }
       }
   }
 
@@ -798,6 +837,9 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         </div>
 
       </div>
+
+      {/* SECTION: Daily Charts */}
+      <ReelDailyChart data={reelDailyData} />
 
       {/* SECTION 3: Análisis Profundo — Gemini (Capa 2) */}
       {workspaceId && (

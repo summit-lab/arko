@@ -88,6 +88,7 @@
 | `docs/features/ai-agents.md` | Agentes de IA (chat) |
 | `docs/features/dashboard-layout.md` | Layout del dashboard, sidebar, header |
 | `docs/features/admin-panel.md` | Admin panel, invitaciones, onboarding schema |
+| `docs/features/onboarding-adn.md` | ADN de Comunicación — onboarding conversacional con Arko AI |
 
 ### 4.4 Docs operativos (fuera de docs/)
 
@@ -107,6 +108,10 @@
 
 | Archivo que se modifica | Doc que se debe leer |
 |------------------------|---------------------|
+| `src/app/(dashboard)/onboarding/adn/**` | `docs/features/onboarding-adn.md` |
+| `src/components/features/onboarding/**` | `docs/features/onboarding-adn.md` |
+| `src/services/adn-*` | `docs/features/onboarding-adn.md` |
+| `src/services/anthropic.*` | `docs/features/onboarding-adn.md` |
 | `src/app/(admin)/**` | `docs/features/admin-panel.md` + `docs/03-security.md` |
 | `src/app/(auth)/invite/**` | `docs/features/admin-panel.md` |
 | `src/app/api/**` | `docs/API_DOCS.md` + `docs/features/[feature].md` |

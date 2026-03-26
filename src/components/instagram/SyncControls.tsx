@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { SyncButton } from "./SyncButton";
 import { useNewContentPolling } from "@/hooks/useNewContentPolling";
@@ -15,6 +16,7 @@ interface SyncControlsProps {
  * Shows a "N nuevos" indicator when new content is detected.
  */
 export function SyncControls({ workspaceId, currentTab }: SyncControlsProps) {
+  const router = useRouter();
   const { hasNewContent, newCount, dismiss } = useNewContentPolling({
     workspaceId,
     intervalMs: 3 * 60 * 1000,
@@ -23,8 +25,8 @@ export function SyncControls({ workspaceId, currentTab }: SyncControlsProps) {
 
   const handleNewContentClick = useCallback(() => {
     dismiss();
-    window.location.reload();
-  }, [dismiss]);
+    router.refresh();
+  }, [dismiss, router]);
 
   return (
     <div className="flex items-center gap-2">

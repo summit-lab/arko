@@ -130,7 +130,42 @@ export async function updateSession(request: NextRequest) {
         })
       }
     }
+
+    // ── Onboarding gate: block features until ADN is complete ──
+    const isOnboardingRoute = pathname.startsWith('/onboarding')
+    const isAdminRoute = pathname.startsWith('/admin')
+
+    if (!isOnboardingRoute && !isAdminRoute && !isApiRoute) {
+      let onboardingDone = request.cookies.get('arko_onboarding_completed')?.value
+
+      // Always re-check DB when cookie is missing or "false" (it may have been completed since last check)
+      if (onboardingDone !== 'true') {
+        const wsId = request.cookies.get('arko_workspace_id')?.value
+        if (wsId) {
+          const { data: ws } = await supabase
+            .from('workspaces')
+            .select('onboarding_completed')
+            .eq('id', wsId)
+            .single()
+
+          onboardingDone = ws?.onboarding_completed ? 'true' : 'false'
+          supabaseResponse.cookies.set('arko_onboarding_completed', onboardingDone, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: onboardingDone === 'true' ? 60 * 60 * 24 : 60, // 24h if done, 60s if not
+            path: '/',
+          })
+        }
+      }
+
+      // Note: we no longer redirect — the layout shows an ADN alert banner
+      // and specific features (AI Agents) are blocked in-page.
+    }
   }
+
+  // Pass pathname to layout via header
+  supabaseResponse.headers.set('x-pathname', pathname)
 
   return supabaseResponse
 }

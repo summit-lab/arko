@@ -5,6 +5,230 @@
  
 ---
  
+## [0.14.2] — 2026-03-26
+
+### Fixed — follower_count era total en vez de delta diario
+
+- **Bug**: El sync mezclaba el delta diario de Meta (`follower_count` period=day) con el total acumulado (`profileData.followers_count`) como fallback cuando el delta era 0. Desde el 18 mar, todos los días guardaban 2,705 (total) como si fueran nuevos seguidores.
+- **Fix sync**: `follower_count` ahora siempre guarda el delta diario. Sin fallback al total.
+- **Nueva columna `followers_total`**: Almacena el snapshot acumulado real desde el profile de Meta. Migración `20260326000021`.
+- **Fix datos corruptos**: 8 filas (18-25 mar) corregidas en DEV: `follower_count` → 0, `followers_total` → 2705.
+- **IGMetrics / IGDashboard**: Vuelven a tratar `follower_count` como delta diario (suma directa, sin computar deltas entre filas).
+- **Header topbar**: Usa `followers_total` (snapshot) en vez de `follower_count` (delta).
+- **Dashboard page**: "Nuevos Follows 7d" ahora suma deltas diarios correctamente.
+- **Duration display fix**: ReelsGrid redondeaba mal los segundos decimales (ej: `1:18.947`). Ahora usa `Math.round()`.
+- **Sync refresh suave**: `window.location.reload()` reemplazado por `router.refresh()` en SyncButton y SyncControls para evitar flash de pantalla completa.
+
+#### Archivos modificados
+- `supabase/functions/sync-instagram/index.ts` (fix fallback follower_count)
+- `supabase/migrations/20260326000021_followers_total_column.sql` (NUEVA)
+- `src/components/instagram/IGMetrics.tsx` (revert a delta directo)
+- `src/components/instagram/IGDashboard.tsx` (revert a delta directo)
+- `src/components/layout/Header.tsx` (usar followers_total)
+- `src/app/(dashboard)/page.tsx` (suma de deltas 7d)
+- `src/components/instagram/ReelsGrid.tsx` (Math.round duration)
+- `src/components/instagram/SyncButton.tsx` (router.refresh)
+- `src/components/instagram/SyncControls.tsx` (router.refresh)
+
+---
+
+## [0.14.1] — 2026-03-26
+
+### Added — Gráficos diarios en dashboard y detalle de reel
+
+- **Dashboard charts diarios**: Cambiados de granularidad mensual a diaria usando `ig_account_insights`.
+  - Growth chart: Reach & Impressions por día (últimos 30 días).
+  - Engagement chart: Likes, Saves, Comments por día.
+- **Reel detail daily charts**: Nuevo componente `ReelDailyChart` integrado en la página de detalle de reel.
+  - Views por día (area chart) — delta diario calculado desde snapshots acumulativos de `reel_metrics_daily`.
+  - Engagement por día (bar chart) — likes, saves, comments, shares como deltas diarios.
+  - Hasta 90 días de historia por reel.
+
+#### Archivos modificados
+- `src/app/(dashboard)/page.tsx` (charts cambiados a granularidad diaria)
+- `src/components/dashboard/DashboardCharts.tsx` (interfaces actualizadas: month→date, organic/ads→reach/impressions)
+- `src/components/instagram/ReelDailyChart.tsx` (NUEVO — componente de charts diarios por reel)
+- `src/app/(dashboard)/instagram/[id]/page.tsx` (query `reel_metrics_daily` + renderizado de `ReelDailyChart`)
+
+---
+
+## [0.14.0] — 2026-03-26
+
+### Changed — Dashboard con métricas 100% reales
+
+- **Dashboard reescrito como Server Component**: Eliminó `"use client"`, ahora hace data fetching directo a Supabase.
+- **Hero KPIs reales**: Total Views (de reels 90d), Guardados, Likes, Comentarios (de insights 30d) con % change vs período anterior.
+- **Charts con datos reales**: Growth Trend (views orgánicas vs ads por mes), Engagement (likes/saves/comments por mes desde insights).
+- **Top Performing Content real**: Top 4 reels por views con saves, likes y engagement rate calculado.
+- **Quick Stats reales**: Alcance Total 30d, Engagement Rate, Mejor Reel, Nuevos Follows (7d).
+- **Top Países real**: Desde `ig_account_demographics.audience_country` con mapa de banderas.
+- **Monthly Goals eliminado**: No existían datos de goals en DB, sección removida.
+- **Loading skeleton actualizado**: Matchea el nuevo layout sin sección de goals.
+- **DashboardCharts recibe props**: Ya no tiene datos hardcodeados, recibe `growthData` y `engagementData` del server.
+- Fallback a "—" / "Sin datos" en todas las secciones si no hay data.
+
+#### Archivos modificados
+- `src/app/(dashboard)/page.tsx` (reescrito: client → server component, 6 queries paralelas)
+- `src/components/dashboard/DashboardCharts.tsx` (hardcoded → props-based)
+- `src/app/(dashboard)/loading.tsx` (actualizado a nuevo layout)
+
+---
+
+## [0.13.5] — 2026-03-26
+
+### Fixed — Métricas reales en topbar
+
+- **Header topbar ahora muestra datos reales de Instagram**: Views (reach total 30d), Followers (último dato), Engagement Rate (interacciones/reach 30d).
+- Datos consultados desde `ig_account_insights` con `getWorkspaceId()` en server component.
+- Fallback a "—" si no hay datos disponibles.
+
+#### Archivos modificados
+- `src/components/layout/Header.tsx` (reemplazó valores hardcodeados por query a DB)
+
+---
+
+## [0.13.4] — 2026-03-26
+
+### Improved — ADN Onboarding anti-vaguedad
+
+- **Protocolo anti-vaguedad en el system prompt de Arko ADN**: El agente ahora evalúa la calidad de cada respuesta antes de guardarla. Respuestas genéricas o vagas no se guardan — Arko repregunta con foco específico hasta obtener información profunda y accionable.
+- Criterios claros de qué es "vago" vs "suficiente" para cada campo
+- Guía de tono para repreguntar sin ser agresivo
+- Justificación al usuario de por qué se necesita más detalle
+
+#### Archivos modificados
+- `src/services/adn-prompts.ts` (nuevo protocolo anti-vaguedad en system prompt)
+
+---
+
+## [0.13.3] — 2026-03-26
+
+### Added — Análisis de Competidores
+
+- **Scraping de competidores via Apify**: Scrapea perfil IG (followers, bio, posts) + últimos 15 reels públicos de cada competidor.
+- **Análisis IA de reels de competidores**: Claude analiza hooks (5 tipos), estructura narrativa, tipo de contenido, CTA, fortalezas y debilidades de cada reel.
+- **Tab "Competencia" en Customer Voice**: UI completa con cards por competidor, stats de perfil, lista expandible de reels con análisis, badges de tipo de hook coloreados.
+- **Tool `get_competitor_analysis` para Arko AI**: Arko puede consultar datos de competidores y comparar hooks/estilo/métricas contra los del usuario.
+- **Tablas `competitor_reels` + `competitor_reel_analysis`**: Almacenamiento escalable con deduplicación por short_code, índices por workspace, RLS multi-tenant.
+
+#### Archivos creados
+- `src/services/competitor-scraper.service.ts` (Apify scraping de perfil + reels)
+- `src/services/competitor-analysis.service.ts` (análisis IA con Claude)
+- `src/app/api/v1/competitors/[id]/scrape/route.ts` (endpoint de scraping)
+- `src/app/api/v1/competitors/[id]/analyze/route.ts` (endpoint de análisis)
+- `src/app/(dashboard)/customer-voice/CustomerVoiceTabs.tsx` (tab switcher)
+- `src/app/(dashboard)/customer-voice/CompetitorPanel.tsx` (UI de competidores)
+- `supabase/migrations/20260326000019_competitor_reels.sql`
+
+#### Archivos modificados
+- `src/app/(dashboard)/customer-voice/page.tsx` (refactored a tabbed layout)
+- `src/services/arko-ai-context.ts` (nueva tool `get_competitor_analysis`)
+- `docs/features/customer-voice.md` (reescrito completo)
+- `docs/DB_SCHEMA.md` (tablas 27-28 + ER diagram)
+- `docs/API_DOCS.md` (2 endpoints nuevos)
+
+---
+
+## [0.13.2] — 2026-03-26
+
+### Added — Sub-agentes especializados (multi-call)
+
+- **5 sub-agentes especializados**: hook_expert, content_strategist, metrics_analyst, cta_expert, concept_evaluator. Cada uno con prompts ultra-profundos extraídos de la call de Fran.
+- **Arquitectura multi-call**: Arko detecta cuando necesita profundidad → llama `consult_specialist` → segunda LLM call con prompt especializado + ADN + datos → resultado integrado en la respuesta.
+- **Tool `consult_specialist`**: Nueva herramienta en ARKO_TOOLS que Arko puede llamar dentro del tool-use loop.
+- **Tracking de especialistas**: `grounding_data` ahora incluye `specialists_used` con dominio, tokens y latencia de cada consulta especializada.
+- **Bubble consistency**: Mensajes de Arko ahora se muestran en burbujas consistentes con los mensajes del usuario.
+
+#### Archivos creados
+- `src/services/arko-ai-specialists.ts` (prompts de 5 especialistas + `callSpecialist()` + `getAllSpecialists()`)
+
+#### Archivos modificados
+- `src/services/arko-ai-context.ts` (nuevo tool `consult_specialist`, `ArkoToolResult` type, `executeArkoTool` con soporte de especialistas)
+- `src/app/api/v1/chat/route.ts` (pasa `adnContext` a tools, trackea specialist usage en grounding_data)
+- `src/app/(dashboard)/agents/AgentsClient.tsx` (burbujas consistentes para mensajes de Arko)
+- `docs/features/ai-agents.md` (documentación de sub-agentes)
+
+---
+
+## [0.13.1] — 2026-03-26
+
+### Added — "Segundo Cerebro" de Francisco Doglio
+
+- **Cerebro de Fran**: System prompt reescrito con toda la filosofía de análisis de contenido de Francisco Doglio, extraída de una call de entrenamiento de 2 horas. Arko ya no es un asistente genérico — analiza todo a través del framework de Fran.
+- **13 módulos de conocimiento** inyectados en el prompt: jerarquía de análisis (concepto → estructura → ejecución), contenido semi-viral, seguidor ideal vs cliente ideal, dos tipos de contenido (reputación/conexión), lectura de métricas vs promedio, 5 tipos de hooks, estructura narrativa (3-5 puntos), 7 características del CTA, regla 80/20, red flags, guardable vs compartible, limitaciones honestas.
+
+#### Archivos modificados
+- `src/services/arko-ai-prompts.ts` (rewrite completo — de ~50 líneas genéricas a ~200 líneas con framework de Fran)
+- `docs/features/ai-agents.md` (actualizado con descripción del cerebro de Fran)
+
+---
+
+## [0.13.0] — 2026-03-25
+
+### Added — Arko AI: Asistente Unificado de IA con tool_use
+
+- **Arko AI**: Reemplaza el sistema de 4 agentes separados con @mentions por un solo asistente inteligente conversacional.
+- **tool_use**: Claude decide qué datos necesita y consulta la DB on-demand via 7 herramientas (query_reels, get_reel_details, get_benchmarks, get_goals, search_reels_by_topic, get_top_hooks, get_topic_clusters).
+- **Tool loop**: El backend ejecuta tool calls en un loop (max 5 iteraciones) hasta que Claude genera una respuesta de texto final.
+- **ADN en system prompt**: El ADN del workspace se incluye siempre como contexto estático. Las métricas se cargan dinámicamente via tools.
+- **Multi-session**: Sidebar con historial de conversaciones, nueva conversación, eliminación de sesiones.
+- **Real LLM integration**: Claude Sonnet 4 con 4096 max tokens via `callLLM()`.
+- **Markdown rendering**: Soporte de bold, code, headers, listas en las respuestas de Arko.
+- **Usage tracking**: Cada iteración del tool loop se loguea via `logLLMUsage()` con cálculo de costos.
+
+#### Archivos creados
+- `src/services/arko-ai-context.ts`
+- `src/services/arko-ai-prompts.ts`
+- `src/app/api/v1/chat/sessions/route.ts`
+- `src/app/api/v1/chat/messages/route.ts`
+
+#### Archivos modificados
+- `src/app/api/v1/chat/route.ts` (reemplazado placeholder con LLM call real)
+- `src/app/(dashboard)/agents/page.tsx` (carga sesiones server-side)
+- `src/app/(dashboard)/agents/AgentsClient.tsx` (rewrite completo como chat unificado)
+- `src/app/(dashboard)/agents/loading.tsx` (skeleton actualizado)
+- `src/components/layout/Sidebar.tsx` (renombrado "AI Agents" → "Arko AI")
+- `docs/features/ai-agents.md` (actualizado con nueva arquitectura)
+
+---
+
+## [0.12.0] — 2026-03-26
+
+### Added — ADN de Comunicación: Onboarding Conversacional con Arko AI
+
+- **Conversational onboarding**: Arko AI guía al usuario a través de 4 secciones para construir su ADN de Comunicación (brand DNA). Claude Haiku con tool_use para extracción estructurada en cada respuesta.
+- **Anthropic Service**: Wrapper fetch para Anthropic Messages API (`src/services/anthropic.service.ts`). Modelo: `claude-haiku-4-5-20251001`.
+- **ADN Progress Service**: Deriva completitud de las 6 tablas existentes de onboarding. Sin campo `current_step` — progreso es función del estado de la DB.
+- **API endpoints**: `GET/POST /api/v1/onboarding/chat` — carga estado, procesa mensajes, ejecuta tool calls, verifica completitud.
+- **Feature blocking**: Middleware redirige a `/onboarding/adn` si `onboarding_completed = false`. Cookie caching de 24h.
+- **Chat UI**: Glass design system. Sidebar de progreso (4 secciones), area de chat con auto-scroll, typing indicator, soporte markdown bold.
+- **Sidebar disabled state**: Links greyed out y no-clickeables durante onboarding, con mensaje "Completá tu ADN para desbloquear".
+- **Persistencia**: Reusa `chat_sessions` + `chat_messages`. El usuario puede cerrar y volver sin perder progreso.
+- **Migration 18**: `workspaces.onboarding_completed` boolean column. Admin workspaces marcados como completados.
+
+#### Archivos creados
+- `supabase/migrations/20260326000018_onboarding_completed.sql`
+- `src/services/anthropic.service.ts`
+- `src/services/adn-progress.service.ts`
+- `src/services/adn-prompts.ts`
+- `src/app/api/v1/onboarding/chat/route.ts`
+- `src/app/(dashboard)/onboarding/adn/page.tsx` + `loading.tsx`
+- `src/components/features/onboarding/AdnChat.tsx`
+- `src/components/features/onboarding/AdnSectionProgress.tsx`
+- `src/components/features/onboarding/AdnMessage.tsx`
+- `docs/features/onboarding-adn.md`
+
+#### Archivos modificados
+- `src/lib/env.ts` (added ANTHROPIC_API_KEY)
+- `src/lib/supabase/middleware.ts` (onboarding gate)
+- `src/components/layout/Sidebar.tsx` (onboardingMode prop)
+- `src/app/(dashboard)/layout.tsx` (pass onboardingMode)
+- `docs/DB_SCHEMA.md` (onboarding_completed column)
+- `docs/API_DOCS.md` (onboarding chat endpoints)
+- `CHANGELOG.md`
+
+---
+
 ## [0.11.0] — 2026-03-25
 
 ### Added — Admin Panel + Sistema de Invitaciones + Onboarding Schema

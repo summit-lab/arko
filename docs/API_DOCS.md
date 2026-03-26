@@ -35,7 +35,14 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 | POST | `/api/v1/sync/instagram` | Trigger sync de IG + Ads | SI | 5.3 |
 | GET | `/api/v1/sync/cron` | Background auto-sync (Vercel Cron) | CRON_SECRET | 5.3 |
 | GET | `/api/v1/sync/status` | Estado de sync jobs | SI | — |
-| POST | `/api/v1/chat` | Chat analítico con grounding | SI | 8.3 |
+| POST | `/api/v1/chat` | Arko AI — chat con context-aware grounding | SI | 8.3 |
+| GET | `/api/v1/chat/sessions` | Listar sesiones de chat | SI | — |
+| DELETE | `/api/v1/chat/sessions?id=xxx` | Eliminar sesión de chat | SI | — |
+| GET | `/api/v1/chat/messages?session_id=xxx` | Mensajes de una sesión | SI | — |
+| GET | `/api/v1/onboarding/chat` | Estado + historial del onboarding ADN | SI | — |
+| POST | `/api/v1/onboarding/chat` | Procesar mensaje del onboarding ADN | SI | — |
+| POST | `/api/v1/competitors/[id]/scrape` | Scrapear perfil + reels de un competidor via Apify | SI | — |
+| POST | `/api/v1/competitors/[id]/analyze` | Analizar reels de un competidor con IA | SI | — |
 
 *El callback es redirigido por Meta, no requiere auth header pero valida state/CSRF.
 
@@ -161,12 +168,29 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 - Query: `workspace_id`, `job_id` (opcional)
 - Response: último(s) sync job(s)
 
-### Chat Analítico
+### Arko AI — Chat
 **`POST /api/v1/chat`**
-- Body: `{ "workspace_id", "session_id?", "message", "context_reel_ids?" }`
-- Grounding: consulta benchmark + últimos 20 reels + narrative analysis.
-- Audit log automático por cada respuesta.
-- Response: `{ "session_id", "message": { "id", "role", "content", "created_at" } }`
+- Header: `x-workspace-id`
+- Body: `{ "session_id?", "message" }`
+- Topic detection por keywords → carga contexto relevante (ADN + dominio).
+- LLM: Claude Sonnet via `callLLM()`.
+- Usage tracking via `logLLMUsage()`.
+- Response: `{ "session_id", "message": { "id", "role", "content", "created_at" }, "tokens_used" }`
+
+**`GET /api/v1/chat/sessions`**
+- Header: `x-workspace-id`
+- Lista sesiones del workspace (excluye ADN). Max 50.
+- Response: `[{ "id", "title", "created_at", "updated_at" }]`
+
+**`DELETE /api/v1/chat/sessions?id=xxx`**
+- Header: `x-workspace-id`
+- Soft-delete (marca `is_active = false`).
+- Response: `{ "deleted": true }`
+
+**`GET /api/v1/chat/messages?session_id=xxx`**
+- Header: `x-workspace-id`
+- Mensajes de una sesión, ordenados cronológicamente.
+- Response: `[{ "id", "role", "content", "created_at" }]`
 
 ---
 
