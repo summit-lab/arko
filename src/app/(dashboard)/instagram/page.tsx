@@ -5,20 +5,12 @@ import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
 import { PeriodFilter } from "@/components/instagram/PeriodFilter";
 import { InstagramTabs } from "@/components/instagram/InstagramTabs";
-import { ReelsGrid } from "@/components/instagram/ReelsGrid";
-
+import { ReelsGrid, type ReelsSummary } from "@/components/instagram/ReelsGrid";
+import { PostsGrid } from "@/components/instagram/PostsGrid";
 import { IGMetricsClient } from "@/components/instagram/IGMetricsClient";
 import { IGDashboardClient } from "@/components/instagram/IGDashboardClient";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { Suspense } from "react";
-
-// ─── Helper functions ───
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
 
 // ─── Types for this page ───
 
@@ -42,6 +34,7 @@ interface ReelCard {
   follows: number;
   performer_multiple: number | null;
   is_top_performer: boolean;
+  sales_amount: number | null;
 }
 
 type TabKey = "dashboard" | "reels" | "metrics";
@@ -61,7 +54,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   let dailyInsights: Array<{
     metric_date: string; impressions: number; reach: number; profile_views: number;
     accounts_engaged: number; total_interactions: number; likes: number; comments: number;
-    shares: number; saves: number; follower_count: number; follows_count: number; media_count: number;
+    shares: number; saves: number; follower_count: number; followers_total: number; follows_count: number; media_count: number;
   }> = [];
   let demographics: { audience_gender_age: Record<string, number>; audience_city: Record<string, number>; audience_country: Record<string, number> } | null = null;
   let connectionStatus: string | null = null;
@@ -77,7 +70,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           .from("reels")
           .select(`
             id, ig_media_id, caption, permalink, thumbnail_url, media_url, published_at,
-            duration_seconds, reel_type, has_ads, media_type, media_product_type,
+            duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
             reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, follows_generated),
             reel_metrics_paid (views_paid)
           `)
@@ -95,7 +88,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     const insightsQuery = needsInsights
       ? supabase
           .from("ig_account_insights")
-          .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, follows_count, media_count")
+          .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
           .eq("workspace_id", workspaceId)
           .gte("metric_date", periodStartDate)
           .lt("metric_date", todayDate)
@@ -128,7 +121,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     if (insightsResult?.data) {
       dailyInsights = insightsResult.data;
       const latestDay = [...dailyInsights].sort((a, b) => b.metric_date.localeCompare(a.metric_date))[0];
-      if (latestDay?.follower_count) totalFollowers = latestDay.follower_count;
+      if (latestDay?.followers_total) totalFollowers = latestDay.followers_total;
     }
 
     // Process demographics
@@ -184,6 +177,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
               follows: m?.follows_generated || 0,
               performer_multiple: multiple,
               is_top_performer: (multiple || 0) >= 3,
+              sales_amount: r.sales_amount ?? null,
             };
           });
         }
@@ -271,115 +265,20 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
       {/* ── TAB: Reels ────────────────────────────────────────────── */}
       {activeTab === "reels" && (
-        <>
-          {reels.length > 0 && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {[
-                  { label: "Views Totales", value: formatNumber(totalViews) },
-                  { label: "Views Promedio", value: formatNumber(avgViews) },
-                  { label: "Orgánico", value: formatNumber(totalViewsOrg), sub: `${100 - paidPct}%` },
-                  { label: "Pagado", value: formatNumber(totalViewsPaid), sub: `${paidPct}%` },
-                ].map((s) => (
-                  <div key={s.label} className="glass-card px-6 py-5 flex flex-col justify-center">
-                    <div className="flex items-center gap-3 mb-2 relative z-10">
-                      <p className="stat-label">{s.label}</p>
-                      {(s as { sub?: string }).sub && (
-                        <span className="pill-badge">{(s as { sub?: string }).sub}</span>
-                      )}
-                    </div>
-                    <p className="stat-number relative z-10">{s.value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {[
-                  { label: "Likes", value: formatNumber(totalLikes) },
-                  { label: "Guardados", value: formatNumber(totalSaves) },
-                  { label: "Comentarios", value: formatNumber(totalComments) },
-                  { label: "Top Performers", value: `${topPerformers}`, sub: `de ${reels.length}` },
-                ].map((s) => (
-                  <div key={s.label} className="glass-card px-6 py-5 flex flex-col justify-center">
-                    <div className="flex items-center gap-3 mb-2 relative z-10">
-                      <p className="stat-label">{s.label}</p>
-                      {(s as { sub?: string }).sub && (
-                        <span className="text-[11px] font-bold text-white/30 uppercase tracking-[0.08em]">{(s as { sub?: string }).sub}</span>
-                      )}
-                    </div>
-                    <p className="stat-number relative z-10">{s.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Performance Overview Strip ── */}
-              <div className="glass-panel rounded-xl p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Resumen de Rendimiento</h3>
-                  <span className="text-[11px] text-white/25 font-light">Últimos {reels.length} reels</span>
-                </div>
-                <div className="grid grid-cols-3 gap-6">
-                  {/* Engagement Rate */}
-                  <div>
-                    <p className="text-[11px] text-white/30 font-medium uppercase tracking-[0.08em] mb-2">Engagement Rate</p>
-                    <p className="text-[28px] font-light text-white tracking-[-0.02em] leading-none">
-                      {totalViews > 0 ? ((totalLikes + totalSaves + totalComments) / totalViews * 100).toFixed(1) : "0"}%
-                    </p>
-                    <p className="text-[11px] text-white/20 font-light mt-1">likes + saves + comments / views</p>
-                  </div>
-
-                  {/* Organic vs Paid Split */}
-                  <div>
-                    <p className="text-[11px] text-white/30 font-medium uppercase tracking-[0.08em] mb-3">Distribución de Tráfico</p>
-                    <div className="h-[6px] w-full rounded-full overflow-hidden flex" style={{ background: "rgba(255,255,255,0.04)" }}>
-                      <div
-                        className="h-full rounded-l-full"
-                        style={{ width: `${100 - paidPct}%`, background: "linear-gradient(90deg, #818cf8, #a78bfa)" }}
-                      />
-                      <div
-                        className="h-full rounded-r-full"
-                        style={{ width: `${paidPct}%`, background: "linear-gradient(90deg, #f472b6, #fb7185)" }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1.5">
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />
-                        <span className="text-[11px] text-white/40 font-light">Orgánico {100 - paidPct}%</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#f472b6]" />
-                        <span className="text-[11px] text-white/40 font-light">Pagado {paidPct}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Top 5 by views — mini bars */}
-                  <div>
-                    <p className="text-[11px] text-white/30 font-medium uppercase tracking-[0.08em] mb-3">Top 5 Reels por Views</p>
-                    <div className="space-y-2">
-                      {reels
-                        .sort((a, b) => b.views_total - a.views_total)
-                        .slice(0, 5)
-                        .map((r, i) => {
-                          const maxV = reels[0]?.views_total || 1;
-                          const pct = Math.round((r.views_total / maxV) * 100);
-                          return (
-                            <div key={r.id} className="flex items-center gap-2">
-                              <span className="text-[10px] text-white/20 w-3 text-right font-light">{i + 1}</span>
-                              <div className="flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
-                                <div className="h-full rounded-full bg-white/20" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-[10px] text-white/40 font-light w-10 text-right">{formatNumber(r.views_total)}</span>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          <ReelsGrid reels={reels} />
-        </>
+        <ReelsGrid
+          reels={reels}
+          summary={reels.length > 0 ? ({
+            totalViews,
+            avgViews,
+            totalViewsOrg,
+            totalViewsPaid,
+            totalLikes,
+            totalSaves,
+            totalComments,
+            topPerformers,
+            paidPct,
+          } satisfies ReelsSummary) : undefined}
+        />
       )}
 
       {/* ── TAB: Demografía ──────────────────────────────────────── */}
