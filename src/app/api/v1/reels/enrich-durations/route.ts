@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api500 } from '@/lib/api/response';
 import { fetchApifyReelPublicData } from '@/services/apify-reel.service';
+import { logIntegrationUsage } from '@/services/integration-usage.service';
 
 const CONCURRENCY = 4;
 const MAX_REELS = 20;
@@ -45,8 +46,20 @@ export async function POST(request: Request) {
       await Promise.all(
         batch.map(async (reel) => {
           try {
+            const t0 = Date.now();
             const apifyData = await fetchApifyReelPublicData(reel.permalink);
+            const latencyMs = Date.now() - t0;
             const duration = apifyData?.video_duration_seconds ?? null;
+
+            logIntegrationUsage(supabase, {
+              workspaceId: auth.workspaceId,
+              userId: auth.userId,
+              feature: 'ig-reel-enrichment',
+              provider: 'scraper',
+              operation: 'reel-scrape',
+              latencyMs,
+              status: apifyData ? 'success' : 'error',
+            }).catch(() => {});
 
             if (duration) {
               await supabase

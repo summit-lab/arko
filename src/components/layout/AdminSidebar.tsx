@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   Building2,
   Mail,
+  Activity,
   ArrowLeft,
   Shield,
 } from "lucide-react";
@@ -15,6 +16,7 @@ const navItems = [
   { name: "Dashboard",    href: "/admin",             icon: LayoutGrid },
   { name: "Clientes",     href: "/admin/clients",     icon: Building2 },
   { name: "Invitaciones", href: "/admin/invitations",  icon: Mail },
+  { name: "Usage",         href: "/admin/usage",       icon: Activity },
 ];
 
 export function AdminSidebar() {

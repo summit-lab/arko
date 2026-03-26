@@ -1,0 +1,858 @@
+0:12:48 Franco Cappanera: Dale. Bueno, el primer bloque es como el inicial, que es de la fila de La filosofía del análisis de contenido es como más high level, más overview.
+0:12:56 Franco Cappanera: Pero la primera pregunta, y esta es una de esas preguntas que yo creo que te podés explotar todo lo que quieras.
+0:13:02 Franco Cappanera: Cuando ves un reel por primera vez, ¿cuál es el primer elemento que verás y en qué orden procesas la información?
+0:13:11 Francisco Doglio: Para definir si el RIR funcionó o para qué. Claro, 
+0:13:15 Franco Cappanera: cuando vas a decir, ok, voy a analizar el RIR que publiqué hace 
+0:13:17 Emanuel Mendoza: una semana para ver si le fue bien o no. ¿Qué es lo primero que mirás? 
+0:13:21 Francisco Doglio: Ok, lo primero que analizo es, El primero que 
+0:13:28 Emanuel Mendoza: analizo 
+0:13:29 Francisco Doglio: es, O capaz para 
+0:13:32 Franco Cappanera: ver si tiene potencial, como un previo, no sé cómo explicarte, en vez de si funciona o 
+0:13:36 Emanuel Mendoza: no. 
+0:13:36 Francisco Doglio: Hagamos dos, sí, hagamos dos. Hagamos el cuando estás planeando, 
+0:13:40 Franco Cappanera: scripteando el y después cuando lo analizas. 
+0:13:56 Francisco Doglio: Quieras pero lo primero que tenés que hacer es contrastarlo con las métricas para ver si funcionó o no. La métrica más fácil para darte cuenta si un reel funcionó con nuestra estrategia de contenido que no tenemos tanto contenido orientado a ser viral sino que todo el contenido es un contenido que en
+0:14:10 Francisco Doglio: el caso de que ese contenido tenga más alcance te va a atraer más más clientes, porque es contenido lo que yo llamo semi viral, porque es contenido mainstream dentro del nicho, que si conseguís que ese video tenga 
+0:14:19 Franco Cappanera: mucho alcance vas a conseguir también muchas ventas, entonces la primera métrica que miro es la cantidad de visitas que tiene, pues si tiene muchas visitas significa que está llegando a mucha gente dentro del de tu nicho.
+0:14:30 Franco Cappanera: Entonces, una vez que analizo la cantidad de visitas que tiene sobre todo, es la principal métrica. También hay otras métricas de interacción, pero principalmente la de visitas, es la que te dice la mayoría de las cosas.
+0:14:42 Franco Cappanera: En base a eso lo contrasto con lo más importante del video. que es el concepto del vídeo o la idea del vídeo.
+0:14:48 Franco Cappanera: El concepto es lo más importante de todo porque no importa tanto cómo lo grabas y cualquier otra cosa que pueda tener el vídeo, el hook, todo, nada de eso importa si la idea no es buena.
+0:14:58 Franco Cappanera: O sea, todo se trata del concepto, de la idea que tiene el vídeo. Entonces, lo primero que analizo siempre es el concepto.
+0:15:04 Franco Cappanera: Y para analizar el concepto, el concepto como tal es ¿Cuál es la big idea que quiero comunicar en este video?
+0:15:12 Franco Cappanera: ¿Qué es lo que hace que la gente, ¿Cómo hago que el tema que yo quiero explicar, en este vídeo, sea interesante para mi nicho, en el punto en el que está mi nicho ahora, en el punto en el que está mi marca personal y basado en mi personaje de marca, cómo hago, cómo tengo una idea que hago que sea interesante
+0:15:30 Franco Cappanera: para el mercado, básicamente. Y si la idea La idea es buena y es interesante, y bueno, son varias las cosas que hacen que una idea sea buena.
+0:15:40 Franco Cappanera: Si una idea es buena, va a funcionar, sin importar tanto el guión, sin importar tanto la duración del video, porque hay videos que son virales y que les va súper bien, o semivirales, pero que, Consiguen un buen resultado, que funcionan, y tienen una grabación muy distinta, o una duración, o un estilo
+0:15:56 Franco Cappanera: , un tono de voz, todo una edición muy distinta a otros que también funcionan muy bien. Lo único que tienen en común 2 videos que funcionan muy bien, es una muy buena idea.
+0:16:05 Franco Cappanera: Entonces, lo Lo primero en lo que me centro es en la idea, ¿cómo sé si la idea es buena? Tenemos varios filtros y depende el formato del video, pero en esencia una de las claves, depende sobre todo de qué tipo de video estés haciendo.
+0:16:17 Franco Cappanera: Son dos los principales tipos de videos que tengo, capaz que esto lo querían hablar en una de las preguntas más adelante, pero no.
+0:16:22 Franco Cappanera: Son dos los tipos de vídeos que hago realmente. Es tipo de vídeo que construyen reputación y tipo de vídeo que construyen confianza, conexión.
+0:16:29 Franco Cappanera: O sea, son los dos tipos de vídeo, reputación y conexión. Repetiendo cuál de cada uno sea el vídeo que estás tratando de hacer, son distintos los factores que tienen sea un tema que aporta valor, o que es interesante, o que hablo de un resultado grande que consiguió un cliente, pero en realidad son distintos
+0:17:04 Franco Cappanera: los conceptos. La primera clave que hace que una idea sea buena es que lo que estés contando sea percibido como, interesante o novedoso para para tu mercado?
+0:17:12 Franco Cappanera: Interesante y novedoso. Pues si vos estás contando algo que ya todo el mundo sabe, como por ejemplo, si te dedicas, sos un coach de finanzas y te dedicas a explicar la importancia de medir tu margen de beneficio, no es ni novedoso ni interesante.
+0:17:25 Franco Cappanera: Lo escucharon cien mil veces, entonces no va a ser una buena idea, no es una idea ganadora. Por más que aportes un muy buen valor, por más que la edición esté muy buena y hagas todo bien, la idea es mala, entonces ese reel está limitado y está condenado a funcionar mal.
+0:17:39 Franco Cappanera: En cambio, si tenés una idea ganadora, Cuando me hicieron analizar un video de ese concepto, contrastado con las views que tuvo.
+0:18:19 Emanuel Mendoza: Ok, pregunta. Como es tan importante esto del concepto, 
+0:18:23 Francisco Doglio: capaz le podemos poner como un label de cuál es tu concepto ganador. Algo así. Tipo una definición del concepto ganador, ¿se entiende?
+0:18:35 Franco Cappanera: ¿Cuál es una definición de un 
+0:18:36 Francisco Doglio: concepto ganador? No, es que un concepto ganador es un, Yo lo que tengo que decir es que la definición de un concepto ganador sea buena, la idea, que lo que estás contando se ha visto como una 
+0:18:46 Franco Cappanera: de la 
+0:18:50 Francisco Doglio: vida. 
+0:19:18 Emanuel Mendoza: reputación un factor que lo hace que lo hace ser ganador es que sea un vídeo que es guardable o que sea un vídeo compartible o comentable bueno eso se aplica tanto sea de conexión o de reputación Después, otra cosa que hace que el vídeo sea ganador, que el concepto sea ganador, es que sea un concepto
+0:19:43 Emanuel Mendoza: , es que lo que vos estás tratando de contar en el vídeo, no sea algo que vos lo contás en un punto del vídeo y realmente el valor del video termina ahí.
+0:19:52 Emanuel Mendoza: Y ojo, con valor no sólo me refiero a aportarles un valor educativo, sino que realmente entretener a las personas es otra forma de aportarles valor.
+0:19:58 Emanuel Mendoza: Entonces los videos de conexión son más de entretener o emocionar. Realmente están como las tres formas de aportar valores, educar, entretener o emocionar.
+0:20:04 Emanuel Mendoza: El video de conexión busca emocionar, Y el video de reputación lo que busca es educar. Ahora, el punto es que otro factor que lo hace ganador, básicamente lo que estaba tratando de decir es que lo que educa o lo que emociona que no sea en un punto del video, que no sea un pico y nada más.
+0:20:25 Emanuel Mendoza: Porque muchas veces las personas tienen un valor que quieren aportar en el video, pero solo un punto de valor es como no hagas esto, mejor hace esto o hice esto y logré este 
+0:20:32 Francisco Doglio: resultado. En cambio, eso es 
+0:20:33 Emanuel Mendoza: malo, porque las personas no se quedarían a ver nunca ese video completo. 
+0:20:37 Francisco Doglio: Entonces, un buen 
+0:20:37 Franco Cappanera: video, un buen video. El buen concepto también es un concepto el cual para que las personas puedan consumirlo tendrían que consumirse todo el video completo.
+0:20:46 Franco Cappanera: Básicamente un concepto que invite a la retención, o sea que obliga a las personas a que para llevarse todo tengan que mirar el video completo.
+0:20:54 Franco Cappanera: completo. Básicamente puede muchas veces que lo único que hacen las personas es exponer algo y después solamente ejemplifican sobre eso.
+0:21:01 Franco Cappanera: Pero en realidad el valor del vídeo me lo llevé en el 
+0:21:02 Emanuel Mendoza: segundo 
+0:21:03 Francisco Doglio: cinco. 
+0:21:04 Emanuel Mendoza: No tengo razón por la cual seguir viéndolo. 
+0:21:07 Francisco Doglio: Ese es otro otro otro 
+0:21:08 Emanuel Mendoza: punto. Está muy bueno porque hago un énfasis para que también le quede a la IA 
+0:21:14 Franco Cappanera: esto, que eso es algo traqueable, es decir, se puede determinar muy fácil si el valor tipo es un pico concreto en el video y se puede tipo poner como alerta, eso así que está bueno para que quede ya en la grabación.
+0:21:27 Franco Cappanera: bien. 
+0:21:31 Emanuel Mendoza: Déjame pensar si hay algún factor más. Yo tengo una lista con los 6 factores, pero para este formato específico, 
+0:21:37 Francisco Doglio: ¿verdad? 
+0:21:47 Emanuel Mendoza: ¿Los conceptos ganadores varían de acuerdo al nicho o uno tiene mucho 
+0:21:54 Francisco Doglio: en cuenta? 
+0:21:59 Franco Cappanera: Es que en realidad los conceptos que dijo son como aplicables 
+0:22:01 Emanuel Mendoza: a todos, ¿no? Claro. Claro, si estoy dando como reglas que sirven para todos. Yo creo que dentro de cada nicho de aire, dentro 
+0:22:07 Francisco Doglio: del DNA, creo que parte de lo que haya en el DNA va a ser preguntas de contexto, de cómo está en su mercado a día de 
+0:22:14 Franco Cappanera: hoy. Claro. ¿Qué es lo que se está viendo en su mercado? Y ahí va a poderla ir a pensar como que puede ser novedoso o interesante para el mercado.
+0:22:22 Francisco Doglio: Pero sí, ¿Algo que puede ser útil para agregar? ¿Es como una tabla o base de datos de ángulos en el NA, Emma?
+0:22:31 Francisco Doglio: de ángulos a testear y todo 
+0:22:32 Emanuel Mendoza: eso si, ahí tenemos que ver como hacemos el onboarding si es un onboarding tipo down for you o lo hace el cliente, dependiendo de 
+0:22:41 Francisco Doglio: como lo vayamos 
+0:22:42 Emanuel Mendoza: a hacer los matamos a preguntas hacemos un muy buen proceso de onboarding con 
+0:22:47 Francisco Doglio: un Typeform 
+0:22:47 Franco Cappanera: de 40 preguntas. 
+0:22:49 Emanuel Mendoza: Es la general. Sí, se puede ver, se 
+0:22:51 Francisco Doglio: puede ver. 
+0:22:53 Emanuel Mendoza: Sí, les aclaramos que lo 
+0:22:55 Francisco Doglio: tienen que rellenar muy completo. Pero realmente yo creo que esos son los principales factores. O esas son como las reglas generales y después pueden haber cosas más específicas de cada nicho.
+0:23:04 Francisco Doglio: Pero siento que si las explico ahora, voy a mezclar innecesariamente la guía. Porque puedo hablarte de cosas tipo que sea guardable, que sea compartible o tema, o un tema ultra específico, pero no vale tanto la pena expandir en esa hora, porque depende de cada formato y del nicho realmente.
+0:23:17 Francisco Doglio: Así que sí, esas son como 
+0:23:18 Franco Cappanera: las reglas generales. idea interesante o novedosa y que sea un concepto el cual obliga a las personas a ver el video completo para llevarse todo el valor del 
+0:23:27 Emanuel Mendoza: video. Ok, eso me parece algo muy importante, como dijiste 
+0:23:31 Franco Cappanera: vos igual, 
+0:23:32 Francisco Doglio: Ema, que tengas que darse a ver todo el video. 
+0:23:35 Emanuel Mendoza: Sí, como antes. también es esa tensión, esa 
+0:23:37 Franco Cappanera: como 
+0:23:37 Emanuel Mendoza: búsqueda de, Porque en 
+0:23:39 Franco Cappanera: realidad, o sea, Argo al final del día va a tener dos funciones que son las más claves, que va a ser ayudar al usuario a planificar el contenido a publicar, que eso es tipo en la época de scripting, y después el análisis post-publicación.
+0:23:56 Franco Cappanera: Y bueno, que al final el análisis te da qué es lo próximo que vas a 
+0:23:59 Francisco Doglio: scriptear, pero sí. También, sí. 
+0:24:02 Franco Cappanera: Es como un bucle, al final le di a un loop. Así es como lo manténes enganchados. 
+0:24:07 Francisco Doglio: de una. Ok, perfecto, buena pregunta, sigamos, let's go. A ver, la siguiente, 
+0:24:16 Emanuel Mendoza: eso ya lo dimos un poco. 
+0:24:19 Franco Cappanera: Si, creo que de esta. Vamos a expandir más igual, si toqué 
+0:24:22 Francisco Doglio: un poco alguna, toquemos la otra. más y vamos más en profundidad con alguna. Puede haber tocado un poco muchos temas.
+0:24:28 Franco Cappanera: Igual vamos primero a la a la cuatro, ¿no, 
+0:24:33 Emanuel Mendoza: Emma? Sí. ¿Cuál es la diferencia entre un creador que crece y que y me gusta.
+0:24:56 Emanuel Mendoza: que le está llegando el contenido. Y gran parte de lo que determina el éxito de una pieza de contenido también es que las visitas, pero sobre todo las visitas que pueda tener ese video a gente nueva.
+0:25:08 Emanuel Mendoza: ¿Y qué es lo que determina que un creador contenido? que 
+0:25:12 Francisco Doglio: crece y uno que se estanca, ambos pueden estar haciendo contenido que tengan muchas visitas, pero no sólo tienen muchas visitas, sino que son visitas de el formato de contenido o de reputación o de conexión.
+0:25:27 Francisco Doglio: Nosotros no hacemos el formato de El formato de contenido de crecer, el 
+0:25:30 Franco Cappanera: formato de contenido que simplemente busca viralidad vacía, que no te atrae a tu cliente ideal. ¿Y cuál es la clave también?
+0:25:37 Franco Cappanera: Que no solo nos centramos en hacer contenido para el cliente ideal, sino que hacemos contenido para el seguidor ideal. El seguidor ideal es una audiencia, si vos lo 
+0:25:47 Emanuel Mendoza: miras en un 
+0:25:47 Francisco Doglio: gráfico, 
+0:25:49 Emanuel Mendoza: el 
+0:25:49 Francisco Doglio: seguidor ideal 
+0:25:50 Franco Cappanera: es cierta cantidad de personas, digamos 10 millones de personas y dentro de esas 10 millones de personas se encuentra tu cliente ideal, capaz que son 2 millones de personas, es un punto más.
+0:26:00 Franco Cappanera: es menos cantidad de personas, pero tu cliente ideal se encuentra dentro de tu seguidor ideal. Ahora, hablarle al seguidor ideal te permite que tu contenido le llegue a más personas, que por consecuencia vas a llegar a más cantidad de personas de tu 
+0:26:14 Emanuel Mendoza: cliente 
+0:26:15 Francisco Doglio: ideal. 
+0:26:16 Emanuel Mendoza: Pero si vos le hablás solo a 
+0:26:17 Francisco Doglio: tu cliente ideal, te limitás. 
+0:26:19 Emanuel Mendoza: ¿Y qué es tu 
+0:26:19 Francisco Doglio: seguidor ideal? Es llevarlo un poco más amplio, tu cliente ideal. Llevarlo un poco más amplio a gente que le interese los mismos temas, que conecte con los mismos temas que vos, que tu cliente ideal.
+0:26:31 Francisco Doglio: De esta forma, 
+0:26:31 Franco Cappanera: tu contenido le llega más. personas, pero le llega a tus seguidores ideales. No simplemente buscas viralidad por buscar viralidad y buscamos hacer videos virales, pero que traigan seguidores completamente vacíos, sino que siempre lo dirigimos al seguidor ideal que esto nos permite.
+0:26:49 Franco Cappanera: Esto nos permite que nuestro video sea, o sea, que siempre busquemos ser videos 
+0:26:54 Francisco Doglio: semi-vitales. Que sean videos 
+0:26:56 Emanuel Mendoza: que 
+0:26:56 Francisco Doglio: dentro del nicho, dentro de cumplir con lo que hace que un reel funcione, de hacer un tema interesante y novedoso, para el seguidor ideal, consiguen ser 
+0:27:04 Franco Cappanera: Y si vos conseguís mucho alcance, hablándole a tu seguidor ideal, estás ganando, y sobre todo si es en gran parte de audiencia nueva.
+0:27:18 Franco Cappanera: Eso es clave yo, lo del seguidor ideal. 
+0:27:20 Francisco Doglio: La verdad que 
+0:27:21 Franco Cappanera: es un concepto muy 
+0:27:22 Francisco Doglio: importante. Me lo voy a anotar, pero también para tener más métricas, o sea, tener la métrica de esa nueva audiencia.
+0:27:28 Francisco Doglio: No, y también, dentro del DNA, la definición del 
+0:27:31 Franco Cappanera: seguidor ideal también. Me parece que es algo muy clave, separar tipo cliente ideal, seguidor ideal, como dice, No, no, 
+0:27:44 Francisco Doglio: no. Lo aprendí de un tipo muy pegado que tiene 3.000 
+0:27:48 Emanuel Mendoza: seguidores, 
+0:27:50 Francisco Doglio: que le pagué 3K hace poco. 
+0:27:53 Franco Cappanera: ¿Cómo los encontrás esos chavales boludo? 
+0:27:57 Francisco Doglio: Ah mira, ese es el, ahí está el truco Ah me salió un reel en realidad, que lo encontré ahí y pagué una Pero si, de un reel de dos mil y dos Vamos con la 5, la 
+0:28:15 Emanuel Mendoza: decís vos. Pará, decíla porque estoy intentando esto de la métrica en el proyecto yo. 
+0:28:24 Franco Cappanera: Voy con la 5. Cuando analizas contenido de un creador por primera vez, ¿qué cosas son señales de 
+0:28:31 Emanuel Mendoza: alarmas inmediatas? Para una cosa antes de responder esa pregunta, ¿sabes qué estaría 
+0:28:35 Francisco Doglio: bueno que muestre? Que me saltó una notificación, y es sobre esto que hablé recién. que me gustó mucho, que es que te diga cuándo un reel pasa el promedio y por cuánto pasa el promedio de personas nuevas a las que le llegó ese video.
+0:28:50 Franco Cappanera: Mirá, déjame que te muestro la 
+0:28:51 Francisco Doglio: verificación exacta. Esperá, tipo, mirá, yo tengo este reel de prueba, por ejemplo, que lo hice Yo subí y me dice, Y me dice, Excelente.
+0:29:01 Francisco Doglio: Este riddle de prueba obtuvo un 75% más de visualizaciones de personas que no te siguen en las primeras 
+0:29:06 Franco Cappanera: 33 horas que tus riddles recientes. 
+0:29:10 Emanuel Mendoza: Osea que comparen la misma cantidad de horas que ya ha publicado ese vídeo. 
+0:29:13 Francisco Doglio: ese video, podemos definirle un time frame y listo, en 48 horas, que te lo compare con la cantidad de gente nueva a la que le llegaron 
+0:29:20 Franco Cappanera: tu promedio de video versus ese video, pues está bueno también. De mí el éxito de los trailers también está bueno, está bueno.
+0:29:28 Francisco Doglio: Hay que ver si, La API separa vistas de seguidores y de no seguidores. Este proyecto se limita realmente con la API de Meta.
+0:29:37 Francisco Doglio: No hay mucha ciencia con eso, eso 
+0:29:39 Emanuel Mendoza: es la única. El tema de vincularlo a 
+0:29:42 Francisco Doglio: la cuenta de Instagram, cero baneable, ¿no? No, 
+0:29:46 Franco Cappanera: no, no. Es oficial de meta. Es más, para 
+0:29:49 Francisco Doglio: después lanzarlo teníamos que pedir la verificación. Sí, sí, sí, todo oficial. Teníamos que pedir la verificación. Esa es la login con el Facebook de la cuenta de Instagram.
+0:30:01 Emanuel Mendoza: Ok, ok, 
+0:30:02 Francisco Doglio: vengo. Vengo, vengo, eso es lo más oficial posible porque todos mis clientes, muchos deben tener problemas con maneos, de hecho yo he tenido, 
+0:30:08 Franco Cappanera: así 
+0:30:09 Emanuel Mendoza: que, 
+0:30:10 Francisco Doglio: No, 
+0:30:10 Emanuel Mendoza: no, no, no, 
+0:30:11 Francisco Doglio: es la misma integración que tiene Mediacorp, o sea es lo mismo. Ah, perfecto, 
+0:30:16 Emanuel Mendoza: perfecto, perfecto, listo, perfecto. Bueno, volvemos. ¿Cuál 
+0:30:18 Francisco Doglio: era la pregunta 5, perdón? 
+0:30:20 Franco Cappanera: La pregunta 5 era, Básicamente las red flags cuando analizas 
+0:30:24 Emanuel Mendoza: el contenido de un creador por primera vez. 
+0:30:28 Francisco Doglio: Ok. 
+0:30:29 Franco Cappanera: Las 
+0:30:30 Emanuel Mendoza: red flags cuando analizo el creador de un contenido por, El contenido de un creador por primera vez. O sea, ¿qué red flags busco para ver si el contenido funciona o no funciona?
+0:30:39 Emanuel Mendoza: Ok, ok, ok, ok. Muchas veces, una red flag muy clara que, por ejemplo, te voy contando red flags que he visto.
+0:30:50 Emanuel Mendoza: Una red flag, que la he visto muchas veces, es que las personas no tienen idea de a quién le están hablando, o creen que tienen idea porque lo tienen anotado en un documento cuál es su cliente ideal o su 
+0:30:58 Franco Cappanera: seguidor 
+0:30:58 Francisco Doglio: ideal, 
+0:30:59 Emanuel Mendoza: pero en la práctica, su contenido, el principal error muchas veces es, o son dos cosas, principales, uno es que o bien intentan hablarle a todo el mundo e intentan hacer contenido que le sirva a todo el mundo, a mucha gente, a todas las personas que quieren lograr X resultado, todas las personas que 
+0:31:17 Emanuel Mendoza: quieren por ejemplo gente que ayudase a las personas a crecer en Instagram, a todas las personas que quieren crecer en Instagram ese vídeo que si les sirve, porque hablas de cómo tener más visitas.
+0:31:25 Emanuel Mendoza: En cambio, yo hago un vídeo diciendo cómo tener más visitas en tus reels. Intento hablarle a tanta gente que no le habla absolutamente nadie y no va a funcionar.
+0:31:33 Emanuel Mendoza: Lo mismo puede pasar con cualquier nicho, sea salud, relaciones o dinero. Es un error muy común. de una red flag muy común que indica que su contenido no va a funcionar y te dice por qué su contenido tiene poco alcance porque intenta hablarle a mucha gente.
+0:31:47 Emanuel Mendoza: Lo he visto en todos los nichos ese problema y muchas veces cuando el mensaje es, ¿y por qué pasa? porque el mensaje es vago.
+0:31:54 Emanuel Mendoza: es un mensaje vago el cual no tiene nada de 
+0:31:57 Francisco Doglio: tangible, nada que realmente haga que un perfil de seguidor ideal se sienta 
+0:32:02 Franco Cappanera: identificado con lo que estás diciendo, entonces por consecuencia terminás muerto con muy poco alcance aunque hagas contenido que es para millones y decenas de millones de personas ese contenido, pero como como es tan vago termina funcionando mal.
+0:32:18 Franco Cappanera: Ese es un error muy grave y otras veces es lo opuesto, es que lo intentas anichar tanto que también termina siendo poco interesante, porque tu, El segmento al que le estás hablando no es tu seguidor ideal, sino que es solamente tu 
+0:32:29 Emanuel Mendoza: cliente 
+0:32:29 Francisco Doglio: ideal. 
+0:32:30 Emanuel Mendoza: Y ese es otro error, 
+0:32:31 Francisco Doglio: que es cuando lo haces demasiado anichado, demasiado específico, explicando un dolor y después amplificando ese dolor y tocando la consecuencia de ese dolor, y después 
+0:32:40 Emanuel Mendoza: explicando tu mecanismo y lo terminas haciendo tan anichado. 
+0:32:43 Francisco Doglio: Que terminás haciendo un video en el cual solamente lo va a entender una 
+0:32:46 Franco Cappanera: persona que tiene demasado contexto y está demasiado metida en la conversación, que al final sos solo vos. Entonces ese video también va a terminar teniendo pocos resultados, poco alcance.
+0:32:57 Franco Cappanera: Traseña que le hables a, Demasiadas personas o a muy pocas son dos errores muy graves y son los dos errores principales que comete la gran mayoría de las personas.
+0:33:04 Franco Cappanera: El principal, el principal red flag que identifico y que se nota cuando el contenido funciona mal. O sea, cuando contenido funciona mal, suele ser por el Porque no le están hablando, porque están cometiendo uno de esos dos errores.
+0:33:19 Franco Cappanera: Después a ver que otra red está. Que es algo que la IA lo podría identificar, reposiendo que está bueno. Cuando un vídeo no funciona, ve el guión y te dice, claro, acá.
+0:33:31 Franco Cappanera: ¿Para quién es este vídeo? O sea, ¿le sirve a Pepe que vende velas y a Frank que vende mentorías? Está mal.
+0:33:39 Franco Cappanera: Y sí está mal. De hecho, me pasaba a mí antes. Yo hacía vídeos tipo de crecer, contenido de cómo crecer en Instagram.
+0:33:47 Franco Cappanera: Y claro, lo miraba Marta que vendía velas y lo miraba un infoproductor, o lo podían mirar, entonces no lo miraba nadie.
+0:33:56 Franco Cappanera: Cuando lo puede mirar todo, no lo mira nadie. Y cuando lo puede mirar solo una persona, tampoco lo mira. porque te lo capea Instagram, porque es muy anichado y no es interesante.
+0:34:06 Franco Cappanera: Sí, perdón, ¿qué ibas a 
+0:34:07 Emanuel Mendoza: decir, Emma? No, 
+0:34:09 Francisco Doglio: que se me ocurra ahí, si tenemos tipo el ADN del cliente, cuál es el tipo de cliente, cuál es su ideal, y tenemos tipo esta información, buscar como, poner como un índice, dale.
+0:34:18 Francisco Doglio: de este video que tan alineado está con tu cliente o señor ideal, por ejemplo. Que sea como un puntaje en una 
+0:34:27 Franco Cappanera: línea. Que 
+0:34:28 Emanuel Mendoza: es un 
+0:34:29 Francisco Doglio: índice que eso si no lo vi en ningún 
+0:34:31 Emanuel Mendoza: software. Impecable, me encanta. 
+0:34:34 Franco Cappanera: Me encanta, me encanta, me encanta, me encanta. Sí, me encanta eso. Sí, alineado con los dolores que tiene, con los 
+0:34:41 Emanuel Mendoza: deseos que tiene. Ahora podría ejemplificar en mi caso, pero no voy a ejemplificar tanto porque por ahí confundimos inicialmente la idea.
+0:34:48 Emanuel Mendoza: Pero sí, me parece muy top. 
+0:34:51 Francisco Doglio: Ok, de una. A ver que otra red flag, Bueno, otra red flag es un poco lo que habíamos mencionado, pero de que, Bueno, para, Sí, pero de que, Público, Más información en www.alimmenta.com en todos sus vídeos.
+0:35:24 Francisco Doglio: Interesante, novedosa y nueva y distinta a cada uno de sus vídeos, ¿no? Pues también, si es interesante, novedosa, pero repetís siempre la misma, tampoco va a funcionar.
+0:35:32 Francisco Doglio: Si repetís cinco veces el mismo tema, la gente que lo repitas, el vídeo va a funcionar peor. También me pasó, también viene un error que cometí.
+0:35:40 Francisco Doglio: Pero, cuestión, no cumplir con ese factor de interesante 
+0:35:43 Emanuel Mendoza: novedosa y tampoco con el de 
+0:35:46 Francisco Doglio: que sean conceptos ideas que inviten a la retención de las personas. Otra también puede ser 
+0:35:53 Franco Cappanera: ser repetitivo. Es un reflejo bastante grande de que, analizando qué es lo que están haciendo tus competidores y cuál es la situación de tu mercado, que lo que vos hagas suene como una más.
+0:36:04 Franco Cappanera: Si todos en tu mercado hacen el mismo tipo de contenido, se visten igual, hablan con el mismo tono, hacen el mismo tipo de Entonces, otra red flag es sonar repetitivo y muy parecido a lo que está haciendo tu nicho.
+0:36:35 Francisco Doglio: A 
+0:36:36 Emanuel Mendoza: ver, dejame 
+0:36:37 Francisco Doglio: pensar otra, 
+0:36:38 Emanuel Mendoza: Esta pregunta me 
+0:36:38 Francisco Doglio: gusta, pero dejame pensar a ver si tengo otra 
+0:36:41 Franco Cappanera: más. A ver, a ver, a ver, a ver. Estoy pensando en clientes. 
+0:37:01 Francisco Doglio: A ver, 
+0:37:02 Franco Cappanera: otra red flag muy clara es cuando ves más, sobre todo en las 
+0:37:07 Francisco Doglio: métricas, pero que bueno hay que ver si la API puede sacar este dato, pero que la mayoría de sus Sus visitas son de seguidores, eso es un problema, que también se puede identificar comparando la cantidad de seguidores que tiene y la cantidad de visitas que tiene, pero es una red muy grande.
+0:37:26 Francisco Doglio: Cuando la mayoría de tus visitas es de gente que ya te conoce, o tenés 100.000 seguidores y siempre tenés 10.000 mil visitas, es un problema.
+0:37:34 Francisco Doglio: Es una red de flagos. Tu cuenta está demostrándole tu contenido y no está funcionando. Y creo que no se me ocurre ninguna más por ahora.
+0:37:44 Francisco Doglio: Por ahí se me ocurre alguna otra más, mientras seguimos hablando. 
+0:37:49 Franco Cappanera: Bueno, perfecto. Bueno, eso sería entonces el bloque 1, que era como el bloque más general, y ahora sí vamos a ir con cosas más 
+0:37:56 Francisco Doglio: específicas. El bloque siguiente es 
+0:37:58 Emanuel Mendoza: el PUC. ¿Cuántos bloques son? Una banda sí que va a, 
+0:38:06 Franco Cappanera: 15 bloques yo tenia miedo de responder demasiadas cosas en muy poco 
+0:38:12 Francisco Doglio: tiempo 
+0:38:13 Franco Cappanera: no vos respondes todo 
+0:38:15 Emanuel Mendoza: boludo y si se repiten cosas se repiten no 
+0:38:17 Francisco Doglio: pasa 
+0:38:17 Franco Cappanera: nada 
+0:38:18 Emanuel Mendoza: bueno ahora esto es un exclusivamente sobre 
+0:38:20 Franco Cappanera: el hook. 
+0:38:23 Francisco Doglio: ¿Qué hace un hook irresistible? Dame los elementos que siempre están presentes en un buen hook. Ok. En un buen hook, tanto en el hook como en la idea del video, 
+0:38:35 Emanuel Mendoza: porque muchas veces, el video funciona bien no solamente por el hook, de hecho hay videos que funcionan bien y no tiene tanto que ver con el hook sino con la idea o el concepto del video por eso la idea o el concepto es tan importante.
+0:38:45 Emanuel Mendoza: Ahora en todo hook se mencionan ciertas palabras que es lo que yo llamo Códigos de lenguaje, pero básicamente es usar ciertas palabras que en tu nicho las entienden, que son palabras mainstream dentro del nicho, que en tu nicho las entienden, que hagan que puedas tanto repeler a personas que no son del
+0:39:06 Emanuel Mendoza: nicho, como también atraer y asustar. que las personas que sí son del nicho, es decir, tu seguidor ideal, las puedan entender.
+0:39:12 Emanuel Mendoza: Por ejemplo, yo soy un creador de contenido que ayudo a creadores, marcas personales, a que puedan vender más con Instagram.
+0:39:21 Emanuel Mendoza: ¿Alguna palabra que yo pueda usar, o infoproductores, a vender más? por Instagram a unas palabras que yo puedo usar que mi cliente ideal las va a entender pero que automáticamente me ayudan a repeler personas que no me sirven.
+0:39:31 Emanuel Mendoza: Es palabras como por ejemplo, Menichat. Menichat es la plataforma que usan todos los creadores de contenido que venden algo para automatizar sus mensajes.
+0:39:40 Emanuel Mendoza: Entonces si yo comienzo un vídeo diciendo, 
+0:39:45 Francisco Doglio: si vos, 
+0:39:46 Emanuel Mendoza: si cuando las personas comentan un vídeo usas 
+0:39:49 Francisco Doglio: ManyChat para enviarles el recurso por mensaje 
+0:39:51 Emanuel Mendoza: privado, es el peor error, estás matando 
+0:39:54 Francisco Doglio: tu cuenta. ¿Eso qué es lo que va a ser? que agarro un término común que en mi mercado es un término usado, que las personas lo conocen y saben que este vídeo es para 
+0:40:04 Emanuel Mendoza: ellos, y los 
+0:40:06 Francisco Doglio: desafío. Es desafiar lo que las personas saben, o sea, Usar términos que ellos conocen, o cosas que ellos conocen, y desafiarlos.
+0:40:17 Francisco Doglio: De eso se trata un buen hook, son las dos cosas que tiene un buen hook realmente. Desafiarlo puede ser de muchas formas distintas, por ejemplo, otro video 
+0:40:23 Franco Cappanera: muy bueno, siguiendo con el mismo ejemplo, en el caso en el que yo me dedique al mismo nicho, en el mismo hecho que expliqué recién, puede ser un vídeo en el cual yo hablo de una función de Instagram, las cuales las personas conocen, pero todavía no saben cómo aprovecharla, que era una función de las
+0:40:40 Franco Cappanera: Reels de prueba. Por ejemplo, las personas saben que es un Reel de prueba, pero solo lo saben Los creadores de contenido que están orientados a vender saben lo que es un reel de prueba.
+0:40:48 Franco Cappanera: Las personas que no son expertas, que no les interesa el marketing de contenido y crecer en redes, no tienen ni idea de lo que es.
+0:40:54 Franco Cappanera: Entonces, si yo empiezo un video preguntándole, por ejemplo, a una persona ¿Cuántos reels de prueba estás subiendo al mes? te dice que no los está aprovechando porque no sabe cómo aprovecharlos, que es la situación común de la mayoría de personas del nicho.
+0:41:06 Franco Cappanera: Y después yo le respondo a esa persona diciéndole ok, ahí estás cometiendo un grave error, de hecho yo estoy subiendo cinco reels de prueba por día y eso me está generando, 
+0:41:33 Francisco Doglio: que ellos conocen. Y eso es un muy buen hook. Un muy buen hook desafía usando términos, palabras, situaciones, ejemplos, pero cosas 
+0:41:43 Emanuel Mendoza: a las cuales las 
+0:41:44 Francisco Doglio: personas de tu mercado ya escucharon o ya se sienten identificadas. cuando lo escuchan. Que se pueda aplicar en muchos nichos de muchas formas distintas.
+0:41:57 Francisco Doglio: ¿Quieren que diga ejemplos de todos los nichos de esto? ¿O creen que está bien con la explicación? 
+0:42:02 Emanuel Mendoza: Creo que sí, puede ser más en 
+0:42:03 Francisco Doglio: el ADN de cada persona. Bueno, capaz que se varía 
+0:42:06 Emanuel Mendoza: mucho. 
+0:42:07 Franco Cappanera: Por eso, sí, sí, sí. Pero sí, pero se ha entendido la idea. 
+0:42:11 Emanuel Mendoza: Capaz después, Emma, ¿qué decís de agregar un bloque que sea justamente para definir qué tiene que ir dentro de cada ADN?
+0:42:18 Emanuel Mendoza: O sea, ¿qué preguntas tenemos que preguntar? Vale, gracias. redundancia. Sí, eso puede ser más 
+0:42:26 Francisco Doglio: enfocado para cuando entrenemos ya el 
+0:42:29 Franco Cappanera: defran directo. Ok. Sí. Bien. Entonces, ¿siempre un jugador? ¿El hook debería de desafiar o es solo un tipo de hooks?
+0:42:53 Francisco Doglio: algo negativo de decirles a las personas que están haciendo algo mal, sino que puede ser presentarse a las personas algo que podrían hacer mejor, o algo nuevo que podrían 
+0:43:01 Franco Cappanera: hacer que no están haciendo, o una forma distinta de ver un problema que ellos tienen, pero siempre desafiándolos. ¿Por qué desafiándolos?
+0:43:07 Franco Cappanera: Porque vos les propones algo distinto. desafiar lo que las personas creían con respecto 
+0:43:27 Emanuel Mendoza: a eso. Tiene un tipo de desafío, pero al final acaba de que desafiarlo. 
+0:43:31 Francisco Doglio: Sí, siempre. 
+0:43:37 Emanuel Mendoza: ¿Y 
+0:43:37 Franco Cappanera: el tipo de hooks entonces? 
+0:43:41 Francisco Doglio: ¿Hay tipos específicos o 
+0:43:44 Emanuel Mendoza: es una estructura? 
+0:43:47 Francisco Doglio: Sí, hay muchísimos hooks que se pueden hacer. De hecho, dame un segundo, tengo un documento con eso. Ok, sí, tengo distintos hooks.
+0:44:08 Francisco Doglio: Primero 
+0:44:08 Emanuel Mendoza: está, a ver, 
+0:44:16 Francisco Doglio: hooks de transformación. Un hook de transformación es un hook en el que vos presentas cómo vos lograste x resultado, cómo alguien logró x resultado usando algo nuevo que vos vayas a presentar, la nueva oportunidad de esa gente.
+0:44:29 Francisco Doglio: de cosas a presentar en el video. Uno es un hook de transformación, hay otro hook que es el hook de enemigo, donde posicionas a algo o a alguien o una forma de hacer las cosas como el enemigo.
+0:44:43 Francisco Doglio: ¿Puedo decir ejemplos de todo esto? Presiento que voy a confundir más y abajo. ejemplo, como que lo voy a limitar si hago 
+0:44:47 Franco Cappanera: ejemplos, pero les 
+0:44:48 Francisco Doglio: doy las características y lo 
+0:44:49 Franco Cappanera: va a poder ver. Primero vamos a la lista, si primero vamos a la lista de todos los hooks y después vamos uno 
+0:44:52 Francisco Doglio: por uno. Perfecto. De 
+0:44:54 Emanuel Mendoza: transformación, hooks de enemigo, después, jugos negativos 
+0:45:04 Francisco Doglio: es jugo negativo es un jugo en el cual yo empiezo desde sí desde un error o un problema o algo 
+0:45:15 Emanuel Mendoza: si 
+0:45:15 Franco Cappanera: algo negativo 
+0:45:16 Emanuel Mendoza: algo que sea no no 
+0:45:17 Franco Cappanera: va a ser una promesa, en base a un resultado que podrías lograr si aplicas esto, 
+0:45:23 Francisco Doglio: que podría ser eso un hook de, sí, que eso sería otro hook, pero no es un hook de una promesa grande, sino que es un hook negativo, es lo opuesto.
+0:45:32 Francisco Doglio: En lugar de yo prometerte cómo lograré que resultado haciendo y es lo opuesto es algo empezar desde algo negativo desde la consecuencia que te podría pasar si no haces algo pero va por ese lado o qué podría pasar si yo te cuento lo que te voy a contar o que te podría pasar vos si no aplicas lo que te
+0:45:50 Francisco Doglio: voy a contar hoy ¿Cómo lograr X? Muy simple, muy simple. ¿Cómo lograr X 
+0:46:07 Franco Cappanera: usando Y? Pero básicamente, prometer algo. Ese hook más común. No significa que sea el mejor, simplemente es el que las personas más suelen usar.
+0:46:16 Franco Cappanera: Eh, Otro hook, 
+0:46:17 Emanuel Mendoza: eh, Y después, un hook 
+0:46:22 Francisco Doglio: de curiosidad. Con este juke se varía, pero es un juke en el que presentas algo nuevo, básicamente explicas algo nuevo o con un nombre nuevo o una nueva oportunidad.
+0:46:33 Francisco Doglio: Pero es un juke basado en la curiosidad, no tanto que prometes algo ni que haces algo negativo ni nada 
+0:46:37 Franco Cappanera: sino que simplemente te gusta. basado en la curiosidad, porque presentas algo nuevo. Entonces tenemos de transformación, de enemigo, de negativo, de promesa y de curiosidad.
+0:46:48 Francisco Doglio: Si me puedes dar ejemplos de transformación y de enemigo, es lo único que nos falta. 
+0:46:53 Franco Cappanera: Ok, ejemplos de El ejemplo de transformación puede ser como pasé de punto A a punto 
+0:46:57 Francisco Doglio: B. 
+0:46:59 Franco Cappanera: Esto, por 
+0:47:00 Francisco Doglio: ejemplo, nunca pensé que X área de mi vida fuera, nunca pensé que en X área de mi vida me fuera a ir tan bien hasta que probé X.
+0:47:18 Francisco Doglio: Nunca pensé que en X parte de mi negocio fuera a conseguir 
+0:47:21 Emanuel Mendoza: X resultado hasta que empecé a hacer esto otro. O sea, es transformación. Vas a una transformación tuya o de alguien.
+0:47:26 Emanuel Mendoza: pero basado en la transformación. Y el otro, ¿cuál era? De enemigo. O puede ser, por ejemplo, cinco cosas que curaron o que solucionaron X problema, pero basado en transformación.
+0:47:36 Emanuel Mendoza: Sí, en cómo solucioné o cambié algo. ¿Y cuál era el otro, perdón? Enemigo. Enemigo. y me desinstalo. de quien 
+0:48:09 Francisco Doglio: sigue usando. x cosa todavía, si estamos en x años, si estamos en x momentos, entonces posicionas algo como el enemigo, algo que ellos conocen y este es un tipo de ajuste que no se suele usar tanto, que funciona súper bien, pero si, enemigo, donde posicionas algo que ellos conocen, 
+0:48:30 Emanuel Mendoza: ese tipo de término común que tu nicho ya está acostumbrado a escuchar y ya lo conocen, como el 
+0:48:34 Franco Cappanera: enemigo. Y eso genera mucha curiosidad y es muy desafiante en el segundo uno. Perfecto, tenemos cinco entonces 
+0:48:40 Emanuel Mendoza: tipos de hook, me parece sólido. Sí, sí, 
+0:48:45 Francisco Doglio: son los cinco principales. Por ahí puede haber otro, pero 
+0:48:48 Franco Cappanera: Más adelante se pueden ir 
+0:48:49 Emanuel Mendoza: agregando más, 
+0:48:49 Francisco Doglio: pero, Sí, esto es para tener la base bien potente. 
+0:48:56 Emanuel Mendoza: ¿Seguimos taladrando, Juk, o pasamos a la siguiente sección, Emma, que decís? Me gusta igual esta la nueva, ¿eh? ¿Cómo diferenciás un hook que promete demasiado, tipo un clickbait, a uno que promete que funciona, que es lo necesario?
+0:49:09 Emanuel Mendoza: ¿Hay como una línea ahí marcada de algo que es, tipo, demasiado, o,? Claro, que es muy Ramiro Cubría, que es 
+0:49:17 Francisco Doglio: más, PranW. 
+0:49:25 Emanuel Mendoza: No tanto que promete demasiado, sino que muchas veces el prometer demasiado viene de la mano de que es muy repetitivo, de que es algo muy escuchado, de por ejemplo, ¿cómo fue que facturé X cantidad con mi negocio.
+0:49:37 Emanuel Mendoza: No es interesante ni novedoso. Entonces vos puedes prometer el número que quieras y mucha gente cree que se trata de que prometiendo más van a tener un mejor hook, pero no.
+0:49:47 Emanuel Mendoza: De vuelta, tiene que ser desafiante y basado en un término que conozcan y que les La idea, el concepto de ese hook sea interesante, novedoso, que imite la retención y eso, pero sobre todo en el caso de hook, interesante, novedoso.
+0:49:58 Emanuel Mendoza: Muchas veces el problema está en que se promete más, pero no es necesario, porque eso no es lo que va a hacer que funcione mejor.
+0:50:05 Emanuel Mendoza: Y muchas veces incluso el prometer excesivamente. 
+0:50:39 Francisco Doglio: Para Rils, 
+0:50:46 Emanuel Mendoza: porque en cuanto a jugos, después lo otro que hay es capaz que más se enfocaba tipo a cada 
+0:50:50 Francisco Doglio: cliente, como más en 
+0:50:52 Emanuel Mendoza: D&D 
+0:50:54 Francisco Doglio: que otra cosa. Bueno, después podemos poner, no sé si lo grabaría y lo transcribiría, pero sí nos podemos poner a pensar después eso, qué es lo que vamos a poner en el proceso de cada uno, porque es importante ahí matarlos a preguntas y sacar toda la data.
+0:51:09 Francisco Doglio: Sí, ok. 
+0:51:11 Franco Cappanera: de 
+0:51:12 Emanuel Mendoza: una. 
+1:15:45 Emanuel Mendoza: Bloque 3, estructura narrativa. Para acá me había quedado algo de que Lo anterior, que no lo quería preguntar, pero venía de la estructura después, que acá no sé si está.
+1:15:57 Emanuel Mendoza: Que vos dijiste que obviamente las cosas más importantes de los reels son la retención. ¿Capaz de nombrar algunas? tácticas o algo que digas bueno capaz que haciendo esto o no sé generando determinada curiosidad o lo que sea o no nombrando acá el valor como qué podés hacer para mejorar esa retención 
+1:16:20 Emanuel Mendoza: hasta el final ok En 
+1:16:24 Francisco Doglio: gran parte se trata, una de las claves para eso es 
+1:16:27 Emanuel Mendoza: dividir el 
+1:16:29 Francisco Doglio: concepto, o sea que también todo viene de que la idea o el concepto del vídeo sea algo que puedas dividirlo, porque hay veces que no, pero que puedas dividir el tema de que vos estás hablando en distintas partes, que no sea lo un valor, todo vuelve a que no sea un valor el que aporte, que una vez que
+1:16:42 Francisco Doglio: escuchan eso simplemente se llevan el insight y lo pueden aplicar, simplemente un insight, sino que sea algo que vos lo puedas dividir en tres puntos, en cinco puntos, pero que lo puedas dividir de forma que haga que las personas para llevarse todo el valor tienen que que consumirse todos los puntos,
+1:16:57 Francisco Doglio: o sea, 3 puntos principales o 5 puntos principales que se suelen dividir todos los vídeos en 3 o 5 puntos, suele ser un error dividirlo en 2 o en 4, de hecho siempre que se hace una lista de cosas tienen que ser 3 o 5.
+1:17:11 Francisco Doglio: Entonces, uno, que sea una idea, un concepto en el cual lo puedas dividir en 3 a 5 puntos, y que lo dividas en 3 a 5 puntos, porque muchas veces también no lo dividen en 3 a 5 puntos, entonces ese es un factor clave para poder retenerlos, y que cada uno de esos 3 a 5 puntos sea un importante y cada uno
+1:17:31 Francisco Doglio: aporte un valor extra, que no sean relleno también. Muchas veces lo intentan dividir y es relleno puro, sino que cada uno de ellos les aporte realmente algo nuevo, que haga que el valor que escucharon en el primer punto, Ahora, cuando escuchan el segundo punto, cobra más sentido y es mejor.
+1:17:48 Francisco Doglio: Y lo mismo con el tercero, con el cuarto y con el quinto, ya que cada vez es más difícil retenerlos.
+1:17:55 Francisco Doglio: Y no tardar demasiado tiempo en comenzar a dar el valor. Muchas veces también las personas hacen un un hook y después hacen un doble hook y después explican la importancia de lo que van a explicar en el vídeo y cuando llega el punto de empezar a dar el valor ya van decenas de segundos de vídeo y ya no
+1:18:11 Francisco Doglio: tiene sentido. Cuanto vos menos puedas dilatar el aporte de valor, mejor. Ahora, dilatar lo menos posible el inicio del aporte de valor, pero que el aporte de valor ocupe el mayor porcentaje del video posible.
+1:18:27 Francisco Doglio: Que vos capaz tengas un 5% del tiempo, entre 5 a 10% del del tiempo dedicado a un hook y después todo el resto al aporte de valor y quizás un 5% para el llamado a la acción, pero que la gran parte del video sea un aporte de valor.
+1:18:42 Francisco Doglio: Dilatar lo menos posible, pero no dilatar simplemente un punto, sino dilatar el resto Y si eso lo aplicas en un concepto, una idea que sea interesante, novedosa, vas a ganar, o sea eso es un video ganador.
+1:19:04 Emanuel Mendoza: Tiene vento, tiene vento. 
+1:19:07 Franco Cappanera: Estoy tomando notas hasta para mí, eh. No solo para nada. Una 
+1:19:11 Emanuel Mendoza: pocha de 
+1:19:12 Franco Cappanera: clases vamos a tener 
+1:19:12 Emanuel Mendoza: acá. 
+1:19:13 Francisco Doglio: Estoy apreciando, boludo. 
+1:19:15 Franco Cappanera: Está épico, 
+1:19:15 Francisco Doglio: además está bueno porque vieron lo que dije que el lunes y miércoles iba a 
+1:19:19 Emanuel Mendoza: hablar de 
+1:19:19 Francisco Doglio: esto. 
+1:19:20 Emanuel Mendoza: Porque encontré que la gran mayoría de personas están teniendo problemas con los Reels. 
+1:19:23 Franco Cappanera: De hecho, la transcripción de esto me va a servir para preparar eso. Pero va a ser full hablando de Reels.
+1:19:29 Franco Cappanera: Va a estar bueno. Acceso exclusivo para mí, 
+1:19:32 Emanuel Mendoza: boludo. Después, la 16, no sé si tiene mucho sentido porque como que segmenta mucho, pregunta cuál es la estructura narrativa para un reel de 60 segundos y para uno de 30, pero creo que como que segmenta mucho y la estructura creo que va más en el DNA de la persona.
+1:19:52 Emanuel Mendoza: Sin dudas, 
+1:19:54 Franco Cappanera: sin dudas, depende 100% de lo que está haciendo su mercado para hacer algo nuevo. 
+1:20:00 Emanuel Mendoza: Lo mismo está con duración de reales, lo mismo, porque no hay como un número que digas, 
+1:20:05 Franco Cappanera: esto es lo mejor, supongo yo, pueden funcionar de todo. 
+1:20:11 Emanuel Mendoza: Es más, para esos que vamos diciendo esto es mejor definirlo a base de DNA, vamos dejando 
+1:20:16 Franco Cappanera: ahí la nota, ¿no? Si no nos olvidamos, 
+1:20:19 Emanuel Mendoza: boludo. Sí, pero igual creo que la oración ideal tampoco, como que, o sea, Creo que puede haber un reel, capaz que es de la ignorancia, pero puede haber un reel bueno de 30 segundos y uno bueno de 3 minutos, yo que sé.
+1:20:31 Emanuel Mendoza: Sin duda. Sí, depende de la idea. 
+1:20:33 Francisco Doglio: Claro. Exacto, depende de la idea. 
+1:20:35 Emanuel Mendoza: Eso. Tendría que tener 
+1:20:36 Francisco Doglio: un mínimo de duración, o sea, seguramente. menos de 
+1:20:41 Franco Cappanera: 40 segundos 
+1:20:42 Francisco Doglio: probablemente no tiene sentido, porque es como muy poca profundidad en el tema, tipo qué valor vas a aportar en tan poco tiempo.
+1:20:49 Francisco Doglio: Y límite máximo, depende del vídeo. Obviamente, o sea, dentro del sentido común, eh, he tenido la videos que son ganadores, ganadores de un minuto y medio por ejemplo, 
+1:21:00 Emanuel Mendoza: sin 
+1:21:00 Francisco Doglio: problema, entonces sí, sí que un mínimo pondría, por lo menos 30-40 segundos de 
+1:21:05 Franco Cappanera: mínimo, pero más o menos. Nota mental, Emma, es agregar después también porque hay que fijarse, Y dejarnos el límite que tiene Instagram de duración, creo que son 90 segundos, no lo podés tirar, follow me ads después.
+1:21:22 Francisco Doglio: Mirá, no tenía ni idea. 
+1:21:27 Emanuel Mendoza: Sí, no te dejan 
+1:21:28 Franco Cappanera: correrle ads. ,después de que pasa cierta operación. Ah, eso, porque yo intenté, o sea, subí un reel el otro día de dos minutos en una de mis cuentas de Alpine y no me dejaba promocionarlo porque decía que pasaba más de 90 segundos el reel.
+1:21:57 Francisco Doglio: Ni etapas que sigue, ¿eh? No lo he visto. 
+1:22:01 Franco Cappanera: O 
+1:22:01 Francisco Doglio: capaz también cuenta que está retrashada. Sí. 
+1:22:04 Franco Cappanera: Es una buena idea, la verdad. 
+1:22:07 Francisco Doglio: Bueno. No van a ser 
+1:22:09 Franco Cappanera: inocenios. Esto medio que ya 
+1:22:11 Emanuel Mendoza: lo, La 17 medio que ya lo hicimos, pero capaz para definir algo concreto, 
+1:22:24 Franco Cappanera: ¿Cómo definís el desarrollo de un video y qué tiene que cumplir para ser efectivo? 
+1:22:30 Francisco Doglio: Se va de la mano la retención de lo que dijiste recién. 
+1:22:34 Emanuel Mendoza: Sí, no, yo creo que es exactamente eso que dije, es 
+1:22:36 Francisco Doglio: tipo, sí, para no repetir exactamente lo mismo, eso, o sea, un buen desarrollo del vídeo cumple con eso, sí, sí, sí, sí, para no repetir, puedo seguir repitiendo lo mismo, pero sí, es eso, da igual, ok.
+1:22:49 Emanuel Mendoza: O pasamos al call to action. 
+1:22:53 Francisco Doglio: Entonces, Ehm, Ok. Bien ahí. Bien. 
+1:22:57 Emanuel Mendoza: Bien. 
+1:22:57 Francisco Doglio: Call to action. Ok. ¿Varía mucho de la idea? ¿Varía de qué es lo que le haya funcionado a la cuenta de Netflix?
+1:23:05 Francisco Doglio: Instagram obviamente siempre Arco va a sacar patrones en base a cosas que funcionaron en el pasado y va a poder analizar si un call to action es bueno, porque se puede salir a veces de la regla dependiendo de cada caso, pero en líneas generales, sobre todo teniendo en cuenta que estamos haciendo en los
+1:23:19 Francisco Doglio: casos en los que se hace un call to action a un líder. que va a ser la gran mayoría de los casos.
+1:23:24 Francisco Doglio: En esos casos un buen call to action a un lead magnet cumple con lo siguiente. Lo primero es que tiene 7 características.
+1:23:37 Francisco Doglio: 1. Resuelve un 
+1:23:45 Emanuel Mendoza: problema específico, no un genérico. un problema específico que tiene una persona en tu nicho. Solución completa a un problema específico, no una solución vaga al gran problema que tiene tu nicho, sino que una solución completa a un problema ultra específico que tiene tu nicho.
+1:24:06 Emanuel Mendoza: Ofrece un resultado 
+1:24:07 Francisco Doglio: rápido. Si es algo que el resultado que te lo va a más rápido, mejor todavía. Todas estas son reglas, son siete factores que hacen que funcione mejor.
+1:24:14 Francisco Doglio: Cuantos más cumpla, mejor va a funcionar. Ofrece un resultado rápido. Lo hace más deseable automáticamente. Tercero, 
+1:24:21 Emanuel Mendoza: podrías cobrarlo por 10 a 100 dólares y aún así 
+1:24:23 Franco Cappanera: tendría sentido. 
+1:24:25 Francisco Doglio: Realmente no. un buen 
+1:24:26 Emanuel Mendoza: llamado a la 
+1:24:30 Francisco Doglio: acción, un buen llamado a la acción realmente, o sea es una oferta también, un lead magnet es una oferta, entonces si puedes hacer que el recurso sea lo más atractivo posible, algo que podrías cobrar y que tendría sentido, mejor.
+1:24:41 Francisco Doglio: mejor. 
+1:24:42 Emanuel Mendoza: Pasaron el check de la 
+1:24:43 Francisco Doglio: ecuación de valor de 
+1:24:45 Franco Cappanera: Ormosi, de que ofrece un gran resultado en poco tiempo, etcétera, que creen que si lo aplican va a ser más probable que lo consigan y demás, porque mostraste pruebas sociales capacantes de explicarlo.
+1:24:55 Franco Cappanera: Por ejemplo, probé, x cantidad de cosas 1500 veces para que vos no tengas que hacerlo y acá tengo una carpeta con las cuatro mejores y 
+1:25:05 Emanuel Mendoza: la 
+1:25:05 Francisco Doglio: verdad entonces 
+1:25:06 Emanuel Mendoza: automáticamente pasa a la ecuación 
+1:25:08 Francisco Doglio: de valor porque la probabilidad de percibir y conseguir resultados es mucho mayor y el valor que 
+1:25:12 Franco Cappanera: tiene es mucho mayor, el valor percibido es Realmente vuelve al punto uno, que es una solución completa a un problema específico.
+1:25:37 Franco Cappanera: Punto seis, es un paso dentro de un proceso mayor, similar al que dije recién también. Y el séptimo ni siquiera es tan importante, pero bueno.
+1:25:46 Franco Cappanera: Básicamente esto es más para el lead magnet, en realidad, como tal. Así que esos son esos seis, en realidad. Si cumple con esos seis y sobre todo el séptimo, podría ser más por el lado de cómo vos lo narrás.
+1:25:56 Franco Cappanera: Lo narrás de una forma en la cual no te sobre ni una palabra. El call to action es una parte en la que hay que ser tan preciso como en el.
+1:26:02 Franco Cappanera: en el hook, en el cual cada palabra tiene que estar pensada, y no pueden haber palabras de relleno, ni repetir algo, ni parafrasear algo, ni ejemplificar demás, cada palabra cuenta exactamente igual que en el hook, porque no les estás aportando un valor, sino que que estás extrayendo un valor, por eso
+1:26:20 Franco Cappanera: les estás extrayendo valor a las personas, por eso en el hook es tan importante cada palabra que usas, porque justamente vos estás vendiéndoles a las personas que miren tu video.
+1:26:28 Franco Cappanera: Después estás aportándoles valor, entonces ellos se van a quedar porque les estás aportando un valor, y cuando estás haciendo el call to action, les estás pidiendo algo de vuelta.
+1:26:34 Franco Cappanera: Dale, está vendiendo entonces a vueltas tenés que medir muy bien cada palabra que usás. Entonces básicamente punto 7 sería a la hora de ¿Cómo decirlo?
+1:26:42 Franco Cappanera: De entregar esto, de hacer esto, o sea de decir la palabra de acuerdo a la acción en el video, que no sobre ni una sola palabra.
+1:26:50 Franco Cappanera: que cada palabra esté pensada para aumentar lo máximo posible el valor percibido de lo que vas a dar, la probabilidad percibida de que consigan resultados, mostrarlo como lo más low effort posible para ellos, para lograr resultados si aplican esto, 
+1:27:02 Emanuel Mendoza: que consigan el resultado lo más grande 
+1:27:05 Francisco Doglio: posible y demás. 
+1:27:06 Franco Cappanera: Pero va a que no sobre ni una sola palabra 
+1:27:08 Francisco Doglio: cuando vos estás diciendo el CTA y que no va a ser básicamente dar como soluciones genéricas o algo genérico, sino que lo que tendría que hacer sí sería algo específico, o sea, algún problema bueno que cumpla con los siete puntos que dije recién, básicamente.
+1:27:22 Francisco Doglio: Pero que no va a hacer por ejemplo un mal hook, 
+1:27:24 Franco Cappanera: un mal llamado a 
+1:27:26 Francisco Doglio: la acción es, si quieres ver una clase donde explico más a detalle esto, comenta X palabra. Eso es un error, es muy malo porque no cumple con nada de lo que expliqué anteriormente.
+1:27:36 Francisco Doglio: Y bueno, llamados a la acción básicamente expanden sobre el el mismo 
+1:27:39 Emanuel Mendoza: tema que explico en el vídeo también. No es algo genérico, no es un vídeo genérico, sino que expande sobre el mismo tema.
+1:27:46 Emanuel Mendoza: Entonces la gente ya, la idea, el concepto del vídeo es buena, la gente se va a interesar en eso, va a creer en de escuchar más sobre el tema y va a venir a vos a comentarte este recurso para expandir en ese mismo tema del video, o sea que también está alineado con el tema del video, ¿sí?
+1:28:06 Franco Cappanera: Eso. Bien 
+1:28:17 Emanuel Mendoza: Esta, ¿la 20 decís de 
+1:28:19 Franco Cappanera: hacerla o me doy el pedo? Nada, creo que no tiene sentido No, yo tampoco. 
+1:28:32 Francisco Doglio: Capaz la 22 sigue igual, ¿no? 
+1:28:35 Emanuel Mendoza: Sí, sí, creo que igual ya respondimos bastante, pero para aclararlo. O sea, va a ser así, sí. Ok, las últimas preguntas.
+1:28:43 Emanuel Mendoza: Las tres preguntas que vamos a hacer ahora, capaz son 
+1:28:44 Franco Cappanera: repetitivas porque ya tocaste los temas, pero es para dejar algo concreto de esto. Número 22. ¿Cómo identificás si un video tiene un problema de estructura versus un problema de temática versus un problema de ejecución?
+1:29:11 Emanuel Mendoza: de la vida. 
+1:29:15 Francisco Doglio: Yo lo analizo uno por uno en realidad, primero voy por el mas importante, es como un dominio en realidad. La cosa es que vos puedes, tener muy bien la ejecución, pero que si la estructura o la idea estan mal la ejecución no tiene sentido.
+1:29:31 Francisco Doglio: Puedes tener muy bien la ejecución y la estructura también, pero si la idea es mala no va a funcionar. Ahora, si la idea es buena, realmente el resto se vuelve irrelevante, o sea, se vuelve mucho menos relevante, pero, Lo que haría sería analizar una por una empezando desde el problema más grande que
+1:29:52 Francisco Doglio: suele ser la idea, el concepto del video. Después me centro en la estructura y después me centro en la ejecución y cada una tiene como sus filtros para asegurarse de que, de si está bien hecho o no realmente, los filtros de cuál es una buena idea, un buen concepto, ya los hablamos.
+1:30:09 Francisco Doglio: Los filtros de cómo narrarlo de la forma correcta, también los hablamos. Entonces, iría pasando como si fuera un filtro en cada una de ellas, primero empezando con por la idea o concepto, después en la estructura y después en la ejecución, mirando por ejemplo a nivel visual si es muy repetitivo o no,
+1:30:29 Francisco Doglio: o a nivel de la velocidad con la cual lo estás hablando, por ejemplo, si es la correcta o no, pero iría una por una yendo por capas.
+1:30:35 Francisco Doglio: Primero desde la idea, el concepto, que es lo que más influye, después la estructura y después la ejecución, que entiendo que ejecución es cómo lo grabás, cómo lo decís, cómo se ve.
+1:30:46 Francisco Doglio: Sí, y en ese orden. Y en ese orden, cada uno mirando los filtros. Sí, o sea, filtrando cada uno. 
+1:31:07 Franco Cappanera: El primero es, ¿qué hace que la gente guarde un video? ¿Qué patrón narrativo o de valor activa el save? Cuando vos decís, tipo, que el video sea 
+1:31:15 Francisco Doglio: guardable. OK, ¿qué hace que un video sea guardable? Lo primero, que sea un tema específico del cual estás hablando. Una solución completa a un 
+1:31:25 Franco Cappanera: problema 
+1:31:25 Francisco Doglio: específico. 
+1:31:26 Franco Cappanera: Tanto como un lead 
+1:31:27 Francisco Doglio: magnet tiene que ser una solución completa a un problema específico. Un reel de reputación en el cual vos solucionas un problema específico.
+1:31:35 Francisco Doglio: O sea, un reel de reputación donde vos explicás algo. Específico de tu nicho para mostrarte como autoridad también tiene que ser una solución completa a un problema específico.
+1:31:46 Francisco Doglio: Entonces, número uno, tema específico, solución completa a un problema específico. Número dos, que el insight, o sea, la realidad es que.
+1:31:56 Francisco Doglio: Lo que hace que un video sea guardable es que logre generarle la sensación a las personas en la mente de esto es muy bueno, tengo que aplicar esto.
+1:32:02 Francisco Doglio: Ahora, acabo de recibir y procesar tanta información, acabo de recibir más información de la que pude procesar mientras estaba mirando el video.
+1:32:08 Francisco Doglio: Entonces sí saqué que es interesante, sí saqué la big idea de lo que tengo que aplicar. pero a nivel más específico para poder ejecutarlo, llevarlo a la práctica, esto que me está mostrando necesito verlo después, necesito verlo de vuelta o necesito enviárselo a alguien, entonces por eso tengo que guardarlo
+1:32:24 Francisco Doglio: . Si vuelvo a generar esa sensación en las personas, las personas lo van a guardar. así o sí. 
+1:32:29 Franco Cappanera: Uy, esa última, esa última parte es clave. Muy, muy clave. Realmente es eso. Si lo piensas en los vídeos que tienen más porcentaje guardados, es eso.
+1:32:40 Franco Cappanera: Y un vídeo que tiene más porcentaje guardados, o sea, dentro del formato de vídeo, Debe. Reputación, el guardado es lo más importante.
+1:32:48 Franco Cappanera: Y si tienes un buen porcentaje de guardados, ganaste. Y para tener un buen porcentaje de guardados, todo se trata de eso realmente.
+1:32:56 Franco Cappanera: El tema, y que si cumple con lo del tema, idea, barra, la 
+1:33:11 Emanuel Mendoza: aplicación. 
+1:33:16 Francisco Doglio: Compartir, pero mismo concepto, ¿qué hace que un Reel sea compartible? 
+1:33:21 Franco Cappanera: Ok, ¿qué hace que un Reel sea 
+1:33:23 Emanuel Mendoza: compartible? Algunas cosas que hacen que un Reel sea compartible es, por ejemplo, que sea low effort, la aplicación de ese insight que vos estás dando, de que sea fácil la aplicación.
+1:33:32 Emanuel Mendoza: de que por ejemplo si yo se lo envío a un colega o a alguien de mi equipo o a un compañero que está pasando el mismo proceso que yo, etcétera, depende del nicho, pero que si yo se lo mando me puede beneficiar porque o bien necesito a alguien para aplicarlo o bien se lo quiero compartir con él.
+1:33:48 Emanuel Mendoza: cabe bien porque sé que le va a interesar, o bien creo que es algo nuevo que no sabéis, pero sobre todo generar la sensación de que si lo comparto me va a generar algún beneficio a mí.
+1:33:58 Emanuel Mendoza: Todo está en que al final las personas solo van a hacer algo si creen que eso les va a beneficiar, entonces simplemente generar la sensación de que crean que 
+1:34:04 Franco Cappanera: lo van va a beneficiar el hecho de compartir ese 
+1:34:06 Francisco Doglio: video. Y también es que, naturalmente, el tema del videotipo, esto todo vuelve al concepto del video también, que el concepto del video sea un concepto que las personas, sobre todo cuando lo comparten, es porque es algo o bien low effort para aplicarlo, o bien muy nuevo que a otros Otro colega u otra
+1:34:21 Francisco Doglio: persona que tiene el mismo nivel de conciencia que la persona que está mirando este video le pueda interesar también. Entonces la persona que está mirando el video siente la necesidad de compartir eso Y también viene del hecho de hablarle a la gente tu seguidor ideal y no a tu cliente ideal, ya que si
+1:34:40 Francisco Doglio: le hablas a tu seguidor ideal es un vídeo mucho más compartible. Entonces vos le hablás, que también es otro concepto, es como hablarle a la audiencia de tu audiencia, hablarle a las personas con las que se relaciona tu audiencia, no sólo a tu audiencia, sino que les iba a traer también es que todo se
+1:34:53 Francisco Doglio: trata de hablarle a tu seguidor ideal. Si le das solo a tu cliente ideal, solo le llega a él y él no se lo compartiría a nadie.
+1:34:59 Francisco Doglio: En cambio, si le das a tu seguidor ideal, o sea, si le das a tu cliente ideal, es un error.
+1:35:03 Francisco Doglio: Si le das a tu seguidor ideal, también es mucho más compartible el video. Sí, porque el grupo de personas al cual le vas puede llegar a aportar, le puede llegar a servir, es un poco más grande, pero es todo dentro de un círculo de personas, que dentro del círculo de personas se encuentra tu clientelidad
+1:35:18 Francisco Doglio: . Eso es todo, gracias a compartir, 
+1:35:20 Franco Cappanera: impecable. 
+1:35:25 Francisco Doglio: con eso cerramos el bloque de estructura narrativa. 
+1:35:30 Emanuel Mendoza: Bloque número 
+1:35:31 Francisco Doglio: 4, métricas y cómo las lee Fran. ¿Preguntas? Literalmente le dijimos a la IA que estamos haciendo para programar el sistema que queremos, tipo, succionar el cerebro de Fran y colocárselo a ella.
+1:35:52 Francisco Doglio: Ese fue el problema. Así que, hasta luego. 
+1:35:57 Franco Cappanera: Y este sería básicamente la primera pregunta para vos, ¿cuál es la métrica más importante en un reel y por qué?
+1:36:06 Franco Cappanera: Y si lo tenés que dividir en categorías, hacelo, no pasa nada. 
+1:36:09 Francisco Doglio: Ok, ok, ok, hay muchas métricas que son importantes. La primera, como dije, teniendo en cuenta que el video le habla a la persona correcta que le queremos hablar, si vos le estás hablando a la persona correcta y no te estás yendo de tema hablándole a una persona que no es la correcta, es un problema,
+1:36:27 Francisco Doglio: que de hecho algo que me gustaría definir. De hecho, ¿cuándo es bueno que un video le llegue a mucha gente?
+1:36:33 Francisco Doglio: Porque tiene que pasar dos filtros. Mirá, dame un segundo. Porque para responder esto, 
+1:36:38 Emanuel Mendoza: esta respuesta va a estar buena. One second. Que voy a abrir lo que le tengo acá. Miro. 
+1:37:02 Francisco Doglio: Ok, dame un segundo. Esta respuesta 
+1:37:08 Franco Cappanera: va a estar buena. 
+1:37:20 Francisco Doglio: Ok, ahora que no tengo tanto, Rampositioning, Ok, teniendo en cuenta que siempre le vamos a estar hablando a la persona correcta.
+1:37:53 Francisco Doglio: El hecho de que un video funcione, yo siempre me hago las siguientes preguntas para filtrar la idea. Lo primero es.
+1:38:03 Francisco Doglio: ¡Gracias! este vídeo, o sea, cuando yo veo un vídeo o un estilo o algo que yo quiero adaptar a mi caso, primero me pregunto, ¿puedo aplicar esto en mi nicho?
+1:38:14 Francisco Doglio: ¿Sí puede funcionar o no? Si no, lo descarto. Si sí puede funcionar, me hago la siguiente pregunta. ¿Puedo genuinamente cambiarle algo?
+1:38:22 Francisco Doglio: agregarle algo para que no sea exactamente copiar otro vídeo, si no puedo hacerlo y tendría que copiarlo exactamente, lo descargo.
+1:38:29 Francisco Doglio: Si puedo hacerle algo, perfecto. 
+1:38:32 Franco Cappanera: Después vamos a la siguiente pregunta. 
+1:38:35 Francisco Doglio: ¿Puede atraer? O sea, ¿esto va a atraer? a mi seguidor ideal? Sí o no? Si la respuesta es sí, la pregunta para confirmar si esto es sí o no es imagínate que este vídeo tiene un millón de visitas, o sea, si este vídeo lo ve un millón de personas ¿Esto realmente, o sea, vos querrías que un millón de personas
+1:38:58 Francisco Doglio: te sigan de este video? O sea, que te vean un millón de personas y te empiecen a seguir en base a este video.
+1:39:04 Francisco Doglio: Si vos te haces esta pregunta y la respuesta correcta es sí, hacelo. Pero muchas veces, los videos, que por eso no me gusta tanto hacer contenido simplemente viral por ser viral.
+1:39:15 Francisco Doglio: Acá la respuesta es no en esta última pregunta. Puedo responder que sí a todas las anteriores, pero a esta última no.
+1:39:19 Francisco Doglio: ¿A qué? Si este video la rompe y tiene un millón de visitas, no me gustaría que esa gente me siga.
+1:39:25 Francisco Doglio: Muchas veces pasa eso. de que las personas hacen vídeos muy mainstream, muy genéricos, que dicen quiero llegar a la audiencia nueva.
+1:39:30 Francisco Doglio: Ahora, si este vídeo tiene un millón de visitas y te arrancan a seguir 50.000 personas en este vídeo, ¿a vos te gustaría?
+1:39:35 Francisco Doglio: ¿Crees que te ayudaría a ganar más plata? ¿Crees que esta gente te siga? Muchas veces la 
+1:39:39 Emanuel Mendoza: respuesta es no. Ahora, en el caso de que pasen todos estos filtros, Si la respuesta de todos estos filtros sea sí, entonces la métrica número uno es las visitas.
+1:39:49 Emanuel Mendoza: Muchas veces, hay veces en las cuales las visitas no tienen sentido porque no pasa todos estos filtros que acabo de nombrar.
+1:39:55 Emanuel Mendoza: Ahora si los pasa, la métrica número uno es las visitas. porque si tiene muchas visitas y cumple con todo esto, es excelente.
+1:40:02 Emanuel Mendoza: Realmente lo que buscamos es que tenga la mayor cantidad de visitas posible, cumpliendo con todos estos factores que estos son los factores que te filtran el hecho de si le llega a tu seguidor ideal o no.
+1:40:11 Emanuel Mendoza: Después, para ir más específico dentro de. De cada métrica, la realidad es que hay que analizar las métricas de interacción, tanto las de visitas como las de interacción, pero dicho lo de las visitas es las de interacción, en base al promedio que tiene la cuenta de Instagram.
+1:40:26 Emanuel Mendoza: Entonces nosotros vamos a tener todas las métricas en promedio que tienen los videos de cierta cantidad. cuenta de Instagram. Y lo que vamos a buscar, lo que nos interesa sacar, además de la cantidad de interacciones, es el porcentaje de las interacciones sobre las visitas que tiene el vídeo.
+1:40:43 Emanuel Mendoza: Depende cuál sea el vídeo, sobre todo si es un un video de reputación, las métricas suelen ser guardados y comentarios a un llamado a la acción.
+1:40:56 Emanuel Mendoza: Sin embargo, en los videos de conexión, la métrica principal suele ser o las dos métricas principales suelen ser cortas y compartidos o 
+1:41:03 Francisco Doglio: guardados. 
+1:41:04 Emanuel Mendoza: Esas son las métricas principales. Ahora, en todos los casos, vamos a analizar todas las métricas que tenga, porque depende un poco de la naturaleza 
+1:41:09 Francisco Doglio: de cada río. 
+1:41:10 Franco Cappanera: Entonces, vamos a analizar todas las métricas que tengamos y vamos a analizar el porcentaje de esas métricas sobre las visitas que tiene cada ¿Para eso lo podemos sacar o no?
+1:41:37 Franco Cappanera: No, ¿no? Ok, 
+1:41:38 Emanuel Mendoza: entonces no, no me fijo en 
+1:41:40 Francisco Doglio: eso. 
+1:41:42 Franco Cappanera: Me 
+1:41:42 Francisco Doglio: fijo en, 
+1:41:43 Franco Cappanera: No, no me fijo en eso. No me fijo en eso. Me fijo 
+1:41:47 Francisco Doglio: en, A ver, déjame ver, Si, en 
+1:41:57 Emanuel Mendoza: realidad creo que es 
+1:42:00 Francisco Doglio: eso. 
+1:42:07 Franco Cappanera: ¿Qué tipo de cosas analizas en un video? Blablabla, tipo una caída hacia abajo. Claro, sí. A ver, igual puede haber, por ejemplo, en los videos 
+1:42:15 Emanuel Mendoza: de reputación, o sea, de autoridad, que también te muestre 
+1:42:20 Francisco Doglio: que tengas una mucho útil ver día a día 
+1:42:41 Franco Cappanera: la gráfica de cómo va aumentando la cantidad de visitas a medida que pasan los días, por ejemplo, si la gráfica de un vídeo, capaz que les puedo mandar una captura de esto, bueno no sé, pero fíjense la gráfica de este vídeo.
+1:42:55 Franco Cappanera: Este video tiene 
+1:43:05 Francisco Doglio: Este vídeo por ejemplo tiene 111.000 visitas ahora la gráfica está entrando en un punto en el cual yo sé que a partir de ahora las visitas Y si necesitas, van a bajar la cantidad de personas a las cuales se los 
+1:43:13 Franco Cappanera: muestran. Este es un vídeo súper ganador, pero que ya su vida útil está terminando. En cambio, por ejemplo, este otro vídeo, fíjense que su vida útil todavía va a seguir, va a seguir, o sea, todavía le quedan por lo menos 48 horas en las cuales se va a seguir mostrando.
+1:43:26 Franco Cappanera: Entonces también me fijo en eso. Por ejemplo, es una métrica a la cual analizo, para entender el potencial que tiene el vídeo también.
+1:43:32 Franco Cappanera: Porque si el vídeo ya, la curva de la cantidad de visitas que está aumentando día a día, ya se está volviendo más plana, te dice que ese reel ya está muriendo, las métricas son esas.
+1:43:44 Franco Cappanera: En cambio, si está aumentando consistentemente día a día y todo indica que va a seguir aumentando y va a seguir teniendo potencial, es un vídeo el cual es mejor automáticamente porque la gráfica te está diciendo que Instagram lo va a seguir mostrando.
+1:43:58 Franco Cappanera: Capaz hoy no tiene todas las interacciones que debería tener. que debería tener, pero simplemente es cuestión de tiempo porque cumple con las métricas, cumple con las visitas, cumple con los porcentajes de métricas sobre la cantidad de visitas que debería tener y la gráfica te está indicando que va a
+1:44:08 Franco Cappanera: seguir teniendo alcance. Por ejemplo, viene en este. Murió. Pero sí, sí, sí, sí. Eso creo que estaría bueno, lo podríamos sacar, lo haría más visual el arco, está bueno, lo podríamos tener.
+1:44:23 Emanuel Mendoza: Sí, está en el plan ahora de integración esa función porque 
+1:44:26 Franco Cappanera: lo vamos a hacer nosotros, tipo en el backend la lógica, porque Instagram no te da tiempo. una llamada que decía bueno, 
+1:44:35 Francisco Doglio: dame tipo todos los días las vistas de este vídeo pero lo que sigamos a hacer, mismo sistema que Metricool, desde el día que conectas la cuenta arranca a tomar esas métricas, o sea, día uno genera tipo el punto cero de todos los vídeos y a mierda ya que vayas conectando arcos y podes ir nutriendo día
+1:44:50 Francisco Doglio: 2 esto, día 3 y te va a ir formando la gráfica sola pero desde el punto cero, no podemos ver hacia atrás.
+1:44:55 Francisco Doglio: Ah 
+1:44:56 Emanuel Mendoza: ok, ah no podemos conectar ya la 
+1:44:57 Francisco Doglio: mía así para cuando la arranca a usar ya tenemos, aunque ni la podamos usar por lo menos para que ya vaya sacando.
+1:45:14 Francisco Doglio: la próxima. De alguna, capaz ya lo podemos hacer mañana eso y lo conectamos mañana. Épico, épico, de alguna. Pero ok, sigamos, sigamos, sigamos.
+1:45:29 Francisco Doglio: No, esa era la respuesta, si yo creo que de esa manera analizo las métricas. Si, si, si, si. 
+1:45:35 Franco Cappanera: Ok, perfecto. eeh.. ella fue larguita, no? 
+1:45:39 Francisco Doglio: sí si, 
+1:45:40 Franco Cappanera: si creo que nada 
+1:45:41 Emanuel Mendoza: más 
+1:45:41 Francisco Doglio: pero creo que las preguntas esas preguntas que hice están clave tipo, están buenas tipo, el filtro para saber si te vale la pena mostrárselo a mucha gente 
+1:45:50 Emanuel Mendoza: eeem, Y guei para, para, A esto de los videos, igualmente, en el peor de los casos, podemos jarcotear, tipo, si me decís, bueno, voy a grabar el video mostrando estos tres videos, por ejemplo, podemos, tipo, simularle la gráfica.
+1:46:06 Francisco Doglio: Ok, me gusta. así. 
+1:46:10 Franco Cappanera: Ahora me coge la cabeza por eso, sí, 
+1:46:12 Emanuel Mendoza: sí, 
+1:46:13 Franco Cappanera: sí. Emma, de estas siguientes, 
+1:46:16 Francisco Doglio: ¿cuáles te parecen? Para mí la 29 va, La del 26 ya dijo él que el Hulk Ragnarok tampoco es como el o 
+1:46:24 Emanuel Mendoza: depende del promedio de la cuenta, no hay un número. Sí, es que… sí, capaz que tipo respuestas rápidas, tipo de la 28 y la 29.
+1:46:39 Franco Cappanera: Sí, 
+1:46:39 Emanuel Mendoza: claro. 
+1:46:40 Franco Cappanera: Responde… En una oración, Fran, tipo, lo primero que se te venga a la mente. ¿Cómo interpretás un vídeo con muchas views pero pocas interacciones?
+1:46:48 Franco Cappanera: ¿Qué hipótesis bajás? Muy general la idea, ¿no? 
+1:46:58 Francisco Doglio: Porque le habla a un 
+1:46:59 Franco Cappanera: público 
+1:46:59 Emanuel Mendoza: muy general. Sí, posiblemente. Es que, 
+1:47:08 Francisco Doglio: Interacciones, Sí, probablemente. 
+1:47:10 Franco Cappanera: Le habla a un público 
+1:47:11 Emanuel Mendoza: muy general. 
+1:47:12 Francisco Doglio: Sí. 
+1:47:14 Emanuel Mendoza: Y la otra, 
+1:47:16 Francisco Doglio: ¿cómo interpretás un video con, 
+1:47:18 Franco Cappanera: Igual alas a tu seguidor ideal, 
+1:47:20 Francisco Doglio: no va a pasar eso. Sí, es que no alas a tu seguidor ideal. Perdón, ¿cuál era la otra? 
+1:47:26 Franco Cappanera: La otra es, ¿cómo interpretás un video con, Pocas views pero altísimo engagement rate. 
+1:47:34 Francisco Doglio: Es un video en el que le hablás a 
+1:47:35 Emanuel Mendoza: tu cliente ideal. 
+1:47:38 Franco Cappanera: No, seguidor. Es un error 
+1:47:40 Francisco Doglio: también. Pues le estás hablando ahí 
+1:47:43 Emanuel Mendoza: porque te está limitando la electricidad. Sí, sí, sí, sí, es un error. Uno es que le estás hablando demasiado amplio y otro demasiado nichado.
+1:47:51 Emanuel Mendoza: Perfecto. Y te estás limitando a más alcance, que es la cantidad de interacciones totales. Sí, porcentualmente sería un poco más bajo, pero en total sería, sería mayor, llegarías a más personas que te podrían comprar, ¿sí?
+1:48:16 Emanuel Mendoza: tipo extraordinario, no? 
+1:48:19 Franco Cappanera: Eso es extraordinario, 
+1:48:21 Francisco Doglio: pero por encima de, No, eso sacaría el 
+1:48:24 Emanuel Mendoza: promedio nada más, el promedio de la cuenta. El 
+1:48:26 Francisco Doglio: promedio 
+1:48:26 Emanuel Mendoza: de la cuenta y que 
+1:48:27 Francisco Doglio: supere el promedio. 
+1:48:33 Franco Cappanera: si me tiene mucho jefe el club que aprendas noo creo 
+1:48:38 Emanuel Mendoza: que de esas no hay mucha para no si la AP de youtube como esta 
+1:48:44 Franco Cappanera: yo creo que es la mejor youtube 
+1:48:45 Francisco Doglio: estudio jodo 
+1:48:47 Emanuel Mendoza: si si la AP Creo que la 
+1:48:49 Franco Cappanera: app es la más completa, ¿no? 
+1:48:52 Emanuel Mendoza: Trae bastante data, sí. Y YouTube tiene muchos scrappers públicos, o 
+1:48:57 Francisco Doglio: sea, Se puede, tipo, traer data sin manantiar cuentas ni nada, que es lo que yo, por ejemplo, con YouTube Hunter, la aplicación que 
+1:49:06 Franco Cappanera: ¿Qué pensás de la 34 Oema? No, me gusta más la 34 porque vamos a tener que analizar contenido orgánico y pago.
+1:49:24 Emanuel Mendoza: ¿Qué diferencia hay en la lectura de métricas entre contenido orgánico y ese mismo contenido con pauta arriba? 
+1:49:39 Francisco Doglio: Ok, siempre lo que vamos a buscar, siempre está claro, que al vos ponerle pauta a un video el porcentaje de interacción que va a tener va a ser menor que cuando ese video lo publicaste orgánicamente.
+1:49:51 Francisco Doglio: Entonces lo que vamos a buscar va a ser, mantener el porcentaje de interacción cuando le pones anuncios, versus cuando no le hayas puesto anuncios, lo más parecido posible.
+1:50:05 Francisco Doglio: O sea, que baje lo menos posible al ponerle anuncios. ¿Cuál es la diferencia al mirar las métricas? Las métricas que más nos interesan son las mismas.
+1:50:14 Franco Cappanera: Métricas de Ads, tenemos ciertas métricas de Ads. Ahora métricas en cuanto a interacción, en cuanto a métricas de Reel. Realmente son las mismas, simplemente buscamos que se mantengan lo más similares posible cuando le ponemos Ads.
+1:50:25 Franco Cappanera: nada más, pues siguen siendo las más métricas de éxito, porque estamos hablando de follow me ads, hablando de follow me ads es eso.
+1:50:41 Emanuel Mendoza: 34 no tiene mucho sentido. Vamos a ir a lo 
+1:50:44 Franco Cappanera: más, 
+1:50:48 Emanuel Mendoza: Bueno 
+1:50:48 Francisco Doglio: salimos de este bloque. 
+1:50:51 Franco Cappanera: Bloque 5, y este creo que de todo lo que hemos hablado hasta ahora va a ser el bloque más rápido, que es el de análisis visual y de foto.
+1:50:57 Franco Cappanera: formato. 
+1:50:59 Emanuel Mendoza: Es que creo que esto es lo que venía pensando que ya hablamos y va a ir todo mucho en el D&D esto, o 
+1:51:03 Franco Cappanera: sea, Exacto. No, creo que acá no tiene ni mucho sentido profundizar porque 
+1:51:11 Francisco Doglio: son preguntas muy complicadas. por ejemplo, el tipo 
+1:51:15 Emanuel Mendoza: de plana. 
+1:51:16 Francisco Doglio: Ah, no, eso no. 
+1:51:18 Emanuel Mendoza: Eso sí varía en cada DNA. 
+1:51:20 Francisco Doglio: Pero por ahí el criterio para analizar cuándo lo que hiciste visualmente está bien o cuándo no. 
+1:51:25 Emanuel Mendoza: Claro. Yo creo que toda esta cosa visual va a ser tipo al revés el análisis. Porque la IA analice ya con las métricas cuáles son los que más les funciona a ese creador 
+1:51:34 Francisco Doglio: y no al revés creo 
+1:51:37 Emanuel Mendoza: yo. Cuáles son los que más les funcionan a ese 
+1:51:39 Francisco Doglio: creador y también en base a la data que va a tener el DNI, qué es lo que hacen sus competidores para, sacar lo mejor de sus competidores, pero al mismo tiempo asegurarse de no haberte exactamente igual a tus competidores.
+1:51:53 Francisco Doglio: Y también cosas como que visualmente vos estés resaltando tus mayores, las cosas que hacen más únicas a tu personaje también.
+1:52:02 Francisco Doglio: Bien, por ejemplo, si vos tenés como activo que ganaste cierto premio, cierto reconocimiento, mostralo en tu video, que aparezca en el fondo de tu video colgado en la pared.
+1:52:11 Francisco Doglio: ¿Por qué mostrarías una pared blanca si uno de tus activos es que vivís en una mansión increíble y la gente te compra por eso?
+1:52:18 Francisco Doglio: O sea, creo que una cosa sería lo que dijiste, analizar lo que le funciona a ese creador visualmente más a los videos que mejor le funcionaron, después analizar lo que hacen los competidores, para no ser exactamente igual, pero sea apalangante lo que le funciona a ellos, y en base al DNA también, estos
+1:52:33 Francisco Doglio: dos últimos son más o DNA. En base al DNA también, analizar que vos estés exprimiendo lo máximo posible todos los aspectos, todos los activos y todo lo de tu personaje de marca.
+1:52:44 Francisco Doglio: Sí, las tres principales. Si aplica eso, va a variar mucho dentro de cada DNA, pero si aplica Y aplica a eso en el análisis visual.
+1:52:53 Francisco Doglio: Hay 
+1:52:53 Emanuel Mendoza: que profundizar tanto en el DNA como, por ejemplo, esto de los competidores. ¿Cómo va a ser la guía para extraer toda la info de los competidores y 
+1:53:01 Francisco Doglio: tenerla ahí? 
+1:53:03 Emanuel Mendoza: De hecho, yo lo que creo es que vamos a tener que poner dentro del typefont. Tengo que grabar muy lento.
+1:53:06 Emanuel Mendoza: me escriben sus comentarios. 
+1:53:22 Francisco Doglio: y también transcribir los más recientes, también hay servicios tipo Aria Análisis Hard, 
+1:53:27 Franco Cappanera: que podemos o bien mandarles un número a la gente y pedirles que lo hagan, o bien hacerlo de nuestro lado, o bien encontrar una forma en la que Arco IAI pueda hacerlo solo, simplemente dándole las cuentas.
+1:53:40 Emanuel Mendoza: Tengo una idea que se puede llegar a poder hacer. Hay que definir un poco todas las fases porque si 
+1:53:46 Francisco Doglio: metemos todo esto para ahora va a estar complicado. 
+1:53:50 Emanuel Mendoza: No, no, no tiene sentido. 
+1:53:52 Francisco Doglio: Y sobre todo van a haber muchas preguntas de en el formulario, en base a cómo ellos sienten que está su mercado actualmente, o sea, esa pregunta dice una banda, porque realmente si yo te pregunto en tu nicho, cómo está, o sea, ¿cómo describirías la situación actual de contenido en Instagram en tu nicho
+1:54:10 Francisco Doglio: ? Vos podrías decir a una banda, tipo, no, todo el mundo está haciendo esto, la tendencia actual es esta, a veces que he probado esto, y eso le va a una banda a Tabarco.
+1:54:17 Francisco Doglio: Así que ese tipo de preguntas creo que van a ser claras. Sí, y eso no requiere tanto, tanto laburo de 
+1:54:22 Emanuel Mendoza: programación. No, no, no, eso no, eso está bueno. No, la única parte compleja es eso, es parte de, de los competidores, pero no, se puede extraer igualmente.
+1:54:31 Emanuel Mendoza: Tengo algunas ideas, así que está. 
+1:54:33 Francisco Doglio: Nice. Ok, ok. Entonces, ¿seguimos con el siguiente bloque? Sí, yo creo que sí. Sí, ok. 
+1:54:46 Franco Cappanera: Que también es más o menos lo mismo. Es Tony Bossi de Libri, así que va por ese lado, pero, 
+1:54:53 Francisco Doglio: Sí, va 
+1:54:53 Franco Cappanera: por el mismo. Ah, banco. 
+1:54:54 Francisco Doglio: El cual, literal, la respuesta está el cual, la misma. Ok. 
+1:54:58 Emanuel Mendoza: Aplica exactamente. para eso. pero capaz que para el análisis de Arco no es tan tan importante o no en este punto porque va a estar analizando tipo métricas de vídeos 
+1:55:22 Franco Cappanera: capaz que no sé si tiene mucho sentido meterse en personaje como le fue a los últimos cinco reels en 
+1:55:30 Emanuel Mendoza: esto de acuerdo pero Pero mi pregunta acá sería, nos saltamos el bloque de estrategia de 
+1:55:34 Franco Cappanera: contenido, ¿no querés hacer la pregunta 51? 
+1:55:42 Francisco Doglio: Bueno, 
+1:55:42 Franco Cappanera: sobre el personaje 
+1:55:44 Francisco Doglio: no quieren, tengo la clase del notion que son tres cosas. en el 
+1:55:48 Emanuel Mendoza: futuro. 
+1:56:03 Francisco Doglio: son las importantes que tienen que tener en cuenta. Bueno, capaz que no, capaz que sea el peor, eso me dirán ustedes.
+1:56:08 Francisco Doglio: No, 
+1:56:08 Franco Cappanera: no, si, todo eso 
+1:56:09 Francisco Doglio: suma. 
+1:56:12 Emanuel Mendoza: ¿Podemos darle un contexto de qué es el personaje y que después lo tomen el DNA? 
+1:56:17 Francisco Doglio: Claro, es que por eso creo que es aclaración. Esa sería clave, porque ahí explico eso, explico la importancia, explico los distintos 
+1:56:23 Franco Cappanera: componentes. Y 
+1:56:25 Emanuel Mendoza: el personaje es medio multiplataforma, ¿no? Creo yo que lo va a tener en cuenta tanto para, O sea, para todo.
+1:56:31 Francisco Doglio: Sin 
+1:56:32 Emanuel Mendoza: dudas. Sin dudas. Ahí yo estoy imaginándome como 
+1:56:34 Franco Cappanera: la, la estructura de la base de datos y de la información y todo lo que es dna y personajes esas cosas van a estar como una capa global y después vamos a tener como ámbitos más como 
+1:56:47 Emanuel Mendoza: privados de bueno esto es para instagram pero si vamos para youtube Se sigue manteniendo todo lo que es el personaje, todo esto, 
+1:56:54 Francisco Doglio: es como una estructura extraña, pero está bueno. Sí, nice. 
+1:57:02 Franco Cappanera: Bueno, perdón, te interrumpí. Estaba diciendo algo de la pregunta 51. ¿Qué porcentaje del contenido debería ser de alcance versus de conversión versus de comunidad?
+1:57:23 Emanuel Mendoza: Acá solo veo dos tipos de contenido, que 
+1:57:26 Francisco Doglio: son, Vamos a 
+1:57:31 Franco Cappanera: nombrarlos. Contenido de reputación y contenido de conexión. ¿Qué porcentaje? varía completamente de la cuenta de Instagram y de las necesidades que tenga esa cuenta de Instagram, ahora es importante que se incluyan los dos.
+1:57:46 Franco Cappanera: Y que ambos tengan siempre el objetivo de llegarle de vuelta a la mayor cantidad de personas posible dentro de tu idea del follower.
+1:57:59 Franco Cappanera: Después habría que ver si hay una forma de determinar la variable de porcentaje dependiendo del DNA, 
+1:58:05 Francisco Doglio: pero no sé ni 
+1:58:06 Franco Cappanera: cómo. Bueno, de hecho eso creo que podría estar bueno en el gráfico insertar, ¿cuál es tu estrategia de contenido? ¿Cuánto subí este formato y cuánto este otro?
+1:58:14 Francisco Doglio: Y que eso te muestre en una graficita porcentajes de contenido 
+1:58:18 Franco Cappanera: que tenés que adquirir. Ahora, ¿cómo estas son tipos? Porque viste que cualquier gurú o creador tiene sus diferentes tipos de contenido.
+1:58:27 Franco Cappanera: ¿Cómo las de atrás? de reputación y conexión, agregar algún tipo de tag, pero cómo identificaría automáticamente 
+1:58:33 Emanuel Mendoza: qué tipo es. Lo hacemos, sí, 
+1:58:36 Franco Cappanera: sí. 
+1:58:37 Emanuel Mendoza: ¿O la persona puede taggear manual o no? 
+1:58:40 Francisco Doglio: Las dos cosas. Lo 
+1:58:40 Franco Cappanera: podrían taggear manual, 
+1:58:41 Emanuel Mendoza: pero, No, yo lo pensé más como, que algunos campos de la IA sean tipo modificables. Por ejemplo, viste que yo te mostré que el análisis que decía la IA, tipo, te mostraba pila de campos, cosas así.
+1:58:52 Emanuel Mendoza: Bueno, que uno de esos campos sea este contenido, se entendió que fue de, claro, 
+1:58:59 Francisco Doglio: de reputación. Por ejemplo, y que si está bien que los de así, si no que los puedas tipo un drop down, bueno, no es de buena opción.
+1:59:04 Francisco Doglio: Y ahí lo vamos a seguir graficando. Pero que sea como una capa. 
+1:59:08 Emanuel Mendoza: Y si lo mismo, Mochi tiene eso, que se puede 
+1:59:10 Francisco Doglio: promtear, que tiene tags promteables, te lo había mostrado, ¿no? Creo que sí. 
+1:59:14 Emanuel Mendoza: Tiene 
+1:59:14 Francisco Doglio: tipo, Si el lead tipo vos, Te creaba tags y después poner, ay eso esta épico, no creo que sea tan complejo, me dirán ustedes, pero es como, se le dio como en DMs y ustedes van a entender la idea para aplicarla para Reels.
+1:59:28 Francisco Doglio: Pero es como, vos le creas un tag y le pones un prompt de un Si quieres que sea manual, simplemente crealo y vos se lo pones a cada video o a cada conversación, a cada lead.
+1:59:43 Francisco Doglio: O si quieres que sea conía y que sea tipo cuando la persona pregunta por ejemplo, por el precio o por los entregables del servicio, taggearlo como hotlink y que sea tipo si hablo sobre x tema o si lo explico o si visualmente estoy con pantalla dividida, ponerle el tag pantalla dividida.
+1:59:59 Francisco Doglio: Eso se puede hacer o no. Y eso está ético, es una norma biológica. 
+2:00:04 Emanuel Mendoza: Creo que queremos que la persona agregue tipo tipos de contenido personalizados por ejemplo. 
+2:00:11 Francisco Doglio: Le 
+2:00:11 Emanuel Mendoza: podemos sumar una parte que sea 
+2:00:13 Francisco Doglio: tags y que sea tipo que dentro de cuando vos lo abrís que te aparezca tipo una parte que es tipo tags, dos puntos y te puede pongo tipo los tags que tiene, si van con una banda y que ahí la persona le pueda poner tags para ellos y que viste donde tenías tipo para organizarlos, por ahí 
+2:00:29 Emanuel Mendoza: que lo puedas filtrar 
+2:00:30 Francisco Doglio: por tags, tipo por tags. 
+2:00:37 Franco Cappanera: Y así comparan solo, por ejemplo, dentro de los que tienen el formato pantalla y vídeo. Y les ponen sus tags y juegan con sus cosas.
+2:00:46 Franco Cappanera: Y eso lo haría re-customizable mal. Mal. Épico. Eso está épico. 
+2:00:55 Emanuel Mendoza: Sí, las va a re gustar 
+2:00:56 Francisco Doglio: eso, boludo. Las va a re gustar. 
+2:01:01 Franco Cappanera: Perfecto. 
+2:01:01 Francisco Doglio: Uff, 
+2:01:02 Emanuel Mendoza: gracias. 
+2:01:07 Francisco Doglio: Bueno, ¿Cuál es el ciclo de vida de un tipo de contenido y cómo sabés cuándo abandonarlo? 
+2:01:26 Emanuel Mendoza: Ok, bueno, para el ciclo de vida de un tipo de contenido, ¿cuándo debería dejar de hacer cierto formato? ¿O cuándo un reel va a dejar de tener encanso y va a morir?
+2:01:37 Emanuel Mendoza: Yo creo que vamos por el formato, cuando te das cuenta de que un formato está muriendo. comparándolo con el promedio de visitas que tenés en un promedio de tus reels 
+2:01:45 Francisco Doglio: y eso te va a decir, o sea, te va a alertar muy fácil cuando, o sea, ahí la IA va a detectar el patrón de, va a comparar el promedio de interacciones, de visitas, de todo y después le va a contestar con cuál es Es la diferencia entre los videos que no pasan el promedio y los videos que sí lo pasan, el
+2:02:02 Francisco Doglio: formato. El problema es el formato. Y ahí te detecta cuál es el problema, si es el formato, si es el tema, si es todo.
+2:02:08 Francisco Doglio: Ahí en este caso se está hablando de formato, pero puedes estar hablando del tema o hablando de hook, que cuando haces hooks, De enemigo, no.
+2:02:14 Francisco Doglio: X, sí. Comparando con promedio. 
+2:02:18 Franco Cappanera: Ok. Perfecto. Bueno, 
+2:02:24 Francisco Doglio: ¿a qué blog que 
+2:02:25 Emanuel Mendoza: pasamos? Ok, el 8 lo skippeamos, ¿no? 
+2:02:32 Franco Cappanera: Sí, no, yo estoy ya en el 12 y no hay, o sea, No, porque después esto es, esto es para la parte 20, no tiene mucho sentido.
+2:02:50 Francisco Doglio: Eso puede estar bueno. 
+2:02:52 Franco Cappanera: ¿Cuál? ¿Qué número? 88 
+2:02:55 Emanuel Mendoza: Si te muestran, 
+2:02:59 Franco Cappanera: Y es que igual es un, Eso es como la primera respuesta que hace de su boca, fijar el promedio. Es que creo que el bloque 12 podría ser tipo tal cual para el ADN 
+2:03:23 Emanuel Mendoza: Igual la 92 me gusta, que dice ¿Cuál es el problema de contenido más común que ves en creadores de 10 a 30 cames que quieran escalar?
+2:03:31 Franco Cappanera: Es buena 
+2:03:36 Francisco Doglio: Ok, por lo general las personas tienen dos problemas en cuanto a la adquisición de clientes, es o le necesitan que lo vean más personas o que lo vean mejores personas.
+2:03:48 Francisco Doglio: Entonces, dentro de cada uno uno vos te vas a dar cuenta que 
+2:03:52 Emanuel Mendoza: esto, a ver igual esto no sé si va tanto para Arco porque no sé si Arco va a 
+2:03:55 Francisco Doglio: analizar ventas, pero es uno de los dos problemas eso, cantidad de gente, o sea necesitas que más gente te escuche o que mejor gente te escuche, pero realmente todos Ambos problemas se resuelven haciendo contenido para tu seguidor ideal 
+2:04:12 Emanuel Mendoza: y que ese contenido en base a tu personaje de marca y 
+2:04:16 Francisco Doglio: demás resuene en tu nicho y que vos hagas contenido para tu seguidor ideal y que tus seguidores ideales, significa que le está llegando la gente correcta y a mucha cantidad de esa gente.
+2:04:42 Francisco Doglio: Entonces estás solucionando ambos problemas. El principal problema suele ser que no le hablan a eso, o bien lo hacen muy anichado o bien lo hacen muy mainstream.
+2:04:50 Francisco Doglio: Entonces no termina logrando ninguna de las dos. Sí, ya está dito. también teniendo ese problema. O bien cantidad, o bien calidad.
+2:04:57 Emanuel Mendoza: Yo creo que se puede simular bastante con, tipo, comparando las vistas, 
+2:05:02 Franco Cappanera: barras, interacciones. 
+2:05:05 Francisco Doglio: Sí. Se 
+2:05:06 Emanuel Mendoza: puede tener una visión clara. 
+2:05:08 Franco Cappanera: Sí, sí, sí, sí. Ok. 
+2:05:12 Emanuel Mendoza: Ok. Ah, igual creo que ya de preguntas, o sea, no sé si hay muchas más cosas interesantes, o sea, de cara a analizar números de Ritz porque después todas se van a, a otros topics las preguntas.
+2:05:28 Emanuel Mendoza: Sí, creo que más adelante vamos a tener que hacer otros. Sí, pero lo de esto creo que va yo para iterar y ya con algo andando que lo pueda probar Fran 
+2:05:37 Franco Cappanera: y ir tirando sobre eso. Lo que te iba a preguntar después, el tema de 
+2:05:44 Emanuel Mendoza: Arco, Ah, igual, bloque 15. 
+2:05:46 Franco Cappanera: Bloque 15 me gustó. 
+2:05:50 Emanuel Mendoza: Sí. 
+2:05:53 Franco Cappanera: La 106, sobre todo, está muy buena. 
+2:05:57 Emanuel Mendoza: Bueno, la verdad es 
+2:06:00 Francisco Doglio: Si 
+2:06:01 Franco Cappanera: el bot de Arco te imita analizando contenido, ¿cuál sería el mayor error que podría cometer? 
+2:06:16 Francisco Doglio: No jugársela con el feedback que da. Tendría que darte feedback que te permita tomar acciones y que no siempre te diga que sí a todo y que te confirme todas tus creencias, sino que te cuestione, que te proponga cosas que que te sugiere hacer cosas distintas, pero todas basadas en data y en lógica.
+2:06:35 Francisco Doglio: Obviamente que no alucinen ni inventen cosas, porque todo lo que dice, lo está diciendo arriesgando mi reputación. Entonces, todo lo que dice, algo como si lo dijera yo, entonces es clave que lo que todo lo que diga sea basado en datos.
+2:06:48 Francisco Doglio: Es una buena pregunta, boludo, que todo lo que diga sea basado en datos y que no esté inventando nada. Que cada cosa que te dice no solo te dé consejo aleatorio, sino que te justifique por qué es que eso es un buen insight, o por qué es que eso es algo que claramente deberías considerarlo.
+2:07:02 Francisco Doglio: Pero que los insights que te dé, que no sean vagos, vacíos, que realmente no te dice nada y es un consejo genérico que te lo podría decir GPT con un prom breve, porque por algo que estamos construyendo todo arco para que la data y las respuestas que te pueda dar sean lo más avanzadas posibles y que busque
+2:07:16 Francisco Doglio: darte lo que no te No sabés que no sabés, o sea que busque darle al creador lo que no sabía que no sabía en base a que puede llegar a analizar cosas que el creador nunca se fijaría y sacar patrones en base a toda la data que tienen, porque por eso le estamos dando tanta data.
+2:07:30 Francisco Doglio: Sí, pero no boludo, esta pregunta está épica. 
+2:07:38 Franco Cappanera: Bueno, creo que 
+2:07:41 Emanuel Mendoza: tu respuesta va a ser 
+2:07:42 Franco Cappanera: el concepto o la idea ganadora, pero por las dudas. ¿Qué cosas no se pueden analizar solo con datos? ¿Dónde hace falta el ojo humano sin reemplazo?
+2:07:56 Francisco Doglio: Yo creo que para, ¿Dónde hace falta el ojo humano? Es en el criterio para definir si lo que estás haciendo 
+2:08:04 Franco Cappanera: es, O sea, si lo que La idea es interesante, barra novedosa, se necesita un poco de criterio humano, y para un poco de criterio, realmente la idea puede hacer parte, pero ¿por qué se necesita criterio humano?
+2:08:21 Franco Cappanera: Porque hay que contrastarlo con la realidad. Lo que se está hablando en tu mercado hoy, con las sensaciones que vos tenés como persona que se mueve en el mercado, las sensaciones que tenés vos sobre los temas que se suelen hablar, sobre las opiniones que se suelen tener, y de esta manera vos podés tener
+2:08:35 Franco Cappanera: cierto contexto que por ahí la IA no puede tener, sobre ciertas cosas, de que, por ejemplo, si mi competidor, que más las personas lo escuchan a él siempre, está hablando de lo bueno que es X plataforma, es algo que todo mi nicho está actualmente escuchando eso y todos tienen la creencia.
+2:08:55 Franco Cappanera: de que esa plataforma que ellos conocen, que si vos la usas, va a ser un término que ellos conocen, es la mejor.
+2:09:02 Franco Cappanera: Y si yo hago un hook, o el concepto de un vídeo es cuestionar esa creencia, puede ser algo ganador, pero solo, pero la IA capaz no accede a ese información porque no tiene el contexto y la sensación que puede tener el humano como dueño de negocio, como creador de contenido, de estar viendo qué es lo 
+2:09:18 Franco Cappanera: que hacen sus competidores todo el tiempo. Entonces por ahí el determinar qué tan interesante barra novedoso puede ser en esa parte se necesita un poco más de la sensación del humano en base a lo que se está haciendo en su nicho.
+2:09:33 Franco Cappanera: O sea, la parte en la que no pueda, Sí, la que está un poco más limitada es en eso, es en lo que está haciendo el mercado en general, las sensaciones del mercado.
+2:09:43 Franco Cappanera: mercado. Sí, pero realmente igualmente puede acceder a cierta información y formar un criterio sobre las insesiones de mercado en base a lo que le funciona el creador que algo está analizando.
+2:09:53 Franco Cappanera: Igual en base a eso puede saber qué es lo que a tu mercado le interesa y qué es lo que no, qué es lo que quiere escuchar.
+2:09:58 Franco Cappanera: Pero sí. Tope. Impecable. Bueno, la mayoría de estas preguntas, igual quedan tres más así que me gustan. Esta sería, ¿hay alguna creencia?
+2:10:15 Franco Cappanera: ¿Tienes experiencia o principio de tu filosofía de contenido que es contraintuitiva 
+2:10:18 Emanuel Mendoza: y que un bot sin entrenamiento nunca podría decir? 
+2:10:26 Francisco Doglio: Nada, no he pensado. 
+2:10:30 Emanuel Mendoza: Pienso nomás. 
+2:10:40 Francisco Doglio: Eh, Contraintuitiva. No, yo creo que no, en realidad. Yo creo que todo es muy lógico. 
+2:10:48 Franco Cappanera: Sí, sí, sí. Siempre lo llevo 
+2:10:51 Francisco Doglio: como, 
+2:10:54 Emanuel Mendoza: Por ahí lo que capaz que el bot no consideraría tanto es que siempre tenga algo 
+2:10:57 Francisco Doglio: de personalidad, de contenido. Pero el bot no está pensado para analizar tanto la personalidad, está, para analizar el performance del contenido.
+2:11:07 Francisco Doglio: Así que no, no, realmente no, creo que es todo 
+2:11:08 Emanuel Mendoza: muy lógico. De hecho, lo clave es que sea lógico y no que 
+2:11:13 Francisco Doglio: tire ideas 
+2:11:15 Franco Cappanera: aleatorias. Por eso le estamos dando toda la data que le estamos 
+2:11:17 Emanuel Mendoza: dando. 
+2:11:19 Francisco Doglio: Perfecto. 
+2:11:21 Franco Cappanera: Después, ¿cuál es 
+2:11:23 Emanuel Mendoza: la pregunta que el bot siempre debería hacerle al creador antes de dar un análisis? 
+2:11:31 Francisco Doglio: ¿Cuál era tu objetivo? ¿Cuál es tu objetivo con este video? Para 
+2:11:36 Franco Cappanera: analizar el éxito de una pieza de contenido tenés que saber cuál es el objetivo con ese contenido. 
+2:11:42 Francisco Doglio: Sí. Perfecto. Muy buena pregunta esa, sí. 
+2:11:48 Franco Cappanera: Y después, si tuvieras que, igual esto más o menos ya lo tenemos, pero, Por si querés dar un último resumen tipo de conceptos, si tuvieras que resumir tu filosofía de análisis de contenido en cinco principios, ¿cuáles serían?
+2:12:05 Francisco Doglio: Los cinco mandamientos, perdón. 
+2:12:10 Franco Cappanera: A ver, a ver, dejar de pensarlos. El principal, sin duda, va a ser un poco, para frasear un poco todo lo que hemos dicho, porque no me falta, o sea, todos los que son fundamentos los he mencionado.
+2:12:24 Franco Cappanera: El concepto 
+2:12:24 Francisco Doglio: del video es lo más importante, siempre. Lograr que las personas te escuchen durante todo el video. Tener algo interesante que valga la pena que las personas te escuchen durante todo el video.
+2:12:33 Francisco Doglio: Y narrarlo de forma correcta para que hagan que las personas te quieran escuchar durante todo el video. Tercero, analizar buscando patrones 
+2:12:42 Franco Cappanera: entre los videos que funcionan y los videos que 
+2:12:45 Francisco Doglio: no. Patrones de todo tipo, desde el tema del video hasta cosas más sutiles, como qué tipos de interacción son las que más predominan en los videos que tienen más alcance.
+2:12:58 Francisco Doglio: 3, perdón 4, a ver 4, esas 3 son clave, 4, 4, siempre que hago funciona. Estar consistentemente trabajando en base a eso que funcionó, hacer cosas que se apalanquen de lo que encontraste que funciona.
+2:13:23 Francisco Doglio: Lo más difícil es encontrar algo que funciona. Una vez 
+2:13:26 Emanuel Mendoza: que encontraste algo que funciona mejor que el problema, promedio, el 80% de tu contenido, por lo menos el 80% del resto de tu contenido a partir de ahora que ya encontraste algo que funciona, debería ir en base a hacer variantes o hacer mejoras o hacer iteraciones en base a eso que ya te funcionó bien
+2:13:44 Emanuel Mendoza: . Entendiendo qué es lo que funcionó, sacar más contenido, que sea apalancado de eso. Si te funciona hablar de cierto tipo de tema, o explicarlo de cierta manera, o explicarlo con cierto formato, no tiene sentido que vos sigas haciendo contenido en el cual por lo menos el 80% de los no sea basado en 
+2:14:02 Emanuel Mendoza: lo que te funcionó. Entonces, lo más difícil es encontrar lo que funciona una vez que lo encontraste, tu tarea es simplemente iterar sobre eso y buscar algo que te funcione todavía mejor que eso, recién el otro 20% de tu contenido.
+2:14:13 Emanuel Mendoza: Entonces, la cuarta regla, el 80% tiene que ir en lo que sí funciona. 
+2:14:16 Franco Cappanera: la próxima. No, obvio, obvio. Estoy pensando a ver si me estoy faltando alguno más, o algunos más. Capaz el hecho de que sea algo accionable, ¿no?
+2:14:42 Franco Cappanera: De lo que se trata el video. 
+2:14:45 Francisco Doglio: Bueno, sí, pero eso, por ejemplo, varía entre, por ejemplo, los de conexión no son, emocionables que 
+2:14:51 Franco Cappanera: genere una emoción o sea que cumpla con las funciones o bien que genera una emoción si es para 
+2:14:55 Francisco Doglio: conectar si es un vídeo conexión que genera una emoción o bien 
+2:14:59 Emanuel Mendoza: si es un vídeo 
+2:15:00 Francisco Doglio: de 
+2:15:00 Emanuel Mendoza: la reputación 
+2:15:02 Francisco Doglio: que eduque 
+2:15:05 Franco Cappanera: Y que 
+2:15:06 Francisco Doglio: lo haga consistentemente a lo largo de todo el vídeo, no solo en un punto, no que tenga un pico y nada más.
+2:15:11 Francisco Doglio: Sino que lo haga consistentemente a lo largo del vídeo. Sí, eso es todo. 
+2:15:16 Franco Cappanera: Ok. Algo que no tocamos dentro del bloque de Call to Action, pero acá hay preguntas más específicas, es ¿cuántos tipos de CTA existen para vos?
+2:15:41 Francisco Doglio: Los dos que más me vienen a la cabeza son cuando lo decís en el video y cuando solo lo dejas en el caption.
+2:15:52 Francisco Doglio: Sí, sí, sí, sí, es eso realmente. Decirlo en el video o dejarlo en el caption. Sí. Y dentro de cada uno es como los Freddie Mercury, o sea, es como hacer la promesa.
+2:16:03 Francisco Doglio: ¿Qué tipo de promesa estás haciendo? Por ahí estaría bueno analizar también, por ejemplo, qué tipo de recursos son los que generan más interés en la gente, porque depende del nicho de si les interesan cosas como una clase, 
+2:16:15 Franco Cappanera: o muchas veces les interesan cosas más accionables y más específicas, de las cuales podemos hablar. para que se sientan más low effort, como por ejemplo una base de datos o una carpeta con X recursos que lo puedan sentir más atractivo.
+2:16:27 Franco Cappanera: O sea, no, de tipo de call to action son esos dos, pero ahora le van a analizar dentro de los call to actions cuál es el recurso que se está dando.
+2:16:35 Franco Cappanera: el próximo video. 
+2:16:51 Francisco Doglio: van a 
+2:16:51 Emanuel Mendoza: aplicar la próxima semana 
+2:16:53 Francisco Doglio: con poco esfuerzo y quieres pagar un resultado grande, entonces sí, revisar cuál es el Riva Outcome de ese CPA, sí.
+2:17:05 Franco Cappanera: Perfecto. 
+2:17:09 Emanuel Mendoza: Impecable Eso es algo que está como medio 
+2:17:29 Franco Cappanera: sobreentendido, 2% lo que decís, pero lo voy a responder igual, que sea qué pasa cuando un vídeo tiene CTA, dos CTAs, cuándo es válido y cuándo diluye.
+2:17:39 Franco Cappanera: la conversión. En general siempre es tener solo un CTA, ¿no, Perón? Un 
+2:17:44 Francisco Doglio: CTA. No, nunca es válido. El 99% de las veces no es válido. 
+2:17:48 Franco Cappanera: Nunca es válido. Al menos, o sea, no sé si pondría nunca es válido, 
+2:17:52 Emanuel Mendoza: pondría, 
+2:17:53 Francisco Doglio: A menos de excepción muy grande de que haya funcionado muy bien el haber tenido un call to action. Si no hay nada que pruebe lo 
+2:18:01 Emanuel Mendoza: contrario, 
+2:18:03 Francisco Doglio: no es válido 
+2:18:03 Emanuel Mendoza: tener más de un call to action. 
+2:18:06 Francisco Doglio: Tampoco es válido no tenerlo, siempre debería haberlo. 
+2:18:09 Franco Cappanera: de la 
+2:18:10 Francisco Doglio: Fuerza Aérea. Un saludo y 
+2:18:32 Franco Cappanera: hasta la 
+2:18:34 Emanuel Mendoza: ¿Cómo redactás un CTA 
+2:18:36 Franco Cappanera: que no suene desesperado ni forzado? ¿Qué palabras o estructuras evitas? 
+2:18:46 Francisco Doglio: Evito urgencias Y me aseguro de que cumpla con las siete características que tiene un buen CTI. 
+2:18:55 Franco Cappanera: No es tanto como algo que evito, sino como cosas que sí busco. Y son esas. Bueno, dentro de eso de la urgencia que dijiste de evitar urgencias innecesarias, ¿cómo construir una 
+2:19:26 Francisco Doglio: No, 
+2:19:29 Emanuel Mendoza: no CTA en un reel no incluiría urgencia, 
+2:19:33 Francisco Doglio: o sea depende mucho del caso, si hay algún caso particular. Esa parte, puede ser, pero no te da nada incluir urgencia en un reel.
+2:19:40 Francisco Doglio: La gran mayoría de las veces es falsa. Lo que nos va a hacer comentar un reel o una publicación no es la urgencia, es que cumplan los otros La Catedral.
+2:19:52 Francisco Doglio: y que lo hace más deseable el recurso. 
+2:20:06 Franco Cappanera: formato de contenido y eso, pero, 
+2:20:10 Emanuel Mendoza: Escipeal, 
+2:20:10 Franco Cappanera: porque eso es 

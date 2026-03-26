@@ -170,6 +170,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
   const totalLikes = sorted.reduce((s, d) => s + d.likes, 0);
   const totalComments = sorted.reduce((s, d) => s + d.comments, 0);
+  // follower_count is a daily net change (delta) from Meta — sum directly
   const totalFollowersGained = sorted.reduce((s, d) => s + d.follower_count, 0);
 
   // Period-over-period comparison

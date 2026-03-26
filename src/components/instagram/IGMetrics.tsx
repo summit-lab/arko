@@ -134,15 +134,17 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
   const totalSaves = sorted.reduce((s, d) => s + d.saves, 0);
   const totalShares = sorted.reduce((s, d) => s + d.shares, 0);
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
+  // follower_count is a daily net change (delta) from Meta period=day — use directly
   const totalFollowersGained = sorted.reduce((s, d) => s + d.follower_count, 0);
   const avgReach = sorted.length > 0 ? Math.round(totalReach / sorted.length) : 0;
-  const avgFollowersGained = sorted.length > 0 ? Math.round(totalFollowersGained / sorted.length) : 0;
+  const daysWithFollowerData = sorted.filter((d) => d.follower_count > 0).length;
+  const avgFollowersGained = daysWithFollowerData > 0 ? Math.round(totalFollowersGained / daysWithFollowerData) : 0;
   const engagementRate = totalImpressions > 0 ? ((totalInteractions / totalImpressions) * 100).toFixed(2) : "0";
 
   const lastDay = sorted[sorted.length - 1];
   const bestFollowerDay = sorted.reduce((max, d) => Math.max(max, d.follower_count), 0);
 
-  // Follower balance chart (day-to-day change)
+  // Follower balance chart — follower_count is already daily delta
   const followerBalanceData = sorted.map((d) => ({
     date: formatDate(d.metric_date),
     neto: d.follower_count,

@@ -1,64 +1,33 @@
-export default function AgentsLoading() {
+export default function ArkoAILoading() {
   return (
-    <div className="p-8 h-[calc(100vh-4rem)] flex flex-col gap-6 animate-pulse">
-      {/* Header */}
-      <div>
-        <div className="h-8 w-32 rounded-lg bg-white/[0.06]" />
-        <div className="h-4 w-80 rounded bg-white/[0.04] mt-3" />
-      </div>
+    <div className="flex h-[calc(100vh-80px)] w-full overflow-hidden animate-pulse">
+      {/* Session sidebar skeleton */}
+      <aside className="w-60 shrink-0 border-r border-white/[0.06] bg-white/[0.01] flex flex-col p-3 space-y-2">
+        <div className="h-10 rounded-xl bg-white/[0.06]" />
+        <div className="space-y-1.5 mt-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-14 rounded-lg bg-white/[0.03]" />
+          ))}
+        </div>
+      </aside>
 
-      <div className="flex-1 flex gap-6 min-h-0">
-        {/* Agents Sidebar */}
-        <div className="w-72 shrink-0 glass-card rounded-xl p-4 flex flex-col">
-          <div className="h-3 w-36 rounded bg-white/[0.04] mb-4 px-2" />
-          <div className="space-y-2 flex-1">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="p-3 rounded-xl bg-white/[0.03]">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <div className="h-4 w-4 rounded bg-white/[0.06]" />
-                  <div className="h-3.5 w-36 rounded bg-white/[0.06]" />
-                </div>
-                <div className="h-2.5 w-full rounded bg-white/[0.03]" />
-                <div className="h-2.5 w-2/3 rounded bg-white/[0.03] mt-1" />
-              </div>
-            ))}
+      {/* Chat area skeleton */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 py-6 px-8">
+          <div className="max-w-3xl mx-auto flex flex-col items-center justify-center h-full">
+            <div className="h-16 w-16 rounded-2xl bg-white/[0.04] mb-6" />
+            <div className="h-5 w-64 rounded bg-white/[0.06] mb-3" />
+            <div className="h-3 w-80 rounded bg-white/[0.03] mb-8" />
+            <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-xl bg-white/[0.03]" />
+              ))}
+            </div>
           </div>
         </div>
-
-        {/* Chat Area */}
-        <div className="flex-1 glass-card rounded-xl flex flex-col overflow-hidden">
-          <div className="flex-1 p-6 space-y-6">
-            {/* User message */}
-            <div className="flex justify-end">
-              <div className="max-w-[70%] p-4 rounded-xl bg-white/[0.06]">
-                <div className="h-3 w-full rounded bg-white/[0.06]" />
-                <div className="h-3 w-3/4 rounded bg-white/[0.04] mt-2" />
-              </div>
-            </div>
-            {/* AI message */}
-            <div className="flex justify-start">
-              <div className="max-w-[80%]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-3.5 w-3.5 rounded bg-white/[0.06]" />
-                  <div className="h-3 w-32 rounded bg-white/[0.04]" />
-                </div>
-                <div className="p-4 rounded-xl bg-white/[0.03] space-y-2">
-                  <div className="h-3 w-full rounded bg-white/[0.04]" />
-                  <div className="h-3 w-full rounded bg-white/[0.04]" />
-                  <div className="h-3 w-5/6 rounded bg-white/[0.04]" />
-                  <div className="h-3 w-full rounded bg-white/[0.04] mt-3" />
-                  <div className="h-3 w-3/4 rounded bg-white/[0.04]" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Input */}
-          <div className="p-4 border-t border-white/[0.05]">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-11 rounded-xl bg-white/[0.04]" />
-              <div className="h-11 w-11 rounded-xl bg-white/[0.06]" />
-            </div>
+        <div className="px-8 pb-6 pt-3">
+          <div className="max-w-3xl mx-auto">
+            <div className="h-12 rounded-xl bg-white/[0.04]" />
           </div>
         </div>
       </div>

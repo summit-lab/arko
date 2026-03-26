@@ -1,7 +1,7 @@
 # Esquema de Base de Datos
 
 **Base de datos:** Supabase (PostgreSQL)
-**Última actualización:** 2026-03-25
+**Última actualización:** 2026-03-26
 **PRD de referencia:** `docs/ARKO_PRD_INSTAGRAM_v1.md`
 
 ---
@@ -52,6 +52,10 @@ erDiagram
     workspaces ||--o| workspace_market : has_market
     workspaces ||--o{ workspace_references : has_references
     workspaces ||--o| workspace_brand : has_brand
+    workspace_competitors ||--o{ competitor_reels : has_reels
+    competitor_reels ||--o| competitor_reel_analysis : has_analysis
+    workspaces ||--o{ competitor_reels : contains
+    workspaces ||--o{ competitor_reel_analysis : contains
 ```
 
 ---
@@ -88,6 +92,8 @@ erDiagram
 | 24 | `workspace_market` | Industry state, trends, beliefs | 000015 | ✅ |
 | 25 | `workspace_references` | Brand references/inspiration | 000015 | ✅ |
 | 26 | `workspace_brand` | Niche language, tools, mechanisms | 000015 | ✅ |
+| 27 | `competitor_reels` | Scraped reels from competitor IG accounts | 000019 | ✅ |
+| 28 | `competitor_reel_analysis` | AI analysis of competitor reels (hooks, style, CTA) | 000019 | ✅ |
 
 **Views:**
 | View | Descripción |
@@ -144,6 +150,7 @@ erDiagram
 | `plan` | text | NO | `'pro'` | Siempre 'pro' (único plan) |
 | `reels_limit` | int | NO | 10 | Límite de reels por plan |
 | `is_active` | boolean | NO | true | — |
+| `onboarding_completed` | boolean | NO | `false` | ADN de Comunicación completado |
 | `settings` | jsonb | NO | `'{}'` | Config extra |
 | `created_at` | timestamptz | NO | `now()` | — |
 | `updated_at` | timestamptz | NO | `now()` | — |
@@ -369,6 +376,7 @@ erDiagram
 | 14 | `20260324000014_pg_cron_scheduled_sync.sql` | 2026-03-24 | pg_cron + pg_net + `trigger_scheduled_sync()` para sync automático cada 6h. |
 | 15 | `20260325000015_invitations_and_onboarding.sql` | 2026-03-25 | invitations (admin-only RLS), validate_invitation() RPC, updated handle_new_user() con invitation lookup, 6 tablas de onboarding (workspace_profile, workspace_strategies, workspace_competitors, workspace_market, workspace_references, workspace_brand). |
 | 16 | `20260325000016_fix_profiles_admin_rls_recursion.sql` | 2026-03-25 | `is_admin()` SECURITY DEFINER function, fix RLS recursion in profiles, updated invitations policies, workspace plan default → 'pro', admin can view all workspaces + meta_connections. |
+| 21 | `20260326000021_followers_total_column.sql` | 2026-03-26 | Agrega `followers_total` (bigint, default 0) a ig_account_insights. `follower_count` = delta diario de Meta, `followers_total` = snapshot acumulado del profile. |
 
 ---
 

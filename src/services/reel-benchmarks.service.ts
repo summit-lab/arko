@@ -115,8 +115,8 @@ export async function refreshReelBenchmarks(
     .map((reel) => {
       const organic = normalizeRelation(reel.reel_metrics);
       const paid = normalizeRelation(reel.reel_metrics_paid);
-      const viewsTotal = (organic?.views_org ?? 0) + (paid?.views_paid ?? 0);
-      const reachTotal = (organic?.reach_org ?? 0) + (paid?.reach_paid ?? 0);
+      const viewsTotal = organic?.views_org ?? 0;
+      const reachTotal = organic?.reach_org ?? 0;
       const likes = organic?.likes_total ?? 0;
       const comments = organic?.comments_total ?? 0;
       const shares = organic?.shares_total ?? 0;

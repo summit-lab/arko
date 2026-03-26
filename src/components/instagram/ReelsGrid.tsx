@@ -300,8 +300,9 @@ export function ReelsGrid({ reels }: ReelsGridProps) {
               ? reel.caption.slice(0, 76) + "..."
               : reel.caption
             : "Sin caption";
-          const durationStr = reel.duration_seconds
-            ? `${Math.floor(reel.duration_seconds / 60)}:${String(reel.duration_seconds % 60).padStart(2, "0")}`
+          const roundedDuration = reel.duration_seconds ? Math.round(reel.duration_seconds) : null;
+          const durationStr = roundedDuration
+            ? `${Math.floor(roundedDuration / 60)}:${String(roundedDuration % 60).padStart(2, "0")}`
             : "--";
 
 
