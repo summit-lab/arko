@@ -171,8 +171,24 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
   const totalLikes = sorted.reduce((s, d) => s + d.likes, 0);
   const totalComments = sorted.reduce((s, d) => s + d.comments, 0);
-  // follower_count is a daily net change (delta) from Meta — sum directly
-  const totalFollowersGained = sorted.reduce((s, d) => s + d.follower_count, 0);
+
+  // Calculate daily follower change from followers_total diff when values differ day-to-day.
+  // Falls back to follower_count (Meta metric) when followers_total is the same across days.
+  const effectiveFollowerChange = sorted.map((d, i) => {
+    if (
+      d.followers_total > 0 &&
+      i > 0 &&
+      sorted[i - 1].followers_total > 0 &&
+      d.followers_total !== sorted[i - 1].followers_total
+    ) {
+      return d.followers_total - sorted[i - 1].followers_total;
+    }
+    return d.follower_count;
+  });
+
+  const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
+  const last30Days = effectiveFollowerChange.slice(-30);
+  const followersGainedLast30d = last30Days.reduce((s, v) => s + v, 0);
 
   // Period-over-period comparison
   const firstHalfImpressions = firstHalf.reduce((s, d) => s + d.impressions, 0);

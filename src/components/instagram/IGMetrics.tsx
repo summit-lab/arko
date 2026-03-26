@@ -242,21 +242,32 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
   const totalSaves = sorted.reduce((s, d) => s + d.saves, 0);
   const totalShares = sorted.reduce((s, d) => s + d.shares, 0);
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
-  // follower_count is a daily net change (delta) from Meta period=day — use directly
-  const totalFollowersGained = sorted.reduce((s, d) => s + d.follower_count, 0);
+  const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
   const avgReach = sorted.length > 0 ? Math.round(totalReach / sorted.length) : 0;
-  const daysWithFollowerData = sorted.filter((d) => d.follower_count > 0).length;
-  const avgFollowersGained = daysWithFollowerData > 0 ? Math.round(totalFollowersGained / daysWithFollowerData) : 0;
+  const avgFollowersGained = sorted.length > 0 ? Math.round(totalFollowersGained / sorted.length) : 0;
   const engagementRate = totalImpressions > 0 ? ((totalInteractions / totalImpressions) * 100).toFixed(2) : "0";
   const savesRate = totalReach > 0 ? ((totalSaves / totalReach) * 100).toFixed(2) : "0";
   const profileConvRate = totalProfileViews > 0 ? ((totalFollowersGained / totalProfileViews) * 100).toFixed(1) : "0";
   const lastDay = sorted[sorted.length - 1];
 
-  // Follower balance chart — follower_count is already daily delta
-  const followerBalanceData = sorted.map((d) => ({
-    date: formatDate(d.metric_date),
-    neto: d.follower_count,
-  }));
+  // Trends: first half vs second half
+  const impTrend = trendPct(sorted.map((d) => d.impressions));
+  const reachTrend = trendPct(sorted.map((d) => d.reach));
+  const intTrend = trendPct(sorted.map((d) => d.total_interactions));
+
+  // Engagement composition
+  const engagementItems = [
+    { name: "Me gusta", value: totalLikes, color: ENGAGEMENT_COLORS.likes, icon: Heart },
+    { name: "Guardados", value: totalSaves, color: ENGAGEMENT_COLORS.saves, icon: Bookmark },
+    { name: "Comentarios", value: totalComments, color: ENGAGEMENT_COLORS.comments, icon: MessageSquare },
+    { name: "Compartidos", value: totalShares, color: ENGAGEMENT_COLORS.shares, icon: Share2 },
+  ].filter((d) => d.value > 0);
+  const totalEngPie = engagementItems.reduce((s, d) => s + d.value, 0) || 1;
+
+  // X-axis tick interval
+  const xInterval = Math.max(0, Math.floor(chartData.length / 7) - 1);
+
+  // ── Demographics ────────────────────────────────────────────────────────────
 
   const genderData = demographics?.audience_gender_age
     ? processGenderAge(demographics.audience_gender_age)
