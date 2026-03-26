@@ -1,7 +1,14 @@
 import { Bell, ChevronDown, Search, TrendingUp, Eye, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceId } from "@/lib/workspace";
 import { cache } from "react";
 import { HeaderClient } from "./HeaderClient";
+
+function fmtHeader(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
 
 const getUserProfile = cache(async () => {
   const supabase = await createClient();
@@ -22,6 +29,33 @@ const getUserProfile = cache(async () => {
 
 export async function Header() {
   const { user, profile } = await getUserProfile();
+
+  // ── Fetch real IG stats ──
+  let headerViews = "—";
+  let headerFollowers = "—";
+  let headerEngRate = "—";
+  try {
+    const supabase = await createClient();
+    const workspaceId = await getWorkspaceId();
+    if (workspaceId) {
+      const { data: insights } = await supabase
+        .from("ig_account_insights")
+        .select("followers_total, total_interactions, impressions")
+        .eq("workspace_id", workspaceId)
+        .order("metric_date", { ascending: false })
+        .limit(90);
+      if (insights && insights.length > 0) {
+        const latest = insights[0];
+        if (latest.followers_total > 0) headerFollowers = fmtHeader(latest.followers_total);
+        const totalInteractions = insights.reduce((s, d) => s + (d.total_interactions ?? 0), 0);
+        const totalImpressions = insights.reduce((s, d) => s + (d.impressions ?? 0), 0);
+        if (totalImpressions > 0) {
+          headerViews = fmtHeader(totalImpressions);
+          headerEngRate = `${((totalInteractions / totalImpressions) * 100).toFixed(1)}%`;
+        }
+      }
+    }
+  } catch { /* header stats are non-critical */ }
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
   const username = profile?.email?.split("@")[0] || "user";
@@ -79,9 +113,9 @@ export async function Header() {
         {/* Center — Quick Stats Ticker */}
         <div className="hidden lg:flex items-center gap-5">
           {[
-            { icon: Eye, label: "Views", value: "1.2M", color: "text-blue-400" },
-            { icon: Users, label: "Followers", value: "19K", color: "text-violet-400" },
-            { icon: TrendingUp, label: "Eng. Rate", value: "6.1%", color: "text-emerald-400" },
+            { icon: Eye, label: "Views", value: headerViews, color: "text-blue-400" },
+            { icon: Users, label: "Followers", value: headerFollowers, color: "text-violet-400" },
+            { icon: TrendingUp, label: "Eng. Rate", value: headerEngRate, color: "text-emerald-400" },
           ].map((stat, i) => (
             <div key={stat.label} className="flex items-center">
               {i > 0 && <div className="w-[1px] h-5 mr-5" style={{ background: "rgba(255,255,255,0.06)" }} />}

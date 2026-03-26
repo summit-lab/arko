@@ -702,18 +702,17 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }
     }
 
+    const followersTotal = profileData?.followers_count ?? 0;
+
     for (const [date, metrics] of dayMap) {
-      // follower_count from Meta period=day is daily net change, not total.
-      // Use profileData.followers_count (real total) when the daily value is 0 or missing.
-      const followerValue = (metrics.follower_count && metrics.follower_count > 0)
-        ? metrics.follower_count
-        : (profileData?.followers_count ?? 0);
+      // follower_count from Meta period=day is daily net change (can be 0, positive, or negative).
+      const followerDailyChange = metrics.follower_count ?? 0;
 
       const { error } = await supabase.from("ig_account_insights").upsert({
         workspace_id: workspaceId, metric_date: date,
         impressions: metrics.views ?? metrics.content_views ?? 0,
         reach: metrics.reach ?? 0, profile_views: metrics.profile_views ?? 0,
-        follower_count: followerValue,
+        follower_count: followerDailyChange,
         follows_count: profileData?.follows_count ?? 0, media_count: profileData?.media_count ?? 0,
         accounts_engaged: metrics.accounts_engaged ?? 0,
         total_interactions: (metrics.likes ?? 0) + (metrics.comments ?? 0) + (metrics.shares ?? 0) + (metrics.saves ?? 0),
@@ -726,6 +725,19 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }, { onConflict: "workspace_id,metric_date" });
       if (error) result.errors.push(`Day ${date}: ${error.message}`);
       else result.daysUpserted++;
+    }
+
+    // Upsert today's row with followers_total snapshot.
+    // Meta doesn't provide today's metrics yet, but we need this snapshot
+    // so tomorrow's diff (followers_total[today] - followers_total[yesterday]) works correctly.
+    if (followersTotal > 0) {
+      const syncDate = new Date().toISOString().split("T")[0];
+      await supabase
+        .from("ig_account_insights")
+        .upsert(
+          { workspace_id: workspaceId, metric_date: syncDate, followers_total: followersTotal },
+          { onConflict: "workspace_id,metric_date" }
+        );
     }
 
     // Demographics
