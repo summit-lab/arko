@@ -55,6 +55,9 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // DEBUG: verificar si las env vars llegan al runtime
+        console.log('[chat] ENV CHECK — OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY, '| length:', process.env.OPENAI_API_KEY?.length ?? 0);
+
         const auth = await authenticateRequest(request);
         if (isAuthError(auth)) {
           controller.enqueue(sseEvent({ type: 'error', message: 'No autorizado' }));
@@ -136,10 +139,10 @@ export async function POST(request: Request) {
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
         let totalLatency = 0;
-        let currentMessages = [...llmMessages];
+        const currentMessages = [...llmMessages];
         let assistantContent = '';
-        let toolsUsed: { name: string; input_keys: string[] }[] = [];
-        let specialistsUsed: { domain: string; tokensUsed: number; latencyMs: number }[] = [];
+        const toolsUsed: { name: string; input_keys: string[] }[] = [];
+        const specialistsUsed: { domain: string; tokensUsed: number; latencyMs: number }[] = [];
         let lastModel = '';
         let featureUsed: 'ai-agents' | 'ai-agents-light' = 'ai-agents';
 
