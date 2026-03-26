@@ -757,6 +757,19 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       else result.daysUpserted++;
     }
 
+    // Upsert today's row with followers_total snapshot.
+    // Meta doesn't provide today's metrics yet, but we need this snapshot
+    // so tomorrow's diff (followers_total[today] - followers_total[yesterday]) works correctly.
+    if (followersTotal > 0) {
+      const syncDate = new Date().toISOString().split("T")[0];
+      await supabase
+        .from("ig_account_insights")
+        .upsert(
+          { workspace_id: workspaceId, metric_date: syncDate, followers_total: followersTotal },
+          { onConflict: "workspace_id,metric_date" }
+        );
+    }
+
     // Demographics
     try {
       const demographics = await fetchDemographics(igAccountId, accessToken);

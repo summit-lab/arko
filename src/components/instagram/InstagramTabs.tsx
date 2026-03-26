@@ -43,20 +43,22 @@ export function InstagramTabs() {
           <button
             key={tab.key}
             onClick={() => handleSelect(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-250 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-250 cursor-pointer ${
               active
-                ? "text-black"
+                ? "text-white"
                 : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
             }`}
             style={active ? {
-              background: "rgba(255,255,255,0.95)",
-              boxShadow: "0 2px 8px rgba(255,255,255,0.1), 0 1px 2px rgba(0,0,0,0.3)",
+              background: "rgba(255,255,255,0.1)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.22)",
+              boxShadow: "0 1px 16px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.2)",
             } : undefined}
           >
             <tab.icon
               size={14}
               strokeWidth={active ? 2.2 : 1.6}
-              style={{ color: active ? "#000000" : undefined }}
             />
             {tab.label}
           </button>

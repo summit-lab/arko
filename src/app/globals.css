@@ -245,9 +245,6 @@
     transform-origin: left;
     animation: underlineScaleIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
   }
-  .page-title:hover::after {
-    animation: underlineReplay 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  }
   .stat-number {
     @apply text-[34px] font-light tracking-[-0.02em] text-white leading-none;
   }
@@ -419,11 +416,6 @@
 @keyframes underlineScaleIn {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
-}
-@keyframes underlineReplay {
-  0% { transform: scaleX(1); }
-  40% { transform: scaleX(0); }
-  100% { transform: scaleX(1); }
 }
 @keyframes countFadeIn {
   from { opacity: 0; transform: translateY(6px); }

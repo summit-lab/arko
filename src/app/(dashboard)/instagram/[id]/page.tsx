@@ -4,7 +4,7 @@ import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemin
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 import { GeminiAnalysis } from "@/components/instagram/GeminiAnalysis";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
-import { ReelDailyChart } from "@/components/instagram/ReelDailyChart";
+import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChart";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
@@ -166,13 +166,11 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   let reel = DEMO_REEL;
   let isDemo = true;
   let initialGeminiAnalysis: GeminiVideoAnalysis | null = null;
-  const reelDailyData: { date: string; views: number; likes: number; saves: number; comments: number; shares: number }[] = [];
 
   if (workspaceId && !id.startsWith("demo")) {
       const [
         { data: reelData },
         { data: benchmarkData },
-        { data: dailySnapshots },
       ] = await Promise.all([
         supabase
           .from("reels")
@@ -196,13 +194,6 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           .order("calculated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase
-          .from("reel_metrics_daily")
-          .select("metric_date, views_org, likes_total, saves_total, comments_total, shares_total, views_paid")
-          .eq("reel_id", id)
-          .eq("workspace_id", workspaceId)
-          .order("metric_date", { ascending: true })
-          .limit(90),
       ]);
 
       if (reelData) {
@@ -325,36 +316,6 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           diagnostic: null,
           benchmark: benchmarkSnapshot,
         };
-
-        // Process daily snapshots into daily deltas for the chart
-        const snapshots = dailySnapshots ?? [];
-        if (snapshots.length > 1) {
-          for (let i = 1; i < snapshots.length; i++) {
-            const curr = snapshots[i];
-            const prev = snapshots[i - 1];
-            const d = new Date(curr.metric_date);
-            reelDailyData.push({
-              date: `${d.getDate()}/${d.getMonth() + 1}`,
-              views: Math.max(0, (curr.views_org ?? 0) + (curr.views_paid ?? 0) - (prev.views_org ?? 0) - (prev.views_paid ?? 0)),
-              likes: Math.max(0, (curr.likes_total ?? 0) - (prev.likes_total ?? 0)),
-              saves: Math.max(0, (curr.saves_total ?? 0) - (prev.saves_total ?? 0)),
-              comments: Math.max(0, (curr.comments_total ?? 0) - (prev.comments_total ?? 0)),
-              shares: Math.max(0, (curr.shares_total ?? 0) - (prev.shares_total ?? 0)),
-            });
-          }
-        } else if (snapshots.length === 1) {
-          // Only one snapshot — show absolute values as first day
-          const snap = snapshots[0];
-          const d = new Date(snap.metric_date);
-          reelDailyData.push({
-            date: `${d.getDate()}/${d.getMonth() + 1}`,
-            views: (snap.views_org ?? 0) + (snap.views_paid ?? 0),
-            likes: snap.likes_total ?? 0,
-            saves: snap.saves_total ?? 0,
-            comments: snap.comments_total ?? 0,
-            shares: snap.shares_total ?? 0,
-          });
-        }
       }
   }
 
@@ -509,7 +470,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       {/* Hero: Thumbnail + Title + Meta */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* Thumbnail / Video */}
-        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-5">
+        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-5 self-start">
           <div className="relative aspect-[9/16] overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-pink-500/10 to-purple-500/10">
             {reelPlaybackUrl ? (
               <video
@@ -549,7 +510,19 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               </span>
             )}
             {reel.permalink && (
-              <a href={reel.permalink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-200 hover:text-white">
+              <a
+                href={reel.permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold text-white transition-all cursor-pointer hover:brightness-125"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.2)",
+                }}
+              >
                 <ExternalLink className="h-3 w-3" />
                 Abrir en Instagram
               </a>
@@ -580,31 +553,43 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             {[
-              { label: "% Likes / Views", value: `${likesPct.toFixed(2)}%`, raw: formatNumber(reel.likes), icon: Heart, comp: likesComp, color: "text-rose-400" },
-              { label: "% Saves / Views", value: `${savesPct.toFixed(2)}%`, raw: formatNumber(reel.saves), icon: Bookmark, comp: savesComp, color: "text-amber-400" },
-              { label: "% Shares / Views", value: `${sharesPct.toFixed(2)}%`, raw: formatNumber(reel.shares), icon: Share2, comp: sharesComp, color: "text-blue-400" },
-              { label: "% Comments / Views", value: `${commentsPct.toFixed(2)}%`, raw: formatNumber(reel.comments), icon: MessageSquare, comp: commentsComp, color: "text-emerald-400" },
+              { label: "Likes", pct: `${likesPct.toFixed(2)}%`, raw: reel.likes, icon: Heart, comp: likesComp },
+              { label: "Saves", pct: `${savesPct.toFixed(2)}%`, raw: reel.saves, icon: Bookmark, comp: savesComp },
+              { label: "Shares", pct: `${sharesPct.toFixed(2)}%`, raw: reel.shares, icon: Share2, comp: sharesComp },
+              { label: "Comments", pct: `${commentsPct.toFixed(2)}%`, raw: reel.comments, icon: MessageSquare, comp: commentsComp },
             ].map((m) => (
-              <div key={m.label} className="glass-panel min-h-[122px] rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-                <div className="flex items-center gap-2 mb-1">
-                  <m.icon className={`h-3.5 w-3.5 ${m.color}`} />
-                  <span className="text-[11px] font-medium text-zinc-300">{m.label}</span>
+              <div key={m.label} className="glass-panel min-h-[120px] rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <m.icon className="h-4 w-4 text-white" fill="currentColor" strokeWidth={0.5} />
+                  <span className="text-[11px] font-medium text-zinc-400">{m.label}</span>
                 </div>
-                <p className="text-2xl font-bold text-white">{m.value}</p>
+                <p className="text-[32px] font-light text-white leading-none tracking-tight">{formatNumber(m.raw)}</p>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-zinc-300">{m.raw}</span>
+                  <span className="text-[13px] font-light text-white/40">{m.pct} de views</span>
                   <span className={`text-[11px] font-medium ${m.comp.color}`}>{m.comp.label}</span>
                 </div>
               </div>
             ))}
           </div>
 
+          <ReelPerformanceChart
+            likes={reel.likes}
+            saves={reel.saves}
+            comments={reel.comments}
+            shares={reel.shares}
+            viewsTotal={reel.views_total}
+            benchmarkLikes={reel.benchmark.avg_likes_pct}
+            benchmarkSaves={reel.benchmark.avg_saves_pct}
+            benchmarkComments={reel.benchmark.avg_comments_pct}
+            benchmarkShares={reel.benchmark.avg_shares_pct}
+          />
+
           <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
               <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
               Métricas Extendidas
             </h3>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-10">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {[
                 { label: "Views Org", value: formatNumber(reel.views_org), color: "text-emerald-400" },
                 { label: "Views Total", value: formatNumber(reel.views_total), color: "text-white" },
@@ -619,9 +604,9 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                 { label: "Watch Total", value: formatTime(reel.total_watch_time_seconds), color: "text-cyan-300" },
                 ...(reel.impressions_total > 0 ? [{ label: "Impr. Total", value: formatNumber(reel.impressions_total), color: "text-zinc-100" }] : []),
               ].map((m) => (
-                <div key={m.label} className="rounded-lg bg-white/5 px-2 py-2 text-center">
-                  <p className={`text-base font-bold ${m.color || "text-zinc-100"}`}>{m.value}</p>
-                  <p className="text-[10px] text-zinc-500">{m.label}</p>
+                <div key={m.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-3 text-center">
+                  <p className={`text-[18px] font-light ${m.color || "text-zinc-100"}`}>{m.value}</p>
+                  <p className="text-[10px] text-zinc-400 mt-1">{m.label}</p>
                 </div>
               ))}
             </div>
@@ -813,9 +798,6 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         </div>
 
       </div>
-
-      {/* SECTION: Daily Charts */}
-      <ReelDailyChart data={reelDailyData} />
 
       {/* SECTION 3: Análisis Profundo — Gemini (Capa 2) */}
       {workspaceId && (
