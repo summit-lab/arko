@@ -34,6 +34,7 @@ const envSchema = z.object({
   META_TOKENS_ENCRYPTION_KEY: z.string().optional(),
 
   // ─── Proveedores IA / externos (opcionales según feature) ───
+  ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   APIFY_API_TOKEN: z.string().optional(),
@@ -55,6 +56,7 @@ function parseEnv() {
     META_APP_ID: process.env.META_APP_ID,
     META_APP_SECRET: process.env.META_APP_SECRET,
     META_TOKENS_ENCRYPTION_KEY: process.env.META_TOKENS_ENCRYPTION_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     APIFY_API_TOKEN: process.env.APIFY_API_TOKEN,

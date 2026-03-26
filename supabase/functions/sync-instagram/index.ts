@@ -521,9 +521,35 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
         .not("permalink", "is", null)
         .limit(5);
 
+      // Get workspace owner for usage logging
+      const { data: wsOwner } = await supabase
+        .from("workspaces")
+        .select("owner_id")
+        .eq("id", workspaceId)
+        .single();
+      const ownerId = wsOwner?.owner_id;
+
       for (const reel of reelsMissingDuration || []) {
         try {
+          const t0 = Date.now();
           const duration = await fetchApifyReelDuration(reel.permalink!, apifyToken);
+          const latencyMs = Date.now() - t0;
+
+          // Log integration usage
+          if (ownerId) {
+            supabase.from("integration_usage").insert({
+              workspace_id: workspaceId,
+              user_id: ownerId,
+              feature: "ig-sync-enrichment",
+              provider: "scraper",
+              operation: "reel-scrape",
+              items_count: 1,
+              cost_usd: 0.0033,
+              latency_ms: latencyMs,
+              status: duration ? "success" : "error",
+            }).then(() => {});
+          }
+
           if (duration) {
             await supabase.from("reels").update({ duration_seconds: duration }).eq("id", reel.id);
             result.durationsEnriched++;
@@ -702,18 +728,21 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }
     }
 
+    // Debug: log follower_count values from dayMap
+    const fcSample = [...dayMap.entries()].slice(-5).map(([d, m]) => `${d}:${m.follower_count ?? 'undefined'}`);
+    console.log(`[follower_count] dayMap sample (last 5):`, fcSample.join(', '));
+
     for (const [date, metrics] of dayMap) {
-      // follower_count from Meta period=day is daily net change, not total.
-      // Use profileData.followers_count (real total) when the daily value is 0 or missing.
-      const followerValue = (metrics.follower_count && metrics.follower_count > 0)
-        ? metrics.follower_count
-        : (profileData?.followers_count ?? 0);
+      // follower_count from Meta period=day is a daily net change (delta), not total.
+      // When Meta doesn't return it, store 0 — never fall back to the profile total.
+      const followerValue = metrics.follower_count ?? 0;
 
       const { error } = await supabase.from("ig_account_insights").upsert({
         workspace_id: workspaceId, metric_date: date,
         impressions: metrics.views ?? metrics.content_views ?? 0,
         reach: metrics.reach ?? 0, profile_views: metrics.profile_views ?? 0,
         follower_count: followerValue,
+        followers_total: profileData?.followers_count ?? 0,
         follows_count: profileData?.follows_count ?? 0, media_count: profileData?.media_count ?? 0,
         accounts_engaged: metrics.accounts_engaged ?? 0,
         total_interactions: (metrics.likes ?? 0) + (metrics.comments ?? 0) + (metrics.shares ?? 0) + (metrics.saves ?? 0),
@@ -790,12 +819,12 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
     .map((reel) => {
       const organic = Array.isArray(reel.reel_metrics) ? reel.reel_metrics[0] : reel.reel_metrics;
       const paid = Array.isArray(reel.reel_metrics_paid) ? reel.reel_metrics_paid[0] : reel.reel_metrics_paid;
-      const viewsTotal = (organic?.views_org ?? 0) + (paid?.views_paid ?? 0);
+      const viewsTotal = organic?.views_org ?? 0;
       return {
         reelType: reel.reel_type,
         hasMetrics: organic != null || paid != null,
         viewsTotal,
-        reachTotal: (organic?.reach_org ?? 0) + (paid?.reach_paid ?? 0),
+        reachTotal: organic?.reach_org ?? 0,
         likes: organic?.likes_total ?? 0,
         comments: organic?.comments_total ?? 0,
         shares: organic?.shares_total ?? 0,
@@ -1091,9 +1120,14 @@ async function fetchDailyInsights(igAccountId: string, accessToken: string, sinc
 async function fetchFollowerCountInsights(igAccountId: string, accessToken: string, since: number, until: number): Promise<{ insights: IGInsight[]; errors: string[] }> {
   const errors: string[] = [];
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igAccountId}/insights?metric=follower_count&period=day&since=${since}&until=${until}&access_token=${accessToken}`);
+    const url = `${GRAPH_BASE}/${igAccountId}/insights?metric=follower_count&period=day&since=${since}&until=${until}&access_token=${accessToken}`;
+    console.log(`[follower_count] Fetching: since=${new Date(since * 1000).toISOString()} until=${new Date(until * 1000).toISOString()}`);
+    const res = await fetch(url);
     const data = await res.json();
     if (data.error) { errors.push(`Follower count: ${data.error.message}`); return { insights: [], errors }; }
+    // Debug: log what Meta returns
+    const rawValues = data.data?.[0]?.values || [];
+    console.log(`[follower_count] Meta returned ${rawValues.length} values. Sample:`, JSON.stringify(rawValues.slice(-5)));
     return {
       insights: (data.data || []).map((insight: IGInsight) => ({ name: insight.name, period: insight.period, values: normalizeInsightValues(insight) })),
       errors,

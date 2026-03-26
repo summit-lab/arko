@@ -1,224 +1,455 @@
-import { FileText, Phone, MessageSquare, TrendingUp, Quote, ChevronRight, Users, AlertCircle, ThumbsUp, Search } from "lucide-react";
+import {
+  Briefcase, Target, Sparkles, Shield, Globe, Megaphone, Lightbulb,
+  ThumbsUp, Flame, TrendingUp, Star, Eye,
+  Swords, Instagram, Youtube, Fingerprint, Zap,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { GoalEditor } from "@/components/features/goals/GoalEditor";
+import { getAdnData } from "@/services/adn-progress.service";
+import Link from "next/link";
+import { Suspense } from "react";
+import { CustomerVoiceTabs } from "./CustomerVoiceTabs";
+import { CompetitorPanel } from "./CompetitorPanel";
 
-const formResponses = [
-  { question: "¿Qué te hizo comprarme?", topAnswer: "Tu contenido en Reels me demostró que sabías de lo que hablabas", count: 34 },
-  { question: "¿Por qué yo y no otra persona?", topAnswer: "Porque mostrás resultados reales, no solo teoría", count: 28 },
-  { question: "¿Cuál era tu mayor dolor antes?", topAnswer: "No saber qué contenido publicar para atraer clientes", count: 41 },
-  { question: "¿Qué resultado obtuviste?", topAnswer: "Pasé de 0 a $15K/mes en 4 meses", count: 22 },
-];
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-const callTranscripts = [
-  {
-    id: 1,
-    prospect: "Lead - España",
-    date: "Hace 1 día",
-    duration: "28 min",
-    sentiment: "positive" as const,
-    keyPhrases: ["necesito escalar", "no tengo sistema", "vi tu Reel de errores"],
-    summary: "Prospect cualificado. Factura $8K/mes, quiere llegar a $30K. Principal dolor: no tiene sistema de contenido.",
-  },
-  {
-    id: 2,
-    prospect: "Lead - México",
-    date: "Hace 3 días",
-    duration: "22 min",
-    sentiment: "neutral" as const,
-    keyPhrases: ["falta de tiempo", "muchas ideas pero no ejecuto", "competencia fuerte"],
-    summary: "Semi-cualificado. Factura $5K/mes. Tiene resistencia al precio pero mucho interés en el sistema.",
-  },
-  {
-    id: 3,
-    prospect: "Lead - Argentina",
-    date: "Hace 5 días",
-    duration: "35 min",
-    sentiment: "positive" as const,
-    keyPhrases: ["quiero automatizar", "tu video de YouTube me convenció", "listo para invertir"],
-    summary: "Altamente cualificado. Factura $22K/mes. Vio el video de YT y ya estaba decidido antes de la llamada.",
-  },
-];
+function Field({
+  icon: Icon,
+  label,
+  value,
+  accent = "white",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string | null | undefined;
+  accent?: string;
+}) {
+  if (!value) return null;
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className={`h-3 w-3 text-${accent}/30`} />
+        <span className="text-[10px] text-white/25 uppercase tracking-[0.12em] font-medium">
+          {label}
+        </span>
+      </div>
+      <p className="text-[13px] text-white/65 font-light leading-[1.7]">{value}</p>
+    </div>
+  );
+}
 
-const painPoints = [
-  { pain: "No saber qué contenido publicar", mentions: 41, pct: 68 },
-  { pain: "Falta de tiempo para crear contenido", mentions: 33, pct: 55 },
-  { pain: "No poder medir el ROI del contenido", mentions: 28, pct: 47 },
-  { pain: "Competencia creciente en su nicho", mentions: 19, pct: 32 },
-  { pain: "No convertir seguidores en clientes", mentions: 24, pct: 40 },
-];
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex text-[11px] text-white/50 font-light px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+      {children}
+    </span>
+  );
+}
 
-const quotesForCopy = [
-  "\"Vi tu Reel y supe que vos entendías mi problema\"",
-  "\"En 3 meses recuperé la inversión x4\"",
-  "\"Me ahorraste meses de prueba y error\"",
-  "\"Tu contenido es el único que no se siente como humo\"",
-];
+// ─── Internal types ─────────────────────────────────────────────────────────
+
+interface CompetitorReelAnalysis {
+  hook_text: string | null;
+  hook_type: string | null;
+  content_type: string | null;
+  topic_cluster: string | null;
+  style_notes: string | null;
+  narrative_structure: string | null;
+  strengths: string | null;
+  weaknesses: string | null;
+  ai_summary: string | null;
+  cta_type: string | null;
+}
+
+interface CompetitorReelRow {
+  id: string;
+  competitor_id: string;
+  caption: string | null;
+  views_count: number | null;
+  likes_count: number | null;
+  comments_count: number | null;
+  shares_count: number | null;
+  duration_seconds: number | null;
+  published_at: string | null;
+  transcript: string | null;
+  competitor_reel_analysis: Record<string, unknown> | Record<string, unknown>[] | null;
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 export default async function CustomerVoicePage() {
   const workspaceId = await getWorkspaceId();
   let goals: { metric: string; target_value: number }[] = [];
+  let adnData: Awaited<ReturnType<typeof getAdnData>> | null = null;
+  const competitorReels: Record<string, { reels: CompetitorReelRow[]; count: number }> = {};
+  let competitorMeta: Record<string, { scraped_data: Record<string, unknown> | null; last_scraped_at: string | null; analysis_status: string }> = {};
 
   if (workspaceId) {
     const supabase = await createClient();
     const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
 
-    const { data } = await supabase
-      .from("workspace_goals")
-      .select("metric, target_value")
-      .eq("workspace_id", workspaceId)
-      .eq("period_start", periodStart);
+    const [goalsRes, adn] = await Promise.all([
+      supabase
+        .from("workspace_goals")
+        .select("metric, target_value")
+        .eq("workspace_id", workspaceId)
+        .eq("period_start", periodStart),
+      getAdnData(supabase, workspaceId),
+    ]);
 
-    goals = data ?? [];
+    goals = goalsRes.data ?? [];
+    adnData = adn;
+
+    // Fetch competitor reels with analysis + competitor metadata
+    if (adnData?.competitors && adnData.competitors.length > 0) {
+      const competitorIds = adnData.competitors.map((c) => c.id);
+
+      const [{ data: reels }, { data: competitorMetaRows }] = await Promise.all([
+        supabase
+          .from("competitor_reels")
+          .select(`
+            id, competitor_id, caption, views_count, likes_count, comments_count,
+            shares_count, duration_seconds, published_at, transcript,
+            competitor_reel_analysis (
+              hook_text, hook_type, content_type, topic_cluster,
+              style_notes, strengths, weaknesses, ai_summary, cta_type,
+              narrative_structure
+            )
+          `)
+          .in("competitor_id", competitorIds)
+          .order("views_count", { ascending: false, nullsFirst: false })
+          .limit(50),
+        supabase
+          .from("workspace_competitors")
+          .select("id, scraped_data, last_scraped_at, analysis_status")
+          .in("id", competitorIds),
+      ]);
+
+      // Index competitor metadata by ID
+      for (const m of (competitorMetaRows ?? []) as Array<{ id: string; scraped_data: unknown; last_scraped_at: string | null; analysis_status: string }>) {
+        competitorMeta[m.id] = {
+          scraped_data: (m.scraped_data && typeof m.scraped_data === "object" && Object.keys(m.scraped_data as Record<string, unknown>).length > 0)
+            ? m.scraped_data as Record<string, unknown>
+            : null,
+          last_scraped_at: m.last_scraped_at,
+          analysis_status: m.analysis_status ?? "idle",
+        };
+      }
+
+      for (const reel of (reels ?? []) as CompetitorReelRow[]) {
+        const cid = reel.competitor_id;
+        if (!competitorReels[cid]) {
+          competitorReels[cid] = { reels: [], count: 0 };
+        }
+        competitorReels[cid].reels.push(reel);
+        competitorReels[cid].count++;
+      }
+    }
   }
 
-  return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Customer Voice</h1>
-          <p className="text-zinc-400 mt-1 text-sm">Lo que dicen tus prospectos y clientes. Data cualitativa pura.</p>
+  const profile = adnData?.profile;
+  const brand = adnData?.brand;
+  const market = adnData?.market;
+  const strategies = adnData?.strategies ?? [];
+  const competitors = adnData?.competitors ?? [];
+  const references = adnData?.references ?? [];
+  const hasAdnData = !!(profile || brand || market);
+
+  // Build competitor data for panel
+  const competitorPanelData = competitors
+    .filter((c): c is typeof c & { id: string } => c.id != null)
+    .map((c) => {
+      const cReels = competitorReels[c.id]?.reels ?? [];
+      const meta = competitorMeta[c.id];
+      return {
+        id: c.id,
+        name: c.name,
+        ig_url: c.ig_url,
+        why_better: c.why_better,
+        scraped_data: meta?.scraped_data ?? null,
+        last_scraped_at: meta?.last_scraped_at ?? null,
+        analysis_status: meta?.analysis_status ?? "idle",
+        reels: cReels.map((r: CompetitorReelRow) => ({
+          id: r.id,
+          caption: r.caption,
+          views_count: r.views_count,
+          likes_count: r.likes_count,
+          comments_count: r.comments_count,
+          shares_count: r.shares_count,
+          duration_seconds: r.duration_seconds,
+          published_at: r.published_at,
+          transcript: r.transcript,
+          competitor_reel_analysis: (Array.isArray(r.competitor_reel_analysis)
+            ? r.competitor_reel_analysis[0] ?? null
+            : r.competitor_reel_analysis ?? null) as CompetitorReelAnalysis | null,
+        })),
+        reels_count: competitorReels[c.id]?.count ?? 0,
+      };
+    });
+
+  // ─── ADN Content ──────────────────────────────────────────────────────────
+
+  const adnContent = !hasAdnData ? (
+    <div className="glass-panel rounded-xl p-12 text-center animate-slide-up">
+      <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
+        <Fingerprint className="h-6 w-6 text-amber-400" />
+      </div>
+      <p className="text-[16px] text-white/60 font-light mb-1.5">
+        Tu perfil de marca todavía no tiene datos
+      </p>
+      <p className="text-[13px] text-white/30 font-light mb-6 max-w-md mx-auto">
+        Completá tu ADN de Comunicación para que Arko conozca tu negocio, audiencia, competencia y marca.
+      </p>
+      <Link
+        href="/onboarding/adn"
+        className="inline-flex text-[13px] font-medium text-amber-300 hover:text-amber-200 transition-colors px-5 py-2.5 rounded-xl bg-amber-500/[0.1] hover:bg-amber-500/[0.18] border border-amber-500/25"
+      >
+        Completar ADN
+      </Link>
+    </div>
+  ) : (
+    <div className="space-y-6">
+      {/* ROW 1 — Identity + Persona */}
+      <div className="flex gap-6 animate-slide-up">
+        <div className="flex-[7] glass-panel rounded-xl p-7 relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none opacity-[0.04]" style={{ background: "radial-gradient(circle, #a78bfa 0%, transparent 70%)" }} />
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/10">
+              <Fingerprint className="h-5 w-5 text-violet-400" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-medium text-white/90 tracking-wide">Identidad</h2>
+              <p className="text-[11px] text-white/25 font-light">Quién sos y qué hacés</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+            <Field icon={Briefcase} label="Negocio" value={profile?.business_description} />
+            <Field icon={Sparkles} label="Oferta Principal" value={profile?.main_offer} />
+            <div className="col-span-2">
+              <Field icon={Megaphone} label="Personalidad de Marca" value={profile?.brand_persona} />
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button className="bg-white/10 border border-white/10 text-sm text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors">
-            Sync Formularios
-          </button>
-          <button className="bg-white/10 border border-white/10 text-sm text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors">
-            Subir Llamada
-          </button>
+        <div className="flex-[3] glass-panel rounded-xl p-6 flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full pointer-events-none opacity-[0.04]" style={{ background: "radial-gradient(circle, #22d3ee 0%, transparent 70%)" }} />
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="h-4 w-4 text-cyan-400" />
+              <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Tu Avatar</span>
+            </div>
+            <p className="text-[14px] text-white/75 font-light leading-[1.7] mb-4">{profile?.avatar_description || "—"}</p>
+          </div>
+          {profile?.target_audience && (
+            <div className="pt-4 border-t border-white/[0.06]">
+              <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium">Audiencia</span>
+              <p className="text-[12px] text-white/50 font-light leading-[1.6] mt-1">{profile.target_audience}</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: "Respuestas Formulario", value: "60", icon: FileText },
-          { label: "Llamadas Transcritas", value: "23", icon: Phone },
-          { label: "Dolores Detectados", value: "12", icon: AlertCircle },
-          { label: "Frases para Copy", value: "34", icon: Quote },
-        ].map((s) => (
-          <div key={s.label} className="glass-panel rounded-xl p-4 text-center">
-            <s.icon className="h-4 w-4 text-zinc-500 mx-auto mb-2" />
-            <p className="text-lg font-bold text-white">{s.value}</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{s.label}</p>
+      {/* ROW 2 — Why + Differentiator + Mechanisms */}
+      <div className="grid grid-cols-3 gap-6 animate-slide-up">
+        <div className="glass-panel rounded-xl p-6 relative overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #34d399 0%, transparent 70%)" }} />
+          <div className="flex items-center gap-2 mb-4">
+            <ThumbsUp className="h-4 w-4 text-emerald-400" />
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Por qué te eligen</span>
           </div>
-        ))}
+          <p className="text-[14px] text-white/70 font-light leading-[1.7]">{brand?.why_clients_choose || "—"}</p>
+        </div>
+        <div className="glass-panel rounded-xl p-6 relative overflow-hidden">
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #fbbf24 0%, transparent 70%)" }} />
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="h-4 w-4 text-amber-400" />
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Diferenciador</span>
+          </div>
+          <p className="text-[14px] text-white/70 font-light leading-[1.7]">{market?.differentiator || "—"}</p>
+        </div>
+        <div className="glass-panel rounded-xl p-6 relative overflow-hidden">
+          <div className="absolute -top-10 -left-10 w-32 h-32 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #c084fc 0%, transparent 70%)" }} />
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb className="h-4 w-4 text-purple-400" />
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Mecanismos Nuevos</span>
+          </div>
+          <p className="text-[14px] text-white/70 font-light leading-[1.7]">{brand?.new_mechanisms || "—"}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Form Responses */}
-        <div className="col-span-7 glass-panel rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <FileText className="h-4 w-4 text-zinc-400" />
-            <h3 className="text-sm font-semibold text-zinc-300">Respuestas de Formularios (Typeform)</h3>
+      {/* ROW 3 — Market + Niche DNA + Competitors mini */}
+      <div className="flex gap-6 animate-slide-up">
+        <div className="flex-[5] glass-panel rounded-xl p-7">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/10">
+              <TrendingUp className="h-4.5 w-4.5 text-amber-400" />
+            </div>
+            <h3 className="text-[15px] font-medium text-white/85 tracking-wide">Mercado e Industria</h3>
           </div>
-          <div className="space-y-4">
-            {formResponses.map((r, i) => (
-              <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/5">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-zinc-300">{r.question}</p>
-                  <span className="text-[10px] text-zinc-500">{r.count} respuestas</span>
+          <div className="space-y-5">
+            <Field icon={TrendingUp} label="Estado de la Industria" value={market?.industry_state} accent="amber" />
+            <Field icon={Eye} label="Exposición del Avatar" value={market?.audience_exposure} accent="amber" />
+            <Field icon={Eye} label="Creencias del Mercado" value={market?.market_beliefs} accent="amber" />
+            <Field icon={Flame} label="Temas Quemados" value={market?.burned_topics} accent="amber" />
+            <Field icon={Sparkles} label="Tendencias Actuales" value={market?.current_trends} accent="amber" />
+            <Field icon={Swords} label="Competitividad" value={market?.competitiveness} accent="amber" />
+          </div>
+        </div>
+        <div className="flex-[4] space-y-6">
+          <div className="glass-panel rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Globe className="h-4 w-4 text-cyan-400" />
+              <h3 className="text-[14px] font-medium text-white/80 tracking-wide">ADN del Nicho</h3>
+            </div>
+            {brand?.niche_language && (
+              <div className="mb-4">
+                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">Lenguaje</span>
+                <div className="flex flex-wrap gap-1.5">{brand.niche_language.split(",").map((w, i) => <Tag key={i}>{w.trim()}</Tag>)}</div>
+              </div>
+            )}
+            {brand?.niche_tools && (
+              <div className="mb-4">
+                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">Herramientas</span>
+                <div className="flex flex-wrap gap-1.5">{brand.niche_tools.split(",").map((w, i) => <Tag key={i}>{w.trim()}</Tag>)}</div>
+              </div>
+            )}
+            {brand?.filtering_words && (
+              <div>
+                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">Palabras Filtro</span>
+                <div className="flex flex-wrap gap-1.5">{brand.filtering_words.split(",").map((w, i) => <Tag key={i}>{w.trim()}</Tag>)}</div>
+              </div>
+            )}
+          </div>
+          {competitors.length > 0 && (
+            <div className="glass-panel rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Swords className="h-4 w-4 text-rose-400" />
+                  <h3 className="text-[14px] font-medium text-white/80 tracking-wide">Competidores</h3>
                 </div>
-                <p className="text-sm text-zinc-400 italic">&ldquo;{r.topAnswer}&rdquo;</p>
+                <span className="text-[11px] text-white/20 font-light">{competitors.length}</span>
+              </div>
+              <div className="space-y-2">
+                {competitors.map((c, i) => (
+                  <div key={i} className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors">
+                    <div className="h-7 w-7 rounded-full bg-rose-500/8 flex items-center justify-center shrink-0 border border-rose-500/10">
+                      <span className="text-[11px] text-rose-400 font-medium">{(c.name ?? "?")[0].toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-white/70 font-medium truncate">{c.name}</p>
+                      {c.ig_url && <p className="text-[10px] text-white/20 font-light truncate">{c.ig_url}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ROW 4 — Strategies */}
+      {strategies.length > 0 && (
+        <div className="animate-slide-up">
+          <div className="flex gap-6">
+            {strategies.map((s, i) => {
+              const isIg = s.platform === "instagram";
+              const color = isIg ? "pink" : "red";
+              return (
+                <div key={i} className="flex-1 glass-panel rounded-xl p-6 relative overflow-hidden">
+                  <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full pointer-events-none opacity-[0.03]" style={{ background: `radial-gradient(circle, ${isIg ? "#ec4899" : "#ef4444"} 0%, transparent 70%)` }} />
+                  <div className="flex items-center gap-2.5 mb-5">
+                    <div className={`h-8 w-8 rounded-xl bg-${color}-500/10 flex items-center justify-center border border-${color}-500/10`}>
+                      {isIg ? <Instagram className="h-4 w-4 text-pink-400" /> : <Youtube className="h-4 w-4 text-red-400" />}
+                    </div>
+                    <div>
+                      <h3 className="text-[14px] font-medium text-white/85 tracking-wide capitalize">{s.platform}</h3>
+                      <p className="text-[10px] text-white/20 font-light">Estrategia de contenido</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <Field icon={Eye} label="Qué probó" value={s.what_tested} />
+                    <Field icon={TrendingUp} label="Resultados" value={s.test_results} />
+                    <Field icon={Lightbulb} label="Conclusiones" value={s.conclusions} />
+                    <Field icon={Target} label="Estrategia Actual" value={s.current_strategy} />
+                    <Field icon={Zap} label="Formatos y Cantidad" value={s.formats_and_quantity} />
+                    <Field icon={ThumbsUp} label="Por qué va a funcionar" value={s.why_it_will_work} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ROW 5 — References */}
+      {references.length > 0 && (
+        <div className="animate-slide-up">
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="h-4 w-4 text-yellow-400" />
+            <h3 className="text-[14px] font-medium text-white/80 tracking-wide">Marcas de Referencia</h3>
+            <span className="text-[11px] text-white/20 font-light ml-1">({references.length})</span>
+          </div>
+          <div className="flex gap-4">
+            {references.map((r, i) => (
+              <div key={i} className="flex-1 min-w-0 glass-card px-5 py-4 rounded-xl hover:bg-white/[0.06] transition-all duration-300">
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <div className="h-8 w-8 rounded-full bg-yellow-500/8 flex items-center justify-center border border-yellow-500/10 shrink-0">
+                    <Star className="h-3.5 w-3.5 text-yellow-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] text-white/80 font-medium truncate">{r.brand_name}</p>
+                    {r.brand_url && <p className="text-[10px] text-white/20 font-light truncate">{r.brand_url}</p>}
+                  </div>
+                </div>
+                {r.what_they_like && <p className="text-[12px] text-white/45 font-light leading-[1.6]">{r.what_they_like}</p>}
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Pain Points + Quotes */}
-        <div className="col-span-5 space-y-6">
-          {/* Pain Points */}
-          <div className="glass-panel rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <AlertCircle className="h-4 w-4 text-amber-400" />
-              <h3 className="text-sm font-semibold text-zinc-300">Dolores Más Mencionados</h3>
-            </div>
-            <div className="space-y-3">
-              {painPoints.map((p, i) => (
-                <div key={i}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-zinc-300">{p.pain}</span>
-                    <span className="text-[10px] text-zinc-500">{p.mentions}x ({p.pct}%)</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
-                    <div className="h-full rounded-full bg-amber-500/50" style={{ width: `${p.pct}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* ROW 6 — Goals */}
+      <div className="animate-slide-up">
+        <GoalEditor goals={goals} />
+      </div>
+    </div>
+  );
 
-          {/* Quotes for Copy */}
-          <div className="glass-panel rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <Quote className="h-4 w-4 text-cyan-400" />
-              <h3 className="text-sm font-semibold text-zinc-300">Frases para Copy</h3>
-            </div>
-            <div className="space-y-3">
-              {quotesForCopy.map((q, i) => (
-                <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/5 text-sm text-zinc-300 italic">
-                  {q}
-                </div>
-              ))}
-            </div>
+  // ─── Competitor Content ───────────────────────────────────────────────────
+
+  const competitorContent = (
+    <CompetitorPanel
+      competitors={competitorPanelData}
+      workspaceId={workspaceId ?? ""}
+    />
+  );
+
+  return (
+    <div className="px-8 py-10">
+      {/* Header */}
+      <div className="animate-slide-up mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="page-title">Customer Voice</h1>
+            <p className="text-white/35 mt-3 text-[15px] font-light">
+              El ADN completo de tu marca y el análisis de tu competencia.
+            </p>
           </div>
+          <Link
+            href="/onboarding/adn"
+            className="text-[12px] font-medium text-white/40 hover:text-white/70 transition-colors px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.06] border border-white/[0.08]"
+          >
+            Editar ADN
+          </Link>
         </div>
       </div>
 
-      {/* Monthly Goals */}
-      <GoalEditor goals={goals} />
-
-      {/* Call Transcripts */}
-      <div className="glass-panel rounded-xl p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-zinc-400" />
-            <h3 className="text-sm font-semibold text-zinc-300">Llamadas de Venta Transcritas</h3>
-          </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
-            <input
-              type="text"
-              placeholder="Buscar en transcripciones..."
-              className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-white/20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {callTranscripts.map((call) => (
-            <div key={call.id} className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                    call.sentiment === "positive" ? "bg-emerald-500/10" : "bg-zinc-500/10"
-                  }`}>
-                    {call.sentiment === "positive" ? (
-                      <ThumbsUp className="h-3.5 w-3.5 text-emerald-400" />
-                    ) : (
-                      <Users className="h-3.5 w-3.5 text-zinc-400" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-zinc-200">{call.prospect}</p>
-                    <p className="text-[10px] text-zinc-500">{call.date} · {call.duration}</p>
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
-              </div>
-              <p className="text-xs text-zinc-400 mb-3">{call.summary}</p>
-              <div className="flex flex-wrap gap-2">
-                {call.keyPhrases.map((phrase, i) => (
-                  <span key={i} className="text-[10px] px-2 py-1 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                    &ldquo;{phrase}&rdquo;
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Suspense>
+        <CustomerVoiceTabs adnContent={adnContent} competitorContent={competitorContent} />
+      </Suspense>
     </div>
   );
 }

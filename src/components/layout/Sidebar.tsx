@@ -17,14 +17,15 @@ const navItems = [
   { name: "YouTube",          href: "/youtube",        svg: "/svgs/youtube_16.svg" },
   { name: "Ads Intelligence", href: "/ads",            svg: "/svgs/megaphone_9.svg" },
   { name: "Customer Voice",   href: "/customer-voice", svg: "/svgs/person-voice_1.svg" },
-  { name: "AI Agents",        href: "/agents",         svg: "/svgs/robot_6.svg" },
+  { name: "Arko AI",          href: "/agents",         svg: "/svgs/robot_6.svg" },
 ];
 
 interface SidebarProps {
   isAdmin?: boolean;
+  onboardingMode?: boolean;
 }
 
-export function Sidebar({ isAdmin = false }: SidebarProps) {
+export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
@@ -35,15 +36,15 @@ export function Sidebar({ isAdmin = false }: SidebarProps) {
     setOptimisticHref(null); // eslint-disable-line react-hooks/set-state-in-effect
   }, [pathname]);
 
-  const handleNav = useCallback((href: string, e: React.MouseEvent) => {
+  const handleNav = useCallback((href: string, e: React.MouseEvent, bypassOnboarding = false) => {
     e.preventDefault();
-    if (href === pathname) return;
+    if ((!bypassOnboarding && onboardingMode) || href === pathname) return;
     setOptimisticHref(href);
     window.dispatchEvent(new Event("nav:start"));
     startTransition(() => {
       router.push(href);
     });
-  }, [router, pathname]);
+  }, [router, pathname, onboardingMode]);
 
   // Use optimistic href for active state so it changes INSTANTLY on click
   const activeHref = optimisticHref ?? pathname;
@@ -84,16 +85,27 @@ export function Sidebar({ isAdmin = false }: SidebarProps) {
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {onboardingMode && (
+          <div className="px-3 py-2 mb-2">
+            <p className="text-[11px] font-medium text-white/25 tracking-wide">
+              Completá tu ADN para desbloquear
+            </p>
+          </div>
+        )}
         {navItems.map((item) => {
-          const isActive = isItemActive(item.href);
+          const isActive = !onboardingMode && isItemActive(item.href);
 
           return (
             <Link
               key={item.name}
               href={item.href}
               onClick={(e) => handleNav(item.href, e)}
+              aria-disabled={onboardingMode}
+              tabIndex={onboardingMode ? -1 : undefined}
               className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
-                isActive
+                onboardingMode
+                  ? "opacity-30 cursor-not-allowed"
+                  : isActive
                   ? "bg-white/[0.06]"
                   : "hover:bg-white/[0.03]"
               }`}
@@ -132,7 +144,7 @@ export function Sidebar({ isAdmin = false }: SidebarProps) {
 
               {/* Glow interno derecho sutil */}
               {isActive && (
-                <div 
+                <div
                   className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
                   style={{
                     background: "linear-gradient(to right, transparent, rgba(255,255,255,0.015))",
@@ -143,6 +155,57 @@ export function Sidebar({ isAdmin = false }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* ── Arko ADN ── */}
+      <div className="px-3 pb-2">
+        <Link
+          href="/onboarding/adn"
+          onClick={(e) => handleNav("/onboarding/adn", e, true)}
+          className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
+            isItemActive("/onboarding/adn")
+              ? "bg-white/[0.06]"
+              : "hover:bg-white/[0.03]"
+          }`}
+        >
+          {isItemActive("/onboarding/adn") && (
+            <div
+              className="absolute left-0 top-[15%] bottom-[15%] w-[2px] rounded-full pointer-events-none"
+              style={{
+                background: "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.1) 100%)",
+                boxShadow: "0 0 8px rgba(255, 255, 255, 0.3)",
+              }}
+            />
+          )}
+          <Image
+            src="/svgs/arko-adn_1.svg"
+            alt="Arko ADN"
+            width={20}
+            height={20}
+            className="relative z-10 shrink-0 transition-opacity"
+            style={{
+              filter: "brightness(0) invert(1)",
+              opacity: isItemActive("/onboarding/adn") ? 1 : 0.4,
+            }}
+          />
+          <span
+            className={`text-[14px] transition-colors relative z-10 ${
+              isItemActive("/onboarding/adn")
+                ? "font-medium text-white tracking-wide"
+                : "font-light text-white/40 group-hover:text-white/65 tracking-wide"
+            }`}
+          >
+            Arko ADN
+          </span>
+          {isItemActive("/onboarding/adn") && (
+            <div
+              className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
+              style={{
+                background: "linear-gradient(to right, transparent, rgba(255,255,255,0.015))",
+              }}
+            />
+          )}
+        </Link>
+      </div>
 
       {/* ── Bottom ── */}
       <div className="px-3 py-6 space-y-1 border-t border-white/[0.06]">

@@ -1,7 +1,14 @@
 import { Bell, ChevronDown, Search, TrendingUp, Eye, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceId } from "@/lib/workspace";
 import { cache } from "react";
 import { HeaderClient } from "./HeaderClient";
+
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return n.toString();
+}
 
 const getUserProfile = cache(async () => {
   const supabase = await createClient();
@@ -20,8 +27,43 @@ const getUserProfile = cache(async () => {
   return { user, profile };
 });
 
+const getQuickStats = cache(async (): Promise<{ views: string; followers: string; engRate: string }> => {
+  const fallback = { views: "—", followers: "—", engRate: "—" };
+
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) return fallback;
+
+  const supabase = await createClient();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const { data: insights } = await supabase
+    .from("ig_account_insights")
+    .select("reach, impressions, total_interactions, followers_total")
+    .eq("workspace_id", workspaceId)
+    .gte("metric_date", thirtyDaysAgo)
+    .order("metric_date", { ascending: false })
+    .limit(30);
+
+  if (!insights || insights.length === 0) return fallback;
+
+  const totalReach = insights.reduce((sum, row) => sum + (row.reach || 0), 0);
+  const totalInteractions = insights.reduce((sum, row) => sum + (row.total_interactions || 0), 0);
+  // followers_total is the cumulative snapshot — use the most recent non-zero value
+  const latestFollowers = insights.find((r) => (r.followers_total || 0) > 0)?.followers_total || 0;
+  const engRate = totalReach > 0 ? (totalInteractions / totalReach) * 100 : 0;
+
+  return {
+    views: formatCompact(totalReach),
+    followers: formatCompact(latestFollowers),
+    engRate: engRate > 0 ? `${engRate.toFixed(1)}%` : "—",
+  };
+});
+
 export async function Header() {
-  const { user, profile } = await getUserProfile();
+  const [{ user, profile }, quickStats] = await Promise.all([
+    getUserProfile(),
+    getQuickStats(),
+  ]);
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
   const username = profile?.email?.split("@")[0] || "user";
@@ -79,9 +121,9 @@ export async function Header() {
         {/* Center — Quick Stats Ticker */}
         <div className="hidden lg:flex items-center gap-5">
           {[
-            { icon: Eye, label: "Views", value: "1.2M", color: "text-blue-400" },
-            { icon: Users, label: "Followers", value: "19K", color: "text-violet-400" },
-            { icon: TrendingUp, label: "Eng. Rate", value: "6.1%", color: "text-emerald-400" },
+            { icon: Eye, label: "Reach", value: quickStats.views, color: "text-blue-400" },
+            { icon: Users, label: "Followers", value: quickStats.followers, color: "text-violet-400" },
+            { icon: TrendingUp, label: "Eng. Rate", value: quickStats.engRate, color: "text-emerald-400" },
           ].map((stat, i) => (
             <div key={stat.label} className="flex items-center">
               {i > 0 && <div className="w-[1px] h-5 mr-5" style={{ background: "rgba(255,255,255,0.06)" }} />}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw, Check, AlertCircle } from "lucide-react";
 
 interface SyncButtonProps {
@@ -11,6 +12,7 @@ interface SyncButtonProps {
 type SyncPhase = "idle" | "quick" | "done" | "error";
 
 export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
+  const router = useRouter();
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -33,24 +35,26 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
         return;
       }
 
-      // Quick done — reload to show fresh data, fire full sync after
+      // Quick done — refresh server components to show fresh data
       if (stepsParam === "account") {
-        window.location.reload();
+        setPhase("done");
+        router.refresh();
         return;
       }
 
-      // Fire full sync in background BEFORE reload (fire-and-forget)
+      // Fire full sync in background (fire-and-forget)
       fetch(
         `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all`,
         { method: "POST" }
       ).catch(() => { /* background, non-blocking */ });
 
-      window.location.reload();
+      setPhase("done");
+      router.refresh();
     } catch {
       setPhase("error");
       setErrorMsg("Error de red");
     }
-  }, [workspaceId, currentTab]);
+  }, [workspaceId, currentTab, router]);
 
   const isLoading = phase === "quick";
 

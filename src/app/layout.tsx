@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark">
-      <body className={`${manropeLight.className} ${manropeLight.variable} ${manropeBold.variable} antialiased bg-black text-white`}>
+      <body suppressHydrationWarning className={`${manropeLight.className} ${manropeLight.variable} ${manropeBold.variable} antialiased bg-black text-white`}>
         {children}
       </body>
     </html>

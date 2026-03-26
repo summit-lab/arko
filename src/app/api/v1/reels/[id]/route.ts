@@ -7,7 +7,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api404, api500 } from '@/lib/api/response';
-import { fetchApifyReelPublicData } from '@/services/apify-reel.service';
 
 export async function GET(
   request: Request,
@@ -64,9 +63,11 @@ export async function GET(
     const totalInteractions = metrics?.total_interactions || 0;
     const avgViews90d = benchmark?.avg_views_90d || 0;
     const performerMultiple = avgViews90d > 0 ? viewsTotal / avgViews90d : null;
-    const externalPublicData = await fetchApifyReelPublicData(reel.permalink);
 
-    const effectiveDuration = reel.duration_seconds ?? externalPublicData?.video_duration_seconds ?? null;
+    // duration_seconds ya se guarda en la DB durante el sync/enrichment inicial.
+    // No llamamos al scraper externo aquí — los datos de métricas vienen de Meta API (gratis)
+    // y el transcript viene del análisis de Gemini.
+    const effectiveDuration = reel.duration_seconds ?? null;
     const avgWatchTimeSec = metrics?.avg_watch_time_sec ?? null;
 
     const retentionRate = avgWatchTimeSec != null && effectiveDuration && effectiveDuration > 0
@@ -102,7 +103,6 @@ export async function GET(
         paid_cpv: (metricsPaid?.video_plays || 0) > 0 ? (metricsPaid?.spend_cents || 0) / 100 / (metricsPaid?.video_plays || 1) : null,
         paid_cpm: impressionsPaid > 0 ? (metricsPaid?.spend_cents || 0) / 100 / (impressionsPaid / 1000) : null,
       },
-      external_public_data: externalPublicData,
       benchmark,
       performer_multiple_views: performerMultiple,
       is_top_performer: (performerMultiple ?? 0) >= 3,
