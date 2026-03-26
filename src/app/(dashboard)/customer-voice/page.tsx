@@ -83,7 +83,7 @@ export default async function CustomerVoicePage() {
   let goals: { metric: string; target_value: number }[] = [];
   let adnData: Awaited<ReturnType<typeof getAdnData>> | null = null;
   const competitorReels: Record<string, { reels: CompetitorReelRow[]; count: number }> = {};
-  let competitorMeta: Record<string, { scraped_data: Record<string, unknown> | null; last_scraped_at: string | null; analysis_status: string }> = {};
+  const competitorMeta: Record<string, { scraped_data: Record<string, unknown> | null; last_scraped_at: string | null; analysis_status: string }> = {};
 
   if (workspaceId) {
     const supabase = await createClient();

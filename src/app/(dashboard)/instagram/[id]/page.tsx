@@ -166,7 +166,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   let reel = DEMO_REEL;
   let isDemo = true;
   let initialGeminiAnalysis: GeminiVideoAnalysis | null = null;
-  let reelDailyData: { date: string; views: number; likes: number; saves: number; comments: number; shares: number }[] = [];
+  const reelDailyData: { date: string; views: number; likes: number; saves: number; comments: number; shares: number }[] = [];
 
   if (workspaceId && !id.startsWith("demo")) {
       const [
