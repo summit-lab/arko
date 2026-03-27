@@ -6,7 +6,7 @@
 
 // ─── Enums ───────────────────────────────────────────────────
 
-export type WorkspacePlan = 'free' | 'pro' | 'agency';
+export type WorkspacePlan = 'pro';
 
 export type MetaConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'error';
 
@@ -45,6 +45,10 @@ export type SyncJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'can
 export type UserRole = 'admin' | 'user';
 
 export type WorkspaceMemberRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+export type InvitationStatus = 'pending' | 'used' | 'expired';
+
+export type OnboardingPlatform = 'instagram' | 'youtube' | 'tiktok' | 'other';
 
 // ─── Table Types ─────────────────────────────────────────────
 
@@ -377,6 +381,91 @@ export interface SyncJob {
   error_message: string | null;
   error_details: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  token: string;
+  status: InvitationStatus;
+  invited_by: string;
+  workspace_id: string | null;
+  used_by: string | null;
+  used_at: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface WorkspaceProfile {
+  id: string;
+  workspace_id: string;
+  business_description: string | null;
+  brand_persona: string | null;
+  avatar_description: string | null;
+  main_offer: string | null;
+  target_audience: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceStrategy {
+  id: string;
+  workspace_id: string;
+  platform: OnboardingPlatform;
+  what_tested: string | null;
+  test_results: string | null;
+  conclusions: string | null;
+  current_strategy: string | null;
+  formats_and_quantity: string | null;
+  why_it_will_work: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceCompetitor {
+  id: string;
+  workspace_id: string;
+  name: string | null;
+  ig_url: string | null;
+  why_better: string | null;
+  scraped_data: Record<string, unknown>;
+  last_scraped_at: string | null;
+  created_at: string;
+}
+
+export interface WorkspaceMarket {
+  id: string;
+  workspace_id: string;
+  industry_state: string | null;
+  audience_exposure: string | null;
+  market_beliefs: string | null;
+  burned_topics: string | null;
+  current_trends: string | null;
+  competitiveness: string | null;
+  differentiator: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceReference {
+  id: string;
+  workspace_id: string;
+  brand_name: string | null;
+  brand_url: string | null;
+  what_they_like: string | null;
+  created_at: string;
+}
+
+export interface WorkspaceBrand {
+  id: string;
+  workspace_id: string;
+  why_clients_choose: string | null;
+  niche_language: string | null;
+  niche_tools: string | null;
+  filtering_words: string | null;
+  new_mechanisms: string | null;
   created_at: string;
   updated_at: string;
 }

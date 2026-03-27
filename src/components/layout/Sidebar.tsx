@@ -1,30 +1,31 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useTransition, useCallback } from "react";
 import {
-  LayoutGrid,
-  Instagram,
-  Youtube,
-  Megaphone,
-  Users,
-  Bot,
   Settings,
   LogOut,
+  Shield,
 } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 
 const navItems = [
-  { name: "Dashboard",        href: "/",               icon: LayoutGrid },
-  { name: "Instagram",        href: "/instagram",      icon: Instagram },
-  { name: "YouTube",          href: "/youtube",        icon: Youtube },
-  { name: "Ads Intelligence", href: "/ads",            icon: Megaphone },
-  { name: "Customer Voice",   href: "/customer-voice", icon: Users },
-  { name: "AI Agents",        href: "/agents",         icon: Bot },
+  { name: "Dashboard",        href: "/",               svg: "/svgs/dashboard_21.svg" },
+  { name: "Instagram",        href: "/instagram",      svg: "/svgs/instagram_5.svg" },
+  { name: "YouTube",          href: "/youtube",        svg: "/svgs/youtube_16.svg" },
+  { name: "Ads Intelligence", href: "/ads",            svg: "/svgs/megaphone_9.svg" },
+  { name: "Customer Voice",   href: "/customer-voice", svg: "/svgs/person-voice_1.svg" },
+  { name: "Arko AI",          href: "/agents",         svg: "/svgs/robot_6.svg" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isAdmin?: boolean;
+  adnPending?: boolean;
+}
+
+export function Sidebar({ isAdmin = false, adnPending = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
@@ -54,8 +55,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className="w-[260px] h-screen fixed left-0 top-0 z-40 flex flex-col"
-      style={{ background: "#0e0d14", fontFamily: "'Graphicus DT', sans-serif" }}
+      className="w-[260px] h-screen fixed left-0 top-0 z-40 flex flex-col backdrop-blur-xl"
+      style={{ background: "rgba(0, 0, 0, 0.4)", borderRight: "1px solid rgba(255,255,255,0.06)" }}
     >
       {/* ── Logo ── */}
       <div className="flex items-center gap-3 px-5 pt-6 pb-5 shrink-0">
@@ -92,51 +93,127 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               onClick={(e) => handleNav(item.href, e)}
-              className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-md transition-all duration-150 overflow-hidden ${
+              className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
                 isActive
                   ? "bg-white/[0.06]"
                   : "hover:bg-white/[0.03]"
               }`}
             >
-              <item.icon
-                size={20}
-                strokeWidth={isActive ? 2.5 : 1.5}
-                className="transition-colors relative z-10 shrink-0"
-                style={{ color: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.45)" }}
+              {/* Active bar izquierda luminosa */}
+              {isActive && (
+                <div
+                  className="absolute left-0 top-[15%] bottom-[15%] w-[2px] rounded-full pointer-events-none"
+                  style={{
+                    background: "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.1) 100%)",
+                    boxShadow: "0 0 8px rgba(255, 255, 255, 0.3)",
+                  }}
+                />
+              )}
+
+              <Image
+                src={item.svg}
+                alt={item.name}
+                width={20}
+                height={20}
+                className="relative z-10 shrink-0 transition-opacity"
+                style={{
+                  filter: "brightness(0) invert(1)",
+                  opacity: isActive ? 1 : 0.4,
+                }}
               />
               <span
-                className={`text-[15px] tracking-wide transition-colors relative z-10 ${isActive ? "font-medium text-white" : "font-normal text-white/40 group-hover:text-white/70"}`}
+                className={`text-[14px] transition-colors relative z-10 ${
+                  isActive
+                    ? "font-medium text-white tracking-wide"
+                    : "font-light text-white/40 group-hover:text-white/65 tracking-wide"
+                }`}
               >
                 {item.name}
               </span>
 
-              {/* Efecto Glass / Reflejo en el borde derecho (Muy sutil) */}
+              {/* Glow interno derecho sutil */}
               {isActive && (
-                <>
-                  {/* Glow interno muy suave */}
-                  <div 
-                    className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
-                    style={{
-                      background: "linear-gradient(to right, transparent, rgba(255,255,255,0.015))",
-                    }}
-                  />
-                  {/* Línea de brillo cortada y sutil */}
-                  <div
-                    className="absolute right-0 top-[20%] bottom-[20%] w-[1px] pointer-events-none"
-                    style={{
-                      background: "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%)",
-                      boxShadow: "-1px 0 2px 0 rgba(255, 255, 255, 0.15)",
-                    }}
-                  />
-                </>
+                <div
+                  className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
+                  style={{
+                    background: "linear-gradient(to right, transparent, rgba(255,255,255,0.015))",
+                  }}
+                />
               )}
             </Link>
           );
         })}
       </nav>
 
+      {/* ── Arko ADN ── */}
+      <div className="px-3 pb-2">
+        <Link
+          href="/onboarding/adn"
+          onClick={(e) => handleNav("/onboarding/adn", e)}
+          className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
+            isItemActive("/onboarding/adn")
+              ? "bg-white/[0.06]"
+              : "hover:bg-white/[0.03]"
+          }`}
+        >
+          {isItemActive("/onboarding/adn") && (
+            <div
+              className="absolute left-0 top-[15%] bottom-[15%] w-[2px] rounded-full pointer-events-none"
+              style={{
+                background: "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.1) 100%)",
+                boxShadow: "0 0 8px rgba(255, 255, 255, 0.3)",
+              }}
+            />
+          )}
+          <Image
+            src="/svgs/arko-adn_1.svg"
+            alt="Arko ADN"
+            width={20}
+            height={20}
+            className="relative z-10 shrink-0 transition-opacity"
+            style={{
+              filter: "brightness(0) invert(1)",
+              opacity: isItemActive("/onboarding/adn") ? 1 : 0.4,
+            }}
+          />
+          <span
+            className={`text-[14px] transition-colors relative z-10 flex-1 ${
+              isItemActive("/onboarding/adn")
+                ? "font-medium text-white tracking-wide"
+                : "font-light text-white/40 group-hover:text-white/65 tracking-wide"
+            }`}
+          >
+            Arko ADN
+          </span>
+          {adnPending && (
+            <span className="relative z-10 flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-50" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            </span>
+          )}
+          {isItemActive("/onboarding/adn") && (
+            <div
+              className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
+              style={{
+                background: "linear-gradient(to right, transparent, rgba(255,255,255,0.015))",
+              }}
+            />
+          )}
+        </Link>
+      </div>
+
       {/* ── Bottom ── */}
-      <div className="px-3 py-6 space-y-1">
+      <div className="px-3 py-6 space-y-1 border-t border-white/[0.06]">
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={(e) => handleNav("/admin", e)}
+            className="group relative flex items-center gap-3 px-3 h-[32px] rounded-lg transition-all duration-200 hover:bg-amber-500/[0.05]"
+          >
+            <Shield size={16} strokeWidth={1.5} className="text-amber-400/60 transition-colors group-hover:text-amber-400" />
+            <span className="text-[14px] tracking-wide font-normal text-amber-400/60 transition-colors group-hover:text-amber-400">Admin</span>
+          </Link>
+        )}
         <Link
           href="/settings"
           onClick={(e) => handleNav("/settings", e)}

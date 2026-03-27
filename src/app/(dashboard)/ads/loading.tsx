@@ -11,7 +11,7 @@ export default function AdsLoading() {
       </div>
 
       {/* AI Insights */}
-      <div className="glass-card rounded-2xl p-4">
+      <div className="glass-card rounded-xl p-4">
         <div className="flex gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-8 rounded-lg bg-white/[0.04] flex-1" />
@@ -32,7 +32,7 @@ export default function AdsLoading() {
 
       {/* Campaigns + Geo */}
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-7 glass-card rounded-2xl p-6">
+        <div className="col-span-7 glass-card rounded-xl p-6">
           <div className="h-4 w-28 rounded bg-white/[0.06] mb-5" />
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -47,7 +47,7 @@ export default function AdsLoading() {
             ))}
           </div>
         </div>
-        <div className="col-span-5 glass-card rounded-2xl p-6">
+        <div className="col-span-5 glass-card rounded-xl p-6">
           <div className="h-4 w-48 rounded bg-white/[0.06] mb-5" />
           <div className="grid grid-cols-2 gap-6">
             {Array.from({ length: 2 }).map((_, col) => (

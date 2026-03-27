@@ -81,6 +81,16 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ status: "error", error: "Failed to decrypt access token" }, 500);
     }
 
+    // ── QUICK SYNC: Only latest media + insights, return fast ──
+    if (steps === "quick") {
+      return await handleQuickSync(supabase, workspace_id, connection.ig_business_account_id, accessToken);
+    }
+
+    // ── CHECK: Just check if there are new media items (for polling) ──
+    if (steps === "check") {
+      return await handleCheckNewMedia(supabase, workspace_id, connection.ig_business_account_id, accessToken);
+    }
+
     // Create sync job
     const { data: reelsJob } = await supabase
       .from("sync_jobs")
@@ -184,7 +194,187 @@ function jsonResponse(data: Record<string, unknown>, status = 200): Response {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// INSTAGRAM REELS SYNC
+// DATA DECAY — Tiered staleness based on reel age
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Returns how long insights stay "fresh" based on reel age.
+ * Hot reels (< 7d) change fast → refresh every 1h.
+ * Warm reels (7-30d) slow down → refresh every 24h.
+ * Cold reels (> 30d) are stable → refresh every 7 days.
+ */
+function getInsightStalenessMs(publishedAt: string | null): number {
+  if (!publishedAt) return 6 * 60 * 60 * 1000; // 6h fallback for unknown age
+  const ageMs = Date.now() - new Date(publishedAt).getTime();
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  if (ageMs < SEVEN_DAYS) return 60 * 60 * 1000;         // Hot:  1 hour
+  if (ageMs < THIRTY_DAYS) return 24 * 60 * 60 * 1000;   // Warm: 24 hours
+  return 7 * 24 * 60 * 60 * 1000;                         // Cold: 7 days
+}
+
+/** Check if a reel's insights are stale based on its age tier */
+function isInsightStale(publishedAt: string | null, fetchedAt: string | null): boolean {
+  if (!fetchedAt) return true; // never fetched
+  const threshold = getInsightStalenessMs(publishedAt);
+  const fetchedMs = new Date(fetchedAt).getTime();
+  return Date.now() - fetchedMs > threshold;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK SYNC — Latest media + smart insight refresh (~3-6s)
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: string, accessToken: string): Promise<Response> {
+  const t0 = Date.now();
+  const QUICK_LIMIT = 12;
+
+  try {
+    // 1) Fetch latest 12 media from IG + existing metrics timestamps in parallel
+    const fields = "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed";
+    const [igRes, existingRes] = await Promise.all([
+      fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=${fields}&limit=${QUICK_LIMIT}&access_token=${accessToken}`),
+      supabase
+        .from("reels")
+        .select("ig_media_id, reel_metrics(fetched_at)")
+        .eq("workspace_id", workspaceId)
+        .order("published_at", { ascending: false })
+        .limit(QUICK_LIMIT),
+    ]);
+
+    const igData = await igRes.json();
+    if (igData.error) throw new Error(`IG API: ${igData.error.message}`);
+    const allMedia: IGMedia[] = igData.data || [];
+    const media = allMedia.filter((m) => m.media_product_type === "REELS");
+
+    // 2) Batch upsert reels only (1 query)
+    const rows = media.map((m) => ({
+      workspace_id: workspaceId,
+      ig_media_id: m.id,
+      caption: m.caption || null,
+      media_type: m.media_type,
+      media_product_type: m.media_product_type,
+      permalink: m.permalink || null,
+      media_url: m.media_url || null,
+      thumbnail_url: m.thumbnail_url || null,
+      is_shared_to_feed: m.is_shared_to_feed ?? null,
+      published_at: m.timestamp || null,
+      reel_type: classifyReelType(m),
+      sync_status: "synced",
+    }));
+
+    const { data: upserted } = await supabase
+      .from("reels")
+      .upsert(rows, { onConflict: "workspace_id,ig_media_id" })
+      .select("id, ig_media_id");
+
+    const reelIdMap = new Map<string, string>();
+    for (const r of upserted || []) reelIdMap.set(r.ig_media_id, r.id);
+
+    // 3) Determine which reels need fresh insights (data decay tiers)
+    //    Hot (<7d) → 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d
+    const existingMetricsMap = new Map<string, { fetched_at: string | null; published_at: string | null }>();
+    for (const r of existingRes.data || []) {
+      const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
+      const fetchedAt = Array.isArray(metricsArr) ? metricsArr[0]?.fetched_at : null;
+      existingMetricsMap.set(r.ig_media_id, { fetched_at: fetchedAt, published_at: null });
+    }
+
+    const mediaNeedingInsights = media.filter((m) => {
+      const existing = existingMetricsMap.get(m.id);
+      return isInsightStale(m.timestamp || null, existing?.fetched_at ?? null);
+    });
+    const insightsSkipped = media.length - mediaNeedingInsights.length;
+
+    // 4) Fetch insights only for stale/new reels — all in parallel (max ~6)
+    let insightsFetched = 0;
+    if (mediaNeedingInsights.length > 0) {
+      await Promise.all(mediaNeedingInsights.map(async (m) => {
+        const reelId = reelIdMap.get(m.id);
+        if (!reelId) return;
+        try {
+          const isReel = m.media_product_type === "REELS";
+          const insights = isReel
+            ? await fetchReelInsights(m.id, accessToken)
+            : await fetchPostInsights(m.id, accessToken);
+          if (insights) {
+            await supabase.from("reel_metrics").upsert({
+              reel_id: reelId,
+              workspace_id: workspaceId,
+              views_org: isReel ? (insights.views ?? null) : null,
+              impressions_org: insights.impressions ?? null,
+              reach_org: insights.reach ?? null,
+              likes_total: insights.likes ?? null,
+              comments_total: insights.comments ?? null,
+              shares_total: insights.shares ?? null,
+              saves_total: insights.saved ?? null,
+              total_interactions: insights.total_interactions ?? null,
+              avg_watch_time_sec: isReel && insights.ig_reels_avg_watch_time ? insights.ig_reels_avg_watch_time / 1000 : null,
+              fetched_at: new Date().toISOString(),
+            }, { onConflict: "reel_id" });
+            insightsFetched++;
+          }
+        } catch { /* non-blocking */ }
+      }));
+    }
+
+    return jsonResponse({
+      status: "completed",
+      mode: "quick",
+      duration_ms: Date.now() - t0,
+      reels_synced: upserted?.length ?? 0,
+      insights_fetched: insightsFetched,
+      insights_skipped: insightsSkipped,
+    });
+  } catch (err) {
+    return jsonResponse({
+      status: "error",
+      mode: "quick",
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHECK NEW MEDIA — Compare latest IG media IDs vs DB (~1-2s)
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function handleCheckNewMedia(supabase: any, workspaceId: string, igAccountId: string, accessToken: string): Promise<Response> {
+  try {
+    // Fetch only latest 5 media IDs from IG (minimal fields, fast)
+    const res = await fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=id,timestamp&limit=5&access_token=${accessToken}`);
+    const data = await res.json();
+    if (data.error) throw new Error(`IG API: ${data.error.message}`);
+    const latestIds: string[] = (data.data || []).map((m: { id: string }) => m.id);
+
+    // Check which ones we already have
+    const { data: existing } = await supabase
+      .from("reels")
+      .select("ig_media_id")
+      .eq("workspace_id", workspaceId)
+      .in("ig_media_id", latestIds);
+
+    const existingIds = new Set((existing || []).map((r: { ig_media_id: string }) => r.ig_media_id));
+    const newIds = latestIds.filter((id) => !existingIds.has(id));
+
+    return jsonResponse({
+      status: "ok",
+      has_new_content: newIds.length > 0,
+      new_count: newIds.length,
+      latest_timestamp: data.data?.[0]?.timestamp || null,
+    });
+  } catch (err) {
+    return jsonResponse({
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INSTAGRAM REELS SYNC (FULL)
 // ═══════════════════════════════════════════════════════════════
 
 // deno-lint-ignore no-explicit-any
@@ -194,97 +384,131 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
   try {
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
 
-    const allMedia = await fetchAllMedia(igAccountId, accessToken);
+    const allMediaRaw = await fetchAllMedia(igAccountId, accessToken);
+    const allMedia = allMediaRaw.filter((m) => m.media_product_type === "REELS");
     await supabase.from("sync_jobs").update({ total_items: allMedia.length }).eq("id", syncJobId);
 
-    // Get existing reels with recent metrics to skip
+    // Get existing reels with metrics timestamps + published_at for decay tiers
     const { data: existingReels } = await supabase
       .from("reels")
-      .select("ig_media_id, reel_metrics(fetched_at)")
+      .select("ig_media_id, published_at, reel_metrics(fetched_at)")
       .eq("workspace_id", workspaceId);
 
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-    const reelsWithRecentMetrics = new Set(
-      (existingReels || [])
-        .filter((r: { reel_metrics: Array<{ fetched_at: string }> | null }) => {
-          const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
-          const m = metricsArr?.[0];
-          return m?.fetched_at && m.fetched_at > sixHoursAgo;
-        })
-        .map((r: { ig_media_id: string }) => r.ig_media_id)
-    );
+    // Build lookup: ig_media_id → { fetched_at, published_at }
+    const existingMetricsLookup = new Map<string, { fetched_at: string | null; published_at: string | null }>();
+    for (const r of existingReels || []) {
+      const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
+      const fetchedAt = Array.isArray(metricsArr) ? metricsArr[0]?.fetched_at : null;
+      existingMetricsLookup.set(r.ig_media_id, { fetched_at: fetchedAt, published_at: r.published_at });
+    }
 
     const MAX_INSIGHTS_PER_SYNC = 30;
     let insightsFetchCount = 0;
 
-    for (let i = 0; i < allMedia.length; i++) {
-      const media = allMedia[i];
-      try {
-        const reelType = classifyReelType(media);
-        const { data: reel, error: reelError } = await supabase
-          .from("reels")
-          .upsert({
-            workspace_id: workspaceId,
-            ig_media_id: media.id,
-            caption: media.caption || null,
-            media_type: media.media_type,
-            media_product_type: media.media_product_type,
-            permalink: media.permalink || null,
-            media_url: media.media_url || null,
-            thumbnail_url: media.thumbnail_url || null,
-            is_shared_to_feed: media.is_shared_to_feed ?? null,
-            published_at: media.timestamp || null,
-            reel_type: reelType,
-            sync_status: "synced",
-          }, { onConflict: "workspace_id,ig_media_id" })
-          .select("id")
-          .single();
+    // ── Phase 1: Batch upsert all reels (fast, no API calls) ──
+    const UPSERT_BATCH = 20;
+    const reelIdMap = new Map<string, string>(); // ig_media_id → reel uuid
+    for (let i = 0; i < allMedia.length; i += UPSERT_BATCH) {
+      const batch = allMedia.slice(i, i + UPSERT_BATCH);
+      const rows = batch.map((media) => ({
+        workspace_id: workspaceId,
+        ig_media_id: media.id,
+        caption: media.caption || null,
+        media_type: media.media_type,
+        media_product_type: media.media_product_type,
+        permalink: media.permalink || null,
+        media_url: media.media_url || null,
+        thumbnail_url: media.thumbnail_url || null,
+        is_shared_to_feed: media.is_shared_to_feed ?? null,
+        published_at: media.timestamp || null,
+        reel_type: classifyReelType(media),
+        sync_status: "synced",
+      }));
 
-        if (reelError || !reel) {
-          result.errors.push(`Reel ${media.id}: upsert failed — ${reelError?.message}`);
-          result.reelsSkipped++;
-          continue;
+      const { data: upserted, error: batchError } = await supabase
+        .from("reels")
+        .upsert(rows, { onConflict: "workspace_id,ig_media_id" })
+        .select("id, ig_media_id");
+
+      if (batchError) {
+        result.errors.push(`Batch upsert [${i}..${i + batch.length}]: ${batchError.message}`);
+        result.reelsSkipped += batch.length;
+      } else {
+        result.reelsSynced += (upserted?.length ?? 0);
+        for (const r of upserted || []) {
+          reelIdMap.set(r.ig_media_id, r.id);
         }
-        result.reelsSynced++;
-
-        if (reelsWithRecentMetrics.has(media.id)) { result.reelsSkipped++; continue; }
-        if (insightsFetchCount >= MAX_INSIGHTS_PER_SYNC) continue;
-
-        const isReel = media.media_product_type === "REELS";
-        const insights = isReel
-          ? await fetchReelInsights(media.id, accessToken)
-          : await fetchPostInsights(media.id, accessToken);
-        insightsFetchCount++;
-
-        if (insights) {
-          const { error: metricsError } = await supabase.from("reel_metrics").upsert({
-            reel_id: reel.id,
-            workspace_id: workspaceId,
-            views_org: insights.views ?? null,
-            impressions_org: null,
-            reach_org: insights.reach ?? null,
-            likes_total: insights.likes ?? null,
-            comments_total: insights.comments ?? null,
-            shares_total: insights.shares ?? null,
-            saves_total: insights.saved ?? null,
-            total_interactions: insights.total_interactions ?? null,
-            profile_visits: null,
-            follows_generated: null,
-            avg_watch_time_sec: insights.ig_reels_avg_watch_time ? insights.ig_reels_avg_watch_time / 1000 : null,
-            fetched_at: new Date().toISOString(),
-          }, { onConflict: "reel_id" });
-
-          if (metricsError) result.errors.push(`Reel ${media.id}: metrics upsert failed — ${metricsError.message}`);
-          else result.insightsFetched++;
-        }
-
-        if (i % 5 === 0 || i === allMedia.length - 1) {
-          await supabase.from("sync_jobs").update({ processed_items: i + 1 }).eq("id", syncJobId);
-        }
-      } catch (err) {
-        result.errors.push(`Reel ${media.id}: ${err instanceof Error ? err.message : String(err)}`);
-        result.reelsSkipped++;
       }
+    }
+
+    // ── Phase 2: Fetch insights using data decay tiers ──
+    // Hot (<7d) → stale after 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d
+    const mediaNeedingInsights = allMedia.filter((m) => {
+      if (!reelIdMap.has(m.id)) return false;
+      const existing = existingMetricsLookup.get(m.id);
+      const publishedAt = m.timestamp || existing?.published_at || null;
+      return isInsightStale(publishedAt, existing?.fetched_at ?? null);
+    });
+
+    // Sort by priority: hot first, then warm, then cold
+    mediaNeedingInsights.sort((a, b) => {
+      const ageA = a.timestamp ? Date.now() - new Date(a.timestamp).getTime() : Infinity;
+      const ageB = b.timestamp ? Date.now() - new Date(b.timestamp).getTime() : Infinity;
+      return ageA - ageB; // newest first
+    });
+
+    const insightsToFetch = mediaNeedingInsights.slice(0, MAX_INSIGHTS_PER_SYNC);
+
+    // Update progress: total = media upserted + insights to fetch
+    const totalWork = allMedia.length + insightsToFetch.length;
+    let processedWork = allMedia.length; // media upsert done
+    await supabase.from("sync_jobs").update({
+      total_items: totalWork,
+      processed_items: processedWork,
+    }).eq("id", syncJobId);
+
+    const CONCURRENCY = 5;
+    for (let i = 0; i < insightsToFetch.length; i += CONCURRENCY) {
+      const batch = insightsToFetch.slice(i, i + CONCURRENCY);
+      const promises = batch.map(async (media) => {
+        try {
+          const isReel = media.media_product_type === "REELS";
+          const insights = isReel
+            ? await fetchReelInsights(media.id, accessToken)
+            : await fetchPostInsights(media.id, accessToken);
+
+          if (insights) {
+            const reelId = reelIdMap.get(media.id)!;
+            const { error: metricsError } = await supabase.from("reel_metrics").upsert({
+              reel_id: reelId,
+              workspace_id: workspaceId,
+              views_org: isReel ? (insights.views ?? null) : null,
+              impressions_org: insights.impressions ?? null,
+              reach_org: insights.reach ?? null,
+              likes_total: insights.likes ?? null,
+              comments_total: insights.comments ?? null,
+              shares_total: insights.shares ?? null,
+              saves_total: insights.saved ?? null,
+              total_interactions: insights.total_interactions ?? null,
+              profile_visits: null,
+              follows_generated: null,
+              avg_watch_time_sec: isReel && insights.ig_reels_avg_watch_time ? insights.ig_reels_avg_watch_time / 1000 : null,
+              fetched_at: new Date().toISOString(),
+            }, { onConflict: "reel_id" });
+
+            if (metricsError) result.errors.push(`Reel ${media.id}: metrics upsert — ${metricsError.message}`);
+            else result.insightsFetched++;
+          }
+        } catch (err) {
+          result.errors.push(`Reel ${media.id}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      });
+      await Promise.all(promises);
+      insightsFetchCount += batch.length;
+
+      // Incremental progress update after each batch
+      processedWork += batch.length;
+      await supabase.from("sync_jobs").update({ processed_items: processedWork }).eq("id", syncJobId);
     }
 
     // Enrich durations via Apify
@@ -299,9 +523,35 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
         .not("permalink", "is", null)
         .limit(5);
 
+      // Get workspace owner for usage logging
+      const { data: wsOwner } = await supabase
+        .from("workspaces")
+        .select("owner_id")
+        .eq("id", workspaceId)
+        .single();
+      const ownerId = wsOwner?.owner_id;
+
       for (const reel of reelsMissingDuration || []) {
         try {
+          const t0 = Date.now();
           const duration = await fetchApifyReelDuration(reel.permalink!, apifyToken);
+          const latencyMs = Date.now() - t0;
+
+          // Log integration usage
+          if (ownerId) {
+            supabase.from("integration_usage").insert({
+              workspace_id: workspaceId,
+              user_id: ownerId,
+              feature: "ig-sync-enrichment",
+              provider: "scraper",
+              operation: "reel-scrape",
+              items_count: 1,
+              cost_usd: 0.0033,
+              latency_ms: latencyMs,
+              status: duration ? "success" : "error",
+            }).then(() => {});
+          }
+
           if (duration) {
             await supabase.from("reels").update({ duration_seconds: duration }).eq("id", reel.id);
             result.durationsEnriched++;
@@ -310,9 +560,16 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       }
     }
 
+    // ── Snapshot daily metrics for time-series charts ──
+    try {
+      await snapshotDailyMetrics(supabase, workspaceId);
+    } catch (err) {
+      result.errors.push(`Daily snapshot: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     await supabase.from("sync_jobs").update({
       status: "completed",
-      processed_items: allMedia.length,
+      processed_items: totalWork,
       completed_at: new Date().toISOString(),
       metadata: result as unknown as Record<string, unknown>,
     }).eq("id", syncJobId);
@@ -473,12 +730,86 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }
     }
 
+    // ── followers_total reconstruction ─────────────────────────────
+    // Strategy:
+    //   1. Today = real profile snapshot (currentFollowersTotal)
+    //   2. Days with Meta delta (follower_count > 0): walk backwards from today
+    //      to reconstruct the cumulative total for each day
+    //   3. Gap days (between last Meta delta and today): interpolate linearly
+    //      so the chart shows a smooth line. These get replaced by real data
+    //      as Meta "unlocks" deltas for recent days over time.
+    //   4. Only write followers_total for days that don't already have one,
+    //      so we never overwrite a previously stored real snapshot.
+    const currentFollowersTotal = profileData?.followers_count ?? 0;
+    const syncDate = new Date().toISOString().split("T")[0];
+    const sortedDates = [...dayMap.keys()].sort();
+
+    // Find which days already have a followers_total in the DB
+    const { data: existingFt } = await supabase
+      .from("ig_account_insights")
+      .select("metric_date, followers_total")
+      .eq("workspace_id", workspaceId)
+      .in("metric_date", sortedDates)
+      .gt("followers_total", 0);
+    const existingFtSet = new Set((existingFt ?? []).map((r: { metric_date: string }) => r.metric_date));
+
+    // Compute followers_total for each day
+    const followersTotalByDate = new Map<string, number>();
+
+    if (currentFollowersTotal > 0 && sortedDates.length > 0) {
+      // Find the last day with a real delta from Meta
+      let lastDeltaIdx = -1;
+      for (let i = sortedDates.length - 1; i >= 0; i--) {
+        if ((dayMap.get(sortedDates[i])?.follower_count ?? 0) > 0) {
+          lastDeltaIdx = i;
+          break;
+        }
+      }
+
+      // Walk backwards from today's total through days with real deltas
+      let runningTotal = currentFollowersTotal;
+      followersTotalByDate.set(syncDate, currentFollowersTotal);
+
+      // The total at lastDeltaIdx = currentTotal (assuming 0 net change in gap)
+      // Then subtract deltas going further back
+      for (let i = lastDeltaIdx; i >= 0; i--) {
+        followersTotalByDate.set(sortedDates[i], runningTotal);
+        runningTotal -= (dayMap.get(sortedDates[i])?.follower_count ?? 0);
+      }
+
+      // Interpolate gap days (between lastDeltaIdx and today) with a straight line
+      if (lastDeltaIdx >= 0 && lastDeltaIdx < sortedDates.length - 1) {
+        const gapStartDate = sortedDates[lastDeltaIdx];
+        const gapStartTotal = followersTotalByDate.get(gapStartDate) ?? currentFollowersTotal;
+        const gapEndTotal = currentFollowersTotal;
+        const gapDays = sortedDates.length - 1 - lastDeltaIdx;
+
+        if (gapDays > 0) {
+          const dailyIncrement = (gapEndTotal - gapStartTotal) / gapDays;
+          for (let i = lastDeltaIdx + 1; i < sortedDates.length; i++) {
+            const stepsFromStart = i - lastDeltaIdx;
+            followersTotalByDate.set(sortedDates[i], Math.round(gapStartTotal + dailyIncrement * stepsFromStart));
+          }
+        }
+      }
+    }
+
+    console.log(`[account-sync] followers_total snapshot: ${currentFollowersTotal} for ${syncDate}, computed for ${followersTotalByDate.size} days`);
+
     for (const [date, metrics] of dayMap) {
+      // Compute followers_total: use new computed value only if DB doesn't have one yet
+      const computedFt = followersTotalByDate.get(date);
+      const alreadyHasFt = existingFtSet.has(date);
+      const ftPayload = (!alreadyHasFt && computedFt != null && computedFt > 0)
+        ? { followers_total: computedFt }
+        : {};
+
       const { error } = await supabase.from("ig_account_insights").upsert({
         workspace_id: workspaceId, metric_date: date,
         impressions: metrics.views ?? metrics.content_views ?? 0,
         reach: metrics.reach ?? 0, profile_views: metrics.profile_views ?? 0,
-        follower_count: metrics.follower_count ?? profileData?.followers_count ?? 0,
+        follower_count: metrics.follower_count ?? 0,
+        ...ftPayload,
         follows_count: profileData?.follows_count ?? 0, media_count: profileData?.media_count ?? 0,
         accounts_engaged: metrics.accounts_engaged ?? 0,
         total_interactions: (metrics.likes ?? 0) + (metrics.comments ?? 0) + (metrics.shares ?? 0) + (metrics.saves ?? 0),
@@ -491,6 +822,16 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }, { onConflict: "workspace_id,metric_date" });
       if (error) result.errors.push(`Day ${date}: ${error.message}`);
       else result.daysUpserted++;
+    }
+
+    // Always upsert today's snapshot with the real followers_total
+    if (currentFollowersTotal > 0) {
+      await supabase
+        .from("ig_account_insights")
+        .upsert(
+          { workspace_id: workspaceId, metric_date: syncDate, followers_total: currentFollowersTotal, fetched_at: new Date().toISOString() },
+          { onConflict: "workspace_id,metric_date" }
+        );
     }
 
     // Demographics
@@ -555,12 +896,12 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
     .map((reel) => {
       const organic = Array.isArray(reel.reel_metrics) ? reel.reel_metrics[0] : reel.reel_metrics;
       const paid = Array.isArray(reel.reel_metrics_paid) ? reel.reel_metrics_paid[0] : reel.reel_metrics_paid;
-      const viewsTotal = (organic?.views_org ?? 0) + (paid?.views_paid ?? 0);
+      const viewsTotal = organic?.views_org ?? 0;
       return {
         reelType: reel.reel_type,
         hasMetrics: organic != null || paid != null,
         viewsTotal,
-        reachTotal: (organic?.reach_org ?? 0) + (paid?.reach_paid ?? 0),
+        reachTotal: organic?.reach_org ?? 0,
         likes: organic?.likes_total ?? 0,
         comments: organic?.comments_total ?? 0,
         shares: organic?.shares_total ?? 0,
@@ -603,6 +944,60 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
   if (insertError || !inserted) throw new Error(`Benchmark insert failed: ${insertError?.message}`);
 
   return { snapshotId: inserted.id, reelsInWindow: inserted.reels_in_window, windowStart: inserted.window_start, windowEnd: inserted.window_end };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DAILY METRICS SNAPSHOT
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function snapshotDailyMetrics(supabase: any, workspaceId: string): Promise<void> {
+  const today = new Date().toISOString().split("T")[0];
+
+  // Fetch all reels with their current organic + paid metrics
+  const { data: reels, error } = await supabase
+    .from("reels")
+    .select("id, reel_metrics(views_org, reach_org, impressions_org, likes_total, comments_total, shares_total, saves_total, total_interactions, avg_watch_time_sec), reel_metrics_paid(views_paid, impressions_paid, reach_paid, spend_cents)")
+    .eq("workspace_id", workspaceId);
+
+  if (error || !reels?.length) return;
+
+  // Build upsert rows — one per reel for today
+  // deno-lint-ignore no-explicit-any
+  const rows = reels.map((reel: any) => {
+    const organic = Array.isArray(reel.reel_metrics) ? reel.reel_metrics[0] : reel.reel_metrics;
+    const paid = Array.isArray(reel.reel_metrics_paid) ? reel.reel_metrics_paid[0] : reel.reel_metrics_paid;
+
+    return {
+      reel_id: reel.id,
+      workspace_id: workspaceId,
+      metric_date: today,
+      views_org: organic?.views_org ?? 0,
+      reach_org: organic?.reach_org ?? 0,
+      impressions_org: organic?.impressions_org ?? 0,
+      likes_total: organic?.likes_total ?? 0,
+      comments_total: organic?.comments_total ?? 0,
+      shares_total: organic?.shares_total ?? 0,
+      saves_total: organic?.saves_total ?? 0,
+      total_interactions: organic?.total_interactions ?? 0,
+      avg_watch_time_sec: organic?.avg_watch_time_sec ?? null,
+      views_paid: paid?.views_paid ?? 0,
+      impressions_paid: paid?.impressions_paid ?? 0,
+      reach_paid: paid?.reach_paid ?? 0,
+      spend_cents: paid?.spend_cents ?? 0,
+      fetched_at: new Date().toISOString(),
+    };
+  // deno-lint-ignore no-explicit-any
+  }).filter((r: any) => r.views_org > 0 || r.likes_total > 0 || r.views_paid > 0);
+
+  if (rows.length === 0) return;
+
+  // Batch upsert in chunks of 50 to avoid payload limits
+  const CHUNK_SIZE = 50;
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + CHUNK_SIZE);
+    await supabase.from("reel_metrics_daily").upsert(chunk, { onConflict: "reel_id,metric_date" });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -657,8 +1052,8 @@ async function fetchPostInsights(igMediaId: string, accessToken: string): Promis
     const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`);
     const data = await res.json();
     if (data.error) {
-      if (data.error.code === 100 || data.error.code === 3001) return await fetchPostInsightsFallback(igMediaId, accessToken);
-      return null;
+      console.warn(`[sync] Post insights error for ${igMediaId} (code=${data.error.code}):`, data.error.message);
+      return await fetchPostInsightsFallback(igMediaId, accessToken);
     }
     const result: Record<string, number> = {};
     for (const insight of data.data || []) result[insight.name] = insight.values?.[0]?.value ?? 0;
@@ -668,15 +1063,36 @@ async function fetchPostInsights(igMediaId: string, accessToken: string): Promis
 }
 
 async function fetchPostInsightsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
+  // Try reduced insights (without shares/total_interactions which carousels don't support)
   const metrics = "impressions,reach,likes,comments,saved";
   try {
     const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`);
     const data = await res.json();
-    if (data.error) return null;
-    const result: Record<string, number> = {};
-    for (const insight of data.data || []) result[insight.name] = insight.values?.[0]?.value ?? 0;
-    if (result.saved !== undefined) result.saves = result.saved;
-    return result;
+    if (!data.error && data.data && data.data.length > 0) {
+      const result: Record<string, number> = {};
+      for (const insight of data.data || []) result[insight.name] = insight.values?.[0]?.value ?? 0;
+      if (result.saved !== undefined) result.saves = result.saved;
+      return result;
+    }
+  } catch { /* fall through */ }
+
+  // Final fallback: use direct media fields (works for ALL media types including carousels)
+  return await fetchMediaFieldsFallback(igMediaId, accessToken);
+}
+
+async function fetchMediaFieldsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${igMediaId}?fields=like_count,comments_count&access_token=${accessToken}`);
+    const data = await res.json();
+    if (data.error) {
+      console.error(`[sync] Media fields fallback error for ${igMediaId}:`, data.error);
+      return null;
+    }
+    console.log(`[sync] Media fields fallback for ${igMediaId}: likes=${data.like_count}, comments=${data.comments_count}`);
+    return {
+      likes: data.like_count ?? 0,
+      comments: data.comments_count ?? 0,
+    };
   } catch { return null; }
 }
 
@@ -802,9 +1218,14 @@ async function fetchDailyInsights(igAccountId: string, accessToken: string, sinc
 async function fetchFollowerCountInsights(igAccountId: string, accessToken: string, since: number, until: number): Promise<{ insights: IGInsight[]; errors: string[] }> {
   const errors: string[] = [];
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igAccountId}/insights?metric=follower_count&period=day&since=${since}&until=${until}&access_token=${accessToken}`);
+    const url = `${GRAPH_BASE}/${igAccountId}/insights?metric=follower_count&period=day&since=${since}&until=${until}&access_token=${accessToken}`;
+    console.log(`[follower_count] Fetching: since=${new Date(since * 1000).toISOString()} until=${new Date(until * 1000).toISOString()}`);
+    const res = await fetch(url);
     const data = await res.json();
     if (data.error) { errors.push(`Follower count: ${data.error.message}`); return { insights: [], errors }; }
+    // Debug: log what Meta returns
+    const rawValues = data.data?.[0]?.values || [];
+    console.log(`[follower_count] Meta returned ${rawValues.length} values. Sample:`, JSON.stringify(rawValues.slice(-5)));
     return {
       insights: (data.data || []).map((insight: IGInsight) => ({ name: insight.name, period: insight.period, values: normalizeInsightValues(insight) })),
       errors,

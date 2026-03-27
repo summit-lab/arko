@@ -1,526 +1,332 @@
-# Guía Maestra de GitHub — Arko
+# Guia Maestra de GitHub, Ambientes y Deploy — Arko
 
-> Este documento explica, en lenguaje simple, cómo se maneja Arko a nivel operativo desde GitHub.
-> Está pensado para humanos y para asistentes de IA.
-> Si una tarea toca GitHub, ramas, commits, Pull Requests, merges, releases, staging, producción, Supabase o migraciones, esta guía debe leerse antes de actuar.
-
----
-
-## 1. Objetivo de esta guía
-
-Esta guía responde las preguntas clave de operación del repositorio:
-
-1. ¿Cómo trabajamos con GitHub?
-2. ¿Qué ramas existen y para qué sirve cada una?
-3. ¿Cómo se hace un commit, push, PR y merge correctamente?
-4. ¿Cómo se relaciona GitHub con local, staging y production?
-5. ¿Cómo se relaciona GitHub con Supabase y la base de datos?
-6. ¿Qué tiene que hacer la IA en cada caso?
-
-La idea es evitar confusión, evitar romper producción y evitar que cada persona o IA improvise su propio flujo de GitHub.
+> Este documento explica, en lenguaje simple, como funciona TODO el sistema de Arko.
+> Esta pensado para humanos y para asistentes de IA.
+> **ANTES de tocar ramas, PRs, deploy, Supabase o migraciones, leer esta guia.**
 
 ---
 
-## 2. Mapa simple del proyecto desde GitHub
+## 1. Diagrama completo del sistema
 
-Pensalo así:
+```
+ TU COMPUTADORA (local)                    GITHUB                         VERCEL + SUPABASE
+ ========================                  ========                       ==================
 
-- **Tu computadora** = `local`
-- **Servidor de prueba** = `staging`
-- **Servidor real** = `production`
-
-Y del lado del código / repositorio:
-
-- **`feature/*` / `fix/*` / `docs/*` / `chore/*`** = ramas de trabajo
-- **`develop`** = rama de integración del equipo
-- **`main`** = rama de producción
-- **Pull Request** = puerta de entrada de cambios importantes
-- **CI / GitHub Actions** = validación automática antes del merge
-
-Y del lado de la base de datos:
-
-- **Supabase staging/dev** = base segura para probar
-- **Supabase production** = base real de usuarios
-
----
-
-## 3. Regla principal del proyecto
-
-### Regla operativa
-
-- En **local** construimos
-- En **staging** verificamos
-- En **production** publicamos
-
-### Regla de GitHub
-
-- No trabajar directo sobre `main`
-- Evitar trabajar directo sobre `develop`
-- Cada cambio va en una rama propia
-- Todo cambio importante entra por Pull Request
-- GitHub es la fuente de verdad del historial del proyecto
-
-### Regla de base de datos
-
-- Nunca cambiar schema manualmente en producción
-- Los cambios de DB se hacen con **migraciones**
-- Primero se prueban en staging
-- Después se aplican en production
-
-### Regla de documentación
-
-- Si un cambio modifica cómo trabajamos en GitHub, esa regla debe quedar documentada en esta guía
-- Si un cambio afecta setup, ambientes, DB, seguridad o deploy, no alcanza con cambiar código: también hay que actualizar docs
+ .env.local                               Ramas:
+ APP_ENV=local                            ┌─────────────┐
+ Supabase → Dev Arko                      │ feature/*   │
+                                          │ fix/*       │──push──→ (no deploy)
+   │                                      │ docs/*      │
+   │                                      │ chore/*     │
+   │  commit + push                       └──────┬──────┘
+   │                                             │
+   │                                        PR a develop
+   │                                             │
+   ▼                                             ▼
+                                          ┌─────────────┐        ┌─────────────────────┐
+                                          │   develop    │──auto──│  Vercel PREVIEW      │
+                                          │             │  deploy│  URL: arko-git-       │
+                                          │ (staging)   │───────→│  develop-*.vercel.app │
+                                          └──────┬──────┘        │  Supabase: Dev Arko   │
+                                                 │               │  (hrsvglgswatwklivkoyp)│
+                                            PR a main            └─────────────────────┘
+                                          (SOLO MANUAL,
+                                           humano decide)
+                                                 │
+                                                 ▼
+                                          ┌─────────────┐        ┌─────────────────────┐
+                                          │    main      │──auto──│  Vercel PRODUCTION   │
+                                          │             │  deploy│  URL: arko-bay.       │
+                                          │ (produccion)│───────→│      vercel.app       │
+                                          └─────────────┘        │  Supabase: Prod Arko  │
+                                                                 │  (zphvrohosizkbrnxtppj)│
+                                                                 └─────────────────────┘
+```
 
 ---
 
-## 4. GitHub — cómo se trabaja
+## 2. Las 5 reglas de oro
 
-## 4.1 Qué representa GitHub en Arko
+### Regla 1: NUNCA pushear directo a `main`
 
-GitHub no es solo donde se guarda el código.
-En Arko, GitHub cumple estas funciones:
+`main` es produccion. Hay personas reales usandola todos los dias.
+El unico camino a `main` es un **Pull Request desde `develop`**, revisado y mergeado **manualmente por un humano**.
 
-- guardar el historial real del proyecto
-- ordenar ramas y releases
-- centralizar Pull Requests
-- disparar CI
-- dejar trazabilidad de cambios operativos
-- conectar el trabajo local con staging y producción
+**Ni la IA ni ningun developer deberian pushear directo a `main`. Jamas.**
 
-## 4.2 Ramas canónicas
+### Regla 2: Todo cambio va primero a `develop`
 
-- **`main`** → producción
-- **`develop`** → integración del equipo
-- **`feature/<nombre>`** → funcionalidad nueva
-- **`fix/<nombre>`** → bugfix
-- **`docs/<nombre>`** → documentación
-- **`chore/<nombre>`** → mantenimiento técnico
+El flujo siempre es:
+```
+tu rama → PR a develop → probar en staging → PR a main → produccion
+```
 
-## 4.3 Flujo correcto
+### Regla 3: Dos bases de datos separadas, siempre
 
-### Caso normal
+| Supabase | ID del proyecto | Uso |
+|----------|----------------|-----|
+| **Dev Arko** | `hrsvglgswatwklivkoyp` | local + staging (develop) |
+| **Prod Arko** | `zphvrohosizkbrnxtppj` | produccion (main) |
 
-1. Actualizar `develop`
-2. Crear una rama nueva desde `develop`
-3. Trabajar en esa rama
-4. Validar localmente
-5. Hacer commit
-6. Hacer push
-7. Abrir Pull Request hacia `develop`
-8. Revisar staging
-9. Cuando todo está estable, pasar a `main`
+Nunca mezclarlas. Nunca apuntar local a Prod.
 
-## 4.4 Qué NO hacer
+### Regla 4: Los cambios de DB se mueven con migraciones
 
-- No desarrollar directo en `main`
-- No empujar cambios improvisados a producción
-- No mezclar 5 temas distintos en un mismo PR
-- No abrir PR sin documentación si el cambio afecta operación, DB, API o seguridad
-- No usar GitHub como backup caótico de cambios sin contexto
+No editar tablas a mano en produccion. El flujo es:
+1. Crear migracion SQL
+2. Aplicar en Dev Arko
+3. Probar
+4. Aplicar en Prod Arko solo cuando se hace release
 
-## 4.5 Recomendación práctica para el equipo
+### Regla 5: La IA no toca produccion sin orden explicita
 
-Para ustedes, lo más simple es:
-
-- **GitHub Desktop** para ramas, commits, push y ver diffs
-- **IA** para programar, documentar, revisar archivos y guiar el proceso
-
-### Uso recomendado
-
-**GitHub Desktop**:
-- crear rama
-- ver archivos modificados
-- escribir commit
-- push
-- cambiar de rama
-- abrir el PR en GitHub
-
-**IA**:
-- implementar cambios
-- explicar el flujo correcto
-- actualizar docs
-- actualizar changelog
-- decir qué tocar antes de hacer merge
-
-## 4.6 Commits — cómo deben pensarse
-
-Un commit correcto debe representar una idea clara.
-
-### Buenos ejemplos
-
-- `feat: agrega sistema centralizado de ambientes`
-- `fix: corrige redirect de meta callback en staging`
-- `docs: agrega guía maestra de github`
-
-### Malos ejemplos
-
-- `cambios`
-- `fix`
-- `todo`
-
-Regla práctica:
-
-- un commit debe poder entenderse sin explicación oral
-- si el cambio mezcla cosas no relacionadas, separar commits
-
-## 4.7 Pull Requests — para qué sirven
-
-Un Pull Request sirve para:
-
-- revisar cambios antes de integrarlos
-- dejar contexto del cambio
-- documentar impacto
-- verificar CI
-- discutir riesgos antes del merge
-
-En Arko, el PR no es opcional para cambios relevantes.
-
-## 4.8 Qué debe revisar la IA antes de cerrar un PR
-
-- si el objetivo del PR es claro
-- si el alcance está acotado
-- si las docs fueron actualizadas
-- si hubo impacto en DB, API, seguridad o ambientes
-- si el changelog fue actualizado
-- si el branch destino es correcto (`develop` o excepcionalmente `main`)
-
-## 4.9 Cómo pasa un cambio por GitHub
-
-El ciclo correcto es:
-
-1. local
-2. branch
-3. commit
-4. push
-5. Pull Request
-6. CI
-7. merge a `develop`
-8. validación en staging
-9. merge/release a `main`
+- Durante desarrollo: la IA solo lee Prod (SELECT)
+- Solo en release explicito: la IA puede aplicar migraciones en Prod
 
 ---
 
-## 5. GitHub y los ambientes — qué significa cada uno
+## 3. Ambientes — que es cada uno
 
-## 5.1 Local
+### 3.1 Local (tu computadora)
 
-Es tu computadora.
-
-### Se usa para
-- desarrollar
-- probar rápido
-- iterar con la IA
-
-### Variables típicas
-```env
+```
 APP_ENV=local
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+Supabase → Dev Arko
 ```
 
-### Base de datos
-Lo recomendado es que local apunte a la **base de staging/dev**, no a producción.
+- Donde programas y probas rapido
+- Apunta a Dev Arko (nunca a Prod)
+- Los cambios no afectan a nadie
 
-### Relación con GitHub
-En local trabajás en una rama propia. Local no reemplaza a GitHub: es tu espacio de trabajo antes del commit y push.
+### 3.2 Staging (Vercel Preview)
 
----
-
-## 5.2 Staging
-
-Es el ambiente de prueba del equipo.
-
-### Se usa para
-- validar integración
-- probar features antes de publicar
-- revisar que deploy, auth, redirects, callbacks y conexiones funcionen bien
-
-### Variables típicas
-```env
+```
 APP_ENV=staging
-NEXT_PUBLIC_APP_URL=https://staging.tudominio.com
+NEXT_PUBLIC_APP_URL=(URL de preview de Vercel)
+Supabase → Dev Arko
 ```
 
-### Base de datos
-Staging debe usar una **base separada de producción**.
+- Se deploya automaticamente cuando se pushea a `develop`
+- Usa la misma DB que local (Dev Arko)
+- Sirve para validar que todo funcione en un servidor real antes de produccion
+- URL: la que Vercel asigna al preview de develop
 
-Si staging usa la misma DB que producción, entonces no es staging real.
+### 3.3 Produccion (Vercel Production)
 
-### Relación con GitHub
-Staging normalmente valida lo que se integró en `develop`.
-
----
-
-## 5.3 Production
-
-Es el ambiente real.
-
-### Se usa para
-- usuarios reales
-- datos reales
-- deploy estable
-
-### Variables típicas
-```env
+```
 APP_ENV=production
-NEXT_PUBLIC_APP_URL=https://app.tudominio.com
+NEXT_PUBLIC_APP_URL=https://arko-bay.vercel.app
+Supabase → Prod Arko
 ```
 
-### Base de datos
-Production usa su **propia base real**.
-Nunca debería compartir DB con staging.
-
-### Relación con GitHub
-Production representa lo aprobado para `main`.
+- Se deploya automaticamente cuando se mergea un PR a `main`
+- Usa Prod Arko — datos reales, usuarios reales
+- **Solo se actualiza via PR desde develop, nunca directo**
 
 ---
 
-## 6. GitHub y Supabase — cómo lo manejamos
+## 4. Flujo de trabajo paso a paso
 
-## 6.1 Modelo recomendado para Arko
+### 4.1 Desarrollo normal (sin DB)
 
-El proyecto usa **2 proyectos Supabase** en la organización `arkov2`:
+```
+1. En GitHub Desktop: crear rama desde develop (ej: feature/mi-cambio)
+2. Trabajar con la IA en el codigo
+3. Probar localmente (localhost:3000)
+4. La IA sugiere commit message
+5. En GitHub Desktop: commit + push
+6. En GitHub: abrir PR hacia develop
+7. CI corre automaticamente (lint + typecheck + build)
+8. Si CI pasa → mergear PR a develop
+9. Vercel deploya Preview automaticamente
+10. Probar en staging (URL de Preview)
+```
 
-| Proyecto | ID | Región | Uso |
-|---|---|---|---|
-| **Dev Arko** | `hrsvglgswatwklivkoyp` | us-west-2 | local + staging |
-| **Prod Arko** | `zphvrohosizkbrnxtppj` | us-east-2 | production |
+### 4.2 Pasar a produccion
 
-### Distribución
+```
+11. En GitHub: abrir PR de develop → main
+12. CI corre automaticamente
+13. Si CI pasa → UN HUMANO mergea (nunca la IA)
+14. Vercel deploya Production automaticamente
+15. Verificar en arko-bay.vercel.app
+```
 
-- **local** → Dev Arko
-- **staging** → Dev Arko
-- **production** → Prod Arko
+### 4.3 Desarrollo con cambios de DB
 
-Con eso ya tienen una estructura profesional sin complicarse con 3 bases distintas.
-
-## 6.2 Qué significa eso en práctica
-
-### Supabase staging/dev
-Sirve para:
-- desarrollar
-- probar migraciones
-- testear auth
-- probar integraciones con Meta, OpenAI, Apify, etc.
-- cometer errores sin afectar usuarios reales
-
-### Supabase production
-Sirve para:
-- usuarios reales
-- datos reales
-- operaciones reales del negocio
-
----
-
-## 6.3 ¿Se sincronizan las bases automáticamente?
-
-**No.**
-
-Lo que se sincroniza bien es la **estructura**, no los datos.
-
-### Sí se sincroniza
-- tablas
-- columnas
-- índices
-- RLS
-- triggers
-- funciones SQL
-- edge functions
-- tipos generados
-
-### No se sincroniza automáticamente
-- filas de datos
-- usuarios reales
-- archivos de storage
-- tokens
-- registros operativos
+```
+1-5. Igual que arriba
+6. Ademas: crear migracion SQL
+7. Aplicar migracion en Dev Arko (via MCP o Supabase Dashboard)
+8. Probar localmente
+9. Push + PR a develop
+10. Validar en staging
+11. Cuando se apruebe release: aplicar misma migracion en Prod Arko
+12. Actualizar docs/DB_SCHEMA.md
+```
 
 ---
 
-## 6.4 Entonces, ¿cómo se mantiene igual staging y production?
+## 5. Que hace cada herramienta
 
-Con **migraciones**.
+### GitHub Desktop (lo usa el developer)
+- Crear ramas
+- Ver archivos modificados
+- Hacer commits
+- Push
+- Cambiar de rama
 
-### Flujo correcto de DB
+### GitHub Web (lo usa el developer)
+- Abrir Pull Requests
+- Revisar CI checks
+- Mergear PRs
+- **Mergear a main** (esto es siempre manual)
 
-1. Hacer cambio de schema en una migración nueva
-2. Aplicar esa migración en staging
-3. Probar
-4. Si todo está bien, aplicar la misma migración en production
-5. Actualizar `docs/DB_SCHEMA.md`
-6. Actualizar `CHANGELOG.md`
-7. Dejar trazabilidad del cambio en GitHub (commit + PR)
+### IA (Claude, Windsurf, etc)
+- Escribir codigo
+- Sugerir nombre de rama, commit message, descripcion de PR
+- Actualizar documentacion y changelog
+- Consultar DB via MCP (solo lectura en Prod)
+- Aplicar migraciones en Dev Arko
 
----
-
-## 6.5 Qué NO hacer con la base de datos
-
-- No editar manualmente tablas en producción como forma normal de trabajo
-- No cambiar políticas RLS “rápido” sin documentación
-- No crear columnas solo desde el panel y olvidarse de la migración
-- No usar production para testear experimentos
-
----
-
-## 7. Qué tiene que hacer la IA cuando una tarea toca GitHub
-
-## 7.1 Si la tarea toca GitHub o ramas
-
-La IA debe:
-- leer esta guía
-- leer `docs/features/team-collaboration.md`
-- respetar `develop` como integración y `main` como producción
-- no sugerir trabajo directo sobre `main`
-- recordar actualizar docs y changelog
-
-## 7.2 Si la tarea toca Pull Requests, merges o releases
-
-La IA debe:
-- confirmar rama origen y rama destino
-- confirmar si el cambio debe ir a `develop` o a `main`
-- recordar que staging debe validarse antes de pensar en producción
-- recordar que un merge cambia el estado oficial del repositorio
-
-## 7.3 Si la tarea toca ambientes o variables
-
-La IA debe:
-- leer `docs/05-environments-guide.md`
-- usar `src/lib/env.ts`
-- no hardcodear URLs
-- no usar `process.env` directo en código de negocio
-
-## 7.4 Si la tarea toca base de datos
-
-La IA debe:
-- leer `docs/DB_SCHEMA.md`
-- usar migraciones
-- nunca asumir que staging y production comparten DB
-- avisar explícitamente si hay impacto en schema, RLS, RPC o datos
-
-## 7.5 Si la tarea toca deploy
-
-La IA debe:
-- leer `docs/04-deployment.md`
-- confirmar ambiente destino
-- confirmar variables correctas
-- confirmar proyecto Supabase correcto
-- no hacer deploy sin validación explícita
+### Lo que la IA NUNCA debe hacer
+- Pushear directo a `main`
+- Sugerir pushear a `main`
+- Mergear PRs a `main`
+- Escribir en Prod Arko durante desarrollo
+- Ejecutar comandos destructivos en git sin confirmacion
 
 ---
 
-## 8. Qué tiene que hacer una persona del equipo
+## 6. Vercel — como esta configurado
 
-## 8.1 Cuando empieza una tarea
+### Ambientes en Vercel
 
-1. Actualizar `develop`
-2. Crear rama nueva
-3. Explicarle a la IA qué quiere hacer
-4. Dejar que la IA implemente
-5. Probar local
-6. Confirmar docs/changelog
-7. Commit + push
-8. Abrir PR a `develop`
+| Ambiente Vercel | Rama | Supabase | URL |
+|----------------|------|----------|-----|
+| **Preview** | `develop` (y cualquier otra rama) | Dev Arko | `arko-git-develop-*.vercel.app` |
+| **Production** | `main` | Prod Arko | `arko-bay.vercel.app` |
 
-## 8.2 Cuando la tarea toca base de datos
+### Variables de entorno en Vercel
 
-1. Confirmar si el cambio es realmente necesario
-2. Crear migración
-3. Probar en staging/dev
-4. Verificar que no rompa auth, RLS o queries existentes
-5. Documentar en `docs/DB_SCHEMA.md`
-6. Recién después pensar en production
+Las variables estan separadas por ambiente:
+- **Preview**: apunta a Dev Arko, APP_ENV=staging
+- **Production**: apunta a Prod Arko, APP_ENV=production
 
-## 8.3 Antes de pasar a producción
-
-- `develop` debe estar estable
-- staging debe haber sido probado
-- variables de entorno correctas
-- proyecto Supabase correcto
-- docs actualizadas
-- changelog actualizado
-- sin secretos expuestos
+Si se agrega una variable nueva al proyecto:
+1. Agregarla en `.env.example`
+2. Agregarla en `src/lib/env.ts`
+3. Agregarla en Vercel para Preview Y Production
+4. Actualizar `docs/05-environments-guide.md`
 
 ---
 
-## 9. Flujo operativo completo del proyecto desde GitHub
+## 7. Supabase Edge Functions
 
-## 9.1 Cambio normal sin DB
+El sync de Instagram corre en Supabase Edge Functions (gratis, no en Vercel).
 
-1. Rama desde `develop`
-2. Cambio local
-3. Test local
-4. Commit
-5. Push
-6. PR a `develop`
-7. Validación en staging
-8. Merge a `main` cuando corresponda
+### Como funciona
 
-## 9.2 Cambio con DB
+```
+Usuario clickea "Sync" en el dashboard
+        │
+        ▼
+Next.js route (thin proxy, ~1s)
+  - Autentica al usuario
+  - Invoca Edge Function via supabase.functions.invoke()
+        │
+        ▼
+Supabase Edge Function "sync-instagram" (gratis, hasta 500K/mes)
+  - Sync de reels + insights
+  - Sync de ads
+  - Sync de account insights
+  - Refresh de benchmarks
+```
 
-1. Rama desde `develop`
-2. Crear migración
-3. Aplicar en Supabase staging/dev
-4. Probar local y staging
-5. Actualizar `docs/DB_SCHEMA.md`
-6. Actualizar `CHANGELOG.md`
-7. PR a `develop`
-8. Validar
-9. Aplicar misma migración en production cuando se apruebe release
+### Edge Functions deployadas
 
-## 9.3 Cambio de variables / ambiente
-
-1. Cambiar `.env.local` si es local
-2. Cambiar variables del proveedor si es staging/production
-3. No tocar código salvo que falte agregar una nueva variable al sistema
-4. Si se crea una variable nueva:
-   - actualizar `.env.example`
-   - actualizar `src/lib/env.ts`
-   - actualizar `docs/05-environments-guide.md`
-   - actualizar esta guía si afecta operación
+| Proyecto | Funcion | Secretos configurados |
+|----------|---------|----------------------|
+| Dev Arko | `sync-instagram` | SYNC_SECRET, META_APP_ID, META_APP_SECRET, etc. |
+| Prod Arko | `sync-instagram` | SYNC_SECRET, META_APP_ID, META_APP_SECRET, etc. |
 
 ---
 
-## 10. Qué falta para que el sistema quede redondo
+## 8. CI/CD — GitHub Actions
 
-A nivel operativo, lo pendiente más importante es:
+Archivo: `.github/workflows/ci.yml`
 
-- definir el **Supabase staging/dev** si todavía no está separado de producción
-- confirmar qué proyecto queda como **production**
-- configurar variables por ambiente en el proveedor de deploy
-- confirmar URLs reales de staging y production
-- configurar callbacks externos por ambiente (por ejemplo Meta OAuth)
-- mantener la disciplina de migraciones + documentación
+Corre automaticamente en cada push y PR a `develop` o `main`.
 
----
+### Pasos
+1. `npm ci` — instala dependencias
+2. `npm run lint` — verifica codigo
+3. `npx tsc --noEmit` — verifica tipos
+4. `npm run build` — verifica que compila
 
-## 11. Resumen ultra corto
-
-Si te perdés, acordate de esto:
-
-- **local** = construir
-- **staging** = probar
-- **production** = publicar
-
-- **develop** = integración
-- **main** = producción
-
-- **staging DB** = pruebas
-- **production DB** = real
-
-- **los cambios de DB se mueven con migraciones**
-- **los ambientes se cambian con variables, no con hardcodes**
-- **la IA debe leer esta guía antes de actuar en temas operativos**
+Si cualquier paso falla, el PR se marca con X roja.
+No mergear PRs con checks rojos.
 
 ---
 
-## 12. Archivos relacionados
+## 9. Reglas para la IA (resumen ejecutivo)
 
-- `docs/features/team-collaboration.md`
-- `docs/04-deployment.md`
-- `docs/05-environments-guide.md`
-- `docs/03-security.md`
-- `docs/DB_SCHEMA.md`
-- `.windsurfrules`
-- `CLAUDE.md`
-- `.github/copilot-instructions.md`
-- `CHANGELOG.md`
+### Siempre
+
+- Push va a `develop`, NUNCA a `main`
+- Leer esta guia antes de tocar ramas, deploy o DB
+- Sugerir nombre de rama, commit message y descripcion de PR
+- Actualizar docs y changelog despues de cada cambio
+- Usar migraciones para cambios de DB
+
+### Nunca
+
+- Pushear a `main`
+- Sugerir mergear a `main` sin que el humano lo decida
+- Tocar Prod Arko durante desarrollo
+- Ejecutar `git push --force` o `git reset --hard` sin confirmacion
+- Hacer deploy sin validacion explicita
+
+### Cuando el humano pide "pasalo a produccion"
+
+1. Verificar que develop esta estable
+2. Verificar que staging funciona
+3. Sugerir abrir PR de `develop` → `main`
+4. El humano mergea manualmente
+5. Si hay migraciones de DB: aplicarlas en Prod Arko despues del merge
+
+---
+
+## 10. Checklist rapido
+
+### Antes de pushear
+- [ ] Estoy en una rama propia (no develop, no main)
+- [ ] El codigo compila localmente
+- [ ] El commit message es descriptivo
+
+### Antes de mergear a develop
+- [ ] CI esta en verde
+- [ ] Los cambios estan documentados
+- [ ] Changelog actualizado
+
+### Antes de mergear a main
+- [ ] Staging fue probado y funciona
+- [ ] No hay cambios de DB pendientes de aplicar
+- [ ] Un humano tomo la decision de publicar
+
+---
+
+## 11. Archivos relacionados
+
+| Archivo | Tema |
+|---------|------|
+| `CLAUDE.md` | Reglas generales para la IA |
+| `docs/05-environments-guide.md` | Variables de entorno |
+| `docs/04-deployment.md` | Deploy |
+| `docs/03-security.md` | Seguridad |
+| `docs/DB_SCHEMA.md` | Schema de la base de datos |
+| `docs/07-mcp-guide.md` | MCP y acceso a Supabase |
+| `.github/workflows/ci.yml` | CI/CD |
+| `src/lib/env.ts` | Validacion de variables |
+| `.env.example` | Template de variables |

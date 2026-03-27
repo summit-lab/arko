@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   let profile: { full_name: string | null; role: string; email: string; created_at: string } | null = null;
-  let workspace: { id: string; name: string; slug: string; plan: string; reels_limit: number; created_at: string } | null = null;
+  let workspace: { id: string; name: string; slug: string; plan: string; created_at: string } | null = null;
   let connection: { status: string; ig_username: string | null; ig_business_account_id: string | null; last_validated_at: string | null; last_error: string | null } | null = null;
 
   if (user) {
@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
     const { data: w } = await supabase
       .from("workspaces")
-      .select("id, name, slug, plan, reels_limit, created_at")
+      .select("id, name, slug, plan, created_at")
       .eq("owner_id", user.id)
       .limit(1)
       .single();
@@ -49,7 +49,7 @@ export default async function SettingsPage() {
 
       <div className="grid grid-cols-2 gap-6">
         {/* Profile */}
-        <div className="glass-panel rounded-2xl p-6 space-y-4">
+        <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
             <User className="h-4 w-4 text-zinc-400" />
             Perfil
@@ -88,7 +88,7 @@ export default async function SettingsPage() {
         </div>
 
         {/* Workspace */}
-        <div className="glass-panel rounded-2xl p-6 space-y-4">
+        <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-zinc-400" />
             Workspace
@@ -110,10 +110,6 @@ export default async function SettingsPage() {
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Plan</span>
                 <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded capitalize">{workspace.plan}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Límite de Reels</span>
-                <span className="text-sm text-zinc-200">{workspace.reels_limit.toLocaleString()}</span>
-              </div>
             </div>
           ) : (
             <p className="text-sm text-zinc-500">No hay workspace configurado.</p>
@@ -121,8 +117,27 @@ export default async function SettingsPage() {
         </div>
       </div>
 
+      {/* Admin Panel Access */}
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="glass-panel rounded-xl p-6 flex items-center justify-between group hover:border-amber-400/20 transition-all duration-200 cursor-pointer"
+        >
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-amber-400/10 flex items-center justify-center">
+              <Shield className="h-5 w-5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-amber-400">Admin Panel</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">Gestionar clientes, invitaciones y estadísticas globales</p>
+            </div>
+          </div>
+          <span className="text-xs text-zinc-500 group-hover:text-amber-400/70 transition-colors">Ir al panel →</span>
+        </Link>
+      )}
+
       {/* Meta Connection */}
-      <div className="glass-panel rounded-2xl p-6">
+      <div className="glass-panel rounded-xl p-6">
         <h3 className="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
           <Instagram className="h-4 w-4 text-zinc-400" />
           Conexión Meta / Instagram
@@ -153,7 +168,7 @@ export default async function SettingsPage() {
             </div>
 
             {workspace ? (
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-4">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/[0.025] px-4 py-4">
                 <div>
                   <p className="text-sm text-zinc-200">¿Querés volver a conectar otra cuenta?</p>
                   <p className="text-xs text-zinc-500 mt-1">Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.</p>

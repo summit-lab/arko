@@ -133,7 +133,61 @@ export async function syncAccountInsights(
       }
     }
 
+    // ── followers_total reconstruction ─────────────────────────────
+    // 1. Today = real profile snapshot
+    // 2. Days with Meta delta: walk backwards to reconstruct cumulative total
+    // 3. Gap days (last delta → today): interpolate linearly
+    // 4. Only write followers_total for days that don't already have one
+    const currentFollowersTotal = profileData?.followers_count ?? 0;
+    const syncDate = new Date().toISOString().split('T')[0];
+    const sortedDates = [...dayMap.keys()].sort();
+
+    const { data: existingFt } = await supabase
+      .from('ig_account_insights')
+      .select('metric_date, followers_total')
+      .eq('workspace_id', workspaceId)
+      .in('metric_date', sortedDates)
+      .gt('followers_total', 0);
+    const existingFtSet = new Set((existingFt ?? []).map((r: { metric_date: string }) => r.metric_date));
+
+    const followersTotalByDate = new Map<string, number>();
+
+    if (currentFollowersTotal > 0 && sortedDates.length > 0) {
+      let lastDeltaIdx = -1;
+      for (let i = sortedDates.length - 1; i >= 0; i--) {
+        if ((dayMap.get(sortedDates[i])?.follower_count ?? 0) > 0) {
+          lastDeltaIdx = i;
+          break;
+        }
+      }
+
+      let runningTotal = currentFollowersTotal;
+      followersTotalByDate.set(syncDate, currentFollowersTotal);
+
+      for (let i = lastDeltaIdx; i >= 0; i--) {
+        followersTotalByDate.set(sortedDates[i], runningTotal);
+        runningTotal -= (dayMap.get(sortedDates[i])?.follower_count ?? 0);
+      }
+
+      if (lastDeltaIdx >= 0 && lastDeltaIdx < sortedDates.length - 1) {
+        const gapStartTotal = followersTotalByDate.get(sortedDates[lastDeltaIdx]) ?? currentFollowersTotal;
+        const gapDays = sortedDates.length - 1 - lastDeltaIdx;
+        if (gapDays > 0) {
+          const dailyIncrement = (currentFollowersTotal - gapStartTotal) / gapDays;
+          for (let i = lastDeltaIdx + 1; i < sortedDates.length; i++) {
+            followersTotalByDate.set(sortedDates[i], Math.round(gapStartTotal + dailyIncrement * (i - lastDeltaIdx)));
+          }
+        }
+      }
+    }
+
     for (const [date, metrics] of dayMap) {
+      const computedFt = followersTotalByDate.get(date);
+      const alreadyHasFt = existingFtSet.has(date);
+      const ftPayload = (!alreadyHasFt && computedFt != null && computedFt > 0)
+        ? { followers_total: computedFt }
+        : {};
+
       const { error } = await supabase
         .from('ig_account_insights')
         .upsert(
@@ -143,7 +197,8 @@ export async function syncAccountInsights(
             impressions: metrics.views ?? metrics.content_views ?? 0,
             reach: metrics.reach ?? 0,
             profile_views: metrics.profile_views ?? 0,
-            follower_count: metrics.follower_count ?? profileData?.followers_count ?? 0,
+            follower_count: metrics.follower_count ?? 0,
+            ...ftPayload,
             follows_count: profileData?.follows_count ?? 0,
             media_count: profileData?.media_count ?? 0,
             accounts_engaged: metrics.accounts_engaged ?? 0,
@@ -167,6 +222,16 @@ export async function syncAccountInsights(
       } else {
         result.daysUpserted++;
       }
+    }
+
+    // Always upsert today's snapshot with the real followers_total
+    if (currentFollowersTotal > 0) {
+      await supabase
+        .from('ig_account_insights')
+        .upsert(
+          { workspace_id: workspaceId, metric_date: syncDate, followers_total: currentFollowersTotal, fetched_at: new Date().toISOString() },
+          { onConflict: 'workspace_id,metric_date' }
+        );
     }
 
     if (dayMap.size === 0 && dailyInsights.length === 0) {

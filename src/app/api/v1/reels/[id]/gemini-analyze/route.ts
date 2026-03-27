@@ -12,6 +12,7 @@ import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api404, api500 } from '@/lib/api/response';
 import { persistGeminiAnalysis } from '@/services/gemini-analysis-persistence.service';
 import { analyzeVideoWithGemini, isGeminiEnabled } from '@/services/gemini-video.service';
+import { logLLMUsage } from '@/services/llm-usage.service';
 
 export async function POST(
   request: Request,
@@ -54,7 +55,9 @@ export async function POST(
     }
 
     // Ejecutar análisis con Gemini
-    const analysis = await analyzeVideoWithGemini(videoUrl);
+    const t0 = Date.now();
+    const { analysis, usage } = await analyzeVideoWithGemini(videoUrl);
+    const latencyMs = Date.now() - t0;
 
     await persistGeminiAnalysis({
       supabase,
@@ -62,6 +65,24 @@ export async function POST(
       workspaceId: auth.workspaceId,
       analysis,
     });
+
+    // Log LLM usage (non-blocking)
+    logLLMUsage(supabase, {
+      workspaceId: auth.workspaceId,
+      userId: auth.userId,
+      feature: 'arkoai-video-analysis',
+      response: {
+        text: '',
+        toolCalls: [],
+        provider: 'google',
+        model: 'gemini-2.5-flash',
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        stopReason: 'end',
+      },
+      latencyMs,
+    }).catch(() => {});
 
     return apiSuccess({ analysis }, 200);
   } catch (error) {

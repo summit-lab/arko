@@ -1,66 +1,86 @@
 "use client";
 
-import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { RefreshCw, Check, AlertCircle } from "lucide-react";
 
 interface SyncButtonProps {
   workspaceId: string;
   currentTab?: string;
 }
 
-export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{
-    status: string;
-    reels_synced?: number;
-    insights_fetched?: number;
-    errors?: string[];
-  } | null>(null);
+type SyncPhase = "idle" | "quick" | "done" | "error";
 
-  async function handleSync() {
-    setLoading(true);
-    setResult(null);
+export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
+  const router = useRouter();
+  const [phase, setPhase] = useState<SyncPhase>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSync = useCallback(async () => {
+    setPhase("quick");
+    setErrorMsg(null);
 
     try {
-      const stepsParam = currentTab === 'metrics' ? '&steps=account' : '';
-      const res = await fetch(
-        `/api/v1/sync/instagram?workspace_id=${workspaceId}${stepsParam}`,
+      // Quick sync — latest 12 reels + insights (~3-5s)
+      const stepsParam = currentTab === "metrics" ? "account" : "quick";
+      const quickRes = await fetch(
+        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=${stepsParam}`,
         { method: "POST" }
       );
-      const json = await res.json();
-      const responseErrors = json.data?.errors || json.errors || [];
+      const quickJson = await quickRes.json();
 
-      if (!res.ok) {
-        setResult({ status: "error", errors: [json.message || "Error desconocido"] });
-      } else if (json.data?.status === "failed") {
-        setResult({ status: "error", errors: responseErrors.length > 0 ? responseErrors : ["La sincronización falló"] });
-      } else {
-        setResult(json.data);
-        if (json.data?.status === "completed") {
-          window.location.reload();
-        }
+      if (!quickRes.ok || quickJson.data?.status === "error") {
+        setPhase("error");
+        setErrorMsg(quickJson.data?.error || quickJson.message || "Error en sync rápido");
+        return;
       }
+
+      // Quick done — refresh server components to show fresh data
+      if (stepsParam === "account") {
+        setPhase("done");
+        router.refresh();
+        return;
+      }
+
+      // Fire full sync in background (fire-and-forget)
+      fetch(
+        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all`,
+        { method: "POST" }
+      ).catch(() => { /* background, non-blocking */ });
+
+      setPhase("done");
+      router.refresh();
     } catch {
-      setResult({ status: "error", errors: ["Error de red"] });
-    } finally {
-      setLoading(false);
+      setPhase("error");
+      setErrorMsg("Error de red");
     }
-  }
+  }, [workspaceId, currentTab, router]);
+
+  const isLoading = phase === "quick";
+
+  const label = {
+    idle: "Sincronizar",
+    quick: "Actualizando...",
+    done: "Listo",
+    error: "Sincronizar",
+  }[phase];
+
+  const Icon = phase === "done" ? Check : phase === "error" ? AlertCircle : RefreshCw;
 
   return (
     <div className="flex items-center gap-3">
       <button
         onClick={handleSync}
-        disabled={loading}
+        disabled={isLoading}
         className="flex items-center gap-1.5 text-[13px] font-medium text-white/70 hover:text-white px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
         style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.05)" }}
       >
-        <RefreshCw size={14} strokeWidth={2} className={loading ? "animate-spin" : ""} />
-        {loading ? "Sincronizando..." : "Sincronizar"}
+        <Icon size={14} strokeWidth={2} className={isLoading ? "animate-spin" : ""} />
+        {label}
       </button>
-      {result?.status === "error" && result.errors?.[0] && (
+      {phase === "error" && errorMsg && (
         <span className="text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded">
-          {result.errors[0]}
+          {errorMsg}
         </span>
       )}
     </div>

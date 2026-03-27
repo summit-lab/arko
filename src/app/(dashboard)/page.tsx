@@ -1,201 +1,464 @@
-import { Eye, Heart, Bookmark, MessageSquare, TrendingUp, Target, Users, Megaphone, Instagram, Youtube } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceId } from "@/lib/workspace";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { CountUp } from "@/components/ui/CountUp";
 
-export default function Home() {
-  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun"];
-  const organicViews = [120, 180, 150, 220, 280, 310];
-  const adsViews = [40, 60, 90, 110, 130, 160];
-  const maxViews = Math.max(...organicViews, ...adsViews);
+// ─── Helpers ───
 
-  const goals = [
-    { label: "Seguidores IG", current: 19000, target: 25000, unit: "" },
-    { label: "Subs YouTube", current: 4200, target: 5000, unit: "" },
-    { label: "Views Orgánicas", current: 310000, target: 500000, unit: "K" },
-    { label: "Leads Mes", current: 87, target: 120, unit: "" },
-  ];
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return n.toString();
+}
 
-  const topContent = [
-    { title: "Errores que te cuestan $10K/mes", platform: "IG Reel", views: "234K", saves: "3.2K", likes: "8.1K", retention: "62%" },
-    { title: "Cómo escalar sin equipo", platform: "IG Reel", views: "189K", saves: "2.8K", likes: "6.4K", retention: "58%" },
-    { title: "Mi sistema de contenido", platform: "YouTube", views: "45K", saves: "1.1K", likes: "2.3K", retention: "44%" },
-    { title: "3 ads que convirtieron", platform: "IG Reel", views: "156K", saves: "2.1K", likes: "5.9K", retention: "55%" },
-  ];
+function pctChange(current: number, previous: number): { text: string; up: boolean } {
+  if (previous === 0) return current > 0 ? { text: "+100%", up: true } : { text: "—", up: true };
+  const change = ((current - previous) / previous) * 100;
+  return {
+    text: `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`,
+    up: change >= 0,
+  };
+}
 
-  const countryData = {
-    organic: [
-      { country: "🇪🇸 España", pct: 38 },
-      { country: "🇲🇽 México", pct: 22 },
-      { country: "🇦🇷 Argentina", pct: 18 },
-      { country: "🇨🇴 Colombia", pct: 12 },
-      { country: "🇨🇱 Chile", pct: 10 },
-    ],
-    ads: [
-      { country: "🇦🇷 Argentina", pct: 35 },
-      { country: "🇪🇸 España", pct: 25 },
-      { country: "🇲🇽 México", pct: 20 },
-      { country: "🇨🇴 Colombia", pct: 12 },
-      { country: "🇨🇱 Chile", pct: 8 },
-    ],
+const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
+  US: { name: "Estados Unidos", flag: "🇺🇸" },
+  ES: { name: "España", flag: "🇪🇸" },
+  MX: { name: "México", flag: "🇲🇽" },
+  AR: { name: "Argentina", flag: "🇦🇷" },
+  CO: { name: "Colombia", flag: "🇨🇴" },
+  CL: { name: "Chile", flag: "🇨🇱" },
+  UY: { name: "Uruguay", flag: "🇺🇾" },
+  PE: { name: "Perú", flag: "🇵🇪" },
+  BR: { name: "Brasil", flag: "🇧🇷" },
+  EC: { name: "Ecuador", flag: "🇪🇨" },
+  VE: { name: "Venezuela", flag: "🇻🇪" },
+  BO: { name: "Bolivia", flag: "🇧🇴" },
+  PY: { name: "Paraguay", flag: "🇵🇾" },
+  CR: { name: "Costa Rica", flag: "🇨🇷" },
+  PA: { name: "Panamá", flag: "🇵🇦" },
+  DO: { name: "Rep. Dominicana", flag: "🇩🇴" },
+  GT: { name: "Guatemala", flag: "🇬🇹" },
+  HN: { name: "Honduras", flag: "🇭🇳" },
+  SV: { name: "El Salvador", flag: "🇸🇻" },
+  NI: { name: "Nicaragua", flag: "🇳🇮" },
+  GB: { name: "Reino Unido", flag: "🇬🇧" },
+  DE: { name: "Alemania", flag: "🇩🇪" },
+  FR: { name: "Francia", flag: "🇫🇷" },
+  IT: { name: "Italia", flag: "🇮🇹" },
+  PT: { name: "Portugal", flag: "🇵🇹" },
+  CA: { name: "Canadá", flag: "🇨🇦" },
+};
+
+// ─── Data Fetching ───
+
+async function getDashboardData() {
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) return null;
+
+  const supabase = await createClient();
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const [
+    insightsCurrent,
+    insightsPrevious,
+    insightsWeek,
+    insightsMonthly,
+    reelsData,
+    demographics,
+  ] = await Promise.all([
+    // Query 1: Last 30 days insights
+    supabase
+      .from("ig_account_insights")
+      .select("reach, impressions, total_interactions, likes, comments, shares, saves, follower_count, follows_count")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", thirtyDaysAgo)
+      .lt("metric_date", today)
+      .order("metric_date", { ascending: false })
+      .limit(30),
+
+    // Query 2: Previous 30 days insights (for % change)
+    supabase
+      .from("ig_account_insights")
+      .select("reach, likes, comments, shares, saves")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", sixtyDaysAgo)
+      .lt("metric_date", thirtyDaysAgo)
+      .limit(30),
+
+    // Query 3: Sum of daily follower deltas in last 7 days
+    supabase
+      .from("ig_account_insights")
+      .select("follower_count")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", sevenDaysAgo)
+      .lt("metric_date", today),
+
+    // Query 4: Last 30 days daily insights (for daily charts)
+    supabase
+      .from("ig_account_insights")
+      .select("metric_date, reach, impressions, likes, saves, comments")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", thirtyDaysAgo)
+      .lt("metric_date", today)
+      .order("metric_date", { ascending: true })
+      .limit(30),
+
+    // Query 5: Reels with metrics (last 90 days, for top content + growth chart)
+    supabase
+      .from("reels")
+      .select(`
+        id, caption, permalink, published_at, media_type, reel_type, has_ads,
+        reel_metrics (views_org, likes_total, comments_total, shares_total, saves_total),
+        reel_metrics_paid (views_paid)
+      `)
+      .eq("workspace_id", workspaceId)
+      .gte("published_at", ninetyDaysAgo)
+      .order("published_at", { ascending: false })
+      .limit(200),
+
+    // Query 6: Demographics (latest)
+    supabase
+      .from("ig_account_demographics")
+      .select("audience_country")
+      .eq("workspace_id", workspaceId)
+      .order("snapshot_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  // ─── Process insights data ───
+
+  const current30d = insightsCurrent.data ?? [];
+  const previous30d = insightsPrevious.data ?? [];
+
+  const sumCurrent = {
+    reach: current30d.reduce((s, r) => s + (r.reach || 0), 0),
+    likes: current30d.reduce((s, r) => s + (r.likes || 0), 0),
+    comments: current30d.reduce((s, r) => s + (r.comments || 0), 0),
+    saves: current30d.reduce((s, r) => s + (r.saves || 0), 0),
+    shares: current30d.reduce((s, r) => s + (r.shares || 0), 0),
+    interactions: current30d.reduce((s, r) => s + (r.total_interactions || 0), 0),
   };
 
+  const sumPrevious = {
+    reach: previous30d.reduce((s, r) => s + (r.reach || 0), 0),
+    likes: previous30d.reduce((s, r) => s + (r.likes || 0), 0),
+    comments: previous30d.reduce((s, r) => s + (r.comments || 0), 0),
+    saves: previous30d.reduce((s, r) => s + (r.saves || 0), 0),
+    shares: previous30d.reduce((s, r) => s + (r.shares || 0), 0),
+  };
+
+  // follower_count is a daily delta from Meta — sum the last 7 days
+  const weekFollowerRows = insightsWeek.data ?? [];
+  const newFollowsWeek = weekFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+
+  // ─── Process reels for views KPI + top content ───
+
+  const reels = (reelsData.data ?? []).map((r) => {
+    const metrics = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
+    const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
+    const viewsOrg = metrics?.views_org || 0;
+    const viewsPaid = paid?.views_paid || 0;
+    return {
+      id: r.id,
+      caption: r.caption,
+      permalink: r.permalink,
+      published_at: r.published_at,
+      reel_type: r.reel_type,
+      has_ads: r.has_ads,
+      views_org: viewsOrg,
+      views_paid: viewsPaid,
+      views_total: viewsOrg + viewsPaid,
+      likes: metrics?.likes_total || 0,
+      saves: metrics?.saves_total || 0,
+      comments: metrics?.comments_total || 0,
+      shares: metrics?.shares_total || 0,
+    };
+  });
+
+  const totalViews = reels.reduce((s, r) => s + r.views_total, 0);
+
+  // Views for previous period — reels published between 60 and 30 days ago don't exist in our query.
+  // Use reach as proxy for "Total Views" KPI change since we have insights for both periods.
+  const viewsChange = pctChange(sumCurrent.reach, sumPrevious.reach);
+
+  // Top 4 reels by views
+  const topContent = [...reels]
+    .sort((a, b) => b.views_total - a.views_total)
+    .slice(0, 4)
+    .map((r) => {
+      const engRate = r.views_total > 0
+        ? ((r.likes + r.comments + r.saves + r.shares) / r.views_total) * 100
+        : 0;
+      return {
+        title: r.caption?.slice(0, 60) || "Sin título",
+        platform: r.has_ads ? "IG Reel (Ads)" : "IG Reel",
+        views: formatCompact(r.views_total),
+        saves: formatCompact(r.saves),
+        likes: formatCompact(r.likes),
+        engRate: engRate > 0 ? `${engRate.toFixed(0)}%` : "—",
+      };
+    });
+
+  // Best reel
+  const bestReelViews = reels.length > 0 ? Math.max(...reels.map((r) => r.views_total)) : 0;
+
+  // Engagement rate 30d
+  const engRate30d = sumCurrent.reach > 0
+    ? (sumCurrent.interactions / sumCurrent.reach) * 100
+    : 0;
+
+  // ─── Daily chart data from ig_account_insights ───
+
+  const dailyInsights = insightsMonthly.data ?? [];
+
+  const growthData = dailyInsights.map((row) => {
+    const d = new Date(row.metric_date);
+    return {
+      date: `${d.getDate()}/${d.getMonth() + 1}`,
+      reach: row.reach || 0,
+      impressions: row.impressions || 0,
+    };
+  });
+
+  const engagementData = dailyInsights.map((row) => {
+    const d = new Date(row.metric_date);
+    return {
+      date: `${d.getDate()}/${d.getMonth() + 1}`,
+      likes: row.likes || 0,
+      saves: row.saves || 0,
+      comments: row.comments || 0,
+    };
+  });
+
+  // ─── Countries ───
+
+  const countryRaw: Record<string, number> = demographics.data?.audience_country ?? {};
+  const countryTotal = Object.values(countryRaw).reduce((s, v) => s + v, 0);
+  const countries = Object.entries(countryRaw)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([code, count]) => {
+      const info = COUNTRY_MAP[code] || { name: code, flag: "🌍" };
+      return {
+        country: info.name,
+        flag: info.flag,
+        pct: countryTotal > 0 ? Math.round((count / countryTotal) * 100) : 0,
+      };
+    });
+
+  // ─── KPIs ───
+
+  const kpis = [
+    {
+      label: "Total Views",
+      value: totalViews > 0 ? formatCompact(totalViews) : "—",
+      change: viewsChange.text,
+      up: viewsChange.up,
+      icon: "eye" as const,
+      color: "text-blue-400",
+    },
+    {
+      label: "Guardados",
+      value: sumCurrent.saves > 0 ? formatCompact(sumCurrent.saves) : "—",
+      ...pctChange(sumCurrent.saves, sumPrevious.saves),
+      icon: "bookmark" as const,
+      color: "text-amber-400",
+    },
+    {
+      label: "Likes",
+      value: sumCurrent.likes > 0 ? formatCompact(sumCurrent.likes) : "—",
+      ...pctChange(sumCurrent.likes, sumPrevious.likes),
+      icon: "heart" as const,
+      color: "text-rose-400",
+    },
+    {
+      label: "Comentarios",
+      value: sumCurrent.comments > 0 ? formatCompact(sumCurrent.comments) : "—",
+      ...pctChange(sumCurrent.comments, sumPrevious.comments),
+      icon: "message" as const,
+      color: "text-emerald-400",
+    },
+  ];
+
+  // ─── Quick Stats ───
+
+  const quickStats = [
+    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: "últimos 30 días" },
+    { label: "Engagement Rate", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
+    { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
+    { label: "Nuevos Follows", value: newFollowsWeek > 0 ? formatCompact(newFollowsWeek) : "—", sub: "últimos 7 días" },
+  ];
+
+  return { kpis, topContent, quickStats, countries, growthData, engagementData };
+}
+
+// ─── Icon mapping (can't pass components as serialized data) ───
+
+const ICON_MAP = {
+  eye: Eye,
+  bookmark: Bookmark,
+  heart: Heart,
+  message: MessageSquare,
+} as const;
+
+// ─── Page ───
+
+export default async function Home() {
+  const data = await getDashboardData();
+
+  const hasData = data !== null;
+  const kpis = data?.kpis ?? [];
+  const topContent = data?.topContent ?? [];
+  const quickStats = data?.quickStats ?? [];
+  const countries = data?.countries ?? [];
+  const growthData = data?.growthData ?? [];
+  const engagementData = data?.engagementData ?? [];
+
   return (
-    <div className="p-8 space-y-6">
-      <div>
+    <div className="px-8 py-10">
+      {/* Header */}
+      <div className="animate-slide-up mb-10">
         <h1 className="page-title">Dashboard</h1>
-        <p className="text-zinc-400 mt-1 text-sm">Resumen global de tu marca personal.</p>
+        <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
       </div>
 
-      {/* ROW 1: Chart + Monthly Goals + Key Metrics */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Organic Views Chart (mimicking the wireframe graph) */}
-        <div className="col-span-5 glass-panel rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-zinc-300">Organic Views vs Ads Views</h3>
-            <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 outline-none">
-              <option className="bg-zinc-900">6 meses</option>
-            </select>
-          </div>
-          {/* Simple bar chart */}
-          <div className="flex items-end gap-3 h-40">
-            {months.map((month, i) => (
-              <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex gap-0.5 items-end justify-center h-32">
-                  <div
-                    className="w-3 rounded-t bg-blue-500/70"
-                    style={{ height: `${(organicViews[i] / maxViews) * 100}%` }}
-                    title={`Orgánico: ${organicViews[i]}K`}
-                  />
-                  <div
-                    className="w-3 rounded-t bg-purple-500/50"
-                    style={{ height: `${(adsViews[i] / maxViews) * 100}%` }}
-                    title={`Ads: ${adsViews[i]}K`}
-                  />
-                </div>
-                <span className="text-[10px] text-zinc-500">{month}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 mt-4 text-[10px] text-zinc-500">
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-sm bg-blue-500/70" />Orgánico</div>
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-sm bg-purple-500/50" />Ads</div>
-          </div>
-        </div>
+      {/* Main 70/30 Layout */}
+      <div className="flex gap-6">
+        {/* ── LEFT: Main Content (70%) ── */}
+        <div className="flex-1 min-w-0 space-y-6">
 
-        {/* Monthly Goals */}
-        <div className="col-span-4 glass-panel rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-4">Monthly Goals</h3>
-          <div className="space-y-4">
-            {goals.map((g) => {
-              const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+          {/* Hero KPIs */}
+          <div className="grid grid-cols-4 gap-5">
+            {kpis.map((m, i) => {
+              const IconComp = ICON_MAP[m.icon];
               return (
-                <div key={g.label}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-zinc-400">{g.label}</span>
-                    <span className="text-xs font-medium text-zinc-200">
-                      {g.unit === "K" ? `${(g.current / 1000).toFixed(0)}K` : g.current.toLocaleString()} / {g.unit === "K" ? `${(g.target / 1000).toFixed(0)}K` : g.target.toLocaleString()}
-                    </span>
+                <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
+                  <div className="flex items-center justify-between mb-4 relative z-10">
+                    <p className="stat-label">{m.label}</p>
+                    <div className={`h-9 w-9 rounded-full flex items-center justify-center ${m.color}`} style={{ background: "rgba(255,255,255,0.06)" }}>
+                      <IconComp className="h-[18px] w-[18px]" />
+                    </div>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-700"
-                      style={{ width: `${pct}%` }}
-                    />
+                  <CountUp value={m.value} className="stat-number-xl relative z-10" />
+                  <div className="flex items-center gap-1.5 mt-3 relative z-10">
+                    {m.change !== "—" ? (
+                      <>
+                        {m.up ? (
+                          <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                        ) : (
+                          <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                        )}
+                        <span className={`text-[12px] font-medium ${m.up ? "text-emerald-400" : "text-red-400"}`}>{m.change}</span>
+                        <span className="text-[11px] text-white/25 ml-1">vs prev</span>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-white/20">sin datos previos</span>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
 
-        {/* Key Numbers */}
-        <div className="col-span-3 grid grid-rows-4 gap-3">
-          {[
-            { label: "Total Views", value: "1.2M", icon: Eye, color: "text-blue-400" },
-            { label: "Guardados", value: "12.4K", icon: Bookmark, color: "text-amber-400" },
-            { label: "Likes", value: "45.2K", icon: Heart, color: "text-rose-400" },
-            { label: "Comentarios", value: "3.8K", icon: MessageSquare, color: "text-emerald-400" },
-          ].map((m) => (
-            <div key={m.label} className="glass-panel rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-zinc-500 mb-0.5">{m.label}</p>
-                <p className="text-lg font-bold text-white">{m.value}</p>
-              </div>
-              <m.icon className={`h-5 w-5 ${m.color} opacity-60`} />
+          {/* Charts Row — Recharts */}
+          <div className="animate-slide-up stagger-5">
+            <DashboardCharts growthData={growthData} engagementData={engagementData} />
+          </div>
+
+          {/* Top Performing Content */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-[15px] font-light text-white tracking-wide">Top Performing Content</h3>
+              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Últimos 90 días</span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ROW 2: Views by Country + Top Performing Content */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Views by country: Organic vs Ads */}
-        <div className="col-span-5 glass-panel rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-4">Views por País</h3>
-          <div className="grid grid-cols-2 gap-6">
-            {/* Organic */}
-            <div>
-              <p className="text-[10px] font-medium text-blue-400 uppercase tracking-wider mb-3">Orgánico</p>
-              <div className="space-y-2.5">
-                {countryData.organic.map((c) => (
-                  <div key={c.country} className="flex items-center gap-2">
-                    <span className="text-xs w-24 truncate text-zinc-300">{c.country}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full bg-blue-500/60" style={{ width: `${c.pct}%` }} />
+            {topContent.length > 0 ? (
+              <div className="space-y-1">
+                {/* Table header */}
+                <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
+                  <div className="col-span-1">#</div>
+                  <div className="col-span-4">Título</div>
+                  <div className="col-span-2 text-right">Views</div>
+                  <div className="col-span-1 text-right">Saves</div>
+                  <div className="col-span-1 text-right">Likes</div>
+                  <div className="col-span-1 text-center">Eng.</div>
+                  <div className="col-span-2 text-center">Plataforma</div>
+                </div>
+                {topContent.map((c, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center py-3.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer group">
+                    <div className="col-span-1">
+                      <span className="text-[13px] font-light text-white/25">{i + 1}</span>
                     </div>
-                    <span className="text-[10px] text-zinc-500 w-8 text-right">{c.pct}%</span>
+                    <div className="col-span-4 flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                        {c.platform.includes("IG") ? <Instagram className="h-4 w-4 text-pink-400/70" /> : <Youtube className="h-4 w-4 text-red-400/70" />}
+                      </div>
+                      <span className="text-[13px] font-light text-white/70 group-hover:text-white truncate transition-colors">{c.title}</span>
+                    </div>
+                    <div className="col-span-2 text-right text-[13px] font-light text-white">{c.views}</div>
+                    <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.saves}</div>
+                    <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.likes}</div>
+                    <div className="col-span-1 text-center">
+                      <span className="text-[11px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">{c.engRate}</span>
+                    </div>
+                    <div className="col-span-2 text-center">
+                      <span className="pill-badge">{c.platform}</span>
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-            {/* Ads */}
-            <div>
-              <p className="text-[10px] font-medium text-purple-400 uppercase tracking-wider mb-3">Ads</p>
-              <div className="space-y-2.5">
-                {countryData.ads.map((c) => (
-                  <div key={c.country} className="flex items-center gap-2">
-                    <span className="text-xs w-24 truncate text-zinc-300">{c.country}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${c.pct}%` }} />
-                    </div>
-                    <span className="text-[10px] text-zinc-500 w-8 text-right">{c.pct}%</span>
-                  </div>
-                ))}
+            ) : (
+              <div className="py-10 text-center">
+                <p className="text-[13px] text-white/20 font-light">No hay contenido aún</p>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Top Performing Content */}
-        <div className="col-span-7 glass-panel rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-4">Top Performing Content</h3>
-          <div className="space-y-2">
-            {/* Table header */}
-            <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-500 uppercase tracking-wider pb-2 border-b border-white/5">
-              <div className="col-span-5">Título</div>
-              <div className="col-span-1 text-center">Views</div>
-              <div className="col-span-1 text-center">Saves</div>
-              <div className="col-span-1 text-center">Likes</div>
-              <div className="col-span-2 text-center">Retención</div>
-              <div className="col-span-2 text-center">Plataforma</div>
-            </div>
-            {topContent.map((c, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/5 transition-colors px-1 cursor-pointer group">
-                <div className="col-span-5 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                    {c.platform.includes("IG") ? <Instagram className="h-4 w-4 text-pink-400" /> : <Youtube className="h-4 w-4 text-red-400" />}
+        {/* ── RIGHT: Summary Panel (30%) ── */}
+        <div className="w-[320px] shrink-0 space-y-6">
+          {/* Quick Stats */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
+            <div className="space-y-5">
+              {quickStats.map((s) => (
+                <div key={s.label} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[12px] text-white/35 font-light">{s.label}</p>
+                    <p className="text-[11px] text-white/20 font-light mt-0.5">{s.sub}</p>
                   </div>
-                  <span className="text-sm text-zinc-200 group-hover:text-white truncate transition-colors">{c.title}</span>
+                  <CountUp value={s.value} className="text-[22px] font-light tracking-[-0.02em] text-white" />
                 </div>
-                <div className="col-span-1 text-center text-xs font-medium text-zinc-300">{c.views}</div>
-                <div className="col-span-1 text-center text-xs text-zinc-400">{c.saves}</div>
-                <div className="col-span-1 text-center text-xs text-zinc-400">{c.likes}</div>
-                <div className="col-span-2 text-center">
-                  <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">{c.retention}</span>
-                </div>
-                <div className="col-span-2 text-center">
-                  <span className="text-[10px] font-medium text-zinc-500 bg-white/5 px-2 py-1 rounded">{c.platform}</span>
-                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Views by Country */}
+          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Top Países</h3>
+            {countries.length > 0 ? (
+              <div className="space-y-3">
+                {countries.map((c) => (
+                  <div key={c.country} className="flex items-center gap-3">
+                    <span className="text-[14px]">{c.flag}</span>
+                    <span className="text-[12px] font-light text-white/60 w-20">{c.country}</span>
+                    <div className="flex-1 h-[4px] rounded-full bg-white/[0.05] overflow-hidden">
+                      <div className="h-full rounded-full bg-white/20" style={{ width: `${c.pct}%` }} />
+                    </div>
+                    <span className="text-[11px] text-white/30 font-light w-8 text-right">{c.pct}%</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <p className="text-[13px] text-white/20 font-light text-center py-4">Sin datos demográficos</p>
+            )}
           </div>
         </div>
       </div>

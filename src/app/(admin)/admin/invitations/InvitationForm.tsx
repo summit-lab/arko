@@ -1,0 +1,92 @@
+"use client";
+
+import { useState } from "react";
+import { Mail, Copy, Check, Loader2 } from "lucide-react";
+import { createInvitation } from "./actions";
+
+export function InvitationForm() {
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(formData: FormData) {
+    setLoading(true);
+    setError(null);
+    setGeneratedLink(null);
+
+    const result = await createInvitation(formData);
+
+    if (result.error) {
+      setError(result.error);
+    } else if (result.token) {
+      const base = window.location.origin;
+      setGeneratedLink(`${base}/invite/${result.token}`);
+    }
+
+    setLoading(false);
+  }
+
+  async function copyLink() {
+    if (!generatedLink) return;
+    await navigator.clipboard.writeText(generatedLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="glass-card p-6 animate-slide-up stagger-1">
+      <h3 className="text-[15px] font-light text-white tracking-wide mb-5">
+        Generar Invitación
+      </h3>
+
+      <form action={handleSubmit} className="flex items-end gap-4">
+        <div className="flex-1">
+          <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
+            Email del cliente
+          </label>
+          <div className="relative">
+            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+            <input
+              name="email"
+              type="email"
+              required
+              placeholder="cliente@ejemplo.com"
+              autoComplete="off"
+              className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-white/20 outline-none focus:border-amber-400/30 transition-colors autofill-dark"
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="h-[42px] px-6 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-[13px] font-medium hover:bg-amber-400/15 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+          Generar Link
+        </button>
+      </form>
+
+      {error && (
+        <div className="mt-4 text-[13px] text-red-400 bg-red-400/10 px-4 py-2.5 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {generatedLink && (
+        <div className="mt-4 flex items-center gap-3 bg-emerald-400/5 border border-emerald-400/15 rounded-lg px-4 py-3">
+          <p className="flex-1 text-[13px] text-emerald-400/80 font-mono truncate">
+            {generatedLink}
+          </p>
+          <button
+            onClick={copyLink}
+            className="shrink-0 h-8 px-3 rounded-md bg-emerald-400/10 text-emerald-400 text-[12px] font-medium hover:bg-emerald-400/20 transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? "Copiado" : "Copiar"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -32,7 +32,7 @@ function SectionCard({
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-sm overflow-hidden">
+    <div className="rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors"

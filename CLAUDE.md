@@ -44,6 +44,7 @@
 2. **NO ROMPER LO QUE FUNCIONA** — Detenerse si hay conflicto con la arquitectura
 3. **DOCUMENTACIÓN CONTINUA** — Actualizar docs + CHANGELOG después de cada cambio
 4. **SEGURIDAD** — Nunca cambios destructivos en producción sin confirmación del humano
+5. **DISEÑAR PARA 100+ USUARIOS** — Toda tabla, query, índice y flujo de datos debe pensarse como si lo van a usar 100 personas con múltiples reels/videos cada una. Incluir índices compuestos para queries frecuentes, verificar que RLS funcione multi-tenant, y nunca diseñar asumiendo un solo workspace.
 
 ---
 
@@ -86,6 +87,8 @@
 | `docs/features/customer-voice.md` | Customer Voice |
 | `docs/features/ai-agents.md` | Agentes de IA (chat) |
 | `docs/features/dashboard-layout.md` | Layout del dashboard, sidebar, header |
+| `docs/features/admin-panel.md` | Admin panel, invitaciones, onboarding schema |
+| `docs/features/onboarding-adn.md` | ADN de Comunicación — onboarding conversacional con Arko AI |
 
 ### 4.4 Docs operativos (fuera de docs/)
 
@@ -105,6 +108,12 @@
 
 | Archivo que se modifica | Doc que se debe leer |
 |------------------------|---------------------|
+| `src/app/(dashboard)/onboarding/adn/**` | `docs/features/onboarding-adn.md` |
+| `src/components/features/onboarding/**` | `docs/features/onboarding-adn.md` |
+| `src/services/adn-*` | `docs/features/onboarding-adn.md` |
+| `src/services/anthropic.*` | `docs/features/onboarding-adn.md` |
+| `src/app/(admin)/**` | `docs/features/admin-panel.md` + `docs/03-security.md` |
+| `src/app/(auth)/invite/**` | `docs/features/admin-panel.md` |
 | `src/app/api/**` | `docs/API_DOCS.md` + `docs/features/[feature].md` |
 | `supabase/migrations/*.sql` | `docs/DB_SCHEMA.md` + `docs/07-mcp-guide.md` |
 | `src/app/globals.css` | `docs/08-design-system.md` |
@@ -116,24 +125,65 @@
 
 ---
 
-## 6. Flujo Git — Responsabilidades
+## 6. Flujo Git — Sesiones de Trabajo
 
-> **El flujo git es 100% responsabilidad del developer usando GitHub Desktop.**
-> **La IA NUNCA ejecuta comandos git de ningún tipo.**
+> La IA gestiona git directamente. El flujo se basa en **sesiones de trabajo** con inicio y cierre claros.
+> **NUNCA se pushea directo a `develop` ni a `main`** — todo pasa por Pull Request.
 
-### Regla absoluta
+### 6.1 Inicio de sesión
 
-**La IA NO hace:**
-- `git pull`, `git push`, `git commit`, `git checkout`, `git add`, ni ningún otro comando git
-- Crear ramas, cambiar de ramas, hacer merge, ni nada relacionado con git
+Cuando el developer dice **"inicio de sesión"**, **"empiezo a trabajar"**, o similar, la IA DEBE:
 
-**La IA SÍ puede:**
-- Sugerir el nombre de rama a crear (el developer la crea en GitHub Desktop)
-- Sugerir el mensaje de commit (el developer lo escribe en GitHub Desktop)
-- Sugerir el título y descripción del PR (el developer lo abre desde GitHub)
-- Indicar qué archivos se cambiaron y deben commitearse
+1. `git checkout develop` — asegurar que estamos en develop
+2. `git pull origin develop` — traer los últimos cambios
+3. Preguntar en qué se va a trabajar
+4. `git checkout -b feature/nombre-descriptivo` — crear rama nueva desde develop
+5. Reportar: estado del repo, rama creada, listo para trabajar
 
-### Nomenclatura de ramas (referencia para el developer)
+### 6.2 Durante el trabajo
+
+- Trabajar siempre en la feature branch (NUNCA en develop ni main)
+- No hacer commits automáticos — solo cuando el developer lo pida
+- Seguir las convenciones del proyecto (docs, tipos, estilos)
+
+### 6.3 Cierre de sesión
+
+Cuando el developer dice **"cierre de sesión"**, **"terminé"**, **"commitea"**, **"da por terminado"**, **"termina la sesión"**, o similar, la IA DEBE **ejecutar el flujo completo automáticamente** (no solo dar un resumen textual):
+
+1. **Verificar que los cambios fueron testeados** — Si el developer estuvo testeando durante la sesión y no reportó problemas pendientes, los cambios se consideran validados. Solo preguntar si hay duda real de que algo no fue testeado.
+2. `git add` — stagear todos los archivos relevantes
+3. `git commit` — con mensaje descriptivo (Conventional Commits)
+4. `git push origin feature/nombre` — subir la rama al remote
+5. `gh pr create` — crear **Pull Request** de `feature/nombre` → `develop`
+6. **Resumen de cierre** — reportar:
+   - Link del PR creado
+   - Qué se hizo en la sesión (cambios principales)
+   - Qué queda pendiente para la próxima sesión
+   - Migraciones aplicadas en DEV que están pendientes en PROD
+
+> **REGLA:** La IA EJECUTA el cierre, no lo describe. Cuando el developer pide terminar, la IA hace commit + push + PR en ese momento. No esperar a que el developer lo pida por separado.
+> **REGLA:** Commits y PRs son SOLO para cambios ya testeados y validados por el developer. No se commitea al terminar de escribir código — se commitea después de confirmar que funciona.
+
+### 6.4 Reglas INVIOLABLES de git
+
+| Regla | Descripción |
+|-------|-------------|
+| **NUNCA push a develop** | Todo cambio llega a develop via PR |
+| **NUNCA push a main** | Main es producción con usuarios reales |
+| **NUNCA merge a main** | Solo un humano mergea PRs a main |
+| **Siempre feature branch** | Cada sesión de trabajo = una rama nueva |
+| **Siempre PR** | Cada cierre de sesión = un PR a develop |
+
+### 6.5 Regla de deploy a producción
+
+El único camino a `main` (producción) es:
+1. PR de `develop` → `main`
+2. CI en verde
+3. **Un humano** decide mergear manualmente
+
+La IA nunca mergea a main. La IA nunca sugiere saltear staging.
+
+### 6.6 Nomenclatura de ramas
 
 | Tipo de cambio | Prefijo | Ejemplo |
 |----------------|---------|---------|
@@ -141,27 +191,17 @@
 | Bugfix | `fix/` | `fix/login-redirect` |
 | Documentación | `docs/` | `docs/guia-onboarding` |
 | Mantenimiento | `chore/` | `chore/update-dependencies` |
+| Diseño / UI | `design/` | `design/premium-ui` |
 
-### Formato de commits — Conventional Commits (referencia para el developer)
+### 6.7 Formato de commits — Conventional Commits
 
 ```
 feat: agrega sistema de analytics al dashboard
 fix: corrige redirect de meta callback en staging
 docs: actualiza guía de onboarding del equipo
 chore: actualiza dependencias de next.js
+design: mejora glassmorphism en cards y sidebar
 ```
-
-### Cómo trabaja la IA al terminar un cambio
-
-Al finalizar una tarea, la IA indica:
-1. Qué archivos fueron modificados y deben commitearse
-2. El mensaje de commit sugerido
-3. El nombre de rama sugerido (si aplica)
-4. El título y descripción sugeridos para el PR
-
-El developer hace todo eso desde GitHub Desktop.
-
-> Guía de GitHub Desktop para developers: `.github/GITHUB_DESKTOP_GUIDE.md`
 
 ---
 

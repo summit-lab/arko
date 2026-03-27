@@ -75,7 +75,7 @@ export default function YouTubePage() {
       </div>
 
       {/* AI Insights */}
-      <div className="glass-panel rounded-2xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <div className="flex items-center gap-3 overflow-x-auto pb-1">
           {insights.map((insight, i) => (
             <div
@@ -113,7 +113,7 @@ export default function YouTubePage() {
       </div>
 
       {/* Videos List */}
-      <div className="glass-panel rounded-2xl p-6">
+      <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-zinc-300">Últimos Videos</h3>
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-400 outline-none">
