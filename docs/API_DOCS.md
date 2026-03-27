@@ -24,6 +24,8 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 | POST | `/api/v1/auth/meta/connect` | Iniciar OAuth de Meta | SI | 4.3 |
 | POST | `/api/v1/auth/meta/disconnect` | Desconectar cuenta de Meta/Instagram | SI | 4.3 |
 | GET | `/api/v1/auth/meta/callback` | Callback OAuth de Meta | NO* | 4.3 |
+| POST | `/api/v1/auth/meta/deauthorize` | Webhook: Meta deauthorize callback | NO** | — |
+| POST | `/api/v1/auth/meta/data-deletion` | Webhook: Meta data deletion callback | NO** | — |
 | GET | `/api/v1/workspaces` | Listar workspaces del usuario | SI | — |
 | POST | `/api/v1/workspaces` | Crear workspace | SI | — |
 | POST | `/api/v1/meta/explorer` | Ejecutar requests arbitrarias a Meta Graph API y devolver JSON crudo | SI | — |
@@ -45,6 +47,7 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 | POST | `/api/v1/competitors/[id]/analyze` | Analizar reels de un competidor con IA | SI | — |
 
 *El callback es redirigido por Meta, no requiere auth header pero valida state/CSRF.
+**Webhooks llamados por Meta con signed_request. Validan firma HMAC-SHA256 con META_APP_SECRET.
 
 ---
 

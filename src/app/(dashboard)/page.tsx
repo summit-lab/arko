@@ -133,6 +133,14 @@ async function getDashboardData() {
       .maybeSingle(),
   ]);
 
+  // ─── Log query errors ───
+  if (insightsCurrent.error) console.error('[dashboard] insightsCurrent error:', insightsCurrent.error);
+  if (insightsPrevious.error) console.error('[dashboard] insightsPrevious error:', insightsPrevious.error);
+  if (insightsWeek.error) console.error('[dashboard] insightsWeek error:', insightsWeek.error);
+  if (insightsMonthly.error) console.error('[dashboard] insightsMonthly error:', insightsMonthly.error);
+  if (reelsData.error) console.error('[dashboard] reelsData error:', reelsData.error);
+  if (demographics.error) console.error('[dashboard] demographics error:', demographics.error);
+
   // ─── Process insights data ───
 
   const current30d = insightsCurrent.data ?? [];

@@ -74,7 +74,7 @@ export async function logLLMUsage(
 
   const costUsd = calculateCost(response.model, response.inputTokens, response.outputTokens);
 
-  await supabase.from('llm_usage').insert({
+  const { error } = await supabase.from('llm_usage').insert({
     workspace_id: workspaceId,
     user_id: userId,
     feature,
@@ -86,4 +86,5 @@ export async function logLLMUsage(
     cost_usd: costUsd,
     latency_ms: latencyMs ?? null,
   });
+  if (error) console.error('[llm-usage] insert error:', error);
 }

@@ -15,7 +15,7 @@ export default async function InstagramBootstrapPage() {
     .from("meta_connections")
     .select("status, ig_username")
     .eq("workspace_id", workspaceId)
-    .single();
+    .maybeSingle();
 
   if (connection?.status !== "active") {
     redirect("/onboarding");

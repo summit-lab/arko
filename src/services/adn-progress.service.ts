@@ -77,6 +77,14 @@ export async function getAdnProgress(
         .eq('workspace_id', workspaceId),
     ]);
 
+  // Log any query errors
+  if (profileRes.error) console.error('[adn-progress] profile error:', profileRes.error);
+  if (strategiesRes.error) console.error('[adn-progress] strategies error:', strategiesRes.error);
+  if (marketRes.error) console.error('[adn-progress] market error:', marketRes.error);
+  if (competitorsRes.error) console.error('[adn-progress] competitors error:', competitorsRes.error);
+  if (brandRes.error) console.error('[adn-progress] brand error:', brandRes.error);
+  if (referencesRes.error) console.error('[adn-progress] references error:', referencesRes.error);
+
   const profileFields = filledFields(
     profileRes.data as Record<string, unknown> | null,
     ['business_description', 'brand_persona', 'avatar_description', 'main_offer', 'target_audience']
@@ -195,10 +203,11 @@ export async function markOnboardingComplete(
   supabase: SupabaseClient,
   workspaceId: string
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('workspaces')
     .update({ onboarding_completed: true })
     .eq('id', workspaceId);
+  if (error) console.error('[adn-progress] markOnboardingComplete error:', error);
 }
 
 /**

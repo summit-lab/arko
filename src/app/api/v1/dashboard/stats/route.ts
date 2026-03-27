@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       .eq('workspace_id', auth.workspaceId)
       .order('calculated_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     // Count top performers
     const avgViews90d = benchmark?.avg_views_90d || 0;

@@ -6,6 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getApifyToken as getApifyTokenFromEnv } from '@/lib/env';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export interface ScrapeResult {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getApifyToken(): string | null {
-  const rawValue = process.env.APIFY_API_TOKEN?.trim();
+  const rawValue = getApifyTokenFromEnv()?.trim();
   if (!rawValue) return null;
 
   const unquotedValue = rawValue.replace(/^['"]|['"]$/g, '');

@@ -94,7 +94,9 @@ export function getAppUrl(): string {
   return env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
 }
 
-/** URI completa de callback para Meta OAuth */
+/** URI completa de callback para Meta OAuth.
+ *  Meta exige HTTPS. En local se usa `next dev --experimental-https`
+ *  para tener https://localhost:3000. Preview y prod ya son HTTPS. */
 export function getMetaRedirectUri(): string {
   return `${getAppUrl()}/api/v1/auth/meta/callback`;
 }
@@ -107,4 +109,23 @@ export function isProduction(): boolean {
 /** true si estamos en local */
 export function isLocal(): boolean {
   return env.APP_ENV === 'local';
+}
+
+// ─── Provider key accessors ─────────────────────────────────────────────────
+// Usá estos en vez de process.env directo en services.
+
+export function getAnthropicKey(): string | undefined {
+  return env.ANTHROPIC_API_KEY;
+}
+
+export function getOpenAIKey(): string | undefined {
+  return env.OPENAI_API_KEY;
+}
+
+export function getGeminiKey(): string | undefined {
+  return env.GEMINI_API_KEY;
+}
+
+export function getApifyToken(): string | undefined {
+  return env.APIFY_API_TOKEN;
 }

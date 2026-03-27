@@ -5,6 +5,69 @@
  
 ---
  
+## [0.14.4] — 2026-03-27
+
+### Fixed — Supabase error handling + black screen prevention
+
+- **Black screen fix**: `.single()` → `.maybeSingle()` en queries donde el registro puede no existir. Antes, si la conexión Meta no se guardaba correctamente, la app crasheaba con pantalla negra.
+- **RPC error handling**: `save_meta_connection` en callback ahora verifica errores y redirige a onboarding con mensaje claro en vez de continuar silenciosamente.
+- **Deauthorize webhook**: Ahora retorna HTTP 500 si falla el update de DB (antes retornaba `success: true`).
+- **Error boundaries**: Agregados `error.tsx` en `/instagram` y `/instagram/bootstrap` con UI glassmorphism para capturar errores del server component.
+- **Sync services**: Todas las operaciones `.update()`, `.upsert()`, `.insert()` en sync jobs ahora verifican errores.
+- **Chat route**: Removido debug log que exponía info del OPENAI_API_KEY. Agregado error handling a insert/update de mensajes.
+- **Dashboard queries**: Error logging en las 7 queries paralelas del dashboard principal.
+- **Admin pages**: Error logging en queries de clients e invitations.
+- **Usage services**: `llm-usage` e `integration-usage` ahora loguean errores de insert (antes se swallowed).
+- **ADN progress**: Error logging en las 6 queries paralelas de onboarding + `markOnboardingComplete`.
+- **Centralized env access**: Services ahora usan helpers de `env.ts` en vez de `process.env` directo (anthropic, openai, gemini, apify).
+
+#### Archivos modificados
+- `src/lib/supabase/middleware.ts` (4x `.single()` → `.maybeSingle()`)
+- `src/app/api/v1/auth/meta/callback/route.ts` (RPC error check)
+- `src/app/api/v1/auth/meta/deauthorize/route.ts` (return 500 on failure)
+- `src/app/api/v1/chat/route.ts` (remove debug log, add error handling)
+- `src/app/(dashboard)/instagram/page.tsx` (`.maybeSingle()`)
+- `src/app/(dashboard)/instagram/bootstrap/page.tsx` (`.maybeSingle()`)
+- `src/app/(dashboard)/instagram/error.tsx` (NUEVO)
+- `src/app/(dashboard)/instagram/bootstrap/error.tsx` (NUEVO)
+- `src/app/(dashboard)/page.tsx` (error logging)
+- `src/app/(admin)/admin/clients/page.tsx` (error logging)
+- `src/app/(admin)/admin/invitations/page.tsx` (error logging)
+- `src/app/(admin)/admin/invitations/actions.ts` (error handling)
+- `src/app/api/v1/reels/route.ts` (`.maybeSingle()`)
+- `src/app/api/v1/reels/[id]/route.ts` (`.maybeSingle()`)
+- `src/app/api/v1/dashboard/stats/route.ts` (`.maybeSingle()`)
+- `src/services/ig-account-sync.service.ts` (error handling)
+- `src/services/instagram-sync.service.ts` (error handling)
+- `src/services/llm-usage.service.ts` (error handling)
+- `src/services/integration-usage.service.ts` (error handling)
+- `src/services/adn-progress.service.ts` (error logging)
+- `src/services/openai.service.ts` (centralized env)
+- `src/services/anthropic.service.ts` (centralized env)
+- `src/services/gemini-video.service.ts` (centralized env)
+- `src/services/apify-reel.service.ts` (centralized env)
+- `src/services/competitor-scraper.service.ts` (centralized env)
+- `src/services/competitor-analysis.service.ts` (centralized env)
+- `src/lib/env.ts` (added provider key helpers)
+
+---
+
+## [0.14.3] — 2026-03-27
+
+### Added — Meta deauthorize & data deletion webhooks
+
+- **Deauthorize callback** (`POST /api/v1/auth/meta/deauthorize`): Webhook called by Meta when a user removes the app from Facebook Business Integrations. Verifies HMAC-SHA256 signed_request, revokes tokens and connection status.
+- **Data deletion callback** (`POST /api/v1/auth/meta/data-deletion`): Webhook called by Meta when a user requests data deletion via Facebook settings. Verifies signature, deletes all stored Meta data, returns confirmation_code + status URL as required by Meta.
+- Both endpoints added to PUBLIC_ROUTES in middleware (no auth required — Meta calls them server-to-server).
+
+#### Archivos modificados
+- `src/app/api/v1/auth/meta/deauthorize/route.ts` (NUEVO)
+- `src/app/api/v1/auth/meta/data-deletion/route.ts` (NUEVO)
+- `src/lib/supabase/middleware.ts` (added public routes)
+- `docs/API_DOCS.md` (added endpoint docs)
+
+---
+
 ## [0.14.2] — 2026-03-26
 
 ### Fixed — follower_count era total en vez de delta diario

@@ -72,10 +72,11 @@ export async function syncInstagramReels(
 
   try {
     // Update job status to running
-    await supabase
+    const { error: jobStartError } = await supabase
       .from('sync_jobs')
       .update({ status: 'running', started_at: new Date().toISOString() })
       .eq('id', syncJobId);
+    if (jobStartError) console.error('[ig-sync] Failed to update job start:', jobStartError);
 
     // 1. Get connection data + decrypt token
     const { data: connection } = await supabase
@@ -106,10 +107,11 @@ export async function syncInstagramReels(
     const allMedia = allMediaRaw.filter((m) => m.media_product_type === 'REELS');
 
     // Update total items
-    await supabase
+    const { error: totalItemsError } = await supabase
       .from('sync_jobs')
       .update({ total_items: allMedia.length })
       .eq('id', syncJobId);
+    if (totalItemsError) console.error('[ig-sync] Failed to update total items:', totalItemsError);
 
     // 3. Get existing reels with recent metrics to skip them
     const { data: existingReels } = await supabase
@@ -171,10 +173,11 @@ export async function syncInstagramReels(
     }
 
     // Update progress after base upserts
-    await supabase
+    const { error: progressError } = await supabase
       .from('sync_jobs')
       .update({ processed_items: allMedia.length })
       .eq('id', syncJobId);
+    if (progressError) console.error('[ig-sync] Failed to update progress:', progressError);
 
     // 5. Fetch insights in parallel with concurrency limit
     const MAX_INSIGHTS_PER_SYNC = 50;
@@ -271,11 +274,15 @@ export async function syncInstagramReels(
         if (settled.status === 'rejected') continue;
         const { reelId, duration } = settled.value;
         if (duration) {
-          await supabase
+          const { error: durationError } = await supabase
             .from('reels')
             .update({ duration_seconds: duration })
             .eq('id', reelId);
-          result.durationsEnriched++;
+          if (durationError) {
+            result.errors.push(`Duration enrich ${reelId}: ${durationError.message}`);
+          } else {
+            result.durationsEnriched++;
+          }
         }
       }
 
@@ -283,7 +290,7 @@ export async function syncInstagramReels(
     }
 
     // 7. Mark job as completed
-    await supabase
+    const { error: jobCompleteError } = await supabase
       .from('sync_jobs')
       .update({
         status: 'completed',
@@ -292,6 +299,7 @@ export async function syncInstagramReels(
         metadata: result as unknown as Record<string, unknown>,
       })
       .eq('id', syncJobId);
+    if (jobCompleteError) console.error('[ig-sync] Failed to update job completion:', jobCompleteError);
 
     return result;
   } catch (err) {
@@ -299,7 +307,7 @@ export async function syncInstagramReels(
     result.errors.push(msg);
 
     // Mark job as failed
-    await supabase
+    const { error: jobFailError } = await supabase
       .from('sync_jobs')
       .update({
         status: 'failed',
@@ -308,6 +316,7 @@ export async function syncInstagramReels(
         metadata: result as unknown as Record<string, unknown>,
       })
       .eq('id', syncJobId);
+    if (jobFailError) console.error('[ig-sync] Failed to update job failure:', jobFailError);
 
     return result;
   }

@@ -10,26 +10,29 @@ export default async function AdminClientsPage() {
   const supabase = await createClient();
 
   // Fetch workspaces with meta_connections
-  const { data: workspaces } = await supabase
+  const { data: workspaces, error: wsError } = await supabase
     .from("workspaces")
     .select(`
       id, name, slug, is_active, created_at, owner_id, onboarding_completed,
       meta_connections (status, ig_username)
     `)
     .order("created_at", { ascending: false });
+  if (wsError) console.error('[admin/clients] workspaces error:', wsError);
 
   // Fetch all profiles separately (no FK between workspaces and profiles)
   const ownerIds = (workspaces ?? []).map((w) => w.owner_id).filter(Boolean);
-  const { data: profiles } = ownerIds.length > 0
+  const { data: profiles, error: profilesError } = ownerIds.length > 0
     ? await supabase.from("profiles").select("id, email, full_name, role").in("id", ownerIds)
-    : { data: [] as { id: string; email: string; full_name: string | null; role: string }[] };
+    : { data: [] as { id: string; email: string; full_name: string | null; role: string }[], error: null };
+  if (profilesError) console.error('[admin/clients] profiles error:', profilesError);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   // Fetch LLM usage totals per workspace
-  const { data: usageRows } = await supabase
+  const { data: usageRows, error: usageError } = await supabase
     .from("llm_usage")
     .select("workspace_id, cost_usd");
+  if (usageError) console.error('[admin/clients] usage error:', usageError);
 
   const usageMap = new Map<string, number>();
   for (const row of (usageRows ?? []) as UsageRow[]) {
