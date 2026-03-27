@@ -23,6 +23,9 @@
  *   { type: 'error',      message }
  */
 
+// Extend timeout to 120s — tool loop + specialist sub-agents can take 60-90s
+export const maxDuration = 120;
+
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { callLLM, type LLMMessage } from '@/services/llm.service';
