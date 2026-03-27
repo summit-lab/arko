@@ -154,7 +154,7 @@ export async function GET(request: Request) {
     const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     // Use raw SQL to encrypt tokens with pgcrypto
-    await supabase.rpc('save_meta_connection', {
+    const { error: rpcError } = await supabase.rpc('save_meta_connection', {
       p_workspace_id: workspace_id,
       p_access_token: accessToken,
       p_encryption_key: env.META_TOKENS_ENCRYPTION_KEY!,
@@ -168,6 +168,12 @@ export async function GET(request: Request) {
       p_ad_account_ids: adAccountIds,
       p_permissions_granted: grantedPermissions,
     });
+
+    if (rpcError) {
+      console.error('[meta-callback] save_meta_connection RPC error:', rpcError);
+      await markConnectionAsError(workspace_id, 'save_connection_failed');
+      return NextResponse.redirect(`${getAppUrl()}/onboarding?error=save_connection_failed`);
+    }
 
     // Redirect to success page
     return NextResponse.redirect(

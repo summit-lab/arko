@@ -56,7 +56,7 @@ export async function logIntegrationUsage(
 
   const costUsd = getOperationCost(operation, itemsCount);
 
-  await supabase.from('integration_usage').insert({
+  const { error } = await supabase.from('integration_usage').insert({
     workspace_id: workspaceId,
     user_id: userId,
     feature,
@@ -67,5 +67,6 @@ export async function logIntegrationUsage(
     latency_ms: latencyMs ?? null,
     status,
     metadata,
-  }).then(() => {});
+  });
+  if (error) console.error('[integration-usage] insert error:', error);
 }

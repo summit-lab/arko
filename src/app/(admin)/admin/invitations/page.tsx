@@ -5,11 +5,12 @@ import { InvitationList } from "./InvitationList";
 export default async function AdminInvitationsPage() {
   const supabase = await createClient();
 
-  const { data: invitations } = await supabase
+  const { data: invitations, error: invError } = await supabase
     .from("invitations")
     .select("id, email, token, status, expires_at, created_at, used_at, used_by")
     .order("created_at", { ascending: false })
     .limit(50);
+  if (invError) console.error('[admin/invitations] fetch error:', invError);
 
   return (
     <div className="px-8 py-10 space-y-8">

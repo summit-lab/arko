@@ -4,6 +4,8 @@
  * Devuelve análisis visual, narrativo, tono de voz y transcripción en un único call.
  */
 
+import { getGeminiKey } from '@/lib/env';
+
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
@@ -278,7 +280,7 @@ Sé específico y orientado a acción. Cada fortaleza y mejora debe estar fundam
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 function getGeminiApiKey(): string | null {
-  return process.env.GEMINI_API_KEY?.trim() || null;
+  return getGeminiKey()?.trim() || null;
 }
 
 export function isGeminiEnabled(): boolean {

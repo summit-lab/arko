@@ -107,7 +107,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
     // ── Fetch all in parallel ──
     const [connectionResult, mediaResult, benchmarkResult, insightsResult, demoResult] = await Promise.all([
-      supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).single(),
+      supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).maybeSingle(),
       mediaQuery ?? Promise.resolve({ data: null as null }),
       supabase.from("reel_benchmarks").select("avg_views_90d").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
       insightsQuery ?? Promise.resolve({ data: null as null }),

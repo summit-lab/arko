@@ -48,7 +48,7 @@ export async function GET(
       .eq('workspace_id', auth.workspaceId)
       .order('calculated_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     // Compute totals and performer status
     const metrics = reel.reel_metrics as Record<string, number> | null;

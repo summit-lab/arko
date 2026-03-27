@@ -77,10 +77,11 @@ export async function syncAccountInsights(
   };
 
   try {
-    await supabase
+    const { error: jobStartError } = await supabase
       .from('sync_jobs')
       .update({ status: 'running', started_at: new Date().toISOString() })
       .eq('id', syncJobId);
+    if (jobStartError) console.error('[ig-account-sync] Failed to update job start:', jobStartError);
 
     // 1. Get connection + decrypt token
     const { data: connection } = await supabase
@@ -226,12 +227,13 @@ export async function syncAccountInsights(
 
     // Always upsert today's snapshot with the real followers_total
     if (currentFollowersTotal > 0) {
-      await supabase
+      const { error: todayError } = await supabase
         .from('ig_account_insights')
         .upsert(
           { workspace_id: workspaceId, metric_date: syncDate, followers_total: currentFollowersTotal, fetched_at: new Date().toISOString() },
           { onConflict: 'workspace_id,metric_date' }
         );
+      if (todayError) result.errors.push(`Today snapshot: ${todayError.message}`);
     }
 
     if (dayMap.size === 0 && dailyInsights.length === 0) {
@@ -272,22 +274,24 @@ export async function syncAccountInsights(
     }
 
     // 6. Complete job
-    await supabase.from('sync_jobs').update({
+    const { error: jobCompleteError } = await supabase.from('sync_jobs').update({
       status: 'completed',
       processed_items: result.daysUpserted,
       completed_at: new Date().toISOString(),
       metadata: result as unknown as Record<string, unknown>,
     }).eq('id', syncJobId);
+    if (jobCompleteError) console.error('[ig-account-sync] Failed to update job completion:', jobCompleteError);
 
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(msg);
-    await supabase.from('sync_jobs').update({
+    const { error: jobFailError } = await supabase.from('sync_jobs').update({
       status: 'failed',
       error_message: msg,
       completed_at: new Date().toISOString(),
     }).eq('id', syncJobId);
+    if (jobFailError) console.error('[ig-account-sync] Failed to update job failure:', jobFailError);
     return result;
   }
 }

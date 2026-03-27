@@ -5,6 +5,7 @@
  */
 
 import type { LLMOptions, LLMResponse, LLMToolCall } from './llm.service';
+import { getAnthropicKey } from '@/lib/env';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -41,7 +42,7 @@ interface AnthropicApiResponse {
 // ─── Main function ──────────────────────────────────────────────────────────
 
 export async function callAnthropic(options: LLMOptions): Promise<LLMResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = getAnthropicKey();
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is not configured');
   }

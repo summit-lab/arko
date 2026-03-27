@@ -6,6 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getGeminiKey } from '@/lib/env';
 import { isGeminiEnabled } from './gemini-video.service';
 import { callLLM, type LLMMessage } from './llm.service';
 import { getLLMConfig } from './llm-config';
@@ -272,7 +273,7 @@ async function analyzeReelWithGemini(reel: CompetitorReel): Promise<ReelAnalysis
 
   // Call Gemini Files API directly with relaxed parsing
   // (the strict analyzeVideoWithGemini validator rejects minor shape issues)
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = getGeminiKey()?.trim();
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
   // 1. Download video

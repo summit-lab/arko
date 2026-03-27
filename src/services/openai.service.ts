@@ -5,6 +5,7 @@
  */
 
 import type { LLMOptions, LLMResponse, LLMToolCall } from './llm.service';
+import { getOpenAIKey } from '@/lib/env';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -61,7 +62,7 @@ function toOpenAITools(tools: LLMOptions['tools']) {
 // ─── Main function ──────────────────────────────────────────────────────────
 
 export async function callOpenAI(options: LLMOptions): Promise<LLMResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = getOpenAIKey();
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
