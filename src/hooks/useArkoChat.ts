@@ -199,6 +199,15 @@ export function useArkoChat({
         }
 
         if (!streamCompleted) {
+          // Stream ended without a "done" event — likely a timeout or server crash
+          const errorMsg: ChatMessage = {
+            id: `err-${Date.now()}`,
+            role: "assistant",
+            content:
+              "La respuesta se cortó (posible timeout del servidor). Intentá con una pregunta más corta o volvé a intentar.",
+            created_at: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, errorMsg]);
           setIsLoading(false);
           setStatusLabel(null);
           setToolSteps([]);

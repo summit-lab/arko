@@ -2,11 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemini-analysis-persistence.service";
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
-import { GeminiAnalysis } from "@/components/instagram/GeminiAnalysis";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
 import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChart";
 import { ReelDailySparkline } from "@/components/instagram/ReelDailySparkline";
-import { ReelChatPanel } from "@/components/instagram/ReelChatPanel";
+import { ReelAISection } from "@/components/instagram/ReelAISection";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
@@ -172,7 +171,7 @@ function serializeGeminiForArko(analysis: GeminiVideoAnalysis): string {
     lines.push(`- Tono: ${analysis.audio.tone || "—"}`);
     lines.push(`- Energía: ${analysis.audio.energy_level || "—"}`);
     lines.push(`- WPM estimado: ${analysis.audio.estimated_wpm ?? "—"}`);
-    lines.push(`- Muletillas: ${analysis.audio.filler_words_detected ? "Sí" : "No"}`);
+    lines.push(`- Muletillas: ${analysis.audio.filler_words_detected?.length ? "Sí" : "No"}`);
   }
   if (analysis.insights) {
     lines.push("");
@@ -929,28 +928,18 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
       </div>
 
-      {/* SECTION 3: Análisis Profundo — Gemini (Capa 2) */}
+      {/* SECTION 3: Análisis Profundo + Chat Arko AI */}
       {workspaceId && (
-        <div className="glass-panel rounded-3xl border border-violet-500/10 bg-black/35 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
-          <GeminiAnalysis
-            reelId={reel.id}
-            workspaceId={workspaceId}
-            videoUrl={reel.media_url || null}
-            initialAnalysis={initialGeminiAnalysis}
-          />
-        </div>
-      )}
-
-      {/* Arko AI — Reel-focused chat panel */}
-      {workspaceId && !isDemo && (
-        <ReelChatPanel
+        <ReelAISection
           reelId={reel.id}
           workspaceId={workspaceId}
+          videoUrl={reel.media_url || null}
+          initialAnalysis={initialGeminiAnalysis}
+          initialGeminiSerialized={initialGeminiAnalysis ? serializeGeminiForArko(initialGeminiAnalysis) : null}
           reelSummary={serializeReelForArko(reel, reel.benchmark, engagementRate, retentionRate)}
-          geminiAnalysis={initialGeminiAnalysis ? serializeGeminiForArko(initialGeminiAnalysis) : null}
           reelCaption={reel.caption}
           performerMultiple={reel.performer_multiple}
-          hasGeminiAnalysis={initialGeminiAnalysis !== null}
+          showChat={!isDemo}
         />
       )}
 
