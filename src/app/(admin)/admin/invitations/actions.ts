@@ -57,11 +57,13 @@ export async function expireInvitation(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const id = formData.get("id") as string;
 
-  await supabase
+  const { error } = await supabase
     .from("invitations")
     .update({ status: "expired" })
     .eq("id", id)
     .eq("status", "pending");
+
+  if (error) console.error('[admin/invitations] expire error:', error);
 
   revalidatePath("/admin/invitations");
 }

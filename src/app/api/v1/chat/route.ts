@@ -64,9 +64,6 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // DEBUG: verificar si las env vars llegan al runtime
-        console.log('[chat] ENV CHECK — OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY, '| length:', process.env.OPENAI_API_KEY?.length ?? 0);
-
         const auth = await authenticateRequest(request);
         if (isAuthError(auth)) {
           controller.enqueue(sseEvent({ type: 'error', message: 'No autorizado' }));
@@ -147,12 +144,15 @@ export async function POST(request: Request) {
         controller.enqueue(sseEvent({ type: 'session', session_id: sessionId }));
 
         // Save user message
-        await supabase.from('chat_messages').insert({
+        const { error: userMsgError } = await supabase.from('chat_messages').insert({
           session_id: sessionId,
           workspace_id: auth.workspaceId,
           role: 'user',
           content: message.trim(),
         });
+        if (userMsgError) {
+          console.error('[chat] Save user message error:', userMsgError);
+        }
 
         // Send initial thinking status
         controller.enqueue(sseEvent({ type: 'status', label: 'Pensando...' }));
@@ -330,7 +330,7 @@ export async function POST(request: Request) {
 
         const totalTokens = totalInputTokens + totalOutputTokens;
 
-        const [{ data: assistantMsg }] = await Promise.all([
+        const [assistantMsgResult, sessionUpdateResult] = await Promise.all([
           supabase
             .from('chat_messages')
             .insert({
@@ -356,6 +356,15 @@ export async function POST(request: Request) {
             .update({ updated_at: new Date().toISOString() })
             .eq('id', sessionId),
         ]);
+
+        if (assistantMsgResult.error) {
+          console.error('[chat] Save assistant message error:', assistantMsgResult.error);
+        }
+        if (sessionUpdateResult.error) {
+          console.error('[chat] Update session error:', sessionUpdateResult.error);
+        }
+
+        const assistantMsg = assistantMsgResult.data;
 
         // Send final response
         controller.enqueue(sseEvent({

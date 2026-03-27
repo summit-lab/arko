@@ -1,3 +1,5 @@
+import { getApifyToken } from '@/lib/env';
+
 const APIFY_REEL_SCRAPER_ACTOR = 'apify~instagram-reel-scraper';
 const APIFY_BASE_URL = 'https://api.apify.com/v2/acts';
 
@@ -105,7 +107,7 @@ export interface ReelExternalPublicData {
 }
 
 function getApifyReelScraperToken(): string | null {
-  const rawValue = process.env.APIFY_API_TOKEN?.trim();
+  const rawValue = getApifyToken()?.trim();
 
   if (!rawValue) {
     return null;
