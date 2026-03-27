@@ -730,21 +730,86 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }
     }
 
-    // Debug: log follower_count values from dayMap
-    const fcSample = [...dayMap.entries()].slice(-5).map(([d, m]) => `${d}:${m.follower_count ?? 'undefined'}`);
-    console.log(`[follower_count] dayMap sample (last 5):`, fcSample.join(', '));
+    // ── followers_total reconstruction ─────────────────────────────
+    // Strategy:
+    //   1. Today = real profile snapshot (currentFollowersTotal)
+    //   2. Days with Meta delta (follower_count > 0): walk backwards from today
+    //      to reconstruct the cumulative total for each day
+    //   3. Gap days (between last Meta delta and today): interpolate linearly
+    //      so the chart shows a smooth line. These get replaced by real data
+    //      as Meta "unlocks" deltas for recent days over time.
+    //   4. Only write followers_total for days that don't already have one,
+    //      so we never overwrite a previously stored real snapshot.
+    const currentFollowersTotal = profileData?.followers_count ?? 0;
+    const syncDate = new Date().toISOString().split("T")[0];
+    const sortedDates = [...dayMap.keys()].sort();
+
+    // Find which days already have a followers_total in the DB
+    const { data: existingFt } = await supabase
+      .from("ig_account_insights")
+      .select("metric_date, followers_total")
+      .eq("workspace_id", workspaceId)
+      .in("metric_date", sortedDates)
+      .gt("followers_total", 0);
+    const existingFtSet = new Set((existingFt ?? []).map((r: { metric_date: string }) => r.metric_date));
+
+    // Compute followers_total for each day
+    const followersTotalByDate = new Map<string, number>();
+
+    if (currentFollowersTotal > 0 && sortedDates.length > 0) {
+      // Find the last day with a real delta from Meta
+      let lastDeltaIdx = -1;
+      for (let i = sortedDates.length - 1; i >= 0; i--) {
+        if ((dayMap.get(sortedDates[i])?.follower_count ?? 0) > 0) {
+          lastDeltaIdx = i;
+          break;
+        }
+      }
+
+      // Walk backwards from today's total through days with real deltas
+      let runningTotal = currentFollowersTotal;
+      followersTotalByDate.set(syncDate, currentFollowersTotal);
+
+      // The total at lastDeltaIdx = currentTotal (assuming 0 net change in gap)
+      // Then subtract deltas going further back
+      for (let i = lastDeltaIdx; i >= 0; i--) {
+        followersTotalByDate.set(sortedDates[i], runningTotal);
+        runningTotal -= (dayMap.get(sortedDates[i])?.follower_count ?? 0);
+      }
+
+      // Interpolate gap days (between lastDeltaIdx and today) with a straight line
+      if (lastDeltaIdx >= 0 && lastDeltaIdx < sortedDates.length - 1) {
+        const gapStartDate = sortedDates[lastDeltaIdx];
+        const gapStartTotal = followersTotalByDate.get(gapStartDate) ?? currentFollowersTotal;
+        const gapEndTotal = currentFollowersTotal;
+        const gapDays = sortedDates.length - 1 - lastDeltaIdx;
+
+        if (gapDays > 0) {
+          const dailyIncrement = (gapEndTotal - gapStartTotal) / gapDays;
+          for (let i = lastDeltaIdx + 1; i < sortedDates.length; i++) {
+            const stepsFromStart = i - lastDeltaIdx;
+            followersTotalByDate.set(sortedDates[i], Math.round(gapStartTotal + dailyIncrement * stepsFromStart));
+          }
+        }
+      }
+    }
+
+    console.log(`[account-sync] followers_total snapshot: ${currentFollowersTotal} for ${syncDate}, computed for ${followersTotalByDate.size} days`);
 
     for (const [date, metrics] of dayMap) {
-      // follower_count from Meta period=day is a daily net change (delta), not total.
-      // When Meta doesn't return it, store 0 — never fall back to the profile total.
-      const followerValue = metrics.follower_count ?? 0;
+      // Compute followers_total: use new computed value only if DB doesn't have one yet
+      const computedFt = followersTotalByDate.get(date);
+      const alreadyHasFt = existingFtSet.has(date);
+      const ftPayload = (!alreadyHasFt && computedFt != null && computedFt > 0)
+        ? { followers_total: computedFt }
+        : {};
 
       const { error } = await supabase.from("ig_account_insights").upsert({
         workspace_id: workspaceId, metric_date: date,
         impressions: metrics.views ?? metrics.content_views ?? 0,
         reach: metrics.reach ?? 0, profile_views: metrics.profile_views ?? 0,
-        follower_count: followerValue,
-        followers_total: profileData?.followers_count ?? 0,
+        follower_count: metrics.follower_count ?? 0,
+        ...ftPayload,
         follows_count: profileData?.follows_count ?? 0, media_count: profileData?.media_count ?? 0,
         accounts_engaged: metrics.accounts_engaged ?? 0,
         total_interactions: (metrics.likes ?? 0) + (metrics.comments ?? 0) + (metrics.shares ?? 0) + (metrics.saves ?? 0),
@@ -759,15 +824,12 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       else result.daysUpserted++;
     }
 
-    // Upsert today's row with followers_total snapshot.
-    // Meta doesn't provide today's metrics yet, but we need this snapshot
-    // so tomorrow's diff (followers_total[today] - followers_total[yesterday]) works correctly.
-    if (followersTotal > 0) {
-      const syncDate = new Date().toISOString().split("T")[0];
+    // Always upsert today's snapshot with the real followers_total
+    if (currentFollowersTotal > 0) {
       await supabase
         .from("ig_account_insights")
         .upsert(
-          { workspace_id: workspaceId, metric_date: syncDate, followers_total: followersTotal },
+          { workspace_id: workspaceId, metric_date: syncDate, followers_total: currentFollowersTotal, fetched_at: new Date().toISOString() },
           { onConflict: "workspace_id,metric_date" }
         );
     }

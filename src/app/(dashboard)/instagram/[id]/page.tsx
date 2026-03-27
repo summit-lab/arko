@@ -5,11 +5,13 @@ import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 import { GeminiAnalysis } from "@/components/instagram/GeminiAnalysis";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
 import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChart";
+import { ReelDailySparkline } from "@/components/instagram/ReelDailySparkline";
+import { ReelChatPanel } from "@/components/instagram/ReelChatPanel";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
-  Clock, Play, Megaphone, TrendingUp, TrendingDown, Zap,
-  Brain, ExternalLink, AlertTriangle,
+  Clock, Play, Megaphone, TrendingUp,
+  ExternalLink, AlertTriangle,
 } from "lucide-react";
 
 // ─── Helpers ───
@@ -89,6 +91,103 @@ function normalizeRateToPercent(value: number | null | undefined): number | null
 }
 
 
+// ─── Serializers for Arko AI context ───
+
+function serializeReelForArko(r: typeof DEMO_REEL, bench: typeof DEMO_REEL.benchmark, engRate: number, retRate: number | null): string {
+  const lines: string[] = [];
+  lines.push(`**Caption:** ${r.caption}`);
+  lines.push(`**Publicado:** ${r.published_at ? new Date(r.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "—"}`);
+  lines.push(`**Duración:** ${r.duration_seconds ? `${r.duration_seconds}s` : "No disponible"}`);
+  lines.push(`**Tipo:** ${r.reel_type}${r.has_ads ? " | Promocionado" : ""}`);
+  lines.push("");
+  lines.push("**Métricas principales:**");
+  lines.push(`- Views totales: ${formatNumber(r.views_total)} (org: ${formatNumber(r.views_org)}, paid: ${formatNumber(r.views_paid)})`);
+  lines.push(`- Likes: ${formatNumber(r.likes)} (${r.views_total > 0 ? ((r.likes / r.views_total) * 100).toFixed(2) : 0}% de views)`);
+  lines.push(`- Saves: ${formatNumber(r.saves)} (${r.views_total > 0 ? ((r.saves / r.views_total) * 100).toFixed(2) : 0}% de views)`);
+  lines.push(`- Comments: ${formatNumber(r.comments)} (${r.views_total > 0 ? ((r.comments / r.views_total) * 100).toFixed(2) : 0}% de views)`);
+  lines.push(`- Shares: ${formatNumber(r.shares)} (${r.views_total > 0 ? ((r.shares / r.views_total) * 100).toFixed(2) : 0}% de views)`);
+  lines.push(`- Interacciones totales: ${formatNumber(r.total_interactions)}`);
+  lines.push(`- Engagement rate: ${engRate.toFixed(2)}%`);
+  lines.push(`- Reach total: ${formatNumber(r.reach_total)} (org: ${formatNumber(r.reach_org)}, paid: ${formatNumber(r.reach_paid)})`);
+  if (r.avg_watch_time_seconds != null) {
+    lines.push(`- Watch time promedio: ${formatTime(r.avg_watch_time_seconds)}`);
+  }
+  if (retRate != null) {
+    lines.push(`- Retención estimada: ${retRate.toFixed(1)}%`);
+  }
+  if (r.performer_multiple > 0) {
+    lines.push(`- Performer multiple: ${r.performer_multiple.toFixed(1)}x vs promedio`);
+  }
+  if (r.has_ads) {
+    lines.push("");
+    lines.push("**Métricas pagas:**");
+    lines.push(`- Spend: $${(r.spend_cents / 100).toFixed(2)}`);
+    lines.push(`- Clicks pagos: ${formatNumber(r.paid_clicks)}`);
+    lines.push(`- Video plays pagos: ${formatNumber(r.paid_video_plays)}`);
+  }
+  lines.push("");
+  lines.push("**Benchmarks 90d del workspace:**");
+  lines.push(`- Avg views: ${bench.avg_views != null ? formatNumber(bench.avg_views) : "—"}`);
+  lines.push(`- Avg likes/views: ${bench.avg_likes_pct != null ? `${bench.avg_likes_pct.toFixed(2)}%` : "—"}`);
+  lines.push(`- Avg saves/views: ${bench.avg_saves_pct != null ? `${bench.avg_saves_pct.toFixed(2)}%` : "—"}`);
+  lines.push(`- Avg engagement rate: ${bench.avg_engagement_rate != null ? `${bench.avg_engagement_rate.toFixed(2)}%` : "—"}`);
+  lines.push(`- Avg retención: ${bench.avg_retention_rate != null ? `${bench.avg_retention_rate.toFixed(1)}%` : "—"}`);
+  lines.push(`- Reels en ventana: ${bench.reels_in_window}`);
+  return lines.join("\n");
+}
+
+function serializeGeminiForArko(analysis: GeminiVideoAnalysis): string {
+  const lines: string[] = [];
+  if (analysis.transcript) {
+    lines.push(`**Transcripción:** ${analysis.transcript.substring(0, 500)}${analysis.transcript.length > 500 ? "..." : ""}`);
+  }
+  if (analysis.transcript_lines?.length) {
+    lines.push("");
+    lines.push("**Líneas con clasificación:**");
+    for (const line of analysis.transcript_lines.slice(0, 10)) {
+      lines.push(`- [${line.type}] ${line.text}`);
+    }
+  }
+  if (analysis.narrative) {
+    lines.push("");
+    lines.push("**Análisis narrativo:**");
+    lines.push(`- Hook: ${analysis.narrative.hook || "—"}`);
+    lines.push(`- Desarrollo: ${analysis.narrative.development_summary || "—"}`);
+    lines.push(`- CTA: ${analysis.narrative.has_cta ? (analysis.narrative.cta_text || "Sí") : "No detectado"}`);
+    lines.push(`- Promesa central: ${analysis.narrative.core_promise || "—"}`);
+    lines.push(`- Topic cluster: ${analysis.narrative.topic_cluster || "—"}`);
+  }
+  if (analysis.visual) {
+    lines.push("");
+    lines.push("**Análisis visual:**");
+    lines.push(`- Formato: ${analysis.visual.format_type || "—"}`);
+    lines.push(`- Escena: ${analysis.visual.scene_type || "—"}`);
+    lines.push(`- Plano: ${analysis.visual.shot_type || "—"}`);
+    lines.push(`- Personas: ${analysis.visual.people_count ?? "—"}`);
+    lines.push(`- Texto en pantalla: ${analysis.visual.text_on_screen ? "Sí" : "No"}`);
+  }
+  if (analysis.audio) {
+    lines.push("");
+    lines.push("**Análisis de audio:**");
+    lines.push(`- Tono: ${analysis.audio.tone || "—"}`);
+    lines.push(`- Energía: ${analysis.audio.energy_level || "—"}`);
+    lines.push(`- WPM estimado: ${analysis.audio.estimated_wpm ?? "—"}`);
+    lines.push(`- Muletillas: ${analysis.audio.filler_words_detected ? "Sí" : "No"}`);
+  }
+  if (analysis.insights) {
+    lines.push("");
+    lines.push("**Insights:**");
+    if (analysis.insights.strengths?.length) {
+      lines.push(`- Fortalezas: ${analysis.insights.strengths.join("; ")}`);
+    }
+    if (analysis.insights.improvements?.length) {
+      lines.push(`- Mejoras: ${analysis.insights.improvements.join("; ")}`);
+    }
+    lines.push(`- Potencial viral: ${analysis.insights.viral_potential || "—"} (${analysis.insights.viral_potential_reason || ""})`);
+  }
+  return lines.join("\n");
+}
+
 // ─── Demo Data ───
 
 const DEMO_REEL = {
@@ -166,11 +265,13 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   let reel = DEMO_REEL;
   let isDemo = true;
   let initialGeminiAnalysis: GeminiVideoAnalysis | null = null;
+  let dailyMetricsData: { metric_date: string; views_org: number; views_paid: number }[] | null = null;
 
   if (workspaceId && !id.startsWith("demo")) {
       const [
         { data: reelData },
         { data: benchmarkData },
+        { data: dailyRaw },
       ] = await Promise.all([
         supabase
           .from("reels")
@@ -194,7 +295,15 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           .order("calculated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("reel_metrics_daily")
+          .select("metric_date, views_org, views_paid")
+          .eq("reel_id", id)
+          .eq("workspace_id", workspaceId)
+          .order("metric_date", { ascending: true }),
       ]);
+
+      dailyMetricsData = dailyRaw;
 
       if (reelData) {
         isDemo = false;
@@ -320,6 +429,18 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   }
 
   void isDemo;
+
+  const dailyViews = (() => {
+    const raw = (dailyMetricsData ?? []).map((d) => ({
+      date: new Date(d.metric_date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
+      cumulative: (d.views_org ?? 0) + (d.views_paid ?? 0),
+    }));
+    return raw.map((d, i) => ({
+      date: d.date,
+      views: i === 0 ? 0 : Math.max(0, d.cumulative - raw[i - 1].cumulative),
+      cumulative: d.cumulative,
+    }));
+  })();
 
   const effectiveDuration = reel.duration_seconds ?? null;
 
@@ -469,16 +590,16 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       <InstagramBackButton />
 
       {/* Hero: Thumbnail + Title + Meta */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
         {/* Thumbnail / Video */}
-        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-5 self-start">
-          <div className="relative aspect-[9/16] overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-pink-500/10 to-purple-500/10">
+        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-4 self-start">
+          <div className="relative aspect-[9/14.8] overflow-hidden rounded-[20px] border border-white/10 bg-black">
             {reelPlaybackUrl ? (
               <video
-                className="h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
                 controls
                 playsInline
-                preload="metadata"
+                preload="none"
                 poster={reelPosterUrl ?? undefined}
               >
                 <source src={reelPlaybackUrl} />
@@ -504,31 +625,21 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {reelPlaybackUrl && (
-              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200">
-                Reproducción interna disponible
-              </span>
-            )}
-            {reel.permalink && (
+          {reel.permalink && (
+            <div className="mt-3 flex justify-center">
               <a
                 href={reel.permalink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold text-white transition-all cursor-pointer hover:brightness-125"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.2)",
-                }}
+                className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/60 transition-all cursor-pointer hover:text-white hover:bg-white/[0.06]"
+                style={{ border: "1px solid rgba(255,255,255,0.08)" }}
               >
                 <ExternalLink className="h-3 w-3" />
                 Abrir en Instagram
               </a>
-            )}
-          </div>
+            </div>
+          )}
+
         </div>
 
         {/* Caption + Quick Info */}
@@ -573,7 +684,82 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             ))}
           </div>
 
-          <ReelPerformanceChart
+          <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+              <Eye className="h-3.5 w-3.5 text-zinc-400" />
+              Evolución de Views
+            </h3>
+            <ReelDailySparkline data={dailyViews} />
+          </div>
+        </div>
+      </div>
+
+      {/* Full-width: Métricas Extendidas + Interacciones vs Benchmark */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
+            Métricas Extendidas
+          </h3>
+          {(() => {
+            const extMetrics = [
+              { label: "Views Org", value: formatNumber(reel.views_org), color: "text-emerald-400" },
+              { label: "Views Total", value: formatNumber(reel.views_total), color: "text-white" },
+              { label: "Reach Org", value: formatNumber(reel.reach_org), color: "text-sky-300" },
+              { label: "Reach Total", value: formatNumber(reel.reach_total), color: "text-white" },
+              { label: "Interacciones", value: formatNumber(reel.total_interactions), color: "text-amber-300" },
+              { label: "Watch Total", value: formatTime(reel.total_watch_time_seconds), color: "text-cyan-300" },
+              ...(hasPaidSignals ? [
+                { label: "Views Paid", value: formatNumber(reel.views_paid), color: "text-purple-400" },
+                { label: "Reach Paid", value: formatNumber(reel.reach_paid), color: "text-purple-300" },
+                { label: "Impr. Paid", value: formatNumber(reel.impressions_paid), color: "text-zinc-100" },
+              ] : []),
+              ...(reel.impressions_total > 0 ? [{ label: "Impr. Total", value: formatNumber(reel.impressions_total), color: "text-zinc-100" }] : []),
+            ];
+            const ratioMetrics = [
+              { label: "Watch Prom.", value: formatTime(reel.avg_watch_time_seconds), sub: watchPct != null ? `${watchPct}%` : null },
+              { label: "Engagement", value: `${engagementRate.toFixed(1)}%`, sub: "int/views" },
+              { label: "Views/Reach", value: viewsPerReach == null ? "—" : `${viewsPerReach.toFixed(2)}x`, sub: "frecuencia" },
+              { label: "Retención", value: formatOptionalPercent(retentionRate), sub: "avg/dur" },
+              { label: "Saves/Views", value: `${savesPct.toFixed(2)}%`, sub: null },
+              { label: "Abandono", value: formatTime(avgDropoffSeconds), sub: "promedio" },
+              ...(reel.profile_visits != null ? [{ label: "Profile Visits", value: formatNumber(reel.profile_visits), sub: null }] : []),
+              ...(reel.follows != null ? [{ label: "Follows", value: `+${formatNumber(reel.follows)}`, sub: null, color: "text-cyan-400" }] : []),
+              ...(hasPaidSignals ? [
+                { label: "CTR Pago", value: formatOptionalPercent(paidCtr), sub: null },
+                { label: "CPV", value: paidCpv == null ? "—" : formatCents(Math.round(paidCpv * 100)), sub: null },
+                { label: "CPM", value: paidCpm == null ? "—" : formatCents(Math.round(paidCpm * 100)), sub: null },
+                { label: "Clicks", value: formatNumber(reel.paid_clicks), sub: null },
+                { label: "Spend", value: formatCents(reel.spend_cents), sub: null, color: "text-purple-300" },
+              ] : []),
+            ].filter((m) => m.value !== "—" && m.value !== "--");
+            return (
+              <>
+                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${extMetrics.length}, minmax(0, 1fr))` }}>
+                  {extMetrics.map((m) => (
+                    <div key={m.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-3 text-center whitespace-nowrap overflow-hidden">
+                      <p className={`text-[18px] font-light ${m.color || "text-zinc-100"}`}>{m.value}</p>
+                      <p className="text-[10px] text-zinc-400 mt-1">{m.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 grid gap-2 border-t border-white/5 pt-3" style={{ gridTemplateColumns: `repeat(${ratioMetrics.length}, minmax(0, 1fr))` }}>
+                  {ratioMetrics.map((m) => (
+                    <div key={m.label} className="rounded-lg bg-white/5 px-2 py-1.5">
+                      <p className="text-[10px] text-zinc-500">{m.label}</p>
+                      <p className={`text-sm font-semibold ${(m as { color?: string }).color || "text-white"}`}>
+                        {m.value}
+                        {m.sub && <span className="ml-1 text-[10px] font-normal text-zinc-500">{m.sub}</span>}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
+        <ReelPerformanceChart
             likes={reel.likes}
             saves={reel.saves}
             comments={reel.comments}
@@ -584,67 +770,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             benchmarkComments={reel.benchmark.avg_comments_pct}
             benchmarkShares={reel.benchmark.avg_shares_pct}
           />
-
-          <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-              <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
-              Métricas Extendidas
-            </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {[
-                { label: "Views Org", value: formatNumber(reel.views_org), color: "text-emerald-400" },
-                { label: "Views Total", value: formatNumber(reel.views_total), color: "text-white" },
-                { label: "Reach Org", value: formatNumber(reel.reach_org), color: "text-sky-300" },
-                { label: "Reach Total", value: formatNumber(reel.reach_total), color: "text-white" },
-                { label: "Interacciones", value: formatNumber(reel.total_interactions), color: "text-amber-300" },
-                ...(hasPaidSignals ? [
-                  { label: "Views Paid", value: formatNumber(reel.views_paid), color: "text-purple-400" },
-                  { label: "Reach Paid", value: formatNumber(reel.reach_paid), color: "text-purple-300" },
-                  { label: "Impr. Paid", value: formatNumber(reel.impressions_paid), color: "text-zinc-100" },
-                ] : []),
-                { label: "Watch Total", value: formatTime(reel.total_watch_time_seconds), color: "text-cyan-300" },
-                ...(reel.impressions_total > 0 ? [{ label: "Impr. Total", value: formatNumber(reel.impressions_total), color: "text-zinc-100" }] : []),
-              ].map((m) => (
-                <div key={m.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-3 text-center">
-                  <p className={`text-[18px] font-light ${m.color || "text-zinc-100"}`}>{m.value}</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">{m.label}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/5 pt-3 sm:grid-cols-4 lg:grid-cols-8">
-              {[
-                { label: "Watch Prom.", value: formatTime(reel.avg_watch_time_seconds), sub: watchPct != null ? `${watchPct}%` : null },
-                { label: "Engagement", value: `${engagementRate.toFixed(1)}%`, sub: "int/views" },
-                { label: "Views/Reach", value: viewsPerReach == null ? "—" : `${viewsPerReach.toFixed(2)}x`, sub: "frecuencia" },
-                { label: "Retención", value: formatOptionalPercent(retentionRate), sub: "avg/dur" },
-                { label: "Saves/Views", value: `${savesPct.toFixed(2)}%`, sub: null },
-                { label: "Abandono", value: formatTime(avgDropoffSeconds), sub: "promedio" },
-                ...(reel.profile_visits != null ? [{ label: "Profile Visits", value: formatNumber(reel.profile_visits), sub: null }] : []),
-                ...(reel.follows != null ? [{ label: "Follows", value: `+${formatNumber(reel.follows)}`, sub: null, color: "text-cyan-400" }] : []),
-                ...(hasPaidSignals ? [
-                  { label: "CTR Pago", value: formatOptionalPercent(paidCtr), sub: null },
-                  { label: "CPV", value: paidCpv == null ? "—" : formatCents(Math.round(paidCpv * 100)), sub: null },
-                  { label: "CPM", value: paidCpm == null ? "—" : formatCents(Math.round(paidCpm * 100)), sub: null },
-                  { label: "Clicks", value: formatNumber(reel.paid_clicks), sub: null },
-                  { label: "Spend", value: formatCents(reel.spend_cents), sub: null, color: "text-purple-300" },
-                ] : []),
-              ].filter((m) => m.value !== "—" && m.value !== "--").map((m) => (
-                <div key={m.label} className="rounded-lg bg-white/5 px-2 py-1.5">
-                  <p className="text-[10px] text-zinc-500">{m.label}</p>
-                  <p className={`text-sm font-semibold ${(m as { color?: string }).color || "text-white"}`}>
-                    {m.value}
-                    {m.sub && <span className="ml-1 text-[10px] font-normal text-zinc-500">{m.sub}</span>}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-5">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Volumen absoluto y ratios claros</h3>
           <p className="mb-4 text-xs text-zinc-300">Acá no hay barras sin base: arriba ves valores absolutos y abajo barras del tipo x de y.</p>
           <div className="grid grid-cols-2 gap-3">
@@ -713,7 +842,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-4">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Interacción sobre views vs promedio 90d</h3>
           <p className="mb-4 text-xs text-zinc-300">Cada fila compara el porcentaje actual sobre views totales del Reel contra el benchmark de los últimos 90 días.</p>
           {hasInteractionBenchmark ? (
@@ -751,7 +880,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl xl:col-span-3">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Retención estimada</h3>
           <p className="mb-4 text-xs text-zinc-300">Calculado con avg watch time (Meta) + duración (Apify). No es curva real por segundo.</p>
           {retentionRows.length > 0 ? (
@@ -812,51 +941,19 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {/* SECTION 6: AI Diagnosis — on demand (PRD 8.2) */}
-      <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl">
-        <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-zinc-100">
-          <Brain className="h-4 w-4 text-zinc-300" />
-          Diagnóstico IA
-        </h3>
-        {reel.diagnostic ? (
-          <div className="space-y-4">
-            <p className="text-base text-zinc-100">{reel.diagnostic.summary}</p>
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div>
-                <p className="mb-2 text-[11px] uppercase tracking-wider text-emerald-300">Fortalezas</p>
-                <ul className="space-y-1">
-                  {reel.diagnostic.strengths.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-200">
-                      <TrendingUp className="h-3 w-3 text-emerald-400 mt-0.5 shrink-0" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="mb-2 text-[11px] uppercase tracking-wider text-amber-300">Puntos de Mejora</p>
-                <ul className="space-y-1">
-                  {reel.diagnostic.improvements.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-200">
-                      <TrendingDown className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <Brain className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
-            <p className="mb-4 text-sm text-zinc-300">El diagnóstico IA analiza por qué este Reel funcionó o no,<br />comparándolo con tus top performers de los últimos 90 días.</p>
-            <button className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-white px-5 py-2.5 rounded-lg transition-colors">
-              <Zap className="h-4 w-4" />
-              Generar Diagnóstico
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Arko AI — Reel-focused chat panel */}
+      {workspaceId && !isDemo && (
+        <ReelChatPanel
+          reelId={reel.id}
+          workspaceId={workspaceId}
+          reelSummary={serializeReelForArko(reel, reel.benchmark, engagementRate, retentionRate)}
+          geminiAnalysis={initialGeminiAnalysis ? serializeGeminiForArko(initialGeminiAnalysis) : null}
+          reelCaption={reel.caption}
+          performerMultiple={reel.performer_multiple}
+          hasGeminiAnalysis={initialGeminiAnalysis !== null}
+        />
+      )}
+
     </div>
   );
 }

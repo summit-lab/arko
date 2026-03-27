@@ -6,6 +6,12 @@
  * Body: {
  *   session_id?: string,   // omit to create new session
  *   message: string,
+ *   context?: {             // optional reel-specific context
+ *     type: 'reel',
+ *     reel_id: string,
+ *     reel_data: string,
+ *     gemini_analysis: string | null,
+ *   },
  * }
  *
  * SSE events:
@@ -23,7 +29,7 @@ import { callLLM, type LLMMessage } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
 import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity } from '@/services/arko-ai-context';
-import { buildArkoSystemPrompt } from '@/services/arko-ai-prompts';
+import { buildArkoSystemPrompt, buildReelContextPrompt } from '@/services/arko-ai-prompts';
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -66,7 +72,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { session_id, message } = body;
+        const { session_id, message, context } = body;
 
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
           controller.enqueue(sseEvent({ type: 'error', message: 'message is required' }));
@@ -74,18 +80,36 @@ export async function POST(request: Request) {
           return;
         }
 
+        // Validate context shape if provided
+        const reelContext = context?.type === 'reel' && typeof context.reel_id === 'string' && typeof context.reel_data === 'string'
+          ? context as { type: 'reel'; reel_id: string; reel_data: string; gemini_analysis: string | null }
+          : null;
+
         const supabase = await createClient();
         let sessionId = session_id;
+        let isReelSession = false;
+        let reelContextData: string | null = null;
+        let reelGeminiData: string | null = null;
 
         // Create session if not provided
         if (!sessionId) {
+          const insertPayload: Record<string, unknown> = {
+            workspace_id: auth.workspaceId,
+            user_id: auth.userId,
+            title: message.trim().substring(0, 80),
+          };
+
+          // Attach reel context to session
+          if (reelContext) {
+            insertPayload.context_reel_ids = [reelContext.reel_id];
+            isReelSession = true;
+            reelContextData = reelContext.reel_data;
+            reelGeminiData = reelContext.gemini_analysis;
+          }
+
           const { data: session, error: sessError } = await supabase
             .from('chat_sessions')
-            .insert({
-              workspace_id: auth.workspaceId,
-              user_id: auth.userId,
-              title: message.trim().substring(0, 80),
-            })
+            .insert(insertPayload)
             .select('id')
             .single();
 
@@ -96,6 +120,24 @@ export async function POST(request: Request) {
             return;
           }
           sessionId = session.id;
+        } else {
+          // Check if existing session has reel context
+          const { data: existingSession } = await supabase
+            .from('chat_sessions')
+            .select('context_reel_ids')
+            .eq('id', sessionId)
+            .single();
+
+          if (existingSession?.context_reel_ids?.length > 0) {
+            isReelSession = true;
+            // For existing reel sessions, the reel data was sent on first message.
+            // On subsequent messages, if context is provided, use it; otherwise
+            // the system prompt will still include the reel context block from the first message context.
+            if (reelContext) {
+              reelContextData = reelContext.reel_data;
+              reelGeminiData = reelContext.gemini_analysis;
+            }
+          }
         }
 
         // Send session_id immediately so client can track it
@@ -122,7 +164,12 @@ export async function POST(request: Request) {
 
         // Load workspace snapshot (ADN + benchmarks + top topics — cached 30min)
         const snapshot = await loadWorkspaceSnapshot(supabase, auth.workspaceId);
-        const systemPrompt = buildArkoSystemPrompt(snapshot.adnContext, snapshot.benchmarksContext, snapshot.topTopicsContext);
+        let systemPrompt = buildArkoSystemPrompt(snapshot.adnContext, snapshot.benchmarksContext, snapshot.topTopicsContext);
+
+        // Append reel-specific context if this is a reel session
+        if (isReelSession && reelContextData) {
+          systemPrompt += buildReelContextPrompt(reelContextData, reelGeminiData);
+        }
 
         // Build LLM messages from history
         const llmMessages: LLMMessage[] = (history ?? [])
@@ -134,7 +181,8 @@ export async function POST(request: Request) {
 
         // ─── Route by message complexity ──────────────────────────────────────────
         const recentTexts = llmMessages.filter(m => m.role === 'user').map(m => m.content);
-        const complexity = classifyMessageComplexity(message, recentTexts);
+        // Reel sessions always use the complex path (Claude Sonnet + tools)
+        const complexity = isReelSession ? 'complex' : classifyMessageComplexity(message, recentTexts);
 
         let totalInputTokens = 0;
         let totalOutputTokens = 0;

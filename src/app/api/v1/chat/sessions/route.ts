@@ -1,5 +1,6 @@
 /**
  * GET /api/v1/chat/sessions — List chat sessions for workspace
+ * GET /api/v1/chat/sessions?reel_id=xxx — Find existing reel-specific session
  * DELETE /api/v1/chat/sessions?id=xxx — Delete a session
  */
 
@@ -13,6 +14,22 @@ export async function GET(request: Request) {
     if (isAuthError(auth)) return auth;
 
     const supabase = await createClient();
+    const url = new URL(request.url);
+    const reelId = url.searchParams.get('reel_id');
+
+    // If reel_id is provided, find the active session for that reel
+    if (reelId) {
+      const { data: reelSessions } = await supabase
+        .from('chat_sessions')
+        .select('id, title, created_at, updated_at')
+        .eq('workspace_id', auth.workspaceId)
+        .eq('is_active', true)
+        .contains('context_reel_ids', [reelId])
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      return apiSuccess(reelSessions ?? []);
+    }
 
     const { data: sessions } = await supabase
       .from('chat_sessions')

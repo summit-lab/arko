@@ -318,7 +318,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
   const barColors = ["#fbbf24", "#818cf8", "#22d3ee", "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
 
   return (
-    <div className="w-[340px] shrink-0 space-y-3 pb-6">
+    <div className="w-[340px] shrink-0 space-y-3 pb-6 sticky top-6 self-start">
 
       {/* ── Panel 1: Views + Traffic donut ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
@@ -714,7 +714,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
               : multiple >= 3 ? "rgba(96,165,250,0.08)"
               : "transparent";
             const durationStr = reel.duration_seconds
-              ? `${Math.floor(reel.duration_seconds / 60)}:${String(reel.duration_seconds % 60).padStart(2, "0")}`
+              ? `${Math.floor(reel.duration_seconds / 60)}:${String(Math.floor(reel.duration_seconds % 60)).padStart(2, "0")}`
               : "--";
             const caption = reel.caption
               ? reel.caption.length > 120 ? reel.caption.slice(0, 120) + "…" : reel.caption

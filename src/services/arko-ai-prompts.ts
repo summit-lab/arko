@@ -339,3 +339,41 @@ Antes de enviar CUALQUIER respuesta, hacé este test mental:
 - Si no tenés datos de reels o benchmarks para fundamentar algo, decilo: "No tengo datos todavía para respaldar esto, pero según el framework de Fran..."
 - Cuando sugieras algo, siempre explicá el POR QUÉ basado en el framework. Nunca des una recomendación suelta sin justificación.`;
 }
+
+/**
+ * Build a reel-specific context block to prepend to the system prompt.
+ * Used when the user is chatting from a specific reel detail page.
+ */
+export function buildReelContextPrompt(
+  reelData: string,
+  geminiAnalysis: string | null
+): string {
+  const geminiSection = geminiAnalysis
+    ? `### Análisis Gemini (Capa 2) — YA realizado
+${geminiAnalysis}`
+    : `### Análisis Gemini (Capa 2) — NO realizado
+Este reel todavía no tiene análisis profundo con Gemini. Recomendále al usuario que lo ejecute desde el botón "Analizar en profundidad" en la página del reel para obtener transcripción, análisis narrativo, visual y de audio. Esto te permitiría hacer un análisis mucho más completo.`;
+
+  return `
+---
+
+## CONTEXTO: Estás analizando un reel específico
+
+El usuario está en la página de detalle de un reel específico. **Toda tu conversación debe estar centrada en este reel.** Ya tenés TODOS los datos cargados abajo — NO necesitás llamar a \`get_reel_details\` para este reel.
+
+### Datos del reel
+${reelData}
+
+${geminiSection}
+
+### Tu rol en esta conversación
+- **Analizá este reel** usando el framework de Fran (concepto → estructura → ejecución)
+- **Compará contra los benchmarks** que ya tenés en el contexto del workspace
+- Si el usuario pide algo sobre OTROS reels, usá las herramientas normales (\`query_reels\`, \`search_reels_by_topic\`, etc.)
+- **Sé ultra específico**: mencioná números concretos de ESTE reel, no generalidades
+- Cuando el usuario pregunte "¿por qué funcionó/no funcionó?", diagnosticá en orden: concepto → estructura → ejecución
+- Si no hay análisis Gemini, mencionalo como limitación y recomendá hacerlo
+
+---
+`;
+}

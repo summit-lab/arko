@@ -77,7 +77,14 @@ interface TooltipEntry {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass-card px-4 py-3 text-[12px]" style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.6)" }}>
+    <div
+      className="rounded-xl px-4 py-3 text-[12px] backdrop-blur-xl"
+      style={{
+        background: "rgba(10,10,20,0.55)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
+      }}
+    >
       {label && <p className="mb-2 text-white/40 text-[11px] font-medium uppercase tracking-[0.08em]">{label}</p>}
       {payload.map((e) => (
         <p key={e.name} className="font-light" style={{ color: e.color }}>
@@ -178,26 +185,45 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
 
   // ── Data preparation ────────────────────────────────────────────────────────
 
-  const sorted = [...dailyInsights].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
-
-  const effectiveFollowerChange = sorted.map((d, i) => {
-    if (
-      d.followers_total > 0 &&
-      i > 0 &&
-      sorted[i - 1].followers_total > 0 &&
-      d.followers_total !== sorted[i - 1].followers_total
-    ) {
-      return d.followers_total - sorted[i - 1].followers_total;
+  // Fill missing days so the chart X-axis is continuous (no gaps).
+  const rawSorted = [...dailyInsights].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
+  const emptyDay: Omit<DayInsight, "metric_date"> = {
+    impressions: 0, reach: 0, profile_views: 0, accounts_engaged: 0,
+    total_interactions: 0, likes: 0, comments: 0, shares: 0, saves: 0,
+    follower_count: 0, followers_total: 0, follows_count: 0, media_count: 0,
+  };
+  const sorted: DayInsight[] = [];
+  if (rawSorted.length > 0) {
+    const dateSet = new Set(rawSorted.map((d) => d.metric_date));
+    const start = new Date(rawSorted[0].metric_date + "T00:00:00Z");
+    const end = new Date(rawSorted[rawSorted.length - 1].metric_date + "T00:00:00Z");
+    for (let dt = new Date(start); dt <= end; dt.setUTCDate(dt.getUTCDate() + 1)) {
+      const key = dt.toISOString().split("T")[0];
+      if (dateSet.has(key)) {
+        sorted.push(rawSorted.find((d) => d.metric_date === key)!);
+      } else {
+        sorted.push({ metric_date: key, ...emptyDay });
+      }
     }
-    return d.follower_count;
-  });
+  }
 
-  const chartData = sorted.map((d, i) => ({
+  // Follower curve: only use days that have a real followers_total snapshot (> 0).
+  // This builds forward from the day the account was connected.
+  const daysWithFollowers = sorted.filter((d) => d.followers_total > 0);
+  const firstFt = daysWithFollowers[0]?.followers_total ?? 0;
+  const lastFt = daysWithFollowers[daysWithFollowers.length - 1]?.followers_total ?? 0;
+  const totalFollowersGainedFromSnapshots = lastFt - firstFt;
+
+  const followerCurveData = daysWithFollowers.map((d) => ({
+    date: formatDate(d.metric_date),
+    total: d.followers_total,
+  }));
+
+  const chartData = sorted.map((d) => ({
     date: formatDate(d.metric_date),
     impressions: d.impressions,
     reach: d.reach,
     profile_views: d.profile_views,
-    followers: effectiveFollowerChange[i],
     likes: d.likes,
     saves: d.saves,
     comments: d.comments,
@@ -210,11 +236,6 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
     Guardados: d.saves,
     Comentarios: d.comments,
     Compartidos: d.shares,
-  }));
-
-  const followerData = sorted.map((d, i) => ({
-    date: formatDate(d.metric_date),
-    neto: effectiveFollowerChange[i],
   }));
 
   // Day of week aggregation
@@ -242,12 +263,12 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
   const totalSaves = sorted.reduce((s, d) => s + d.saves, 0);
   const totalShares = sorted.reduce((s, d) => s + d.shares, 0);
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
-  const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
+  const totalFollowersGained = totalFollowersGainedFromSnapshots;
   const avgReach = sorted.length > 0 ? Math.round(totalReach / sorted.length) : 0;
-  const avgFollowersGained = sorted.length > 0 ? Math.round(totalFollowersGained / sorted.length) : 0;
+  const avgFollowersGained = daysWithFollowers.length > 1 ? Math.round(totalFollowersGained / (daysWithFollowers.length - 1)) : 0;
   const engagementRate = totalImpressions > 0 ? ((totalInteractions / totalImpressions) * 100).toFixed(2) : "0";
   const savesRate = totalReach > 0 ? ((totalSaves / totalReach) * 100).toFixed(2) : "0";
-  const profileConvRate = totalProfileViews > 0 ? ((totalFollowersGained / totalProfileViews) * 100).toFixed(1) : "0";
+  const profileConvRate = totalProfileViews > 0 && totalFollowersGained > 0 ? ((totalFollowersGained / totalProfileViews) * 100).toFixed(1) : "—";
   const lastDay = sorted[sorted.length - 1];
 
   // Trends: first half vs second half
@@ -380,7 +401,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={xInterval} />
               <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={48} />
-              <Tooltip content={<ChartTooltip />} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
               <Area type="monotone" dataKey="impressions" name="Impresiones" stroke="#818cf8" fill="url(#m-imp)" strokeWidth={2.5} dot={false} animationDuration={1200} animationEasing="ease-out" style={{ filter: "url(#m-glow-v)" }} activeDot={{ r: 5, fill: "#818cf8", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#m-dot)" }} />
               <Area type="monotone" dataKey="reach" name="Alcance" stroke="#22d3ee" fill="url(#m-reach)" strokeWidth={2.5} dot={false} animationDuration={1400} animationEasing="ease-out" style={{ filter: "url(#m-glow-c)" }} activeDot={{ r: 5, fill: "#22d3ee", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#m-dot)" }} />
               <Area type="monotone" dataKey="profile_views" name="Visitas perfil" stroke="#34d399" fill="url(#m-pv)" strokeWidth={2} dot={false} animationDuration={1600} animationEasing="ease-out" style={{ filter: "url(#m-glow-e)" }} activeDot={{ r: 4, fill: "#34d399", stroke: "#6ee7b7", strokeWidth: 2, filter: "url(#m-dot)" }} />
@@ -414,7 +435,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={xInterval} />
                   <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip content={<ChartTooltip />} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                   <Bar dataKey="Me gusta" stackId="a" fill={ENGAGEMENT_COLORS.likes} radius={[0, 0, 0, 0]} animationDuration={900} />
                   <Bar dataKey="Guardados" stackId="a" fill={ENGAGEMENT_COLORS.saves} radius={[0, 0, 0, 0]} animationDuration={1000} />
                   <Bar dataKey="Comentarios" stackId="a" fill={ENGAGEMENT_COLORS.comments} radius={[0, 0, 0, 0]} animationDuration={1100} />
@@ -518,13 +539,13 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       <Section title="Comunidad" subtitle="Captación de seguidores y mejores momentos para publicar">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
-          {/* Follower growth bar chart */}
+          {/* Follower growth curve */}
           <div>
             <div className="grid grid-cols-3 gap-3 mb-5">
               {[
-                { label: "Nuevos seguidores", value: fmt(totalFollowersGained) },
-                { label: "Promedio / día", value: fmt(avgFollowersGained) },
-                { label: "Total actual", value: fmt(lastDay?.followers_total ?? 0) },
+                { label: "Nuevos seguidores", value: totalFollowersGained > 0 ? `+${fmt(totalFollowersGained)}` : (daysWithFollowers.length < 2 ? "—" : fmt(totalFollowersGained)) },
+                { label: "Promedio / día", value: daysWithFollowers.length < 2 ? "—" : fmt(avgFollowersGained) },
+                { label: "Total actual", value: fmt(lastFt || lastDay?.followers_total || 0) },
               ].map((s) => (
                 <div key={s.label} className="glass-card px-4 py-3 text-center">
                   <p className="stat-label mb-1.5">{s.label}</p>
@@ -532,27 +553,29 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 </div>
               ))}
             </div>
-            <div className="h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={followerData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                  <defs>
-                    <filter id="m-bar-glow">
-                      <feGaussianBlur stdDeviation="2" result="blur" />
-                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                    </filter>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={xInterval} />
-                  <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="neto" name="Nuevos seguidores" radius={[5, 5, 0, 0]} animationDuration={1200}>
-                    {followerData.map((d, i) => (
-                      <Cell key={i} fill={d.neto >= 0 ? "#34d399" : "#f87171"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {followerCurveData.length >= 2 ? (
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={followerCurveData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="followerGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={Math.max(0, Math.floor(followerCurveData.length / 7) - 1)} />
+                    <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={45} domain={["dataMin - 10", "dataMax + 10"]} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(255,255,255,0.1)" }} />
+                    <Area type="monotone" dataKey="total" name="Seguidores" stroke="#34d399" strokeWidth={2} fill="url(#followerGrad)" animationDuration={1200} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[200px] w-full flex items-center justify-center">
+                <p className="text-white/30 text-sm">Se necesitan al menos 2 días de datos para graficar la curva de seguidores</p>
+              </div>
+            )}
           </div>
 
           {/* Day of week radar */}
@@ -576,7 +599,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                     strokeWidth={2}
                     animationDuration={1200}
                   />
-                  <Tooltip content={<ChartTooltip />} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -678,7 +701,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                             <XAxis dataKey="range" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={35} />
-                            <Tooltip content={<ChartTooltip />} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                             <Bar dataKey="hombre" name="Hombre" fill="#818cf8" radius={[4, 4, 0, 0]} animationDuration={1200} />
                             <Bar dataKey="mujer" name="Mujer" fill="#f472b6" radius={[4, 4, 0, 0]} animationDuration={1400} />
                           </BarChart>
@@ -687,7 +710,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                             <XAxis dataKey="range" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={35} />
-                            <Tooltip content={<ChartTooltip />} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                             <Bar dataKey="value" name="Seguidores" fill="#818cf8" radius={[4, 4, 0, 0]} animationDuration={1200} />
                           </BarChart>
                         )}
@@ -724,7 +747,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
                           <XAxis type="number" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
                           <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.5)" }} tickLine={false} axisLine={false} width={90} />
-                          <Tooltip content={<ChartTooltip />} />
+                          <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                           <Bar dataKey="value" name="Seguidores" radius={[0, 5, 5, 0]} animationDuration={1200}>
                             {countryData.map((_, i) => (
                               <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
