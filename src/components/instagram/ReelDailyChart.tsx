@@ -37,9 +37,9 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
     <div
       className="rounded-xl px-4 py-3 backdrop-blur-xl"
       style={{
-        background: "rgba(0,0,0,0.85)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
+        background: "rgba(10,10,20,0.55)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
       }}
     >
       <p className="text-[11px] text-white/40 font-medium mb-2">{label}</p>
@@ -80,7 +80,7 @@ export function ReelDailyChart({ data }: ReelDailyChartProps) {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal vertical={false} />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} interval="preserveStartEnd" />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
               <Area type="monotone" dataKey="views" name="Views" stroke="#818cf8" strokeWidth={2} fill="url(#gradViews)" isAnimationActive animationDuration={1000} />
             </AreaChart>
           </ResponsiveContainer>
@@ -116,7 +116,7 @@ export function ReelDailyChart({ data }: ReelDailyChartProps) {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal vertical={false} />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} interval="preserveStartEnd" />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
               <Bar dataKey="likes" name="Likes" fill="#f472b6" radius={[3, 3, 0, 0]} barSize={6} fillOpacity={0.8} />
               <Bar dataKey="saves" name="Saves" fill="#22d3ee" radius={[3, 3, 0, 0]} barSize={6} fillOpacity={0.8} />
               <Bar dataKey="comments" name="Comments" fill="#34d399" radius={[3, 3, 0, 0]} barSize={6} fillOpacity={0.8} />

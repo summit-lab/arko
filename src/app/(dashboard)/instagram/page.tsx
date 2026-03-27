@@ -90,7 +90,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
           .eq("workspace_id", workspaceId)
           .gte("metric_date", periodStartDate)
-          .lt("metric_date", todayDate)
+          .lte("metric_date", todayDate)
           .order("metric_date", { ascending: true })
           .limit(90)
       : null;

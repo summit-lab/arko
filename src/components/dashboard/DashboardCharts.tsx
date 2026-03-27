@@ -42,9 +42,9 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
     <div
       className="rounded-xl px-4 py-3 backdrop-blur-xl"
       style={{
-        background: "rgba(0,0,0,0.85)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
+        background: "rgba(10,10,20,0.55)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
       }}
     >
       <p className="text-[11px] text-white/40 font-medium mb-2">{label}</p>
@@ -190,7 +190,7 @@ export function DashboardCharts({ growthData = [], engagementData = [] }: Dashbo
                   tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
                   tickFormatter={(v: number) => formatCompactValue(v)}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.06)" }} />
                 <Bar dataKey="likes" name="Likes" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
                 <Bar dataKey="saves" name="Saves" fill="#22d3ee" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
                 <Bar dataKey="comments" name="Comments" fill="#34d399" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />

@@ -42,7 +42,7 @@ export default async function DashboardLayout({
       <Suspense fallback={null}>
         <NavProgressBar />
       </Suspense>
-      <Sidebar isAdmin={isAdmin} onboardingMode={!onboardingCompleted && !isAdmin} />
+      <Sidebar isAdmin={isAdmin} adnPending={!onboardingCompleted && !isAdmin} />
       <div className="flex-1 flex flex-col pl-[260px]">
         <Suspense fallback={
           <div className="h-[80px] w-full shrink-0" />

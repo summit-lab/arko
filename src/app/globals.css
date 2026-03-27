@@ -270,7 +270,7 @@
     filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.5)) drop-shadow(0 0 24px rgba(34, 211, 238, 0.2));
   }
   .neon-line-violet {
-    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5)) drop-shadow(0 0 24px rgba(139, 92, 246, 0.2));
+    filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.25)) drop-shadow(0 0 12px rgba(139, 92, 246, 0.08));
   }
   .neon-line-rose {
     filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.5)) drop-shadow(0 0 24px rgba(244, 114, 182, 0.2));

@@ -30,9 +30,9 @@ export function AdnAlertBanner() {
           </svg>
         </div>
         <p className="text-[13px] text-amber-200/80 font-light flex-1">
-          Completá tu{" "}
+          Tu{" "}
           <span className="font-medium text-amber-200">ADN de Comunicación</span>{" "}
-          para desbloquear todas las funcionalidades de Arko.
+          está pendiente. Completalo para que Arko AI pueda darte análisis y recomendaciones personalizadas.
         </p>
         <Link
           href="/onboarding/adn"
@@ -66,10 +66,10 @@ export function AdnBlockOverlay() {
           </svg>
         </div>
         <p className="text-[15px] font-medium text-white/80 mb-1.5">
-          Función bloqueada
+          Arko AI necesita tu ADN
         </p>
         <p className="text-[13px] text-white/40 font-light mb-5 leading-relaxed">
-          Necesitás completar tu ADN de Comunicación antes de usar esta función.
+          Para darte análisis y recomendaciones personalizadas, primero completá tu ADN de Comunicación.
         </p>
         <Link
           href="/onboarding/adn"

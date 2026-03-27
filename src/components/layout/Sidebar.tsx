@@ -22,10 +22,10 @@ const navItems = [
 
 interface SidebarProps {
   isAdmin?: boolean;
-  onboardingMode?: boolean;
+  adnPending?: boolean;
 }
 
-export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProps) {
+export function Sidebar({ isAdmin = false, adnPending = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
@@ -36,15 +36,15 @@ export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProp
     setOptimisticHref(null); // eslint-disable-line react-hooks/set-state-in-effect
   }, [pathname]);
 
-  const handleNav = useCallback((href: string, e: React.MouseEvent, bypassOnboarding = false) => {
+  const handleNav = useCallback((href: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if ((!bypassOnboarding && onboardingMode) || href === pathname) return;
+    if (href === pathname) return;
     setOptimisticHref(href);
     window.dispatchEvent(new Event("nav:start"));
     startTransition(() => {
       router.push(href);
     });
-  }, [router, pathname, onboardingMode]);
+  }, [router, pathname]);
 
   // Use optimistic href for active state so it changes INSTANTLY on click
   const activeHref = optimisticHref ?? pathname;
@@ -85,27 +85,16 @@ export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProp
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {onboardingMode && (
-          <div className="px-3 py-2 mb-2">
-            <p className="text-[11px] font-medium text-white/25 tracking-wide">
-              Completá tu ADN para desbloquear
-            </p>
-          </div>
-        )}
         {navItems.map((item) => {
-          const isActive = !onboardingMode && isItemActive(item.href);
+          const isActive = isItemActive(item.href);
 
           return (
             <Link
               key={item.name}
               href={item.href}
               onClick={(e) => handleNav(item.href, e)}
-              aria-disabled={onboardingMode}
-              tabIndex={onboardingMode ? -1 : undefined}
               className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
-                onboardingMode
-                  ? "opacity-30 cursor-not-allowed"
-                  : isActive
+                isActive
                   ? "bg-white/[0.06]"
                   : "hover:bg-white/[0.03]"
               }`}
@@ -160,7 +149,7 @@ export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProp
       <div className="px-3 pb-2">
         <Link
           href="/onboarding/adn"
-          onClick={(e) => handleNav("/onboarding/adn", e, true)}
+          onClick={(e) => handleNav("/onboarding/adn", e)}
           className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
             isItemActive("/onboarding/adn")
               ? "bg-white/[0.06]"
@@ -188,7 +177,7 @@ export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProp
             }}
           />
           <span
-            className={`text-[14px] transition-colors relative z-10 ${
+            className={`text-[14px] transition-colors relative z-10 flex-1 ${
               isItemActive("/onboarding/adn")
                 ? "font-medium text-white tracking-wide"
                 : "font-light text-white/40 group-hover:text-white/65 tracking-wide"
@@ -196,6 +185,12 @@ export function Sidebar({ isAdmin = false, onboardingMode = false }: SidebarProp
           >
             Arko ADN
           </span>
+          {adnPending && (
+            <span className="relative z-10 flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-50" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            </span>
+          )}
           {isItemActive("/onboarding/adn") && (
             <div
               className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"

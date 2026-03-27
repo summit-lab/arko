@@ -34,9 +34,9 @@ function CustomTooltip({ active, payload, label }: {
     <div
       className="rounded-xl border border-white/[0.08] px-4 py-3"
       style={{
-        background: "rgba(10,10,20,0.94)",
+        background: "rgba(10,10,20,0.55)",
         backdropFilter: "blur(20px)",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
       }}
     >
       <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.1em] mb-2">{label}</p>
@@ -87,27 +87,24 @@ export function ReelPerformanceChart({
 
   return (
     <div
-      className="rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl"
+      className="flex h-full flex-col rounded-xl border border-white/10 bg-black/35 p-3 shadow-xl shadow-black/20 backdrop-blur-xl"
     >
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h3 className="text-[13px] font-medium text-zinc-200">Interacciones vs Benchmark</h3>
-          <p className="text-[11px] text-zinc-500 mt-0.5">% de views convertidos por tipo de interacción</p>
-        </div>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-[11px] font-medium text-zinc-300">Interacciones vs Benchmark</h3>
         {hasBenchmark && (
-          <div className="flex items-center gap-4 text-[11px]">
-            <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-sm bg-violet-500/80" />
-              <span className="text-white/40">Este reel</span>
+          <div className="flex items-center gap-3 text-[9px]">
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-sm bg-violet-500/80" />
+              <span className="text-white/35">Reel</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-[2px] w-4 bg-white/25 rounded" />
-              <span className="text-white/40">Benchmark</span>
+            <div className="flex items-center gap-1">
+              <div className="h-[1.5px] w-3 bg-white/25 rounded" />
+              <span className="text-white/35">Bench</span>
             </div>
           </div>
         )}
       </div>
-      <div className="h-[200px] w-full">
+      <div className="min-h-[140px] w-full flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
             <defs>
