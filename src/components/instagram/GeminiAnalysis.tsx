@@ -14,6 +14,7 @@ interface GeminiAnalysisProps {
   workspaceId: string;
   videoUrl: string | null;
   initialAnalysis: GeminiVideoAnalysis | null;
+  onAnalysisComplete?: (analysis: GeminiVideoAnalysis) => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ const viralColors: Record<string, string> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis }: GeminiAnalysisProps) {
+export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis, onAnalysisComplete }: GeminiAnalysisProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
     initialAnalysis ? "done" : "idle",
   );
@@ -125,8 +126,10 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis 
         throw new Error(json.message ?? json.error ?? `Error ${res.status}`);
       }
 
-      setAnalysis(json.data!.analysis);
+      const newAnalysis = json.data!.analysis;
+      setAnalysis(newAnalysis);
       setStatus("done");
+      onAnalysisComplete?.(newAnalysis);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Error desconocido");
       setStatus(hasExistingAnalysis ? "done" : "error");
