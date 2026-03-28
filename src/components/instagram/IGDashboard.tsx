@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import {
   Eye, Users, TrendingUp, Heart, MessageSquare, Bookmark,
-  Trophy, Play, ArrowUpRight, ArrowDownRight,
+  Trophy, Play, ArrowUpRight, ArrowDownRight, DollarSign,
 } from "lucide-react";
 import Image from "next/image";
 import { CountUp } from "@/components/ui/CountUp";
@@ -41,6 +41,7 @@ interface ReelSummary {
   saves: number;
   comments: number;
   shares: number;
+  sales_amount?: number | null;
 }
 
 interface IGDashboardProps {
@@ -204,6 +205,9 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
     ? ((totalFollowersGained / totalProfileViews) * 100).toFixed(1)
     : "0";
 
+  // Total sales
+  const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
+
   // Organic vs Paid split
   const totalViewsOrg = reels.reduce((s, r) => s + r.views_org, 0);
   const totalViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);
@@ -235,7 +239,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
       {/* ═══ ROW 1: Main chart + side KPIs ═══ */}
       <div className="grid grid-cols-12 gap-5">
         {/* ── Rendimiento de visitas (8 cols) ── */}
-        <div className="col-span-12 lg:col-span-8 glass-section p-6">
+        <div className="col-span-12 lg:col-span-8 glass-section p-6 flex flex-col">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="stat-label mb-1">Rendimiento de visitas</p>
@@ -255,7 +259,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
               {impressionsTrend.value}
             </div>
           </div>
-          <div className="h-[240px] w-full">
+          <div className="flex-1 min-h-[220px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <defs>
@@ -377,6 +381,23 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
             <CountUp value={fmt(totalFollowers)} className="stat-number-xl" />
             <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedLast30d)} últimos 30 días</p>
           </div>
+
+          {/* Ventas generadas */}
+          {totalSales > 0 && (
+            <div className="glass-card p-6 flex-1">
+              <div className="flex items-center justify-between mb-3">
+                <p className="stat-label">Ventas generadas</p>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full text-emerald-400"
+                  style={{ background: "rgba(52,211,153,0.08)", boxShadow: "inset 0 1px 0 rgba(52,211,153,0.15)" }}>
+                  <DollarSign className="h-[16px] w-[16px]" />
+                </div>
+              </div>
+              <CountUp value={`$${fmt(totalSales)}`} className="stat-number-xl text-emerald-300" />
+              <p className="text-[13px] font-light text-white/30 mt-1">
+                {reels.filter((r) => (r.sales_amount ?? 0) > 0).length} reels con ventas
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

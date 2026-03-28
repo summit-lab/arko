@@ -13,6 +13,9 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   AreaChart, Area, XAxis, CartesianGrid,
 } from "recharts";
+import { ReelsScatterPlot } from "./ReelsScatterPlot";
+import { ReelsHeatmap } from "./ReelsHeatmap";
+import { ReelDayRadar } from "./ReelDayRadar";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -301,6 +304,22 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
   const top5 = [...reels].sort((a, b) => b.views_total - a.views_total).slice(0, 5);
   const maxViews = top5[0]?.views_total || 1;
 
+  // Day-of-week radar — average views by publication day
+  const DAYS_ES_R = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const dowViews: number[] = Array(7).fill(0);
+  const dowCount: number[] = Array(7).fill(0);
+  reels.forEach((r) => {
+    if (!r.published_at) return;
+    const [y, m, d] = r.published_at.split("T")[0].split("-").map(Number);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    dowViews[dow] += r.views_total;
+    dowCount[dow]++;
+  });
+  const dayRadarData = DAYS_ES_R.map((day, i) => ({
+    day,
+    views: dowCount[i] > 0 ? Math.round(dowViews[i] / dowCount[i]) : 0,
+  }));
+
   // Donut data — traffic
   const trafficData = [
     { name: "Orgánico", value: summary.totalViewsOrg, color: "#818cf8" },
@@ -512,6 +531,49 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
         </div>
       </div>
 
+      {/* ── Panel: Top Ventas ── */}
+      {(() => {
+        const topSales = [...reels]
+          .filter((r) => r.sales_amount != null && r.sales_amount > 0)
+          .sort((a, b) => (b.sales_amount ?? 0) - (a.sales_amount ?? 0))
+          .slice(0, 5);
+        const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
+        if (topSales.length === 0) return null;
+        const maxSales = topSales[0]?.sales_amount ?? 1;
+        const salesColors = ["#34d399", "#6ee7b7", "#a7f3d0", "rgba(52,211,153,0.4)", "rgba(52,211,153,0.25)"];
+        return (
+          <div className="glass-panel rounded-xl px-5 py-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Top Ventas</p>
+              <DollarSign size={13} className="text-emerald-400" />
+            </div>
+            <p className="text-[9px] text-white/20 mb-4">
+              Total generado: <span className="text-emerald-300 font-medium">${fmt(totalSales)}</span>
+            </p>
+            <div className="space-y-3">
+              {topSales.map((r, i) => {
+                const pct = Math.round(((r.sales_amount ?? 0) / maxSales) * 88);
+                const caption = r.caption
+                  ? r.caption.slice(0, 26) + (r.caption.length > 26 ? "…" : "")
+                  : "Sin caption";
+                return (
+                  <div key={r.id}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] text-white/25 w-3 shrink-0 font-light">{i + 1}</span>
+                      <span className="text-[10px] text-white/50 flex-1 truncate font-light">{caption}</span>
+                      <span className="text-[12px] text-emerald-300 font-light shrink-0">${fmt(r.sales_amount ?? 0)}</span>
+                    </div>
+                    <div className="h-[4px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: salesColors[i] }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Panel 3: Top 5 ── */}
       {top5.length > 0 && (
         <div className="glass-panel rounded-xl px-5 py-4">
@@ -560,6 +622,42 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           ))}
         </div>
       </div>
+
+      {/* ── Radar día de semana ── */}
+      {reels.length >= 3 && dayRadarData.some((d) => d.views > 0) && (
+        <div className="glass-panel rounded-xl px-5 py-4">
+          <ReelDayRadar data={dayRadarData} />
+          <p className="text-[9px] text-white/20 mt-2">Promedio de views según día de publicación</p>
+        </div>
+      )}
+
+      {/* ── Scatter plot ── */}
+      {reels.length >= 3 && (
+        <ReelsScatterPlot
+          reels={reels.map((r) => ({
+            id: r.id,
+            caption: r.caption,
+            published_at: r.published_at ?? "",
+            views_total: r.views_total,
+            performer_multiple: r.performer_multiple,
+          })).filter((r) => r.published_at)}
+          avgViews={summary.avgViews}
+        />
+      )}
+
+      {/* ── Heatmap ── */}
+      {reels.length >= 3 && (
+        <ReelsHeatmap
+          reels={reels
+            .filter((r) => r.published_at)
+            .map((r) => ({
+              id: r.id,
+              published_at: r.published_at!,
+              views_total: r.views_total,
+              caption: r.caption,
+            }))}
+        />
+      )}
 
     </div>
   );
@@ -760,8 +858,14 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   {/* Badges top-left */}
                   <div className="absolute top-2 left-2 flex flex-wrap gap-1 z-20">
                     {multiple > 0 && (
-                      <span className={`rounded-md px-2 py-1 text-[11px] font-bold leading-none ${pillStyle}`}>
+                      <span className={`rounded-md px-2.5 py-1.5 text-[13px] font-bold leading-none ${pillStyle}`}>
                         ×{multiple.toFixed(1)}
+                      </span>
+                    )}
+                    {reel.sales_amount != null && reel.sales_amount > 0 && (
+                      <span className="flex items-center gap-1 rounded-md border border-emerald-400/60 bg-black/80 backdrop-blur-sm px-2.5 py-1.5 text-[13px] font-bold leading-none text-emerald-300">
+                        <DollarSign size={11} strokeWidth={2.5} />
+                        {fmt(reel.sales_amount)}
                       </span>
                     )}
                     {reel.reel_type === "trial_likely" && (

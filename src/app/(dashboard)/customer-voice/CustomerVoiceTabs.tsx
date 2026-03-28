@@ -2,25 +2,33 @@
 
 import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fingerprint, Swords } from "lucide-react";
+import { Fingerprint, Swords, CalendarDays } from "lucide-react";
+
+type TabId = "adn" | "competencia" | "calendario";
 
 interface CustomerVoiceTabsProps {
   adnContent: React.ReactNode;
   competitorContent: React.ReactNode;
+  calendarContent: React.ReactNode;
 }
 
-export function CustomerVoiceTabs({ adnContent, competitorContent }: CustomerVoiceTabsProps) {
+export function CustomerVoiceTabs({ adnContent, competitorContent, calendarContent }: CustomerVoiceTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = (searchParams.get("tab") === "competencia" ? "competencia" : "adn") as "adn" | "competencia";
+  const rawTab = searchParams.get("tab");
+  const activeTab: TabId =
+    rawTab === "competencia" ? "competencia" :
+    rawTab === "calendario" ? "calendario" :
+    "adn";
   const [isPending, startTransition] = useTransition();
 
   const tabs = [
-    { id: "adn" as const, label: "ADN de Marca", icon: Fingerprint },
-    { id: "competencia" as const, label: "Competencia", icon: Swords },
+    { id: "adn" as const,         label: "ADN de Marca",  icon: Fingerprint },
+    { id: "competencia" as const, label: "Competencia",   icon: Swords },
+    { id: "calendario" as const,  label: "Calendario",    icon: CalendarDays },
   ];
 
-  function handleTabChange(tabId: "adn" | "competencia") {
+  function handleTabChange(tabId: TabId) {
     if (activeTab === tabId) return;
     startTransition(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -29,6 +37,8 @@ export function CustomerVoiceTabs({ adnContent, competitorContent }: CustomerVoi
       } else {
         params.set("tab", tabId);
       }
+      // Clear month param when leaving calendar tab
+      if (tabId !== "calendario") params.delete("month");
       const qs = params.toString();
       router.replace(`/customer-voice${qs ? `?${qs}` : ""}`, { scroll: false });
     });
@@ -62,7 +72,9 @@ export function CustomerVoiceTabs({ adnContent, competitorContent }: CustomerVoi
 
       {/* Tab content */}
       <div className={isPending ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
-        {activeTab === "adn" ? adnContent : competitorContent}
+        {activeTab === "adn"        && adnContent}
+        {activeTab === "competencia" && competitorContent}
+        {activeTab === "calendario" && calendarContent}
       </div>
     </div>
   );

@@ -67,3 +67,78 @@ export async function deleteGoal(metric: string) {
   revalidatePath("/");
   revalidatePath("/customer-voice");
 }
+
+// ─── Content Calendar Actions ────────────────────────────────────────────────
+
+const VALID_PLATFORMS = ["instagram", "youtube", "tiktok", "general"] as const;
+const VALID_STATUSES = ["idea", "in_progress", "ready", "published"] as const;
+
+export async function addContentPlanItem(formData: FormData) {
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) return { error: "No workspace" };
+
+  const title = (formData.get("title") as string | null)?.trim();
+  const description = (formData.get("description") as string | null)?.trim() || null;
+  const planned_date = formData.get("planned_date") as string | null;
+  const platform = (formData.get("platform") as string) || "instagram";
+  const content_type = (formData.get("content_type") as string | null)?.trim() || null;
+
+  if (!title || !planned_date) return { error: "Faltan datos obligatorios" };
+  if (!VALID_PLATFORMS.includes(platform as (typeof VALID_PLATFORMS)[number])) {
+    return { error: "Plataforma inválida" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("content_plan").insert({
+    workspace_id: workspaceId,
+    planned_date,
+    title,
+    description,
+    platform,
+    content_type,
+    status: "idea",
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/customer-voice");
+  return { success: true };
+}
+
+export async function deleteContentPlanItem(id: string) {
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) return { error: "No workspace" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("content_plan")
+    .delete()
+    .eq("id", id)
+    .eq("workspace_id", workspaceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/customer-voice");
+  return { success: true };
+}
+
+export async function updateContentPlanStatus(id: string, status: string) {
+  if (!VALID_STATUSES.includes(status as (typeof VALID_STATUSES)[number])) {
+    return { error: "Estado inválido" };
+  }
+
+  const workspaceId = await getWorkspaceId();
+  if (!workspaceId) return { error: "No workspace" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("content_plan")
+    .update({ status })
+    .eq("id", id)
+    .eq("workspace_id", workspaceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/customer-voice");
+  return { success: true };
+}

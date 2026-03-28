@@ -5,12 +5,13 @@ import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
 import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChart";
 import { ReelDailySparkline } from "@/components/instagram/ReelDailySparkline";
+import { ReelDayRadar } from "@/components/instagram/ReelDayRadar";
 import { ReelAISection } from "@/components/instagram/ReelAISection";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
   Clock, Play, Megaphone, TrendingUp,
-  ExternalLink, AlertTriangle,
+  ExternalLink, AlertTriangle, DollarSign,
 } from "lucide-react";
 
 // ─── Helpers ───
@@ -211,6 +212,7 @@ const DEMO_REEL = {
   paid_clicks: 1260,
   spend_cents: 945000,
   paid_video_plays: 50000,
+  sales_amount: null as number | null,
   performer_multiple: 5.2,
   transcript: {
     status: "completed",
@@ -276,7 +278,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           .from("reels")
           .select(`
             id, caption, permalink, thumbnail_url, media_url, published_at,
-            duration_seconds, reel_type, has_ads, media_type, media_product_type,
+            duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
             reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, total_interactions, follows_generated, profile_visits, avg_watch_time_sec, completion_rate),
             reel_metrics_paid (views_paid, impressions_paid, reach_paid, clicks, spend_cents, video_plays),
             reel_transcripts (*),
@@ -416,6 +418,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           paid_clicks: p?.clicks || 0,
           spend_cents: p?.spend_cents || 0,
           paid_video_plays: p?.video_plays || 0,
+          sales_amount: reelData.sales_amount ?? null,
           performer_multiple: performerMultiple,
           transcript: { ...DEMO_REEL.transcript, status: "pending" },
           narrative: { ...DEMO_REEL.narrative, status: "pending" },
@@ -582,6 +585,16 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const reelPlaybackUrl = reel.media_url || null;
   const reelPosterUrl = reel.thumbnail_url || null;
 
+  // Day-of-week views distribution for radar
+  const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const dowViews: number[] = Array(7).fill(0);
+  (dailyMetricsData ?? []).forEach((d) => {
+    const [year, month, day] = d.metric_date.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    dowViews[date.getUTCDay()] += (d.views_org || 0) + (d.views_paid || 0);
+  });
+  const dayRadarData = DAYS_ES.map((day, i) => ({ day, views: dowViews[i] }));
+
   // ─── REEL detail layout ─────────────────────────────────────────
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -683,6 +696,33 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             ))}
           </div>
 
+          {reel.sales_amount != null && reel.sales_amount > 0 && (
+            <div className="glass-panel rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-emerald-400" />
+                  <span className="text-[11px] font-medium text-emerald-400/70 uppercase tracking-wider">Ventas generadas</span>
+                </div>
+                {reel.views_total > 0 && (
+                  <span className="text-[11px] text-white/30">
+                    ${(reel.sales_amount / reel.views_total).toFixed(2)} por view
+                  </span>
+                )}
+              </div>
+              <p className="text-[42px] font-light text-emerald-300 leading-none tracking-tight">
+                ${formatNumber(reel.sales_amount)}
+              </p>
+              {reel.views_total > 0 && (
+                <div className="mt-3 pt-3 border-t border-emerald-500/10">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-white/30">Conversión estimada</span>
+                    <span className="text-emerald-400/70">{((reel.saves / reel.views_total) * 100).toFixed(2)}% saves → compra</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
             <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-zinc-200">
               <Eye className="h-3.5 w-3.5 text-zinc-400" />
@@ -694,7 +734,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Full-width: Métricas Extendidas + Interacciones vs Benchmark */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
         <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
@@ -758,7 +798,8 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           })()}
         </div>
 
-        <ReelPerformanceChart
+        <div className="space-y-4">
+          <ReelPerformanceChart
             likes={reel.likes}
             saves={reel.saves}
             comments={reel.comments}
@@ -769,6 +810,12 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             benchmarkComments={reel.benchmark.avg_comments_pct}
             benchmarkShares={reel.benchmark.avg_shares_pct}
           />
+          {dayRadarData.some((d) => d.views > 0) && (
+            <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <ReelDayRadar data={dayRadarData} />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
