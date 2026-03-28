@@ -6,8 +6,12 @@ import {
   Swords, Eye, Heart, MessageSquare, Share2,
   Clock, Loader2, Sparkles, ChevronDown, ChevronRight,
   Instagram, Users, FileText, Trash2, Plus, Search,
-  Info, X,
+  Info, X, TrendingUp, BarChart2,
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell,
+} from "recharts";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -110,6 +114,155 @@ const HOOK_TYPES: Record<string, { label: string; color: string; description: st
 
 function getHookInfo(type: string | null) {
   return HOOK_TYPES[type ?? "desconocido"] ?? HOOK_TYPES["desconocido"];
+}
+
+// ─── Charts section ──────────────────────────────────────────────────────────
+
+function CompetitorCharts({ competitors }: { competitors: Competitor[] }) {
+  const withData = competitors.filter((c) => c.scraped_data && c.reels_count > 0);
+  if (withData.length < 2) return null;
+
+  // Followers comparison
+  const followerData = competitors
+    .filter((c) => (c.scraped_data?.ig_follower_count ?? 0) > 0)
+    .map((c) => ({
+      name: (c.name ?? "?").slice(0, 14),
+      followers: c.scraped_data?.ig_follower_count ?? 0,
+    }))
+    .sort((a, b) => b.followers - a.followers);
+
+  // Avg views comparison
+  const viewsData = competitors
+    .filter((c) => c.reels.length > 0)
+    .map((c) => {
+      const total = c.reels.reduce((s, r) => s + (r.views_count ?? 0), 0);
+      return { name: (c.name ?? "?").slice(0, 14), avgViews: Math.round(total / c.reels.length) };
+    })
+    .sort((a, b) => b.avgViews - a.avgViews);
+
+  // Hook type distribution across all analyzed reels
+  const hookCounts: Record<string, number> = {};
+  competitors.forEach((c) => {
+    c.reels.forEach((r) => {
+      const type = r.competitor_reel_analysis?.hook_type ?? "desconocido";
+      hookCounts[type] = (hookCounts[type] ?? 0) + 1;
+    });
+  });
+  const hookData = Object.entries(hookCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([type, count]) => ({ type, count, info: getHookInfo(type) }));
+
+  const totalAnalyzed = hookData.reduce((s, h) => s + h.count, 0);
+
+  const BAR_COLORS = ["#818cf8", "#a78bfa", "#c084fc", "#e879f9", "#f472b6"];
+
+  function fmtN(n: number) {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toString();
+  }
+
+  return (
+    <div className="space-y-4 mb-6">
+      <div className="flex items-center gap-2">
+        <BarChart2 className="h-4 w-4 text-white/25" />
+        <span className="text-[11px] text-white/25 uppercase tracking-[0.1em] font-medium">Comparativa</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {/* Followers chart */}
+        {followerData.length >= 2 && (
+          <div className="glass-panel rounded-xl p-4">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Users className="h-3 w-3 text-violet-400/60" />
+              <p className="text-[10px] text-white/25 uppercase tracking-[0.08em] font-medium">Seguidores</p>
+            </div>
+            <div style={{ height: 120 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={followerData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false}
+                    tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} width={60} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    content={({ active, payload }) => active && payload?.length ? (
+                      <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: "rgba(10,10,20,0.95)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <span className="text-white/70">{fmtN(payload[0].value as number)} seguidores</span>
+                      </div>
+                    ) : null}
+                  />
+                  <Bar dataKey="followers" radius={[0, 3, 3, 0]}>
+                    {followerData.map((_, i) => (
+                      <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} fillOpacity={0.7} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Avg views chart */}
+        {viewsData.length >= 2 && (
+          <div className="glass-panel rounded-xl p-4">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Eye className="h-3 w-3 text-emerald-400/60" />
+              <p className="text-[10px] text-white/25 uppercase tracking-[0.08em] font-medium">Views promedio / reel</p>
+            </div>
+            <div style={{ height: 120 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={viewsData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false}
+                    tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} width={60} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    content={({ active, payload }) => active && payload?.length ? (
+                      <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: "rgba(10,10,20,0.95)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <span className="text-white/70">{fmtN(payload[0].value as number)} views avg</span>
+                      </div>
+                    ) : null}
+                  />
+                  <Bar dataKey="avgViews" radius={[0, 3, 3, 0]}>
+                    {viewsData.map((_, i) => (
+                      <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} fillOpacity={0.7} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Hook distribution */}
+        {hookData.length > 0 && totalAnalyzed > 0 && (
+          <div className="glass-panel rounded-xl p-4">
+            <div className="flex items-center gap-1.5 mb-3">
+              <TrendingUp className="h-3 w-3 text-amber-400/60" />
+              <p className="text-[10px] text-white/25 uppercase tracking-[0.08em] font-medium">Hooks más usados</p>
+            </div>
+            <div className="space-y-2">
+              {hookData.map(({ type, count, info }) => {
+                const pct = Math.round((count / totalAnalyzed) * 100);
+                return (
+                  <div key={type}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded border ${info.color}`}>{info.label}</span>
+                      <span className="text-[10px] text-white/30">{count} · {pct}%</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-white/[0.05] overflow-hidden">
+                      <div className="h-full rounded-full bg-amber-400/50 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -254,7 +407,9 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-3 animate-slide-up">
+    <div className="animate-slide-up">
+      <CompetitorCharts competitors={competitors} />
+      <div className="space-y-3">
       {competitors.map((comp) => {
         const profile = comp.scraped_data;
         const hasProfile = profile && Object.keys(profile).length > 0;
@@ -650,11 +805,11 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
                   </div>
                 )}
 
-                {/* Why user is better */}
+                {/* What user likes about this competitor */}
                 {comp.why_better && (
                   <div className="px-5 pb-4 border-t border-white/[0.04] pt-3">
-                    <span className="text-[10px] text-emerald-400/40 uppercase tracking-[0.12em] font-medium">Por qué vos sos mejor</span>
-                    <p className="text-[11px] text-white/45 font-light mt-1 leading-[1.6]">{comp.why_better}</p>
+                    <span className="text-[10px] text-violet-400/40 uppercase tracking-[0.12em] font-medium">Qué te gusta</span>
+                    <p className="text-[11px] text-white/45 font-light mt-1 leading-[1.6] whitespace-pre-line">{comp.why_better.replace(/\[(MARCA|CONTENIDO)]\s*/g, (_, tag: string) => tag === 'MARCA' ? '🏷️ Marca: ' : '📹 Contenido: ')}</p>
                   </div>
                 )}
               </div>
@@ -662,6 +817,7 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

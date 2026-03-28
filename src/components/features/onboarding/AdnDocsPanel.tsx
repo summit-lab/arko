@@ -58,9 +58,9 @@ interface SectionConfig {
 }
 
 const SECTIONS: SectionConfig[] = [
-  { number: 1, title: "Documentos Base", icon: "1", progressKeys: ["profile"], totalFields: 5 },
-  { number: 2, title: "Redes Sociales", icon: "2", progressKeys: ["strategies"], totalFields: 2 },
-  { number: 3, title: "Competidores", icon: "3", progressKeys: ["market", "competitors"], totalFields: 8 },
+  { number: 1, title: "Tu Negocio", icon: "1", progressKeys: ["profile"], totalFields: 5 },
+  { number: 2, title: "Tu Contenido", icon: "2", progressKeys: ["strategies"], totalFields: 2 },
+  { number: 3, title: "Tu Mercado", icon: "3", progressKeys: ["market", "competitors"], totalFields: 8 },
   { number: 4, title: "Tu Marca", icon: "4", progressKeys: ["brand", "references"], totalFields: 6 },
 ];
 
@@ -175,7 +175,10 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
 
   const totalPossible = SECTIONS.reduce((sum, s) => sum + s.totalFields, 0);
   const totalFilled = SECTIONS.reduce(
-    (sum, s) => sum + Math.min(getSectionFieldCount(progress, s.progressKeys), s.totalFields),
+    (sum, s) => {
+      const complete = isSectionComplete(progress, s.progressKeys);
+      return sum + (complete ? s.totalFields : Math.min(getSectionFieldCount(progress, s.progressKeys), s.totalFields));
+    },
     0
   );
   const percent = Math.round((totalFilled / totalPossible) * 100);

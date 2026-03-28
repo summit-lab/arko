@@ -105,7 +105,7 @@ function CompetitorFormCard({
           <p className="text-[11px] text-white/30 font-light mt-0.5">
             {hasSaved
               ? "Podés editarlos en cualquier momento"
-              : "Nombre, Instagram y por qué sos mejor"}
+              : "Nombre, Instagram y qué te gusta de ellos"}
           </p>
         </div>
         <button

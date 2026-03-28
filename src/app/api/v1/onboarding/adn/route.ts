@@ -95,7 +95,18 @@ export async function GET(request: Request) {
 interface CompetitorInput {
   name: string;
   ig_url?: string;
-  why_better?: string;
+  likes_brand?: string;
+  likes_content?: string;
+}
+
+function buildWhyBetter(c: CompetitorInput): string | null {
+  const brand = typeof c.likes_brand === 'string' ? c.likes_brand.trim() : '';
+  const content = typeof c.likes_content === 'string' ? c.likes_content.trim() : '';
+  if (!brand && !content) return null;
+  const parts: string[] = [];
+  if (brand) parts.push(`[MARCA] ${brand}`);
+  if (content) parts.push(`[CONTENIDO] ${content}`);
+  return parts.join('\n');
 }
 
 export async function POST(request: Request) {
@@ -125,7 +136,7 @@ export async function POST(request: Request) {
         workspace_id: auth.workspaceId,
         name: c.name.trim(),
         ig_url: typeof c.ig_url === 'string' ? c.ig_url.trim() || null : null,
-        why_better: typeof c.why_better === 'string' ? c.why_better.trim() || null : null,
+        why_better: buildWhyBetter(c),
       }));
 
     if (rows.length > 0) {

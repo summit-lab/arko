@@ -65,11 +65,18 @@ async function executeToolCall(
         );
       break;
 
-    case 'save_competitor':
+    case 'save_competitor': {
+      // Transform likes_brand/likes_content into why_better DB column
+      const { likes_brand, likes_content, ...rest } = data as Record<string, string>;
+      const parts: string[] = [];
+      if (likes_brand) parts.push(`[MARCA] ${likes_brand}`);
+      if (likes_content) parts.push(`[CONTENIDO] ${likes_content}`);
+      const why_better = parts.length > 0 ? parts.join('\n') : null;
       await supabase
         .from('workspace_competitors')
-        .insert({ workspace_id: workspaceId, ...data });
+        .insert({ workspace_id: workspaceId, ...rest, why_better });
       break;
+    }
 
     case 'save_brand':
       await supabase

@@ -4,6 +4,7 @@ import { NavProgressBar } from "@/components/layout/NavigationProvider";
 import { AdnAlertBanner } from "@/components/features/onboarding/AdnAlertBanner";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardLayout({
   children,
@@ -14,6 +15,25 @@ export default async function DashboardLayout({
   const isAdmin = cookieStore.get("arko_user_role")?.value === "admin";
   const onboardingCompleted = cookieStore.get("arko_onboarding_completed")?.value === "true";
   const showAdnAlert = !onboardingCompleted && !isAdmin;
+
+  // Fetch workspace branding
+  const workspaceId = cookieStore.get("arko_workspace_id")?.value;
+  let brandName: string | null = null;
+  let logoUrl: string | null = null;
+  if (workspaceId) {
+    const supabase = await createClient();
+    const { data: ws } = await supabase
+      .from("workspaces")
+      .select("name, settings")
+      .eq("id", workspaceId)
+      .single();
+    if (ws) {
+      const settings = ws.settings as Record<string, unknown>;
+      brandName = (settings?.brand_name as string) || ws.name || null;
+      logoUrl = (settings?.logo_url as string) || null;
+    }
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* ── Crossing & Fading Divider Lines ── */}
@@ -42,7 +62,7 @@ export default async function DashboardLayout({
       <Suspense fallback={null}>
         <NavProgressBar />
       </Suspense>
-      <Sidebar isAdmin={isAdmin} adnPending={!onboardingCompleted && !isAdmin} />
+      <Sidebar isAdmin={isAdmin} adnPending={!onboardingCompleted && !isAdmin} brandName={brandName} logoUrl={logoUrl} />
       <div className="flex-1 flex flex-col pl-[260px]">
         <Suspense fallback={
           <div className="h-[80px] w-full shrink-0" />

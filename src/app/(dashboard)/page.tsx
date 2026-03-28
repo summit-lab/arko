@@ -92,13 +92,14 @@ async function getDashboardData() {
       .lt("metric_date", thirtyDaysAgo)
       .limit(30),
 
-    // Query 3: Sum of daily follower deltas in last 7 days
+    // Query 3: Follower growth last 7 days (via followers_total diff or follower_count sum)
     supabase
       .from("ig_account_insights")
-      .select("follower_count")
+      .select("metric_date, follower_count, followers_total")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", sevenDaysAgo)
-      .lt("metric_date", today),
+      .lt("metric_date", today)
+      .order("metric_date", { ascending: true }),
 
     // Query 4: Last 30 days daily insights (for daily charts)
     supabase
@@ -114,7 +115,7 @@ async function getDashboardData() {
     supabase
       .from("reels")
       .select(`
-        id, caption, permalink, published_at, media_type, reel_type, has_ads,
+        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount,
         reel_metrics (views_org, likes_total, comments_total, shares_total, saves_total),
         reel_metrics_paid (views_paid)
       `)
@@ -163,9 +164,14 @@ async function getDashboardData() {
     shares: previous30d.reduce((s, r) => s + (r.shares || 0), 0),
   };
 
-  // follower_count is a daily delta from Meta — sum the last 7 days
+  // Follower growth last 7 days: prefer followers_total diff, fallback to follower_count sum
   const weekFollowerRows = insightsWeek.data ?? [];
-  const newFollowsWeek = weekFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+  const withFt = weekFollowerRows.filter((r) => (r.followers_total || 0) > 0);
+  const firstFt = withFt[0]?.followers_total ?? 0;
+  const lastFt = withFt[withFt.length - 1]?.followers_total ?? 0;
+  const newFollowsWeek = lastFt > firstFt
+    ? lastFt - firstFt
+    : weekFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
 
   // ─── Process reels for views KPI + top content ───
 
@@ -188,10 +194,12 @@ async function getDashboardData() {
       saves: metrics?.saves_total || 0,
       comments: metrics?.comments_total || 0,
       shares: metrics?.shares_total || 0,
+      sales_amount: r.sales_amount ?? null,
     };
   });
 
   const totalViews = reels.reduce((s, r) => s + r.views_total, 0);
+  const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
   // Views for previous period — reels published between 60 and 30 days ago don't exist in our query.
   // Use reach as proxy for "Total Views" KPI change since we have insights for both periods.
@@ -303,9 +311,21 @@ async function getDashboardData() {
     { label: "Engagement Rate", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
     { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
     { label: "Nuevos Follows", value: newFollowsWeek > 0 ? formatCompact(newFollowsWeek) : "—", sub: "últimos 7 días" },
+    ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
   ];
 
-  return { kpis, topContent, quickStats, countries, growthData, engagementData };
+  // Top reels por ventas (para gráfico)
+  const salesChartData = [...reels]
+    .filter((r) => (r.sales_amount ?? 0) > 0)
+    .sort((a, b) => (b.sales_amount ?? 0) - (a.sales_amount ?? 0))
+    .slice(0, 8)
+    .map((r) => ({
+      caption: r.caption ? (r.caption.length > 22 ? r.caption.slice(0, 22) + "…" : r.caption) : "Sin caption",
+      amount: r.sales_amount ?? 0,
+      views: r.views_total,
+    }));
+
+  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData };
 }
 
 // ─── Icon mapping (can't pass components as serialized data) ───
@@ -329,6 +349,7 @@ export default async function Home() {
   const countries = data?.countries ?? [];
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
+  const salesChartData = data?.salesChartData ?? [];
 
   return (
     <div className="px-8 py-10">
@@ -378,7 +399,7 @@ export default async function Home() {
 
           {/* Charts Row — Recharts */}
           <div className="animate-slide-up stagger-5">
-            <DashboardCharts growthData={growthData} engagementData={engagementData} />
+            <DashboardCharts growthData={growthData} engagementData={engagementData} salesData={salesChartData} />
           </div>
 
           {/* Top Performing Content */}
@@ -442,7 +463,7 @@ export default async function Home() {
                     <p className="text-[12px] text-white/35 font-light">{s.label}</p>
                     <p className="text-[11px] text-white/20 font-light mt-0.5">{s.sub}</p>
                   </div>
-                  <CountUp value={s.value} className="text-[22px] font-light tracking-[-0.02em] text-white" />
+                  <CountUp value={s.value} className={`text-[22px] font-light tracking-[-0.02em] ${s.value.startsWith("$") ? "text-emerald-300" : "text-white"}`} />
                 </div>
               ))}
             </div>
@@ -468,6 +489,35 @@ export default async function Home() {
               <p className="text-[13px] text-white/20 font-light text-center py-4">Sin datos demográficos</p>
             )}
           </div>
+
+          {/* Top Ventas */}
+          {salesChartData.length > 0 && (() => {
+            const maxAmount = salesChartData[0].amount;
+            const total = salesChartData.reduce((s, d) => s + d.amount, 0);
+            return (
+              <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-4">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Top Ventas</h3>
+                  <span className="text-[15px] font-light text-emerald-300">${formatCompact(total)}</span>
+                </div>
+                <p className="text-[10px] text-white/20 mb-4">desde reels</p>
+                <div className="space-y-3">
+                  {salesChartData.map((d, i) => (
+                    <div key={i}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] text-white/25 w-3 shrink-0">{i + 1}</span>
+                        <span className="text-[10px] text-white/50 flex-1 truncate font-light">{d.caption}</span>
+                        <span className="text-[11px] text-emerald-300 font-light shrink-0">${formatCompact(d.amount)}</span>
+                      </div>
+                      <div className="h-[3px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                        <div className="h-full rounded-full bg-emerald-400/60" style={{ width: `${Math.round((d.amount / maxAmount) * 88)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

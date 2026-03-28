@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 
 interface GrowthDataPoint {
@@ -25,9 +26,16 @@ interface EngagementDataPoint {
   comments: number;
 }
 
+interface SalesDataPoint {
+  caption: string;
+  amount: number;
+  views: number;
+}
+
 interface DashboardChartsProps {
   growthData?: GrowthDataPoint[];
   engagementData?: EngagementDataPoint[];
+  salesData?: SalesDataPoint[];
 }
 
 function formatCompactValue(n: number): string {
@@ -59,9 +67,25 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
-export function DashboardCharts({ growthData = [], engagementData = [] }: DashboardChartsProps) {
+function SalesTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: SalesDataPoint }> }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-xl px-4 py-3 backdrop-blur-xl max-w-[220px]"
+      style={{ background: "rgba(10,10,20,0.9)", border: "1px solid rgba(52,211,153,0.2)", boxShadow: "0 12px 48px rgba(0,0,0,0.5)" }}>
+      <p className="text-[11px] text-white/40 mb-1 leading-snug">{d.caption}</p>
+      <p className="text-[15px] font-light text-emerald-300">${formatCompactValue(d.amount)}</p>
+      {d.views > 0 && (
+        <p className="text-[10px] text-white/30 mt-0.5">${(d.amount / d.views).toFixed(2)} por view</p>
+      )}
+    </div>
+  );
+}
+
+export function DashboardCharts({ growthData = [], engagementData = [], salesData = [] }: DashboardChartsProps) {
   const hasGrowth = growthData.length > 0;
   const hasEngagement = engagementData.length > 0;
+  void salesData; // passed but used in parent sidebar
 
   return (
     <div className="grid grid-cols-2 gap-5">
