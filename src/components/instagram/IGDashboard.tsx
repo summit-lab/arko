@@ -259,7 +259,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
               {impressionsTrend.value}
             </div>
           </div>
-          <div className="flex-1 min-h-[220px] w-full">
+          <div className="flex-1 min-h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <defs>

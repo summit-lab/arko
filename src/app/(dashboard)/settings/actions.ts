@@ -4,35 +4,53 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
-export async function updateBranding(formData: FormData) {
-  const brandName = (formData.get("brand_name") as string | null)?.trim() || null;
-  const logoUrl = (formData.get("logo_url") as string | null)?.trim() || null;
-
+async function getWorkspaceSettings() {
   const cookieStore = await cookies();
   const workspaceId = cookieStore.get("arko_workspace_id")?.value;
-  if (!workspaceId) return;
+  if (!workspaceId) return null;
 
   const supabase = await createClient();
-
-  // Fetch current settings to merge
   const { data: ws } = await supabase
     .from("workspaces")
     .select("settings")
     .eq("id", workspaceId)
     .single();
 
-  const currentSettings = (ws?.settings as Record<string, unknown>) ?? {};
+  return { supabase, workspaceId, currentSettings: (ws?.settings as Record<string, unknown>) ?? {} };
+}
 
-  await supabase
+export async function updateBranding(formData: FormData) {
+  const brandName = (formData.get("brand_name") as string | null)?.trim() || null;
+
+  const ctx = await getWorkspaceSettings();
+  if (!ctx) return;
+
+  await ctx.supabase
     .from("workspaces")
     .update({
       settings: {
-        ...currentSettings,
+        ...ctx.currentSettings,
         brand_name: brandName,
+      },
+    })
+    .eq("id", ctx.workspaceId);
+
+  revalidatePath("/", "layout");
+}
+
+export async function updateLogoUrl(logoUrl: string | null) {
+  const ctx = await getWorkspaceSettings();
+  if (!ctx) return;
+
+  await ctx.supabase
+    .from("workspaces")
+    .update({
+      settings: {
+        ...ctx.currentSettings,
         logo_url: logoUrl,
       },
     })
-    .eq("id", workspaceId);
+    .eq("id", ctx.workspaceId);
 
   revalidatePath("/", "layout");
 }

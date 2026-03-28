@@ -2,23 +2,25 @@
 
 import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fingerprint, Swords, CalendarDays } from "lucide-react";
+import { Fingerprint, Swords, CalendarDays, Target } from "lucide-react";
 
-type TabId = "adn" | "competencia" | "calendario";
+type TabId = "adn" | "competencia" | "calendario" | "metas";
 
 interface CustomerVoiceTabsProps {
   adnContent: React.ReactNode;
   competitorContent: React.ReactNode;
   calendarContent: React.ReactNode;
+  metasContent: React.ReactNode;
 }
 
-export function CustomerVoiceTabs({ adnContent, competitorContent, calendarContent }: CustomerVoiceTabsProps) {
+export function CustomerVoiceTabs({ adnContent, competitorContent, calendarContent, metasContent }: CustomerVoiceTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawTab = searchParams.get("tab");
   const activeTab: TabId =
     rawTab === "competencia" ? "competencia" :
     rawTab === "calendario" ? "calendario" :
+    rawTab === "metas" ? "metas" :
     "adn";
   const [isPending, startTransition] = useTransition();
 
@@ -26,6 +28,7 @@ export function CustomerVoiceTabs({ adnContent, competitorContent, calendarConte
     { id: "adn" as const,         label: "ADN de Marca",  icon: Fingerprint },
     { id: "competencia" as const, label: "Competencia",   icon: Swords },
     { id: "calendario" as const,  label: "Calendario",    icon: CalendarDays },
+    { id: "metas" as const,       label: "Metas",         icon: Target },
   ];
 
   function handleTabChange(tabId: TabId) {
@@ -72,9 +75,10 @@ export function CustomerVoiceTabs({ adnContent, competitorContent, calendarConte
 
       {/* Tab content */}
       <div className={isPending ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
-        {activeTab === "adn"        && adnContent}
-        {activeTab === "competencia" && competitorContent}
-        {activeTab === "calendario" && calendarContent}
+        {activeTab === "adn"         && <div key="adn">{adnContent}</div>}
+        {activeTab === "competencia" && <div key="competencia">{competitorContent}</div>}
+        {activeTab === "calendario"  && <div key="calendario">{calendarContent}</div>}
+        {activeTab === "metas"       && <div key="metas">{metasContent}</div>}
       </div>
     </div>
   );

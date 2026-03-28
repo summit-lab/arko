@@ -6,6 +6,21 @@ import { AdnDocsPanel } from "./AdnDocsPanel";
 import { AdnCompetitorModal, type CompetitorEntry } from "./AdnCompetitorModal";
 import type { AdnProgress, AdnData } from "@/services/adn-progress.service";
 
+/** Parse the combined why_better DB field back into likes_brand + likes_content */
+function parseWhyBetter(raw: string | null): { likes_brand: string; likes_content: string } {
+  if (!raw) return { likes_brand: "", likes_content: "" };
+  const brandMatch = raw.match(/\[MARCA]\s*([\s\S]*?)(?=\n?\[CONTENIDO]|$)/);
+  const contentMatch = raw.match(/\[CONTENIDO]\s*([\s\S]*?)$/);
+  if (brandMatch || contentMatch) {
+    return {
+      likes_brand: brandMatch?.[1]?.trim() ?? "",
+      likes_content: contentMatch?.[1]?.trim() ?? "",
+    };
+  }
+  // Legacy data without markers — put it all in likes_brand
+  return { likes_brand: raw, likes_content: "" };
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -287,7 +302,7 @@ export function AdnChat({
                 id: c.id ?? undefined,
                 name: c.name ?? "",
                 ig_url: c.ig_url ?? "",
-                why_better: c.why_better ?? "",
+                ...parseWhyBetter(c.why_better),
               }))
             : undefined
         }

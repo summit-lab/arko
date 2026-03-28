@@ -7,7 +7,8 @@ export interface CompetitorEntry {
   id?: string;
   name: string;
   ig_url: string;
-  why_better: string;
+  likes_brand: string;
+  likes_content: string;
 }
 
 interface AdnCompetitorModalProps {
@@ -17,7 +18,7 @@ interface AdnCompetitorModalProps {
   initialCompetitors?: CompetitorEntry[];
 }
 
-const EMPTY_ENTRY: CompetitorEntry = { name: "", ig_url: "", why_better: "" };
+const EMPTY_ENTRY: CompetitorEntry = { name: "", ig_url: "", likes_brand: "", likes_content: "" };
 
 export function AdnCompetitorModal({
   open,
@@ -103,7 +104,7 @@ export function AdnCompetitorModal({
                 Competidores
               </h2>
               <p className="text-[11px] text-white/30 font-light mt-0.5">
-                Agregá tus competidores principales y por qué sos mejor
+                Agregá tus competidores principales y qué te gusta de ellos
               </p>
             </div>
           </div>
@@ -165,23 +166,46 @@ export function AdnCompetitorModal({
 
               <div>
                 <label className="text-[10px] text-white/25 font-medium mb-1 block">
-                  ¿Por qué sos mejor?
+                  ¿Qué te gusta de su marca?
                 </label>
                 <textarea
-                  value={entry.why_better}
+                  value={entry.likes_brand}
                   onChange={(e) => {
-                    updateEntry(i, "why_better", e.target.value);
+                    updateEntry(i, "likes_brand", e.target.value);
                     e.target.style.height = "auto";
                     e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
                   ref={(el) => {
-                    if (el && entry.why_better) {
+                    if (el && entry.likes_brand) {
                       el.style.height = "auto";
                       el.style.height = `${el.scrollHeight}px`;
                     }
                   }}
                   rows={1}
-                  placeholder="Qué te diferencia de este competidor..."
+                  placeholder="Qué te llama la atención de su marca, posicionamiento, identidad..."
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-white/[0.18] transition-colors overflow-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-white/25 font-medium mb-1 block">
+                  ¿Qué te gusta de su contenido?
+                </label>
+                <textarea
+                  value={entry.likes_content}
+                  onChange={(e) => {
+                    updateEntry(i, "likes_content", e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                  ref={(el) => {
+                    if (el && entry.likes_content) {
+                      el.style.height = "auto";
+                      el.style.height = `${el.scrollHeight}px`;
+                    }
+                  }}
+                  rows={1}
+                  placeholder="Qué tipo de contenido hacen que te gusta, formatos, estilo..."
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-white/[0.18] transition-colors overflow-hidden"
                 />
               </div>

@@ -22,9 +22,9 @@ Onboarding obligatorio para nuevos usuarios. Arko AI guía una conversación par
 
 | # | Sección | Tablas destino | Tool |
 |---|---------|---------------|------|
-| 1 | Documentos Base | `workspace_profile` | `save_profile` |
-| 2 | Redes Sociales | `workspace_strategies` | `save_strategy` |
-| 3 | Competidores y Mercado | `workspace_market`, `workspace_competitors` | `save_market`, `save_competitor` |
+| 1 | Tu Negocio | `workspace_profile` | `save_profile` |
+| 2 | Tu Contenido | `workspace_strategies` | `save_strategy` |
+| 3 | Tu Mercado | `workspace_market`, `workspace_competitors` | `save_market`, `save_competitor` |
 | 4 | Tu Marca | `workspace_brand`, `workspace_references` | `save_brand`, `save_reference` |
 
 ## Flujo

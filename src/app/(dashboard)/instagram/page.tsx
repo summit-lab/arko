@@ -83,7 +83,8 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
     const todayUtc = new Date();
     todayUtc.setUTCHours(0, 0, 0, 0);
-    const todayDate = todayUtc.toISOString().split("T")[0];
+    const yesterdayUtc = new Date(todayUtc.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayDate = yesterdayUtc.toISOString().split("T")[0];
     const periodStartDate = new Date(todayUtc.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const insightsQuery = needsInsights
@@ -92,7 +93,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
           .eq("workspace_id", workspaceId)
           .gte("metric_date", periodStartDate)
-          .lte("metric_date", todayDate)
+          .lte("metric_date", yesterdayDate)
           .order("metric_date", { ascending: true })
           .limit(90)
       : null;

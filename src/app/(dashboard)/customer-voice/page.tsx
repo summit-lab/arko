@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
-import { GoalEditor } from "@/components/features/goals/GoalEditor";
+import { IGGoals } from "@/components/instagram/IGGoals";
 import { getAdnData } from "@/services/adn-progress.service";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -81,7 +81,7 @@ interface CompetitorReelRow {
 
 export default async function CustomerVoicePage({ searchParams }: { searchParams: Promise<{ tab?: string; month?: string }> }) {
   const params = await searchParams;
-  const activeTab = params.tab === "competencia" ? "competencia" : params.tab === "calendario" ? "calendario" : "adn";
+  const activeTab = params.tab === "competencia" ? "competencia" : params.tab === "calendario" ? "calendario" : params.tab === "metas" ? "metas" : "adn";
   const currentMonth = params.month ?? new Date().toISOString().slice(0, 7);
 
   const workspaceId = await getWorkspaceId();
@@ -153,6 +153,42 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         competitorReels[cid].reels.push(reel);
         competitorReels[cid].count++;
       }
+    }
+  }
+
+  // ─── Metas Insights Data ─────────────────────────────────────────────────
+
+  let metasInsights = { totalViews: 0, totalFollowers: 0, totalLikes: 0, totalSaves: 0, totalReach: 0, engagementRate: 0 };
+
+  if (workspaceId && activeTab === "metas") {
+    const supabase = await createClient();
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    const { data: monthInsights } = await supabase
+      .from("ig_account_insights")
+      .select("impressions, reach, likes, saves, total_interactions, followers_total")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", monthStart)
+      .lte("metric_date", yesterday);
+
+    if (monthInsights && monthInsights.length > 0) {
+      const totalViews = monthInsights.reduce((s, d) => s + (d.impressions ?? 0), 0);
+      const totalReach = monthInsights.reduce((s, d) => s + (d.reach ?? 0), 0);
+      const totalLikes = monthInsights.reduce((s, d) => s + (d.likes ?? 0), 0);
+      const totalSaves = monthInsights.reduce((s, d) => s + (d.saves ?? 0), 0);
+      const totalInteractions = monthInsights.reduce((s, d) => s + (d.total_interactions ?? 0), 0);
+      const latestFollowers = [...monthInsights].pop()?.followers_total ?? 0;
+
+      metasInsights = {
+        totalViews,
+        totalFollowers: latestFollowers,
+        totalLikes,
+        totalSaves,
+        totalReach,
+        engagementRate: totalReach > 0 ? Number(((totalInteractions / totalReach) * 100).toFixed(2)) : 0,
+      };
     }
   }
 
@@ -515,10 +551,6 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         </div>
       )}
 
-      {/* ROW 6 — Goals */}
-      <div className="animate-slide-up">
-        <GoalEditor goals={goals} />
-      </div>
     </div>
   );
 
@@ -539,6 +571,12 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
       publishedReels={calendarReels}
       planItems={calendarPlanItems}
     />
+  );
+
+  // ─── Metas Content ──────────────────────────────────────────────────────
+
+  const metasContent = (
+    <IGGoals goals={goals} insights={metasInsights} />
   );
 
   return (
@@ -566,6 +604,7 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
           adnContent={adnContent}
           competitorContent={competitorContent}
           calendarContent={calendarContent}
+          metasContent={metasContent}
         />
       </Suspense>
     </div>
