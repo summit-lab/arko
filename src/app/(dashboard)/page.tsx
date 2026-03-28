@@ -144,7 +144,9 @@ async function getDashboardData() {
 
   // ─── Process insights data ───
 
-  const current30d = insightsCurrent.data ?? [];
+  const current30d = (insightsCurrent.data ?? []).filter(
+    (d) => (d.reach ?? 0) > 0 || (d.impressions ?? 0) > 0
+  );
   const previous30d = insightsPrevious.data ?? [];
 
   const sumCurrent = {
@@ -232,8 +234,11 @@ async function getDashboardData() {
     : 0;
 
   // ─── Daily chart data from ig_account_insights ───
+  // Filter out days with zero metrics (incomplete sync data from current day)
 
-  const dailyInsights = insightsMonthly.data ?? [];
+  const dailyInsights = (insightsMonthly.data ?? []).filter(
+    (d) => (d.impressions ?? 0) > 0 || (d.reach ?? 0) > 0
+  );
 
   const growthData = dailyInsights.map((row) => {
     const d = new Date(row.metric_date);

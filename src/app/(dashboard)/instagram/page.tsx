@@ -119,10 +119,13 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
     connectionStatus = connectionResult.data?.status || null;
 
-    // Process insights
+    // Process insights — filter out days with zero metrics (incomplete sync data)
     if (insightsResult?.data) {
-      dailyInsights = insightsResult.data;
-      const latestDay = [...dailyInsights].sort((a, b) => b.metric_date.localeCompare(a.metric_date))[0];
+      dailyInsights = insightsResult.data.filter(
+        (d) => d.impressions > 0 || d.reach > 0
+      );
+      // For followers_total, check all rows (including zero-metric ones) to get latest value
+      const latestDay = [...insightsResult.data].sort((a, b) => b.metric_date.localeCompare(a.metric_date))[0];
       if (latestDay?.followers_total) totalFollowers = latestDay.followers_total;
     }
 
