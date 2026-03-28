@@ -119,7 +119,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
             <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "rgba(255,255,255,0.1)" }} />
             <Scatter
               data={data}
-              onClick={(d) => router.push(`/instagram/${d.id}`)}
+              onClick={(d) => router.push(`/instagram/${(d as unknown as { id: string }).id}`)}
               shape={(props: {
                 cx?: number; cy?: number;
                 payload?: { views: number; multiple: number | null };

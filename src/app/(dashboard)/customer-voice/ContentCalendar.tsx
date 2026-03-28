@@ -223,7 +223,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
     planByDate.get(p.planned_date)!.push(p);
   });
 
-  function applyFilter<T extends { platform?: string }>(arr: T[]) {
+  function applyFilter<T extends object>(arr: T[]) {
     return filterPlatform === "all" ? arr : arr.filter((i) => (i as { platform?: string }).platform === filterPlatform);
   }
 
