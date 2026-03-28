@@ -597,7 +597,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
   // ─── REEL detail layout ─────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-6 lg:px-8 min-w-0 overflow-hidden">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-6 py-8 sm:px-10 lg:px-[4%] min-w-0 overflow-hidden">
       {/* Back nav */}
       <InstagramBackButton />
 
@@ -696,33 +696,6 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             ))}
           </div>
 
-          {reel.sales_amount != null && reel.sales_amount > 0 && (
-            <div className="glass-panel rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-emerald-400" />
-                  <span className="text-[11px] font-medium text-emerald-400/70 uppercase tracking-wider">Ventas generadas</span>
-                </div>
-                {reel.views_total > 0 && (
-                  <span className="text-[11px] text-white/30">
-                    ${(reel.sales_amount / reel.views_total).toFixed(2)} por view
-                  </span>
-                )}
-              </div>
-              <p className="text-[42px] font-light text-emerald-300 leading-none tracking-tight">
-                ${formatNumber(reel.sales_amount)}
-              </p>
-              {reel.views_total > 0 && (
-                <div className="mt-3 pt-3 border-t border-emerald-500/10">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-white/30">Conversión estimada</span>
-                    <span className="text-emerald-400/70">{((reel.saves / reel.views_total) * 100).toFixed(2)}% saves → compra</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl flex-1">
             <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-zinc-200">
               <Eye className="h-3.5 w-3.5 text-zinc-400" />
@@ -799,25 +772,55 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           })()}
         </div>
 
-        <div className="space-y-4">
-          <ReelPerformanceChart
-            likes={reel.likes}
-            saves={reel.saves}
-            comments={reel.comments}
-            shares={reel.shares}
-            viewsTotal={reel.views_total}
-            benchmarkLikes={reel.benchmark.avg_likes_pct}
-            benchmarkSaves={reel.benchmark.avg_saves_pct}
-            benchmarkComments={reel.benchmark.avg_comments_pct}
-            benchmarkShares={reel.benchmark.avg_shares_pct}
-          />
+        <ReelPerformanceChart
+          likes={reel.likes}
+          saves={reel.saves}
+          comments={reel.comments}
+          shares={reel.shares}
+          viewsTotal={reel.views_total}
+          benchmarkLikes={reel.benchmark.avg_likes_pct}
+          benchmarkSaves={reel.benchmark.avg_saves_pct}
+          benchmarkComments={reel.benchmark.avg_comments_pct}
+          benchmarkShares={reel.benchmark.avg_shares_pct}
+        />
+      </div>
+
+      {/* Radar + Sales row */}
+      {(dayRadarData.some((d) => d.views > 0) || (reel.sales_amount != null && reel.sales_amount > 0)) && (
+        <div className="flex gap-6 items-start flex-wrap">
           {dayRadarData.some((d) => d.views > 0) && (
-            <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+            <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl w-[420px] shrink-0">
               <ReelDayRadar data={dayRadarData} />
             </div>
           )}
+          {reel.sales_amount != null && reel.sales_amount > 0 && (
+            <div className="glass-panel rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 shadow-xl shadow-black/20 backdrop-blur-xl flex-1 min-w-[280px]">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-emerald-400" />
+                  <span className="text-[11px] font-medium text-emerald-400/70 uppercase tracking-wider">Ventas generadas</span>
+                </div>
+                {reel.views_total > 0 && (
+                  <span className="text-[11px] text-white/30">
+                    ${(reel.sales_amount / reel.views_total).toFixed(2)} por view
+                  </span>
+                )}
+              </div>
+              <p className="text-[42px] font-light text-emerald-300 leading-none tracking-tight">
+                ${formatNumber(reel.sales_amount)}
+              </p>
+              {reel.views_total > 0 && (
+                <div className="mt-3 pt-3 border-t border-emerald-500/10">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-white/30">Conversión estimada</span>
+                    <span className="text-emerald-400/70">{((reel.saves / reel.views_total) * 100).toFixed(2)}% saves → compra</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
