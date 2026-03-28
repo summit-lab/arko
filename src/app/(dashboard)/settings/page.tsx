@@ -1,14 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { User, Building2, Shield, Instagram, Mail, Calendar, Globe } from "lucide-react";
+import { User, Building2, Shield, Instagram, Mail, Calendar, Globe, Palette } from "lucide-react";
 import { DisconnectMetaButton } from "@/components/meta/DisconnectMetaButton";
+import { updateBranding } from "./actions";
+import { cookies } from "next/headers";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   let profile: { full_name: string | null; role: string; email: string; created_at: string } | null = null;
-  let workspace: { id: string; name: string; slug: string; plan: string; created_at: string } | null = null;
+  let workspace: { id: string; name: string; slug: string; plan: string; created_at: string; settings: Record<string, unknown> } | null = null;
   let connection: { status: string; ig_username: string | null; ig_business_account_id: string | null; last_validated_at: string | null; last_error: string | null } | null = null;
 
   if (user) {
@@ -19,13 +21,15 @@ export default async function SettingsPage() {
       .single();
     profile = p;
 
+    const cookieStore = await cookies();
+    const workspaceId = cookieStore.get("arko_workspace_id")?.value;
     const { data: w } = await supabase
       .from("workspaces")
-      .select("id, name, slug, plan, created_at")
-      .eq("owner_id", user.id)
+      .select("id, name, slug, plan, created_at, settings")
+      .eq(workspaceId ? "id" : "owner_id", workspaceId ?? user.id)
       .limit(1)
       .single();
-    workspace = w;
+    workspace = w ? { ...w, settings: (w.settings as Record<string, unknown>) ?? {} } : null;
 
     if (workspace) {
       const { data: c } = await supabase
@@ -135,6 +139,51 @@ export default async function SettingsPage() {
           <span className="text-xs text-zinc-500 group-hover:text-amber-400/70 transition-colors">Ir al panel →</span>
         </Link>
       )}
+
+      {/* Branding */}
+      <form action={updateBranding} className="glass-panel rounded-xl p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
+          <Palette className="h-4 w-4 text-zinc-400" />
+          Branding del workspace
+        </h3>
+        <p className="text-xs text-zinc-500">Personaliza cómo aparece tu marca en el sidebar.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">
+              Nombre de marca
+            </label>
+            <input
+              name="brand_name"
+              type="text"
+              defaultValue={(workspace?.settings?.brand_name as string) ?? workspace?.name ?? ""}
+              placeholder="Ej: Mi Empresa"
+              maxLength={40}
+              className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">
+              URL del logo (imagen)
+            </label>
+            <input
+              name="logo_url"
+              type="url"
+              defaultValue={(workspace?.settings?.logo_url as string) ?? ""}
+              placeholder="https://..."
+              className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all"
+            />
+            <p className="text-[10px] text-zinc-600 mt-1">Pegá la URL de tu logo. Recomendado: imagen cuadrada PNG/SVG.</p>
+          </div>
+        </div>
+        <div className="flex justify-end pt-2">
+          <button
+            type="submit"
+            className="px-4 py-2 rounded-lg bg-white/[0.06] border border-white/[0.10] text-sm text-zinc-200 hover:bg-white/[0.10] hover:border-white/[0.16] transition-all cursor-pointer"
+          >
+            Guardar branding
+          </button>
+        </div>
+      </form>
 
       {/* Meta Connection */}
       <div className="glass-panel rounded-xl p-6">

@@ -9,6 +9,8 @@ import { ReelsGrid, type ReelsSummary } from "@/components/instagram/ReelsGrid";
 import { IGMetricsClient } from "@/components/instagram/IGMetricsClient";
 import { IGDashboardClient } from "@/components/instagram/IGDashboardClient";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
+import { ReelsHeatmap } from "@/components/instagram/ReelsHeatmap";
+import { ReelsScatterPlot } from "@/components/instagram/ReelsScatterPlot";
 import { Suspense } from "react";
 
 // ─── Types for this page ───
@@ -213,6 +215,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     saves: r.saves,
     comments: r.comments,
     shares: r.shares,
+    sales_amount: r.sales_amount,
   }));
 
   return (

@@ -1,7 +1,7 @@
 import {
   Briefcase, Target, Sparkles, Shield, Globe, Megaphone, Lightbulb,
   ThumbsUp, Flame, TrendingUp, Star, Eye,
-  Swords, Instagram, Youtube, Fingerprint, Zap,
+  Swords, Instagram, Youtube, Fingerprint, Zap, Pencil,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
@@ -11,6 +11,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CustomerVoiceTabs } from "./CustomerVoiceTabs";
 import { CompetitorPanel } from "./CompetitorPanel";
+import { ContentCalendar, type CalendarReel, type CalendarPlanItem } from "./ContentCalendar";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,11 @@ interface CompetitorReelRow {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
-export default async function CustomerVoicePage() {
+export default async function CustomerVoicePage({ searchParams }: { searchParams: Promise<{ tab?: string; month?: string }> }) {
+  const params = await searchParams;
+  const activeTab = params.tab === "competencia" ? "competencia" : params.tab === "calendario" ? "calendario" : "adn";
+  const currentMonth = params.month ?? new Date().toISOString().slice(0, 7);
+
   const workspaceId = await getWorkspaceId();
   let goals: { metric: string; target_value: number }[] = [];
   let adnData: Awaited<ReturnType<typeof getAdnData>> | null = null;
@@ -151,6 +156,78 @@ export default async function CustomerVoicePage() {
     }
   }
 
+  // ─── Calendar Data ─────────────────────────────────────────────────────────
+
+  let calendarReels: CalendarReel[] = [];
+  let calendarPlanItems: CalendarPlanItem[] = [];
+
+  if (workspaceId && activeTab === "calendario") {
+    const supabase = await createClient();
+    const [monthYear, monthNum] = currentMonth.split("-").map(Number);
+    const monthStart = `${currentMonth}-01`;
+    const lastDay = new Date(monthYear, monthNum, 0).getDate();
+    const monthEnd = `${currentMonth}-${String(lastDay).padStart(2, "0")}`;
+
+    const [reelsRes, planRes] = await Promise.all([
+      supabase
+        .from("reels")
+        .select(`
+          id, published_at, caption, thumbnail_url, permalink,
+          reel_metrics (views_org),
+          reel_metrics_paid (views_paid)
+        `)
+        .eq("workspace_id", workspaceId)
+        .eq("media_product_type", "REELS")
+        .gte("published_at", monthStart)
+        .lte("published_at", `${monthEnd}T23:59:59Z`)
+        .order("published_at", { ascending: true }),
+      supabase
+        .from("content_plan")
+        .select("id, planned_date, title, description, platform, content_type, status")
+        .eq("workspace_id", workspaceId)
+        .gte("planned_date", monthStart)
+        .lte("planned_date", monthEnd)
+        .order("planned_date", { ascending: true }),
+    ]);
+
+    // Fetch benchmark separately (simpler)
+    const { data: benchmarkRow } = await supabase
+      .from("reel_benchmarks")
+      .select("avg_views_90d")
+      .eq("workspace_id", workspaceId)
+      .order("calculated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const avgViews = benchmarkRow?.avg_views_90d || 1;
+
+    if (reelsRes.data) {
+      type MetricsShape = { views_org: number };
+      type PaidShape = { views_paid: number };
+      const getM = (raw: unknown): MetricsShape | null => Array.isArray(raw) ? (raw as MetricsShape[])[0] : (raw as MetricsShape | null);
+      const getP = (raw: unknown): PaidShape | null => Array.isArray(raw) ? (raw as PaidShape[])[0] : (raw as PaidShape | null);
+
+      calendarReels = reelsRes.data.map((r) => {
+        const m = getM(r.reel_metrics);
+        const p = getP(r.reel_metrics_paid);
+        const viewsTotal = (m?.views_org || 0) + (p?.views_paid || 0);
+        return {
+          id: r.id,
+          published_at: r.published_at ?? "",
+          views_total: viewsTotal,
+          caption: r.caption,
+          performer_multiple: avgViews > 0 ? viewsTotal / avgViews : null,
+          thumbnail_url: r.thumbnail_url ?? null,
+          permalink: r.permalink ?? null,
+        };
+      }).filter((r) => r.published_at);
+    }
+
+    calendarPlanItems = (planRes.data ?? []) as CalendarPlanItem[];
+  }
+
+  // ─── ADN Data ───────────────────────────────────────────────────────────────
+
   const profile = adnData?.profile;
   const brand = adnData?.brand;
   const market = adnData?.market;
@@ -221,10 +298,13 @@ export default async function CustomerVoicePage() {
             <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/10">
               <Fingerprint className="h-5 w-5 text-violet-400" />
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-[17px] font-medium text-white/90 tracking-wide">Identidad</h2>
               <p className="text-[11px] text-white/25 font-light">Quién sos y qué hacés</p>
             </div>
+            <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/30 hover:text-white/70 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+              <Pencil className="h-3 w-3" />Editar
+            </Link>
           </div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-5">
             <Field icon={Briefcase} label="Negocio" value={profile?.business_description} />
@@ -239,7 +319,10 @@ export default async function CustomerVoicePage() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Target className="h-4 w-4 text-cyan-400" />
-              <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Tu Avatar</span>
+              <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Tu Avatar</span>
+              <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+                <Pencil className="h-2.5 w-2.5" />Editar
+              </Link>
             </div>
             <p className="text-[14px] text-white/75 font-light leading-[1.7] mb-4">{profile?.avatar_description || "—"}</p>
           </div>
@@ -258,7 +341,10 @@ export default async function CustomerVoicePage() {
           <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #34d399 0%, transparent 70%)" }} />
           <div className="flex items-center gap-2 mb-4">
             <ThumbsUp className="h-4 w-4 text-emerald-400" />
-            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Por qué te eligen</span>
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Por qué te eligen</span>
+            <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+              <Pencil className="h-2.5 w-2.5" />Editar
+            </Link>
           </div>
           <p className="text-[14px] text-white/70 font-light leading-[1.7]">{brand?.why_clients_choose || "—"}</p>
         </div>
@@ -266,7 +352,10 @@ export default async function CustomerVoicePage() {
           <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #fbbf24 0%, transparent 70%)" }} />
           <div className="flex items-center gap-2 mb-4">
             <Shield className="h-4 w-4 text-amber-400" />
-            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Diferenciador</span>
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Diferenciador</span>
+            <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+              <Pencil className="h-2.5 w-2.5" />Editar
+            </Link>
           </div>
           <p className="text-[14px] text-white/70 font-light leading-[1.7]">{market?.differentiator || "—"}</p>
         </div>
@@ -274,7 +363,10 @@ export default async function CustomerVoicePage() {
           <div className="absolute -top-10 -left-10 w-32 h-32 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #c084fc 0%, transparent 70%)" }} />
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb className="h-4 w-4 text-purple-400" />
-            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium">Mecanismos Nuevos</span>
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Mecanismos Nuevos</span>
+            <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+              <Pencil className="h-2.5 w-2.5" />Editar
+            </Link>
           </div>
           <p className="text-[14px] text-white/70 font-light leading-[1.7]">{brand?.new_mechanisms || "—"}</p>
         </div>
@@ -287,7 +379,10 @@ export default async function CustomerVoicePage() {
             <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/10">
               <TrendingUp className="h-4.5 w-4.5 text-amber-400" />
             </div>
-            <h3 className="text-[15px] font-medium text-white/85 tracking-wide">Mercado e Industria</h3>
+            <h3 className="text-[15px] font-medium text-white/85 tracking-wide flex-1">Mercado e Industria</h3>
+            <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/30 hover:text-white/70 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+              <Pencil className="h-3 w-3" />Editar
+            </Link>
           </div>
           <div className="space-y-5">
             <Field icon={TrendingUp} label="Estado de la Industria" value={market?.industry_state} accent="amber" />
@@ -302,7 +397,10 @@ export default async function CustomerVoicePage() {
           <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center gap-2 mb-5">
               <Globe className="h-4 w-4 text-cyan-400" />
-              <h3 className="text-[14px] font-medium text-white/80 tracking-wide">ADN del Nicho</h3>
+              <h3 className="text-[14px] font-medium text-white/80 tracking-wide flex-1">ADN del Nicho</h3>
+              <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+                <Pencil className="h-2.5 w-2.5" />Editar
+              </Link>
             </div>
             {brand?.niche_language && (
               <div className="mb-4">
@@ -364,10 +462,13 @@ export default async function CustomerVoicePage() {
                     <div className={`h-8 w-8 rounded-xl bg-${color}-500/10 flex items-center justify-center border border-${color}-500/10`}>
                       {isIg ? <Instagram className="h-4 w-4 text-pink-400" /> : <Youtube className="h-4 w-4 text-red-400" />}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-[14px] font-medium text-white/85 tracking-wide capitalize">{s.platform}</h3>
                       <p className="text-[10px] text-white/20 font-light">Estrategia de contenido</p>
                     </div>
+                    <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
+                      <Pencil className="h-2.5 w-2.5" />Editar
+                    </Link>
                   </div>
                   <div className="space-y-4">
                     <Field icon={Eye} label="Qué probó" value={s.what_tested} />
@@ -389,8 +490,11 @@ export default async function CustomerVoicePage() {
         <div className="animate-slide-up">
           <div className="flex items-center gap-2 mb-4">
             <Star className="h-4 w-4 text-yellow-400" />
-            <h3 className="text-[14px] font-medium text-white/80 tracking-wide">Marcas de Referencia</h3>
-            <span className="text-[11px] text-white/20 font-light ml-1">({references.length})</span>
+            <h3 className="text-[14px] font-medium text-white/80 tracking-wide flex-1">Marcas de Referencia</h3>
+            <span className="text-[11px] text-white/20 font-light">({references.length})</span>
+            <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all ml-2">
+              <Pencil className="h-2.5 w-2.5" />Editar
+            </Link>
           </div>
           <div className="flex gap-4">
             {references.map((r, i) => (
@@ -427,13 +531,23 @@ export default async function CustomerVoicePage() {
     />
   );
 
+  // ─── Calendar Content ─────────────────────────────────────────────────────
+
+  const calendarContent = (
+    <ContentCalendar
+      currentMonth={currentMonth}
+      publishedReels={calendarReels}
+      planItems={calendarPlanItems}
+    />
+  );
+
   return (
     <div className="px-8 py-10">
       {/* Header */}
       <div className="animate-slide-up mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="page-title">Customer Voice</h1>
+            <h1 className="page-title">Tu Identidad</h1>
             <p className="text-white/35 mt-3 text-[15px] font-light">
               El ADN completo de tu marca y el análisis de tu competencia.
             </p>
@@ -448,7 +562,11 @@ export default async function CustomerVoicePage() {
       </div>
 
       <Suspense>
-        <CustomerVoiceTabs adnContent={adnContent} competitorContent={competitorContent} />
+        <CustomerVoiceTabs
+          adnContent={adnContent}
+          competitorContent={competitorContent}
+          calendarContent={calendarContent}
+        />
       </Suspense>
     </div>
   );
