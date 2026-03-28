@@ -669,7 +669,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("published_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("normal");
   const [distFilter, setDistFilter] = useState<DistFilter>("all");
   const [page, setPage] = useState(1);
 
@@ -726,9 +726,9 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
           >
             {([
+              { key: "normal", label: "Reel", icon: null },
+              { key: "trial", label: "Trial reel", icon: AlertTriangle },
               { key: "all", label: "Todos", icon: null },
-              { key: "trial", label: "Trial", icon: AlertTriangle },
-              { key: "normal", label: "No Trial", icon: null },
             ] as { key: TypeFilter; label: string; icon: React.ElementType | null }[]).map((opt) => (
               <button
                 key={opt.key}
@@ -782,12 +782,12 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
 
       {/* Grid + Sidebar row — sidebar aligns with grid top */}
       <div className="flex gap-5 items-start">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0" style={{ containerType: "inline-size" }}>
 
         {/* Portrait grid */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 @[640px]:grid-cols-3 @[900px]:grid-cols-4">
           {filtered.length === 0 && (
-            <div className="col-span-4 py-16 text-center text-zinc-500 text-sm">
+            <div className="col-span-full py-16 text-center text-zinc-500 text-sm">
               No hay reels que coincidan con los filtros.
             </div>
           )}
@@ -898,23 +898,22 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                 {/* ── Content below thumbnail ── */}
                 <div className="flex flex-col gap-2 p-3">
 
-                  {/* Row 1: Views + metrics inline */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
+                  {/* Row 1: Views + metrics */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <div className="flex items-center gap-1.5">
                       <Eye size={14} strokeWidth={1.5} className="text-white/50 shrink-0" />
-                      <span className="text-[24px] font-bold tracking-tight text-white leading-none">{fmt(reel.views_total)}</span>
-                      <span className="text-[9px] font-medium text-white/25 uppercase tracking-wider">views</span>
+                      <span className="text-[22px] font-bold tracking-tight text-white leading-none">{fmt(reel.views_total)}</span>
                     </div>
-                    <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="flex items-center gap-1.5 ml-auto">
                       {[
                         { value: reel.likes,    icon: Heart },
                         { value: reel.saves,    icon: Bookmark },
                         { value: reel.comments, icon: MessageCircle },
                         { value: reel.shares,   icon: Share2 },
                       ].map((m, i) => (
-                        <div key={i} className="flex items-center gap-0.5">
-                          <m.icon size={12} strokeWidth={0.5} fill="currentColor" className="text-white/70" />
-                          <span className="text-[12px] font-medium text-white/80">{fmt(m.value)}</span>
+                        <div key={i} className="flex items-center gap-px">
+                          <m.icon size={10} strokeWidth={0.5} fill="currentColor" className="text-white/70" />
+                          <span className="text-[10px] font-medium text-white/80">{fmt(m.value)}</span>
                         </div>
                       ))}
                     </div>

@@ -791,7 +791,7 @@ async function comparePeriods(
     .select('metric_date, reach, impressions, follower_count, followers_total, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves')
     .eq('workspace_id', workspaceId)
     .gte('metric_date', prevStartStr)
-    .lte('metric_date', nowStr)
+    .lt('metric_date', nowStr)
     .order('metric_date', { ascending: true });
 
   // Reels count for both periods
@@ -1082,7 +1082,7 @@ async function getCompetitorAnalysis(
     const entry: Record<string, unknown> = {
       name: comp.name,
       ig_url: comp.ig_url,
-      why_user_is_better: comp.why_better,
+      what_user_likes: comp.why_better,
       last_scraped: comp.last_scraped_at,
       profile: profile && Object.keys(profile).length > 0 ? {
         followers: profile.ig_follower_count ?? null,
@@ -1182,7 +1182,7 @@ export async function loadAdnContext(
 
   if (adn.competitors.length > 0) {
     const compList = adn.competitors.map(c =>
-      `- ${c.name ?? 'Sin nombre'}${c.ig_url ? ` (${c.ig_url})` : ''}: ${c.why_better ?? 'sin info'}`
+      `- ${c.name ?? 'Sin nombre'}${c.ig_url ? ` (${c.ig_url})` : ''}: ${c.why_better ? c.why_better.replace(/\[(MARCA|CONTENIDO)]\s*/g, (_, tag: string) => tag === 'MARCA' ? 'Le gusta de su marca: ' : 'Le gusta de su contenido: ') : 'sin info'}`
     ).join('\n');
     sections.push(`## Competidores\n${compList}`);
   }

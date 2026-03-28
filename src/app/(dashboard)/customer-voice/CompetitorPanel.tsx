@@ -805,11 +805,11 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
                   </div>
                 )}
 
-                {/* Why user is better */}
+                {/* What user likes about this competitor */}
                 {comp.why_better && (
                   <div className="px-5 pb-4 border-t border-white/[0.04] pt-3">
-                    <span className="text-[10px] text-emerald-400/40 uppercase tracking-[0.12em] font-medium">Por qué vos sos mejor</span>
-                    <p className="text-[11px] text-white/45 font-light mt-1 leading-[1.6]">{comp.why_better}</p>
+                    <span className="text-[10px] text-violet-400/40 uppercase tracking-[0.12em] font-medium">Qué te gusta</span>
+                    <p className="text-[11px] text-white/45 font-light mt-1 leading-[1.6] whitespace-pre-line">{comp.why_better.replace(/\[(MARCA|CONTENIDO)]\s*/g, (_, tag: string) => tag === 'MARCA' ? '🏷️ Marca: ' : '📹 Contenido: ')}</p>
                   </div>
                 )}
               </div>

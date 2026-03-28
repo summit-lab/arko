@@ -9,19 +9,19 @@ interface AdnSectionProgressProps {
 const sections = [
   {
     number: 1,
-    title: "Documentos Base",
+    title: "Tu Negocio",
     keys: ["profile"] as const,
     totalFields: 5, // business_description, brand_persona, avatar_description, target_audience, main_offer
   },
   {
     number: 2,
-    title: "Redes Sociales",
+    title: "Tu Contenido",
     keys: ["strategies"] as const,
     totalFields: 2, // instagram + youtube platforms
   },
   {
     number: 3,
-    title: "Competidores",
+    title: "Tu Mercado",
     keys: ["market", "competitors"] as const,
     totalFields: 8, // 7 market fields + 1 competitor min
   },
@@ -65,10 +65,13 @@ function isSectionActive(progress: AdnProgress, sectionNumber: number): boolean 
 }
 
 export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
-  // Calculate overall % from all fields
+  // Calculate overall % — if a section is complete, count it as fully filled
   const totalPossible = sections.reduce((sum, s) => sum + s.totalFields, 0); // 21
   const totalFilled = sections.reduce(
-    (sum, s) => sum + Math.min(getSectionFieldCount(progress, s.keys), s.totalFields),
+    (sum, s) => {
+      const complete = isSectionComplete(progress, s.keys);
+      return sum + (complete ? s.totalFields : Math.min(getSectionFieldCount(progress, s.keys), s.totalFields));
+    },
     0
   );
   const percent = Math.round((totalFilled / totalPossible) * 100);

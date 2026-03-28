@@ -184,7 +184,7 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
                               )}
                             </div>
                             {c.why_better && (
-                              <p className="text-[11px] text-white/35 font-light leading-relaxed">{c.why_better}</p>
+                              <p className="text-[11px] text-white/35 font-light leading-relaxed whitespace-pre-line">{c.why_better.replace(/\[(MARCA|CONTENIDO)]\s*/g, (_, tag: string) => tag === 'MARCA' ? 'Marca: ' : 'Contenido: ')}</p>
                             )}
                           </div>
                         ))}

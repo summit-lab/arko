@@ -597,14 +597,14 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
   // ─── REEL detail layout ─────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-6 py-8 sm:px-10 lg:px-[4%] min-w-0 overflow-hidden">
       {/* Back nav */}
       <InstagramBackButton />
 
       {/* Hero: Thumbnail + Title + Meta */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
         {/* Thumbnail / Video */}
-        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-4 self-start">
+        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-4 max-w-[300px] md:max-w-none md:sticky md:top-6 self-start">
           <div className="relative aspect-[9/14.8] overflow-hidden rounded-[20px] border border-white/10 bg-black">
             {reelPlaybackUrl ? (
               <video
@@ -654,8 +654,8 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
         </div>
 
-        {/* Caption + Quick Info */}
-        <div className="flex min-h-full flex-col gap-5">
+        {/* Caption + Quick metrics + Views chart — must match video height */}
+        <div className="flex flex-col gap-5">
           <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-6">
             <div className="flex items-center gap-2 mb-2">
               {reel.reel_type === "trial_likely" && (
@@ -675,29 +675,126 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               { label: "Likes", pct: `${likesPct.toFixed(2)}%`, raw: reel.likes, icon: Heart, comp: likesComp },
               { label: "Saves", pct: `${savesPct.toFixed(2)}%`, raw: reel.saves, icon: Bookmark, comp: savesComp },
               { label: "Shares", pct: `${sharesPct.toFixed(2)}%`, raw: reel.shares, icon: Share2, comp: sharesComp },
               { label: "Comments", pct: `${commentsPct.toFixed(2)}%`, raw: reel.comments, icon: MessageSquare, comp: commentsComp },
             ].map((m) => (
-              <div key={m.label} className="glass-panel min-h-[120px] rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <m.icon className="h-4 w-4 text-white" fill="currentColor" strokeWidth={0.5} />
+              <div key={m.label} className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl flex flex-col justify-between">
+                <div className="flex items-center gap-2 mb-2">
+                  <m.icon className="h-3.5 w-3.5 text-white" fill="currentColor" strokeWidth={0.5} />
                   <span className="text-[11px] font-medium text-zinc-400">{m.label}</span>
                 </div>
-                <p className="text-[32px] font-light text-white leading-none tracking-tight">{formatNumber(m.raw)}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[13px] font-light text-white/40">{m.pct} de views</span>
-                  <span className={`text-[11px] font-medium ${m.comp.color}`}>{m.comp.label}</span>
+                <p className="text-[28px] font-light text-white leading-none tracking-tight">{formatNumber(m.raw)}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="text-[11px] font-light text-white/40">{m.pct} de views</span>
+                  <span className={`text-[10px] font-medium ${m.comp.color}`}>{m.comp.label}</span>
                 </div>
               </div>
             ))}
           </div>
 
+          <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl flex-1">
+            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+              <Eye className="h-3.5 w-3.5 text-zinc-400" />
+              Evolución de Views
+            </h3>
+            <ReelDailySparkline data={dailyViews} />
+          </div>
+        </div>
+      </div>
+
+      {/* Full-width: Métricas Extendidas + Interacciones vs Benchmark */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_440px] xl:items-start">
+        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-3 shadow-xl shadow-black/20 backdrop-blur-xl">
+          <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold text-zinc-200">
+            <TrendingUp className="h-3 w-3 text-zinc-400" />
+            Métricas Extendidas
+          </h3>
+          {(() => {
+            const extMetrics = [
+              { label: "Views Org", value: formatNumber(reel.views_org), color: "text-emerald-400" },
+              { label: "Views Total", value: formatNumber(reel.views_total), color: "text-white" },
+              { label: "Reach Org", value: formatNumber(reel.reach_org), color: "text-sky-300" },
+              { label: "Reach Total", value: formatNumber(reel.reach_total), color: "text-white" },
+              { label: "Interacciones", value: formatNumber(reel.total_interactions), color: "text-amber-300" },
+              { label: "Watch Total", value: formatTime(reel.total_watch_time_seconds), color: "text-cyan-300" },
+              ...(hasPaidSignals ? [
+                { label: "Views Paid", value: formatNumber(reel.views_paid), color: "text-purple-400" },
+                { label: "Reach Paid", value: formatNumber(reel.reach_paid), color: "text-purple-300" },
+                { label: "Impr. Paid", value: formatNumber(reel.impressions_paid), color: "text-zinc-100" },
+              ] : []),
+            ];
+            const ratioMetrics = [
+              { label: "Watch Prom.", value: formatTime(reel.avg_watch_time_seconds), sub: watchPct != null ? `${watchPct}%` : null },
+              { label: "Engagement", value: `${engagementRate.toFixed(1)}%`, sub: "int/views" },
+              { label: "Views/Reach", value: viewsPerReach == null ? "—" : `${viewsPerReach.toFixed(2)}x`, sub: "frecuencia" },
+              { label: "Retención", value: formatOptionalPercent(retentionRate), sub: "avg/dur" },
+              { label: "Saves/Views", value: `${savesPct.toFixed(2)}%`, sub: null },
+              { label: "Abandono", value: formatTime(avgDropoffSeconds), sub: "promedio" },
+              ...(reel.profile_visits != null ? [{ label: "Profile Visits", value: formatNumber(reel.profile_visits), sub: null }] : []),
+              ...(reel.follows != null ? [{ label: "Follows", value: `+${formatNumber(reel.follows)}`, sub: null, color: "text-cyan-400" }] : []),
+              ...(hasPaidSignals ? [
+                { label: "CTR Pago", value: formatOptionalPercent(paidCtr), sub: null },
+                { label: "CPV", value: paidCpv == null ? "—" : formatCents(Math.round(paidCpv * 100)), sub: null },
+                { label: "CPM", value: paidCpm == null ? "—" : formatCents(Math.round(paidCpm * 100)), sub: null },
+                { label: "Clicks", value: formatNumber(reel.paid_clicks), sub: null },
+                { label: "Spend", value: formatCents(reel.spend_cents), sub: null, color: "text-purple-300" },
+              ] : []),
+            ].filter((m) => m.value !== "—" && m.value !== "--");
+            const extCols = extMetrics.length <= 6 ? extMetrics.length : Math.ceil(extMetrics.length / 2);
+            const ratioCols = ratioMetrics.length <= 6 ? ratioMetrics.length : Math.ceil(ratioMetrics.length / 2);
+            return (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {extMetrics.map((m) => (
+                    <div key={m.label} className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-2 py-2 text-center overflow-hidden" style={{ flex: `1 1 calc(${100 / extCols}% - 8px)`, minWidth: 0 }}>
+                      <p className={`text-sm font-light truncate ${m.color || "text-zinc-100"}`}>{m.value}</p>
+                      <p className="text-[9px] text-zinc-400 mt-0.5 truncate">{m.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/5 pt-2">
+                  {ratioMetrics.map((m) => (
+                    <div key={m.label} className="rounded-md bg-white/5 px-2 py-1 overflow-hidden" style={{ flex: `1 1 calc(${100 / ratioCols}% - 6px)`, minWidth: 0 }}>
+                      <p className="text-[9px] text-zinc-500 truncate">{m.label}</p>
+                      <p className={`text-xs font-semibold truncate ${(m as { color?: string }).color || "text-white"}`}>
+                        {m.value}
+                        {m.sub && <span className="ml-1 text-[9px] font-normal text-zinc-500">{m.sub}</span>}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
+        <ReelPerformanceChart
+          likes={reel.likes}
+          saves={reel.saves}
+          comments={reel.comments}
+          shares={reel.shares}
+          viewsTotal={reel.views_total}
+          benchmarkLikes={reel.benchmark.avg_likes_pct}
+          benchmarkSaves={reel.benchmark.avg_saves_pct}
+          benchmarkComments={reel.benchmark.avg_comments_pct}
+          benchmarkShares={reel.benchmark.avg_shares_pct}
+        />
+      </div>
+
+      {/* Radar + Sales row */}
+      {(dayRadarData.some((d) => d.views > 0) || (reel.sales_amount != null && reel.sales_amount > 0)) && (
+        <div className="flex gap-6 items-start flex-wrap">
+          {dayRadarData.some((d) => d.views > 0) && (
+            <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl w-[420px] shrink-0">
+              <ReelDayRadar data={dayRadarData} />
+            </div>
+          )}
           {reel.sales_amount != null && reel.sales_amount > 0 && (
-            <div className="glass-panel rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+            <div className="glass-panel rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 shadow-xl shadow-black/20 backdrop-blur-xl flex-1 min-w-[280px]">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-emerald-400" />
@@ -722,103 +819,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               )}
             </div>
           )}
-
-          <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-              <Eye className="h-3.5 w-3.5 text-zinc-400" />
-              Evolución de Views
-            </h3>
-            <ReelDailySparkline data={dailyViews} />
-          </div>
         </div>
-      </div>
+      )}
 
-      {/* Full-width: Métricas Extendidas + Interacciones vs Benchmark */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-            <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
-            Métricas Extendidas
-          </h3>
-          {(() => {
-            const extMetrics = [
-              { label: "Views Org", value: formatNumber(reel.views_org), color: "text-emerald-400" },
-              { label: "Views Total", value: formatNumber(reel.views_total), color: "text-white" },
-              { label: "Reach Org", value: formatNumber(reel.reach_org), color: "text-sky-300" },
-              { label: "Reach Total", value: formatNumber(reel.reach_total), color: "text-white" },
-              { label: "Interacciones", value: formatNumber(reel.total_interactions), color: "text-amber-300" },
-              { label: "Watch Total", value: formatTime(reel.total_watch_time_seconds), color: "text-cyan-300" },
-              ...(hasPaidSignals ? [
-                { label: "Views Paid", value: formatNumber(reel.views_paid), color: "text-purple-400" },
-                { label: "Reach Paid", value: formatNumber(reel.reach_paid), color: "text-purple-300" },
-                { label: "Impr. Paid", value: formatNumber(reel.impressions_paid), color: "text-zinc-100" },
-              ] : []),
-              ...(reel.impressions_total > 0 ? [{ label: "Impr. Total", value: formatNumber(reel.impressions_total), color: "text-zinc-100" }] : []),
-            ];
-            const ratioMetrics = [
-              { label: "Watch Prom.", value: formatTime(reel.avg_watch_time_seconds), sub: watchPct != null ? `${watchPct}%` : null },
-              { label: "Engagement", value: `${engagementRate.toFixed(1)}%`, sub: "int/views" },
-              { label: "Views/Reach", value: viewsPerReach == null ? "—" : `${viewsPerReach.toFixed(2)}x`, sub: "frecuencia" },
-              { label: "Retención", value: formatOptionalPercent(retentionRate), sub: "avg/dur" },
-              { label: "Saves/Views", value: `${savesPct.toFixed(2)}%`, sub: null },
-              { label: "Abandono", value: formatTime(avgDropoffSeconds), sub: "promedio" },
-              ...(reel.profile_visits != null ? [{ label: "Profile Visits", value: formatNumber(reel.profile_visits), sub: null }] : []),
-              ...(reel.follows != null ? [{ label: "Follows", value: `+${formatNumber(reel.follows)}`, sub: null, color: "text-cyan-400" }] : []),
-              ...(hasPaidSignals ? [
-                { label: "CTR Pago", value: formatOptionalPercent(paidCtr), sub: null },
-                { label: "CPV", value: paidCpv == null ? "—" : formatCents(Math.round(paidCpv * 100)), sub: null },
-                { label: "CPM", value: paidCpm == null ? "—" : formatCents(Math.round(paidCpm * 100)), sub: null },
-                { label: "Clicks", value: formatNumber(reel.paid_clicks), sub: null },
-                { label: "Spend", value: formatCents(reel.spend_cents), sub: null, color: "text-purple-300" },
-              ] : []),
-            ].filter((m) => m.value !== "—" && m.value !== "--");
-            return (
-              <>
-                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${extMetrics.length}, minmax(0, 1fr))` }}>
-                  {extMetrics.map((m) => (
-                    <div key={m.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-3 text-center whitespace-nowrap overflow-hidden">
-                      <p className={`text-[18px] font-light ${m.color || "text-zinc-100"}`}>{m.value}</p>
-                      <p className="text-[10px] text-zinc-400 mt-1">{m.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 grid gap-2 border-t border-white/5 pt-3" style={{ gridTemplateColumns: `repeat(${ratioMetrics.length}, minmax(0, 1fr))` }}>
-                  {ratioMetrics.map((m) => (
-                    <div key={m.label} className="rounded-lg bg-white/5 px-2 py-1.5">
-                      <p className="text-[10px] text-zinc-500">{m.label}</p>
-                      <p className={`text-sm font-semibold ${(m as { color?: string }).color || "text-white"}`}>
-                        {m.value}
-                        {m.sub && <span className="ml-1 text-[10px] font-normal text-zinc-500">{m.sub}</span>}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </div>
-
-        <div className="space-y-4">
-          <ReelPerformanceChart
-            likes={reel.likes}
-            saves={reel.saves}
-            comments={reel.comments}
-            shares={reel.shares}
-            viewsTotal={reel.views_total}
-            benchmarkLikes={reel.benchmark.avg_likes_pct}
-            benchmarkSaves={reel.benchmark.avg_saves_pct}
-            benchmarkComments={reel.benchmark.avg_comments_pct}
-            benchmarkShares={reel.benchmark.avg_shares_pct}
-          />
-          {dayRadarData.some((d) => d.views > 0) && (
-            <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-              <ReelDayRadar data={dayRadarData} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
           <h3 className="mb-1 text-base font-semibold text-zinc-100">Volumen absoluto y ratios claros</h3>
           <p className="mb-4 text-xs text-zinc-300">Acá no hay barras sin base: arriba ves valores absolutos y abajo barras del tipo x de y.</p>

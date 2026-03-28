@@ -71,14 +71,7 @@ export async function Header() {
   } catch { /* header stats are non-critical */ }
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
-  const username = profile?.email?.split("@")[0] || "user";
   const isAdmin = profile?.role === "admin";
-  const initials = displayName
-    .split(" ")
-    .map((w: string) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
   return (
     <header className="h-[80px] w-full flex items-center justify-center px-6 z-30 sticky top-0 backdrop-blur-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
@@ -95,13 +88,16 @@ export async function Header() {
         {/* Left — User Profile */}
         <div className="flex items-center gap-3 cursor-pointer group">
           <div
-            className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+            className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
             style={{
               background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
               boxShadow: "0 0 12px rgba(99,102,241,0.3)",
             }}
           >
-            {initials}
+            <svg width="16" height="14" viewBox="0 0 607.13 523.93" xmlns="http://www.w3.org/2000/svg" aria-label="Arko">
+              <path fill="#fff" d="M412.55,17.53c-4.06-10.56-14.2-17.53-25.51-17.53h-185.69l-.23.57,79.73,207.46s0,.05.02.09c.66,3.31,4.16,22.81-8.98,40.42-12.23,16.41-30.03,19.33-33.45,19.83h-121.46c-11.31,0-21.46,6.97-25.51,17.53L0,523.93h204.93l77.56-201.82c3.56-7.38,11.97-22.46,28.68-35.1,1.71-1.33,3.54-2.61,5.44-3.84,16-10.42,31.4-13.64,40.08-14.78h152.26L412.55,17.53Z"/>
+              <path fill="#fff" d="M607.13,523.93h-204.93l-23.47-61.08c-18.53-49.04,6.47-104.64,55.35-123.28,48.72-18.58,104.22,5.99,123.21,54.68l49.84,129.68Z"/>
+            </svg>
           </div>
           <div className="hidden md:flex flex-col justify-center">
             <div className="flex items-center gap-1.5">

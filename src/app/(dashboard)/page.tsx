@@ -98,7 +98,7 @@ async function getDashboardData() {
       .select("metric_date, follower_count, followers_total")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", sevenDaysAgo)
-      .lte("metric_date", today)
+      .lt("metric_date", today)
       .order("metric_date", { ascending: true }),
 
     // Query 4: Last 30 days daily insights (for daily charts)

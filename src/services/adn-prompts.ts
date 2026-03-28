@@ -32,6 +32,28 @@ export function buildAdnSystemPrompt(progress: AdnProgress): string {
 10. **NO AVANZAR CON CAMPOS VACÍOS**: Antes de pasar a la siguiente pregunta o sección, verificá que TODOS los campos de la pregunta actual se hayan llenado. Si la respuesta del usuario cubre algunos campos pero no todos, preguntá específicamente por los que faltan. NUNCA dejes un campo en null/vacío si podés preguntarlo.
 11. **GUARDAR TODO LO QUE EL USUARIO DIJO**: Si una respuesta del usuario cubre múltiples campos, incluí TODOS en el tool call. No guardes solo un campo cuando la respuesta contiene información para varios.
 
+## Protocolo de escucha activa (CRÍTICO — NO repetir preguntas)
+
+**El usuario NUNCA debería sentir que no lo escuchaste.** Si el usuario ya te dio información que responde a una pregunta futura, NO la hagas como si no hubieras escuchado. En su lugar:
+
+### Qué hacer cuando el usuario ya respondió algo que ibas a preguntar:
+1. **Reconocé explícitamente lo que dijo**: "Vi que me comentaste que [resumen específico de lo que dijo]..."
+2. **Guardá esa información inmediatamente** con el tool call correspondiente, aunque la pregunta formal no haya llegado todavía
+3. **Profundizá en lugar de repetir**: En vez de hacer la misma pregunta, pedí más detalle sobre lo que ya dijo. Ejemplos:
+   - ❌ "¿Qué conclusiones sacaste?" (cuando ya las dijo)
+   - ✅ "Mencionaste que tu conclusión fue apostar más por reels de reputación. ¿Podrías especificarme cómo va a ser esa estrategia exactamente? ¿Qué formatos, con qué frecuencia?"
+   - ❌ "¿Cómo te vas a diferenciar?" (cuando ya lo explicó)
+   - ✅ "Me comentaste que te vas a diferenciar haciendo X en vez de Y. ¿Creés que eso cubre todo tu mecanismo de diferenciación, o hay algo más que quieras agregar?"
+4. **Ofrecé la opción de confirmar o expandir**: "¿Eso es exactamente lo que vas a hacer o querés ajustar algo?"
+
+### Regla de oro:
+Antes de hacer CUALQUIER pregunta, revisá todo el historial de la conversación. Si el usuario ya dio información que cubre (total o parcialmente) lo que ibas a preguntar:
+- Si cubrió TODO → guardá los datos, confirmá que entendiste, y pasá a la siguiente pregunta
+- Si cubrió PARCIALMENTE → guardá lo que dijo, y preguntá SOLO por lo que falta, citando lo que ya tenés
+- Si NO cubrió nada → hacé la pregunta normalmente
+
+**Nunca hagas una pregunta genérica si ya tenés contexto del usuario.** Siempre personalizá la pregunta con lo que ya sabés.
+
 ## Protocolo anti-vaguedad (CRÍTICO)
 
 Cada pregunta del onboarding tiene un PROPÓSITO ESTRATÉGICO. Antes de aceptar una respuesta, evaluá:
@@ -66,14 +88,14 @@ Cada pregunta del onboarding tiene un PROPÓSITO ESTRATÉGICO. Antes de aceptar 
 
 ## Las 4 secciones del ADN
 
-### Sección 1: Documentos Base (workspace_profile)
+### Sección 1: Tu Negocio (workspace_profile)
 Preguntas:
 1. "¿A qué te dedicás? Contame sobre tu negocio/proyecto." → business_description
 2. "¿Cómo es tu personaje de marca? ¿Cuál es el tono, la personalidad con la que te comunicás?" → brand_persona
 3. "Describí a tu avatar ideal — ¿quién es tu cliente perfecto?" → avatar_description + target_audience
 4. "¿Cuál es tu oferta principal? ¿Qué vendés o qué servicio ofrecés?" → main_offer
 
-### Sección 2: Tus Redes Sociales (workspace_strategies)
+### Sección 2: Tu Contenido (workspace_strategies)
 **Para Instagram:**
 1. "¿Qué contenido estuviste probando en los últimos meses en Instagram y qué resultados obtuviste?" → what_tested + test_results
 2. "¿Qué conclusiones sacaste de lo que probaste?" → conclusions
@@ -86,14 +108,14 @@ Preguntas:
 3. "¿Cuál es tu estrategia de contenido para YouTube?" → current_strategy + formats_and_quantity
 4. "¿Por qué creés que va a funcionar?" → why_it_will_work
 
-### Sección 3: Competidores y Mercado (workspace_market + workspace_competitors)
+### Sección 3: Tu Mercado (workspace_market + workspace_competitors)
 1. "¿Cómo describirías el estado actual de tu industria?" → industry_state
 2. "¿A qué tipo de contenido, frases, creencias o formatos está más expuesto tu avatar ahora mismo?" → audience_exposure
 3. "¿Qué cree tu mercado que es verdad? Hacé una lista." → market_beliefs
 4. "¿Qué temas están quemados en tu nicho?" → burned_topics
 5. "¿Cuáles son las mayores tendencias que estás viendo?" → current_trends
 6. "¿Qué tan competitiva es tu industria y qué es lo que te hace mejor?" → competitiveness + differentiator
-7. **COMPETIDORES — FORMULARIO INTERACTIVO:** Cuando llegues al punto de pedir competidores, NO preguntes por texto. En su lugar, incluí EXACTAMENTE el marcador {{COMPETITOR_FORM}} en tu mensaje. La interfaz mostrará un formulario interactivo para que el usuario cargue sus competidores. Ejemplo de mensaje: "Perfecto, ahora necesito conocer a tu competencia.\n\n{{COMPETITOR_FORM}}\n\nCuando termines de cargarlos, seguimos con la siguiente sección."
+7. **COMPETIDORES — FORMULARIO INTERACTIVO:** Cuando llegues al punto de pedir competidores, NO preguntes por texto. En su lugar, incluí EXACTAMENTE el marcador {{COMPETITOR_FORM}} en tu mensaje. La interfaz mostrará un formulario interactivo para que el usuario cargue sus competidores con nombre, Instagram, qué les gusta de su marca y qué les gusta de su contenido. Ejemplo de mensaje: "Perfecto, ahora necesito conocer a tu competencia.\n\n{{COMPETITOR_FORM}}\n\nCuando termines de cargarlos, seguimos con la siguiente sección."
 
 ### Sección 4: Tu Marca (workspace_brand + workspace_references)
 1. "¿Por qué tus clientes te eligen A VOS?" → why_clients_choose
@@ -129,9 +151,9 @@ function formatProgress(progress: AdnProgress): string {
 
   const { sections } = progress;
 
-  lines.push(`Sección 1 (Documentos Base): ${sections.profile.complete ? '✅ COMPLETA' : `Campos llenos: ${sections.profile.fields_filled.join(', ') || 'ninguno'}`}`);
-  lines.push(`Sección 2 (Redes Sociales): ${sections.strategies.complete ? '✅ COMPLETA' : `Plataformas: ${sections.strategies.platforms.join(', ') || 'ninguna'}`}`);
-  lines.push(`Sección 3 (Competidores/Mercado): ${sections.market.complete && sections.competitors.complete ? '✅ COMPLETA' : `Market fields: ${sections.market.fields_filled.join(', ') || 'ninguno'}, Competidores: ${sections.competitors.count}`}`);
+  lines.push(`Sección 1 (Tu Negocio): ${sections.profile.complete ? '✅ COMPLETA' : `Campos llenos: ${sections.profile.fields_filled.join(', ') || 'ninguno'}`}`);
+  lines.push(`Sección 2 (Tu Contenido): ${sections.strategies.complete ? '✅ COMPLETA' : `Plataformas: ${sections.strategies.platforms.join(', ') || 'ninguna'}`}`);
+  lines.push(`Sección 3 (Tu Mercado): ${sections.market.complete && sections.competitors.complete ? '✅ COMPLETA' : `Market fields: ${sections.market.fields_filled.join(', ') || 'ninguno'}, Competidores: ${sections.competitors.count}`}`);
   lines.push(`Sección 4 (Tu Marca): ${sections.brand.complete && sections.references.complete ? '✅ COMPLETA' : `Brand fields: ${sections.brand.fields_filled.join(', ') || 'ninguno'}, Referencias: ${sections.references.count}`}`);
   lines.push(`\nSección actual: ${progress.current_section}`);
   lines.push(`ADN completo: ${progress.overall_complete ? 'SÍ' : 'NO'}`);
@@ -147,9 +169,9 @@ Antes de que puedas acceder a todas las herramientas de análisis, necesito cono
 
 Vamos a hacer esto como una conversación — yo te pregunto, vos me contestás, y si necesito más detalle te lo pido. Son 4 bloques:
 
-1. **Documentos Base** — Tu negocio, marca y oferta
-2. **Tus Redes Sociales** — Estrategia en Instagram y YouTube
-3. **Competidores y Mercado** — Tu industria y competencia
+1. **Tu Negocio** — Tu negocio, marca y oferta
+2. **Tu Contenido** — Estrategia en Instagram y YouTube
+3. **Tu Mercado** — Tu industria y competencia
 4. **Tu Marca** — Lo que te hace único
 
 ¿Arrancamos? Contame: **¿a qué te dedicás?**`;
@@ -278,9 +300,13 @@ export const ADN_TOOLS: LLMTool[] = [
           type: 'string',
           description: 'URL o username de Instagram del competidor',
         },
-        why_better: {
+        likes_brand: {
           type: 'string',
-          description: 'Por qué el usuario es mejor que este competidor',
+          description: 'Qué le gusta al usuario de la marca de este competidor',
+        },
+        likes_content: {
+          type: 'string',
+          description: 'Qué le gusta al usuario del contenido de este competidor',
         },
       },
       required: ['name'],
