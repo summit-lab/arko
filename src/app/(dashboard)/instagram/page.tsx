@@ -38,7 +38,7 @@ interface ReelCard {
   sales_amount: number | null;
 }
 
-type TabKey = "dashboard" | "reels" | "metrics";
+type TabKey = "dashboard" | "reels" | "historias" | "competencia" | "metrics";
 
 // ─── Page Component ───
 
@@ -285,6 +285,36 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
             paidPct,
           } satisfies ReelsSummary) : undefined}
         />
+      )}
+
+      {/* ── TAB: Historias ───────────────────────────────────────── */}
+      {activeTab === "historias" && (
+        <div className="py-10 text-center">
+          <div className="inline-flex flex-col items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center">
+              <span className="text-2xl">📖</span>
+            </div>
+            <div>
+              <p className="text-white/50 font-light text-[15px]">Módulo de Historias — próximamente</p>
+              <p className="text-white/25 text-sm mt-1 font-light">Métricas y visualización diaria de Stories de Instagram</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: Competencia ─────────────────────────────────────── */}
+      {activeTab === "competencia" && (
+        <div className="py-10 text-center">
+          <div className="inline-flex flex-col items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center">
+              <span className="text-2xl">⚔️</span>
+            </div>
+            <div>
+              <p className="text-white/50 font-light text-[15px]">Análisis de Competencia — próximamente</p>
+              <p className="text-white/25 text-sm mt-1 font-light">Comparativa de métricas contra tus competidores definidos en el ADN</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── TAB: Demografía ──────────────────────────────────────── */}
