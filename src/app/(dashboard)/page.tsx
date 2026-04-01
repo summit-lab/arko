@@ -2,6 +2,8 @@ import { Eye, Heart, Bookmark, MessageSquare, Instagram, Youtube, ArrowUpRight, 
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { ContentCalendar } from "@/components/dashboard/ContentCalendar";
+import { MetasDonut } from "@/components/dashboard/MetasDonut";
 import { CountUp } from "@/components/ui/CountUp";
 
 // ─── Helpers ───
@@ -314,6 +316,14 @@ async function getDashboardData() {
     ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
   ];
 
+  // Calendar reels (all, for this month)
+  const calendarReels = reels.map((r) => ({
+    published_at: r.published_at,
+    caption: r.caption,
+    has_ads: r.has_ads,
+    reel_type: r.reel_type,
+  }));
+
   // Top reels por ventas (para gráfico)
   const salesChartData = [...reels]
     .filter((r) => (r.sales_amount ?? 0) > 0)
@@ -325,7 +335,7 @@ async function getDashboardData() {
       views: r.views_total,
     }));
 
-  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData };
+  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels };
 }
 
 // ─── Icon mapping (can't pass components as serialized data) ───
@@ -350,6 +360,7 @@ export default async function Home() {
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
   const salesChartData = data?.salesChartData ?? [];
+  const calendarReels = data?.calendarReels ?? [];
 
   return (
     <div className="px-8 py-10">
@@ -449,6 +460,7 @@ export default async function Home() {
               </div>
             )}
           </div>
+
         </div>
 
         {/* ── RIGHT: Summary Panel (30%) ── */}
@@ -468,6 +480,13 @@ export default async function Home() {
               ))}
             </div>
           </div>
+
+          {/* Metas del Mes — Donuts */}
+          <MetasDonut
+            views={data?.kpis[0]?.value ?? "—"}
+            followers={quickStats.find(s => s.label === "Nuevos Follows")?.value ?? "—"}
+            engRate={quickStats.find(s => s.label === "Engagement Rate")?.value ?? "—"}
+          />
 
           {/* Views by Country */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
@@ -519,6 +538,11 @@ export default async function Home() {
             );
           })()}
         </div>
+      </div>
+
+      {/* ── Calendario full-width ── */}
+      <div className="mt-6 animate-slide-up stagger-6">
+        <ContentCalendar reels={calendarReels} />
       </div>
     </div>
   );

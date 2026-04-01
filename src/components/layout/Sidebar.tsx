@@ -12,12 +12,17 @@ import {
 import { logout } from "@/app/(auth)/actions";
 
 const navItems = [
-  { name: "Dashboard",        href: "/",               svg: "/svgs/dashboard_21.svg" },
-  { name: "Instagram",        href: "/instagram",      svg: "/svgs/instagram_5.svg" },
-  { name: "YouTube",          href: "/youtube",        svg: "/svgs/youtube_16.svg" },
-  { name: "Ads Intelligence", href: "/ads",            svg: "/svgs/megaphone_9.svg" },
-  { name: "Tu Identidad",     href: "/customer-voice", svg: "/svgs/person-voice_1.svg" },
-  { name: "Arko AI",          href: "/agents",         svg: "/svgs/robot_6.svg" },
+  { name: "Dashboard",  href: "/",          svg: "/svgs/dashboard_21.svg" },
+  { name: "Instagram",  href: "/instagram", svg: "/svgs/instagram_5.svg" },
+  { name: "YouTube",    href: "/youtube",   svg: "/svgs/youtube_16.svg" },
+  { name: "Meta Ads",   href: "/ads",       svg: "/svgs/meta_logo.svg" },
+  { name: "Arko AI",   href: "/agents",    svg: "/svgs/robot_6.svg" },
+];
+
+const settingsNavItems = [
+  { name: "Branding",     href: "/settings",       svg: "/svgs/dashboard_21.svg" },
+  { name: "ADN de Marca", href: "/settings/adn", svg: "/svgs/arko-adn_1.svg" },
+  { name: "Metas",        href: "/settings/metas", svg: "/svgs/megaphone_9.svg" },
 ];
 
 interface SidebarProps {
@@ -51,7 +56,11 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
   // Use optimistic href for active state so it changes INSTANTLY on click
   const activeHref = optimisticHref ?? pathname;
 
+  const isInSettings = activeHref.startsWith("/settings");
+  const currentNavItems = isInSettings ? settingsNavItems : navItems;
+
   function isItemActive(href: string) {
+    if (href === "/settings") return activeHref === "/settings";
     return href === "/" ? activeHref === "/" : activeHref.startsWith(href);
   }
 
@@ -100,7 +109,12 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {isInSettings && (
+          <div className="px-3 pb-3 mb-1 border-b border-white/[0.06]">
+            <p className="text-[10px] text-white/30 uppercase tracking-[0.12em] font-medium">Configuración</p>
+          </div>
+        )}
+        {currentNavItems.map((item) => {
           const isActive = isItemActive(item.href);
 
           return (
@@ -160,18 +174,18 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
         })}
       </nav>
 
-      {/* ── Arko ADN ── */}
-      <div className="px-3 pb-2">
+      {/* ── Arko ADN (hidden in settings, it's in settings nav) ── */}
+      {!isInSettings && <div className="px-3 pb-2">
         <Link
-          href="/onboarding/adn"
-          onClick={(e) => handleNav("/onboarding/adn", e)}
+          href="/settings/adn"
+          onClick={(e) => handleNav("/settings/adn", e)}
           className={`group relative flex items-center gap-3.5 px-3 h-[42px] rounded-lg transition-all duration-200 overflow-hidden ${
-            isItemActive("/onboarding/adn")
+            isItemActive("/settings/adn")
               ? "bg-white/[0.06]"
               : "hover:bg-white/[0.03]"
           }`}
         >
-          {isItemActive("/onboarding/adn") && (
+          {isItemActive("/settings/adn") && (
             <div
               className="absolute left-0 top-[15%] bottom-[15%] w-[2px] rounded-full pointer-events-none"
               style={{
@@ -182,23 +196,23 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
           )}
           <Image
             src="/svgs/arko-adn_1.svg"
-            alt="Arko ADN"
+            alt="ADN de Marca"
             width={20}
             height={20}
             className="relative z-10 shrink-0 transition-opacity"
             style={{
               filter: "brightness(0) invert(1)",
-              opacity: isItemActive("/onboarding/adn") ? 1 : 0.4,
+              opacity: isItemActive("/settings/adn") ? 1 : 0.4,
             }}
           />
           <span
             className={`text-[14px] transition-colors relative z-10 flex-1 ${
-              isItemActive("/onboarding/adn")
+              isItemActive("/settings/adn")
                 ? "font-medium text-white tracking-wide"
                 : "font-light text-white/40 group-hover:text-white/65 tracking-wide"
             }`}
           >
-            Arko ADN
+            ADN de Marca
           </span>
           {adnPending && (
             <span className="relative z-10 flex h-2 w-2">
@@ -206,7 +220,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
               <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
             </span>
           )}
-          {isItemActive("/onboarding/adn") && (
+          {isItemActive("/settings/adn") && (
             <div
               className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
               style={{
@@ -215,7 +229,21 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
             />
           )}
         </Link>
-      </div>
+      </div>}
+
+      {/* ── Settings back link ── */}
+      {isInSettings && (
+        <div className="px-3 pb-2">
+          <Link
+            href="/"
+            onClick={(e) => handleNav("/", e)}
+            className="group flex items-center gap-3 px-3 h-[42px] rounded-lg transition-all duration-200 hover:bg-white/[0.03]"
+          >
+            <span className="text-white/30 group-hover:text-white/60 transition-colors text-sm">←</span>
+            <span className="text-[13px] font-light text-white/30 group-hover:text-white/60 tracking-wide transition-colors">Volver al app</span>
+          </Link>
+        </div>
+      )}
 
       {/* ── Bottom ── */}
       <div className="px-3 py-6 space-y-1 border-t border-white/[0.06]">

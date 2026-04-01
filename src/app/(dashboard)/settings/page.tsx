@@ -46,7 +46,7 @@ export default async function SettingsPage() {
   const hasActiveConnection = connection?.status === "active";
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
+    <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="page-title">Settings</h1>
         <p className="text-zinc-400 mt-1 text-sm">Configuración de tu cuenta y workspace.</p>
