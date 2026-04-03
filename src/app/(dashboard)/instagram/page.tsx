@@ -62,6 +62,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   let demographics: { audience_gender_age: Record<string, number>; audience_city: Record<string, number>; audience_country: Record<string, number> } | null = null;
   let connectionStatus: string | null = null;
   let totalFollowers = 0;
+  let totalAdVideoPlays = 0;
   let posts: Array<{
     id: string; ig_media_id: string; caption: string | null;
     thumbnail_url: string | null; permalink: string | null;
@@ -161,7 +162,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       : null;
 
     // ── Fetch all in parallel ──
-    const [connectionResult, mediaResult, benchmarkResult, insightsResult, demoResult, storiesResult, postsResult] = await Promise.all([
+    const [connectionResult, mediaResult, benchmarkResult, insightsResult, demoResult, storiesResult, postsResult, adsSyncResult, salesResult] = await Promise.all([
       supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).maybeSingle(),
       mediaQuery ?? Promise.resolve({ data: null as null }),
       supabase.from("reel_benchmarks").select("avg_views_90d").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
@@ -169,9 +170,21 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       demoQuery ?? Promise.resolve({ data: null as null }),
       storiesQuery ?? Promise.resolve({ data: null as null }),
       postsQuery ?? Promise.resolve({ data: null as null }),
+      supabase.from("sync_jobs").select("metadata").eq("workspace_id", workspaceId).eq("job_type", "ads_insights").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("sales").select("reel_id, amount_total").eq("workspace_id", workspaceId).not("reel_id", "is", null),
     ]);
 
     connectionStatus = connectionResult.data?.status || null;
+    const adsMeta = adsSyncResult.data?.metadata as { totalVideoPlays?: number; totalVideoPlays30d?: number } | null;
+    totalAdVideoPlays = periodDays <= 30
+      ? (adsMeta?.totalVideoPlays30d ?? adsMeta?.totalVideoPlays ?? 0)
+      : (adsMeta?.totalVideoPlays ?? 0);
+
+    // Build reel_id → sales amount map from the sales table (source of truth)
+    const salesByReel = new Map<string, number>();
+    for (const s of (salesResult.data ?? []) as { reel_id: string; amount_total: number }[]) {
+      salesByReel.set(s.reel_id, (salesByReel.get(s.reel_id) ?? 0) + Number(s.amount_total));
+    }
 
     // Process stories
     if (storiesResult?.data) {
@@ -294,7 +307,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
               follows: m?.follows_generated || 0,
               performer_multiple: multiple,
               is_top_performer: (multiple || 0) >= 3,
-              sales_amount: r.sales_amount ?? null,
+              sales_amount: salesByReel.get(r.id) ?? null,
             };
           });
         }
@@ -379,6 +392,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           reels={dashboardReels}
           totalFollowers={totalFollowers}
           periodDays={periodDays}
+          totalAdVideoPlays={totalAdVideoPlays}
         />
       )}
 
