@@ -16,6 +16,7 @@ const navItems = [
   { name: "Instagram",  href: "/instagram", svg: "/svgs/instagram_5.svg" },
   { name: "YouTube",    href: "/youtube",   svg: "/svgs/youtube_16.svg" },
   { name: "Meta Ads",   href: "/ads",       svg: "/svgs/meta_logo.svg" },
+  { name: "Ventas",     href: "/ventas",    svg: "/svgs/megaphone_9.svg" },
   { name: "Arko AI",   href: "/agents",    svg: "/svgs/robot_6.svg" },
 ];
 

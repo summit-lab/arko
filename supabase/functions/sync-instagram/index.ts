@@ -246,9 +246,9 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
     const igData = await igRes.json();
     if (igData.error) throw new Error(`IG API: ${igData.error.message}`);
     const allMedia: IGMedia[] = igData.data || [];
-    const media = allMedia.filter((m) => m.media_product_type === "REELS");
+    const media = allMedia.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
 
-    // 2) Batch upsert reels only (1 query)
+    // 2) Batch upsert all media (reels + posts + carousels)
     const rows = media.map((m) => ({
       workspace_id: workspaceId,
       ig_media_id: m.id,
@@ -385,7 +385,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
 
     const allMediaRaw = await fetchAllMedia(igAccountId, accessToken);
-    const allMedia = allMediaRaw.filter((m) => m.media_product_type === "REELS");
+    const allMedia = allMediaRaw.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
     await supabase.from("sync_jobs").update({ total_items: allMedia.length }).eq("id", syncJobId);
 
     // Get existing reels with metrics timestamps + published_at for decay tiers

@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Eye, Heart, Bookmark, MessageCircle, Play, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CalendarReel {
+  id: string;
   published_at: string;
   caption: string | null;
   has_ads: boolean;
   reel_type?: string;
+  views_total: number;
+  likes: number;
+  saves: number;
+  comments: number;
 }
 
 interface ContentCalendarProps {
@@ -19,39 +26,64 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-type Filter = "all" | "organic" | "ads";
+function fmt(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
+
+type ContentFilter = "all" | "reels" | "posts" | "historias";
+
+// Content type detection (all are reels for now; ready for posts/historias)
+function getContentType(_reel: CalendarReel): "reel" | "post" | "historia" {
+  return "reel";
+}
 
 export function ContentCalendar({ reels }: ContentCalendarProps) {
-  const [filter, setFilter] = useState<Filter>("all");
-
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [filter, setFilter] = useState<ContentFilter>("all");
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
   const today = now.getDate();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
 
-  const firstDay = new Date(year, month, 1);
+  const isCurrentMonth = viewYear === currentYear && viewMonth === currentMonth;
+
+  function prevMonth() {
+    setSelectedDay(null);
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
+    else setViewMonth(m => m - 1);
+  }
+
+  function nextMonth() {
+    setSelectedDay(null);
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
+  }
+
+  const firstDay = new Date(viewYear, viewMonth, 1);
   const startOffset = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-  // Filter reels by platform toggle
+  // Filter content by type
   const filteredReels = reels.filter((r) => {
-    if (filter === "organic") return !r.has_ads;
-    if (filter === "ads") return r.has_ads;
+    if (filter === "historias") return false;
+    if (filter === "posts") return false;
+    if (filter === "reels") return true;
     return true;
   });
 
-  // Map days that have content
-  const dayMap = new Map<number, { organic: boolean; ads: boolean; count: number }>();
+  // Map days → content items
+  const dayMap = new Map<number, CalendarReel[]>();
   filteredReels.forEach((r) => {
     const d = new Date(r.published_at);
-    if (d.getFullYear() === year && d.getMonth() === month) {
+    if (d.getFullYear() === viewYear && d.getMonth() === viewMonth) {
       const day = d.getDate();
-      const existing = dayMap.get(day) ?? { organic: false, ads: false, count: 0 };
-      dayMap.set(day, {
-        organic: existing.organic || !r.has_ads,
-        ads: existing.ads || r.has_ads,
-        count: existing.count + 1,
-      });
+      const existing = dayMap.get(day) ?? [];
+      dayMap.set(day, [...existing, r]);
     }
   });
 
@@ -61,15 +93,19 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const totalThisMonth = reels.filter((r) => {
+  const totalThisMonth = filteredReels.filter((r) => {
     const d = new Date(r.published_at);
-    return d.getFullYear() === year && d.getMonth() === month;
+    return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
   }).length;
 
-  const totalFiltered = filteredReels.filter((r) => {
-    const d = new Date(r.published_at);
-    return d.getFullYear() === year && d.getMonth() === month;
-  }).length;
+  const selectedItems = selectedDay ? (dayMap.get(selectedDay) ?? []) : [];
+
+  const FILTERS: { key: ContentFilter; label: string; dot?: string }[] = [
+    { key: "all", label: "Todo" },
+    { key: "reels", label: "Reels", dot: "bg-emerald-400" },
+    { key: "posts", label: "Posts", dot: "bg-violet-400" },
+    { key: "historias", label: "Historias", dot: "bg-blue-400" },
+  ];
 
   return (
     <div className="glass-panel rounded-xl p-6">
@@ -78,43 +114,50 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
         <div>
           <h3 className="text-[15px] font-light text-white tracking-wide">Calendario de Contenido</h3>
           <p className="text-[11px] text-white/25 mt-0.5 font-light">
-            {totalFiltered} publicacion{totalFiltered !== 1 ? "es" : ""} en {MONTHS[month]}
-            {filter !== "all" && ` · ${filter === "ads" ? "con anuncios" : "orgánico"}`}
+            {totalThisMonth} publicación{totalThisMonth !== 1 ? "es" : ""} en {MONTHS[viewMonth]}
           </p>
         </div>
 
-        {/* Platform filter toggle */}
+        {/* Content type filter */}
         <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          {([
-            { key: "all", label: "Todo" },
-            { key: "organic", label: "Orgánico" },
-            { key: "ads", label: "Ads" },
-          ] as { key: Filter; label: string }[]).map(({ key, label }) => (
+          {FILTERS.map(({ key, label, dot }) => (
             <button
               key={key}
-              onClick={() => setFilter(key)}
-              className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
-                filter === key
-                  ? "bg-white/[0.08] text-white"
-                  : "text-white/30 hover:text-white/55"
+              onClick={() => { setFilter(key); setSelectedDay(null); }}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                filter === key ? "bg-white/[0.08] text-white" : "text-white/30 hover:text-white/55"
               }`}
             >
+              {dot && filter === key && <div className={`h-1.5 w-1.5 rounded-full ${dot}`} />}
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Month label */}
-      <div className="flex items-center justify-between mb-3">
-        <div /> {/* spacer */}
-        <span className="text-[10px] text-white/20 uppercase tracking-[0.15em] font-medium">
-          {MONTHS[month]} {year}
+      {/* Month navigation */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={prevMonth}
+          className="h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/[0.06]"
+          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <ChevronLeft className="h-3.5 w-3.5 text-white/50" />
+        </button>
+        <span className="text-[12px] text-white/50 uppercase tracking-[0.12em] font-medium">
+          {MONTHS[viewMonth]} {viewYear}
         </span>
+        <button
+          onClick={nextMonth}
+          className="h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/[0.06]"
+          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <ChevronRight className="h-3.5 w-3.5 text-white/50" />
+        </button>
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7 mb-1">
+      <div className="grid grid-cols-7 mb-1.5">
         {DAYS.map((d) => (
           <div key={d} className="text-center text-[10px] text-white/20 font-medium uppercase tracking-wider py-1.5">
             {d}
@@ -122,54 +165,75 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1.5">
+      {/* Calendar grid — tall cells */}
+      <div className="grid grid-cols-7 gap-2">
         {cells.map((day, i) => {
-          if (!day) return <div key={`e-${i}`} />;
-          const info = dayMap.get(day);
-          const hasContent = !!info;
-          const isToday = day === today;
-          const isPast = day < today;
+          if (!day) return <div key={`e-${i}`} className="min-h-[100px]" />;
+          const items = dayMap.get(day) ?? [];
+          const hasContent = items.length > 0;
+          const isToday = isCurrentMonth && day === today;
+          const isPast = isCurrentMonth ? day < today : viewYear < currentYear || (viewYear === currentYear && viewMonth < currentMonth);
+          const isSelected = selectedDay === day;
+
+          // Best item by views
+          const best = hasContent ? [...items].sort((a, b) => b.views_total - a.views_total)[0] : null;
+          const hasAds = best?.has_ads ?? false;
 
           return (
             <div
               key={day}
-              title={hasContent ? `${info!.count} publicación${info!.count > 1 ? "es" : ""}` : undefined}
-              className={`relative flex flex-col items-center justify-center rounded-lg py-2 transition-all ${
-                isToday
-                  ? "ring-1 ring-white/25"
-                  : ""
+              onClick={() => hasContent ? setSelectedDay(isSelected ? null : day) : undefined}
+              className={`relative flex flex-col rounded-xl min-h-[100px] p-2.5 transition-all ${
+                isToday ? "ring-1 ring-white/30" : ""
               } ${
-                hasContent
-                  ? "hover:bg-white/[0.05] cursor-pointer"
-                  : isPast
-                  ? "opacity-40"
-                  : ""
+                hasContent ? "hover:bg-white/[0.06] cursor-pointer" : isPast ? "opacity-35" : ""
+              } ${
+                isSelected ? "bg-white/[0.08] ring-1 ring-white/20" : hasContent ? "bg-white/[0.03]" : ""
               }`}
-              style={isToday ? { background: "rgba(255,255,255,0.06)" } : hasContent ? { background: "rgba(255,255,255,0.03)" } : {}}
+              style={isToday && !hasContent ? { background: "rgba(255,255,255,0.05)" } : undefined}
             >
-              <span
-                className={`text-[12px] leading-none ${
-                  isToday
-                    ? "text-white font-medium"
-                    : hasContent
-                    ? "text-white/80 font-light"
-                    : "text-white/20 font-light"
-                }`}
-              >
+              {/* Day number */}
+              <span className={`text-[13px] leading-none mb-2 ${
+                isToday ? "text-white font-semibold" : hasContent ? "text-white/70 font-medium" : "text-white/20 font-light"
+              }`}>
                 {day}
               </span>
-              {hasContent && (
-                <div className="flex gap-0.5 mt-1.5">
-                  {info!.organic && (
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 opacity-80" />
-                  )}
-                  {info!.ads && (
-                    <div className="h-1.5 w-1.5 rounded-full bg-blue-400 opacity-80" />
-                  )}
-                  {info!.count > 1 && (
-                    <span className="text-[8px] text-white/30 leading-none ml-0.5 mt-0.5">+{info!.count - 1}</span>
-                  )}
+
+              {/* Content preview */}
+              {best && (
+                <div className="flex-1 flex flex-col gap-1 min-w-0">
+                  {/* Type + extra count */}
+                  <div className="flex items-center gap-1">
+                    <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
+                      getContentType(best) === "reel" ? (hasAds ? "bg-blue-400" : "bg-emerald-400")
+                      : getContentType(best) === "post" ? "bg-violet-400"
+                      : "bg-cyan-400"
+                    } opacity-85`} />
+                    {items.length > 1 && (
+                      <span className="text-[9px] text-white/30">+{items.length - 1}</span>
+                    )}
+                  </div>
+                  {/* Caption preview */}
+                  <p className="text-[10px] text-white/55 font-light leading-snug line-clamp-3 break-words flex-1">
+                    {best.caption?.slice(0, 55) || "Sin título"}
+                  </p>
+                  {/* Quick KPIs */}
+                  <div className="flex items-center gap-2 mt-auto pt-1.5 border-t border-white/[0.05]">
+                    <span className="flex items-center gap-0.5 text-[9px] text-white/40">
+                      <Eye className="h-2.5 w-2.5" />
+                      {fmt(best.views_total)}
+                    </span>
+                    <span className="flex items-center gap-0.5 text-[9px] text-white/40">
+                      <Heart className="h-2.5 w-2.5" />
+                      {fmt(best.likes)}
+                    </span>
+                    {best.saves > 0 && (
+                      <span className="flex items-center gap-0.5 text-[9px] text-white/40">
+                        <Bookmark className="h-2.5 w-2.5" />
+                        {fmt(best.saves)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -177,22 +241,78 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
         })}
       </div>
 
+      {/* Day detail panel */}
+      {selectedDay && selectedItems.length > 0 && (
+        <div
+          className="mt-4 rounded-xl p-4 space-y-3"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <p className="text-[11px] text-white/40 font-medium uppercase tracking-[0.1em]">
+            {selectedDay} de {MONTHS[viewMonth]} {viewYear} — {selectedItems.length} publicación{selectedItems.length !== 1 ? "es" : ""}
+          </p>
+          <div className="space-y-2">
+            {selectedItems.map((item) => (
+              <Link
+                key={item.id}
+                href={`/instagram/${item.id}`}
+                className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-white/[0.04] transition-all group"
+                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+              >
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <Play className="h-3.5 w-3.5 text-white/40" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-light text-white/70 group-hover:text-white transition-colors truncate">
+                    {item.caption?.slice(0, 80) || "Sin título"}
+                  </p>
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <span className="flex items-center gap-1 text-[10px] text-white/40">
+                      <Eye className="h-3 w-3" /> {fmt(item.views_total)} vistas
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-white/40">
+                      <Heart className="h-3 w-3" /> {fmt(item.likes)}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-white/40">
+                      <Bookmark className="h-3 w-3" /> {fmt(item.saves)}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-white/40">
+                      <MessageCircle className="h-3 w-3" /> {fmt(item.comments)}
+                    </span>
+                    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ml-auto ${
+                      item.has_ads ? "text-blue-400/70 bg-blue-400/10" : "text-emerald-400/70 bg-emerald-400/10"
+                    }`}>
+                      {item.has_ads ? "Con ads" : "Orgánico"}
+                    </span>
+                  </div>
+                </div>
+                <div className="shrink-0 text-white/20 group-hover:text-white/50 transition-colors text-[10px] self-center">→</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Legend */}
-      <div className="flex items-center gap-5 mt-5 pt-4 border-t border-white/[0.05]">
+      <div className="flex items-center gap-5 mt-5 pt-4 border-t border-white/[0.05] flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-emerald-400 opacity-80" />
-          <span className="text-[10px] text-white/25 font-light">Orgánico</span>
+          <span className="text-[10px] text-white/25 font-light">Reel orgánico</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-blue-400 opacity-80" />
-          <span className="text-[10px] text-white/25 font-light">Con anuncios</span>
+          <span className="text-[10px] text-white/25 font-light">Reel con ads</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-2 w-2 rounded-full bg-white/30" />
-          <span className="text-[10px] text-white/25 font-light">Hoy</span>
+          <div className="h-2 w-2 rounded-full bg-violet-400 opacity-80" />
+          <span className="text-[10px] text-white/25 font-light">Post/Carrusel</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-cyan-400 opacity-80" />
+          <span className="text-[10px] text-white/25 font-light">Historia</span>
         </div>
         <div className="ml-auto">
-          <span className="text-[10px] text-white/15 font-light">{totalThisMonth} publicaciones totales</span>
+          <span className="text-[10px] text-white/15 font-light">{totalThisMonth} publicaciones en {MONTHS[viewMonth]}</span>
         </div>
       </div>
     </div>

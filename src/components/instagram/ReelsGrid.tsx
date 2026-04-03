@@ -7,7 +7,7 @@ import {
   Heart, Bookmark, MessageCircle, Share2,
   Play, Clock, ArrowUpRight, Megaphone, AlertTriangle,
   UserPlus, ChevronDown, ArrowUpDown, Check, TrendingUp,
-  ExternalLink, DollarSign, CheckCircle2, X, Eye,
+  ExternalLink, DollarSign, Eye,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -182,114 +182,22 @@ const LIQUID_GLASS_BUTTON = {
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.2)",
 } as const;
 
-// ─── ReelActions (Ver en IG + Ventas) ────────────────────────────────────────
+// ─── ReelActions (Ver en IG) ─────────────────────────────────────────────────
 
-function ReelActions({ reelId, initialAmount, permalink }: {
-  reelId: string;
-  initialAmount?: number | null;
-  permalink?: string | null;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [inputVal, setInputVal] = useState(initialAmount?.toString() ?? "");
-  const [saved, setSaved] = useState<number | null>(initialAmount ?? null);
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
-
-  const handleSave = async (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.stopPropagation();
-    const amount = inputVal.trim() === "" ? null : parseFloat(inputVal);
-    if (inputVal.trim() !== "" && (isNaN(amount!) || amount! < 0)) return;
-    setLoading(true);
-    try {
-      await fetch(`/api/instagram/reels/${reelId}/sales`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sales_amount: amount }),
-      });
-      setSaved(amount);
-      setEditing(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <div
-          className="flex-1 flex items-center gap-1 rounded-md px-2.5 py-2"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)" }}
-        >
-          <DollarSign size={10} className="text-emerald-400/60 shrink-0" />
-          <input
-            ref={inputRef}
-            type="number"
-            min="0"
-            step="0.01"
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave(e as unknown as React.KeyboardEvent);
-              if (e.key === "Escape") { e.stopPropagation(); setEditing(false); }
-            }}
-            className="flex-1 min-w-0 w-0 bg-transparent text-[13px] text-white outline-none placeholder:text-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            placeholder="0.00"
-          />
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="h-[30px] w-[30px] flex items-center justify-center rounded-md cursor-pointer disabled:opacity-40 transition-colors shrink-0 hover:brightness-125"
-          style={{ background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.25)" }}
-        >
-          <CheckCircle2 size={13} strokeWidth={2} className="text-emerald-400" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-          className="h-[30px] w-[30px] flex items-center justify-center rounded-md cursor-pointer transition-colors hover:bg-white/[0.06] shrink-0"
-          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <X size={12} strokeWidth={2} className="text-white/40" />
-        </button>
-      </div>
-    );
-  }
-
+function ReelActions({ permalink }: { permalink?: string | null }) {
+  if (!permalink) return null;
   return (
-    <div className="flex gap-1.5">
-      {permalink && (
-        <a
-          href={permalink}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-semibold text-white transition-all cursor-pointer hover:brightness-125"
-          style={LIQUID_GLASS_BUTTON}
-        >
-          <ExternalLink size={10} strokeWidth={2} />
-          Ver en IG
-        </a>
-      )}
-      <button
-        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-        className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-semibold transition-all cursor-pointer hover:brightness-125 ${
-          saved !== null ? "text-emerald-300" : "text-white"
-        }`}
-        style={saved !== null ? {
-          background: "rgba(52,211,153,0.12)",
-          border: "1px solid rgba(52,211,153,0.25)",
-          backdropFilter: "blur(20px)",
-          boxShadow: "inset 0 1px 0 rgba(52,211,153,0.15)",
-        } : LIQUID_GLASS_BUTTON}
-      >
-        <DollarSign size={10} strokeWidth={2} />
-        {saved !== null ? `$${fmt(saved)}` : "Ventas"}
-      </button>
-    </div>
+    <a
+      href={permalink}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="flex items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-semibold text-white transition-all cursor-pointer hover:brightness-125"
+      style={LIQUID_GLASS_BUTTON}
+    >
+      <ExternalLink size={10} strokeWidth={2} />
+      Ver en IG
+    </a>
   );
 }
 
@@ -943,7 +851,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
 
                   {/* Row 4: Action buttons */}
                   <div className="pt-1 border-t border-white/[0.05]">
-                    <ReelActions reelId={reel.id} initialAmount={reel.sales_amount} permalink={reel.permalink} />
+                    <ReelActions permalink={reel.permalink} />
                   </div>
 
                   {/* Follows */}
