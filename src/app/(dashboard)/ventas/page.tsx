@@ -1,33 +1,60 @@
-import { DollarSign } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceId } from "@/lib/workspace";
+import { VentasClient } from "./VentasClient";
 
-export default function VentasPage() {
-  return (
-    <div className="px-8 py-10">
-      <div className="animate-slide-up mb-10">
-        <h1 className="page-title">Ventas</h1>
-        <p className="text-white/35 mt-3 text-[15px] font-light">Seguimiento de ventas generadas desde tu contenido.</p>
-      </div>
+export default async function VentasPage() {
+  const supabase = await createClient();
+  const workspaceId = await getWorkspaceId();
 
-      <div className="flex flex-col items-center justify-center py-32 gap-6">
-        <div
-          className="h-16 w-16 rounded-2xl flex items-center justify-center"
-          style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}
-        >
-          <DollarSign className="h-7 w-7 text-emerald-400" />
-        </div>
-        <div className="text-center">
-          <p className="text-[22px] font-light text-white tracking-[-0.02em]">Próximamente</p>
-          <p className="text-[14px] text-white/30 font-light mt-2 max-w-sm">
-            Estamos trabajando en el módulo de ventas. Pronto podrás ver todas tus conversiones y revenue generado desde cada pieza de contenido.
-          </p>
-        </div>
-        <div
-          className="px-4 py-1.5 rounded-full text-[11px] font-medium text-emerald-400/70 uppercase tracking-[0.12em]"
-          style={{ background: "rgba(52,211,153,0.06)", border: "1px solid rgba(52,211,153,0.12)" }}
-        >
-          Coming Soon
-        </div>
-      </div>
-    </div>
-  );
+  let sales: Array<{
+    id: string;
+    source_type: string;
+    source_label: string | null;
+    amount_total: number;
+    amount_collected: number;
+    payment_type: string;
+    payment_status: string;
+    sale_date: string;
+    payment_method: string | null;
+    notes: string | null;
+    client_name: string | null;
+    reel_id: string | null;
+    reels: { id: string; caption: string | null; thumbnail_url: string | null; permalink: string | null } | null;
+  }> = [];
+
+  let reelsForPicker: Array<{ id: string; caption: string | null; thumbnail_url: string | null; published_at: string | null }> = [];
+
+  if (workspaceId) {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const [salesResult, reelsResult] = await Promise.all([
+      supabase
+        .from("sales")
+        .select(`
+          id, source_type, source_label, amount_total, amount_collected,
+          payment_type, payment_status, sale_date, payment_method, notes,
+          client_name, reel_id,
+          reels (id, caption, thumbnail_url, permalink)
+        `)
+        .eq("workspace_id", workspaceId)
+        .order("sale_date", { ascending: false })
+        .limit(200),
+      supabase
+        .from("reels")
+        .select("id, caption, thumbnail_url, published_at")
+        .eq("workspace_id", workspaceId)
+        .gte("published_at", ninetyDaysAgo)
+        .order("published_at", { ascending: false })
+        .limit(100),
+    ]);
+
+    if (salesResult.data) {
+      sales = salesResult.data.map((s) => ({
+        ...s,
+        reels: Array.isArray(s.reels) ? (s.reels[0] ?? null) : s.reels,
+      })) as typeof sales;
+    }
+    if (reelsResult.data) reelsForPicker = reelsResult.data;
+  }
+
+  return <VentasClient initialSales={sales} reelsForPicker={reelsForPicker} />;
 }

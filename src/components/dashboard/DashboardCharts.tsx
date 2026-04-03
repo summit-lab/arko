@@ -92,15 +92,15 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
       {/* Reach & Impressions — Area Chart */}
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[15px] font-light text-white tracking-wide">Reach & Impressions</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">Alcance & Visibilidad</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />
-              <span>Reach</span>
+              <span>Alcance</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#c084fc]" />
-              <span>Impressions</span>
+              <span>Impresiones</span>
             </div>
           </div>
         </div>
@@ -141,7 +141,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                 <Area
                   type="monotone"
                   dataKey="reach"
-                  name="Reach"
+                  name="Alcance"
                   stroke="#818cf8"
                   strokeWidth={2}
                   fill="url(#gradReach)"
@@ -153,7 +153,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                 <Area
                   type="monotone"
                   dataKey="impressions"
-                  name="Impressions"
+                  name="Impresiones"
                   stroke="#c084fc"
                   strokeWidth={2}
                   fill="url(#gradImpressions)"
@@ -175,19 +175,19 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
       {/* Engagement — Bar Chart */}
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[15px] font-light text-white tracking-wide">Engagement</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">Interacciones</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#f472b6]" />
-              <span>Likes</span>
+              <span>Me gusta</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#22d3ee]" />
-              <span>Saves</span>
+              <span>Guardados</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#34d399]" />
-              <span>Comments</span>
+              <span>Comentarios</span>
             </div>
           </div>
         </div>
@@ -215,9 +215,9 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   tickFormatter={(v: number) => formatCompactValue(v)}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.06)" }} />
-                <Bar dataKey="likes" name="Likes" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
-                <Bar dataKey="saves" name="Saves" fill="#22d3ee" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
-                <Bar dataKey="comments" name="Comments" fill="#34d399" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="likes" name="Me gusta" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="saves" name="Guardados" fill="#22d3ee" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="comments" name="Comentarios" fill="#34d399" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
