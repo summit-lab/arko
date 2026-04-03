@@ -49,6 +49,7 @@ export interface IGDashboardProps {
   reels: ReelSummary[];
   totalFollowers: number;
   periodDays?: number;
+  totalAdVideoPlays?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -166,7 +167,7 @@ function ChartCursor({ points, height }: { points?: Array<{ x: number; y: number
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays = 90 }: IGDashboardProps) {
+export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays = 90, totalAdVideoPlays = 0 }: IGDashboardProps) {
   if (dailyInsights.length === 0 && reels.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -186,7 +187,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   const secondHalf = sorted.slice(halfIdx);
 
   const totalImpressions = sorted.reduce((s, d) => s + d.impressions, 0);
-  const totalReach = sorted.reduce((s, d) => s + d.reach, 0);
+  const avgDailyReach = sorted.length > 0 ? Math.round(sorted.reduce((s, d) => s + d.reach, 0) / sorted.length) : 0;
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
   const totalLikes = sorted.reduce((s, d) => s + d.likes, 0);
   const totalComments = sorted.reduce((s, d) => s + d.comments, 0);
@@ -225,12 +226,17 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   // Total sales
   const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
-  // Organic vs Paid split
-  const totalViewsOrg = reels.reduce((s, r) => s + r.views_org, 0);
-  const totalViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);
-  const totalViewsAll = totalViewsOrg + totalViewsPaid;
-  const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrg / totalViewsAll) * 100) : 100;
+  // Traffic split — use account-level impressions as total, ads API video plays as paid.
+  const totalViewsPaid = Math.min(totalAdVideoPlays, totalImpressions);
+  const totalViewsOrgOnly = Math.max(0, totalImpressions - totalViewsPaid);
+  const totalViewsAll = totalImpressions;
+  const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrgOnly / totalViewsAll) * 100) : 100;
   const paidPct = 100 - orgPct;
+  const trafficPieData = [
+    { name: "Orgánico", value: totalViewsOrgOnly },
+    ...(totalViewsPaid > 0 ? [{ name: "Pagado", value: totalViewsPaid }] : []),
+  ];
+  const PIE_COLORS_TRAFFIC = ["#818cf8", "#f472b6"];
 
   // Chart data
   const chartData = sorted.map((d) => ({
@@ -243,13 +249,6 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   const sortedReels = [...reels].sort((a, b) => b.views_total - a.views_total);
   const bestReel = sortedReels[0] ?? null;
   const recentReels = sortedReels.slice(0, 7);
-
-  // Pie data for organic vs paid
-  const trafficPieData = [
-    { name: "Orgánico", value: totalViewsOrg },
-    ...(totalViewsPaid > 0 ? [{ name: "Pagado", value: totalViewsPaid }] : []),
-  ];
-  const PIE_COLORS_TRAFFIC = ["#818cf8", "#f472b6"];
 
   return (
     <div className="space-y-6">
@@ -266,8 +265,8 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                   <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Impresiones</span>
                 </div>
                 <div>
-                  <span className="text-[28px] font-light tracking-[-0.02em] text-cyan-400">{fmt(totalReach)}</span>
-                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Alcance</span>
+                  <span className="text-[28px] font-light tracking-[-0.02em] text-cyan-400">{fmt(avgDailyReach)}</span>
+                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Alcance prom/día</span>
                 </div>
               </div>
             </div>
@@ -422,7 +421,17 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
       <div className="grid grid-cols-12 gap-5">
         {/* ── Desglose orgánico/pagado (4 cols) ── */}
         <div className="col-span-12 md:col-span-4 glass-card p-6">
-          <p className="stat-label mb-5">Desglose de tráfico</p>
+          <div className="flex items-center gap-2 mb-5">
+            <p className="stat-label">Desglose de tráfico</p>
+            {totalViewsPaid > 0 && (
+              <span
+                className="text-[10px] text-white/30 border border-white/10 rounded px-1.5 py-0.5 cursor-help"
+                title="Meta no expone el breakdown nativo de orgánico/pagado por API. Este porcentaje es una estimación calculada usando views de Instagram API + video plays de Meta Ads API."
+              >
+                est.
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-6">
             <div className="h-[140px] w-[140px] neon-line-violet">
               <ResponsiveContainer width="100%" height="100%">

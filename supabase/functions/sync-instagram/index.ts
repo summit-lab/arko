@@ -592,7 +592,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
 
 // deno-lint-ignore no-explicit-any
 async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: string, adAccountIds: string[], accessToken: string): Promise<AdsSyncResult> {
-  const result: AdsSyncResult = { adsProcessed: 0, adsMapped: 0, adsUnmapped: 0, reelsUpdated: 0, errors: [] };
+  const result: AdsSyncResult = { adsProcessed: 0, adsMapped: 0, adsUnmapped: 0, reelsUpdated: 0, totalVideoPlays: 0, totalVideoPlays30d: 0, errors: [], unmappedSamples: [] };
 
   try {
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
@@ -630,12 +630,19 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
 
         for (const ad of adsById.values()) {
           result.adsProcessed++;
-          const match = resolveAdToReel(ad, reelsByIgMediaId, reelsByPermalink, reelsByShortcode);
-          if (!match) { result.adsUnmapped++; continue; }
-          result.adsMapped++;
-
           const insight = insightsMap.get(ad.id);
           const videoPlays = getActionMetricValue(insight?.video_play_actions, "video_view");
+          result.totalVideoPlays += videoPlays;
+
+          const match = resolveAdToReel(ad, reelsByIgMediaId, reelsByPermalink, reelsByShortcode);
+          if (!match) {
+            result.adsUnmapped++;
+            if ((result.unmappedSamples?.length ?? 0) < 10) {
+              result.unmappedSamples?.push({ id: ad.id, name: ad.name, creative: ad.creative ?? null });
+            }
+            continue;
+          }
+          result.adsMapped++;
           const impressions = parseInt(insight?.impressions || "0") || 0;
           const reach = parseInt(insight?.reach || "0") || 0;
           const outboundClicks = getActionMetricValue(insight?.outbound_clicks, "outbound_click");
@@ -664,6 +671,18 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
         }
       } catch (err) {
         result.errors.push(`${acctId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Fetch 30-day video plays for organic/paid split on 30d filter
+    for (const acctId of adAccountIds) {
+      try {
+        const insightsMap30d = await fetchInsightsByAd(acctId, accessToken, 30);
+        for (const insight of insightsMap30d.values()) {
+          result.totalVideoPlays30d += getActionMetricValue(insight.video_play_actions, "video_view");
+        }
+      } catch (err) {
+        result.errors.push(`30d plays ${acctId}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -712,10 +731,13 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
     const until = Math.floor(todayUtc.getTime() / 1000);
     const since = until - (30 * 24 * 60 * 60);
 
-    const dailyInsightsResult = await fetchDailyInsights(igAccountId, accessToken, since, until);
-    const followerCountResult = await fetchFollowerCountInsights(igAccountId, accessToken, since, until);
+    const [dailyInsightsResult, followerCountResult] = await Promise.all([
+      fetchDailyInsights(igAccountId, accessToken, since, until),
+      fetchFollowerCountInsights(igAccountId, accessToken, since, until),
+    ]);
     const dailyInsights = [...dailyInsightsResult.insights, ...followerCountResult.insights];
     result.errors.push(...dailyInsightsResult.errors, ...followerCountResult.errors);
+    const paidViewsByDate = new Map<string, number>();
 
     // Group by date and upsert
     const dayMap = new Map<string, Record<string, number>>();
@@ -1128,8 +1150,8 @@ async function fetchAdByIdWithCreative(adId: string, accessToken: string): Promi
   return { id: json.id, name: json.name, campaign_id: json.campaign_id, adset_id: json.adset_id, creative: json.creative };
 }
 
-async function fetchInsightsByAd(adAccountId: string, accessToken: string): Promise<Map<string, InsightRow>> {
-  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+async function fetchInsightsByAd(adAccountId: string, accessToken: string, days = 90): Promise<Map<string, InsightRow>> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const until = new Date().toISOString().split("T")[0];
   const fields = "ad_id,impressions,reach,clicks,spend,ctr,cpc,cpp,frequency,inline_link_clicks,outbound_clicks,video_play_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions";
   const map = new Map<string, InsightRow>();
@@ -1214,6 +1236,7 @@ async function fetchDailyInsights(igAccountId: string, accessToken: string, sinc
   }
   return { insights: allInsights, errors };
 }
+
 
 async function fetchFollowerCountInsights(igAccountId: string, accessToken: string, since: number, until: number): Promise<{ insights: IGInsight[]; errors: string[] }> {
   const errors: string[] = [];
