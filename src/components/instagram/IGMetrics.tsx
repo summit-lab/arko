@@ -106,8 +106,10 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 }
 
 function TrendBadge({ pct, up }: { pct: string; up: boolean }) {
+  const num = parseFloat(pct);
+  const color = up ? "text-emerald-400" : num < 10 ? "text-amber-400" : "text-rose-400";
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${up ? "text-emerald-400" : "text-rose-400"}`}>
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${color}`}>
       {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {pct}%
     </span>
@@ -314,9 +316,9 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
-          { label: "Impresiones totales", value: fmt(totalImpressions), trend: impTrend, icon: Eye, color: "#818cf8" },
-          { label: "Alcance promedio / día", value: fmt(avgReach), trend: reachTrend, icon: Users, color: "#22d3ee" },
-          { label: "Interacciones totales", value: fmt(totalInteractions), trend: intTrend, icon: Activity, color: "#f472b6" },
+          { label: "Impresiones totales", value: fmt(totalImpressions), trend: impTrend, icon: Eye },
+          { label: "Alcance promedio / día", value: fmt(avgReach), trend: reachTrend, icon: Users },
+          { label: "Interacciones totales", value: fmt(totalInteractions), trend: intTrend, icon: Activity },
         ].map((k) => (
           <div key={k.label} className="glass-card px-6 py-5">
             <div className="flex items-center justify-between mb-3">
@@ -325,7 +327,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 className="flex h-8 w-8 items-center justify-center rounded-full"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
               >
-                <k.icon style={{ color: k.color }} className="h-[14px] w-[14px]" />
+                <k.icon className="h-[14px] w-[14px] text-white/60" />
               </div>
             </div>
             <CountUp value={k.value} className="stat-number-xl" />
@@ -340,15 +342,15 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       {/* ── Secondary KPIs ── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: "Engagement rate", value: `${engagementRate}%`, icon: Zap, color: "#fbbf24", desc: "Interacciones / Impresiones" },
-          { label: "Saves rate", value: `${savesRate}%`, icon: Bookmark, color: "#f472b6", desc: "Guardados / Alcance" },
-          { label: "Conv. perfil → seguidor", value: `${profileConvRate}%`, icon: UserPlus, color: "#34d399", desc: "Nuevos seguidores / Visitas" },
-          { label: "Visitas al perfil", value: fmt(totalProfileViews), icon: Eye, color: "#22d3ee", desc: "Total del período" },
-          { label: "Contenido publicado", value: `${lastDay?.media_count ?? 0}`, icon: BarChart3, color: "#a78bfa", desc: "Posts activos en la cuenta" },
+          { label: "Tasa de engagement", value: `${engagementRate}%`, icon: Zap, desc: "Interacciones / Impresiones" },
+          { label: "Tasa de guardados", value: `${savesRate}%`, icon: Bookmark, desc: "Guardados / Alcance" },
+          { label: "Conv. perfil → seguidor", value: `${profileConvRate}%`, icon: UserPlus, desc: "Nuevos seguidores / Visitas" },
+          { label: "Visitas al perfil", value: fmt(totalProfileViews), icon: Eye, desc: "Total del período" },
+          { label: "Contenido publicado", value: `${lastDay?.media_count ?? 0}`, icon: BarChart3, desc: "Posts activos en la cuenta" },
         ].map((s) => (
           <div key={s.label} className="glass-card px-4 py-4">
             <div className="flex items-center gap-2 mb-3">
-              <s.icon style={{ color: s.color }} className="h-3.5 w-3.5 shrink-0" />
+              <s.icon className="h-3.5 w-3.5 shrink-0 text-white/50" />
               <p className="stat-label leading-tight">{s.label}</p>
             </div>
             <CountUp value={s.value} className="text-[22px] font-light tracking-tight text-white leading-none" />

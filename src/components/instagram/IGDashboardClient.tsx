@@ -26,4 +26,5 @@ const IGDashboard = dynamic(
   }
 );
 
+export type { IGDashboardProps } from "@/components/instagram/IGDashboard";
 export { IGDashboard as IGDashboardClient };

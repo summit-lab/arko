@@ -2,7 +2,11 @@ import { Eye, Heart, Bookmark, MessageSquare, Instagram, Youtube, ArrowUpRight, 
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { ContentCalendar } from "@/components/dashboard/ContentCalendar";
+import { MetasDonut } from "@/components/dashboard/MetasDonut";
 import { CountUp } from "@/components/ui/CountUp";
+import { PeriodFilter } from "@/components/instagram/PeriodFilter";
+import { Suspense } from "react";
 
 // ─── Helpers ───
 
@@ -52,7 +56,7 @@ const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
 
 // ─── Data Fetching ───
 
-async function getDashboardData() {
+async function getDashboardData(periodDays: number = 30) {
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) return null;
 
@@ -60,10 +64,14 @@ async function getDashboardData() {
   const now = new Date();
   const today = now.toISOString().split("T")[0];
 
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const periodAgo = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const prevPeriodAgo = new Date(now.getTime() - periodDays * 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  // Keep 90d window for reels (need content calendar and top content regardless of filter)
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  // Aliases for backward compat
+  const thirtyDaysAgo = periodAgo;
+  const sixtyDaysAgo = prevPeriodAgo;
 
   const [
     insightsCurrent,
@@ -101,15 +109,15 @@ async function getDashboardData() {
       .lt("metric_date", today)
       .order("metric_date", { ascending: true }),
 
-    // Query 4: Last 30 days daily insights (for daily charts)
+    // Query 4: Period daily insights (for daily charts)
     supabase
       .from("ig_account_insights")
       .select("metric_date, reach, impressions, likes, saves, comments")
       .eq("workspace_id", workspaceId)
-      .gte("metric_date", thirtyDaysAgo)
+      .gte("metric_date", periodAgo)
       .lt("metric_date", today)
       .order("metric_date", { ascending: true })
-      .limit(30),
+      .limit(periodDays),
 
     // Query 5: Reels with metrics (last 90 days, for top content + growth chart)
     supabase
@@ -144,7 +152,9 @@ async function getDashboardData() {
 
   // ─── Process insights data ───
 
-  const current30d = insightsCurrent.data ?? [];
+  const current30d = (insightsCurrent.data ?? []).filter(
+    (d) => (d.reach ?? 0) > 0 || (d.impressions ?? 0) > 0
+  );
   const previous30d = insightsPrevious.data ?? [];
 
   const sumCurrent = {
@@ -232,8 +242,11 @@ async function getDashboardData() {
     : 0;
 
   // ─── Daily chart data from ig_account_insights ───
+  // Filter out days with zero metrics (incomplete sync data from current day)
 
-  const dailyInsights = insightsMonthly.data ?? [];
+  const dailyInsights = (insightsMonthly.data ?? []).filter(
+    (d) => (d.impressions ?? 0) > 0 || (d.reach ?? 0) > 0
+  );
 
   const growthData = dailyInsights.map((row) => {
     const d = new Date(row.metric_date);
@@ -274,7 +287,7 @@ async function getDashboardData() {
 
   const kpis = [
     {
-      label: "Total Views",
+      label: "Vistas Totales",
       value: totalViews > 0 ? formatCompact(totalViews) : "—",
       change: viewsChange.text,
       up: viewsChange.up,
@@ -289,7 +302,7 @@ async function getDashboardData() {
       color: "text-amber-400",
     },
     {
-      label: "Likes",
+      label: "Me gusta",
       value: sumCurrent.likes > 0 ? formatCompact(sumCurrent.likes) : "—",
       ...pctChange(sumCurrent.likes, sumPrevious.likes),
       icon: "heart" as const,
@@ -307,12 +320,25 @@ async function getDashboardData() {
   // ─── Quick Stats ───
 
   const quickStats = [
-    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: "últimos 30 días" },
-    { label: "Engagement Rate", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
+    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: `últimos ${periodDays} días` },
+    { label: "Tasa de Engagement", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
     { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
     { label: "Nuevos Follows", value: newFollowsWeek > 0 ? formatCompact(newFollowsWeek) : "—", sub: "últimos 7 días" },
     ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
   ];
+
+  // Calendar reels (all, for this month) — include KPIs for display
+  const calendarReels = reels.map((r) => ({
+    id: r.id,
+    published_at: r.published_at,
+    caption: r.caption,
+    has_ads: r.has_ads,
+    reel_type: r.reel_type,
+    views_total: r.views_total,
+    likes: r.likes,
+    saves: r.saves,
+    comments: r.comments,
+  }));
 
   // Top reels por ventas (para gráfico)
   const salesChartData = [...reels]
@@ -325,7 +351,7 @@ async function getDashboardData() {
       views: r.views_total,
     }));
 
-  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData };
+  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels };
 }
 
 // ─── Icon mapping (can't pass components as serialized data) ───
@@ -339,24 +365,34 @@ const ICON_MAP = {
 
 // ─── Page ───
 
-export default async function Home() {
-  const data = await getDashboardData();
+export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  const params = await searchParams;
+  const periodDays = parseInt(params.days || "30", 10);
+  const data = await getDashboardData(periodDays);
 
   const hasData = data !== null;
   const kpis = data?.kpis ?? [];
   const topContent = data?.topContent ?? [];
   const quickStats = data?.quickStats ?? [];
-  const countries = data?.countries ?? [];
+  // countries removed (Top Países panel eliminado)
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
   const salesChartData = data?.salesChartData ?? [];
+  const calendarReels = data?.calendarReels ?? [];
 
   return (
     <div className="px-8 py-10">
       {/* Header */}
-      <div className="animate-slide-up mb-10">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
+      <div className="animate-slide-up mb-10 flex items-start justify-between">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
+        </div>
+        <div className="mt-1">
+          <Suspense fallback={null}>
+            <PeriodFilter />
+          </Suspense>
+        </div>
       </div>
 
       {/* Main 70/30 Layout */}
@@ -386,7 +422,7 @@ export default async function Home() {
                           <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
                         )}
                         <span className={`text-[12px] font-medium ${m.up ? "text-emerald-400" : "text-red-400"}`}>{m.change}</span>
-                        <span className="text-[11px] text-white/25 ml-1">vs prev</span>
+                        <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
                       </>
                     ) : (
                       <span className="text-[11px] text-white/20">sin datos previos</span>
@@ -405,7 +441,7 @@ export default async function Home() {
           {/* Top Performing Content */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[15px] font-light text-white tracking-wide">Top Performing Content</h3>
+              <h3 className="text-[15px] font-light text-white tracking-wide">Mejor Contenido</h3>
               <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Últimos 90 días</span>
             </div>
             {topContent.length > 0 ? (
@@ -414,10 +450,10 @@ export default async function Home() {
                 <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
                   <div className="col-span-1">#</div>
                   <div className="col-span-4">Título</div>
-                  <div className="col-span-2 text-right">Views</div>
-                  <div className="col-span-1 text-right">Saves</div>
+                  <div className="col-span-2 text-right">Vistas</div>
+                  <div className="col-span-1 text-right">Guard.</div>
                   <div className="col-span-1 text-right">Likes</div>
-                  <div className="col-span-1 text-center">Eng.</div>
+                  <div className="col-span-1 text-center">Eng%</div>
                   <div className="col-span-2 text-center">Plataforma</div>
                 </div>
                 {topContent.map((c, i) => (
@@ -449,6 +485,7 @@ export default async function Home() {
               </div>
             )}
           </div>
+
         </div>
 
         {/* ── RIGHT: Summary Panel (30%) ── */}
@@ -469,26 +506,12 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Views by Country */}
-          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
-            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Top Países</h3>
-            {countries.length > 0 ? (
-              <div className="space-y-3">
-                {countries.map((c) => (
-                  <div key={c.country} className="flex items-center gap-3">
-                    <span className="text-[14px]">{c.flag}</span>
-                    <span className="text-[12px] font-light text-white/60 w-20">{c.country}</span>
-                    <div className="flex-1 h-[4px] rounded-full bg-white/[0.05] overflow-hidden">
-                      <div className="h-full rounded-full bg-white/20" style={{ width: `${c.pct}%` }} />
-                    </div>
-                    <span className="text-[11px] text-white/30 font-light w-8 text-right">{c.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[13px] text-white/20 font-light text-center py-4">Sin datos demográficos</p>
-            )}
-          </div>
+          {/* Metas del Mes — Donuts */}
+          <MetasDonut
+            views={data?.kpis[0]?.value ?? "—"}
+            followers={quickStats.find(s => s.label === "Nuevos Follows")?.value ?? "—"}
+            engRate={quickStats.find(s => s.label === "Tasa de Engagement")?.value ?? "—"}
+          />
 
           {/* Top Ventas */}
           {salesChartData.length > 0 && (() => {
@@ -519,6 +542,11 @@ export default async function Home() {
             );
           })()}
         </div>
+      </div>
+
+      {/* ── Calendario full-width ── */}
+      <div className="mt-6 animate-slide-up stagger-6">
+        <ContentCalendar reels={calendarReels} />
       </div>
     </div>
   );

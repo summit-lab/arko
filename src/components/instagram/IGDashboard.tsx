@@ -44,10 +44,12 @@ interface ReelSummary {
   sales_amount?: number | null;
 }
 
-interface IGDashboardProps {
+export interface IGDashboardProps {
   dailyInsights: DayInsight[];
   reels: ReelSummary[];
   totalFollowers: number;
+  periodDays?: number;
+  totalAdVideoPlays?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,6 +58,23 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toString();
+}
+
+function fmtSales(n: number): string {
+  return `$${n.toLocaleString("es-AR")}`;
+}
+
+function trendColor(value: string): string {
+  const num = parseFloat(value.replace("%", "").replace("+", ""));
+  if (num >= 0) return "text-emerald-400";
+  if (num >= -10) return "text-amber-400";
+  return "text-rose-400";
+}
+
+function TrendIcon({ value }: { value: string }) {
+  const num = parseFloat(value.replace("%", "").replace("+", ""));
+  if (num >= 0) return <ArrowUpRight className="h-3.5 w-3.5" />;
+  return <ArrowDownRight className="h-3.5 w-3.5" />;
 }
 
 function fmtDate(dateStr: string): string {
@@ -148,7 +167,7 @@ function ChartCursor({ points, height }: { points?: Array<{ x: number; y: number
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboardProps) {
+export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays = 90, totalAdVideoPlays = 0 }: IGDashboardProps) {
   if (dailyInsights.length === 0 && reels.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -168,7 +187,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   const secondHalf = sorted.slice(halfIdx);
 
   const totalImpressions = sorted.reduce((s, d) => s + d.impressions, 0);
-  const totalReach = sorted.reduce((s, d) => s + d.reach, 0);
+  const avgDailyReach = sorted.length > 0 ? Math.round(sorted.reduce((s, d) => s + d.reach, 0) / sorted.length) : 0;
   const totalProfileViews = sorted.reduce((s, d) => s + d.profile_views, 0);
   const totalLikes = sorted.reduce((s, d) => s + d.likes, 0);
   const totalComments = sorted.reduce((s, d) => s + d.comments, 0);
@@ -188,8 +207,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   });
 
   const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
-  const last30Days = effectiveFollowerChange.slice(-30);
-  const followersGainedLast30d = last30Days.reduce((s, v) => s + v, 0);
+  const followersGainedPeriod = effectiveFollowerChange.reduce((s, v) => s + v, 0);
 
   // Period-over-period comparison
   const firstHalfImpressions = firstHalf.reduce((s, d) => s + d.impressions, 0);
@@ -208,12 +226,17 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   // Total sales
   const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
-  // Organic vs Paid split
-  const totalViewsOrg = reels.reduce((s, r) => s + r.views_org, 0);
-  const totalViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);
-  const totalViewsAll = totalViewsOrg + totalViewsPaid;
-  const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrg / totalViewsAll) * 100) : 100;
+  // Traffic split — use account-level impressions as total, ads API video plays as paid.
+  const totalViewsPaid = Math.min(totalAdVideoPlays, totalImpressions);
+  const totalViewsOrgOnly = Math.max(0, totalImpressions - totalViewsPaid);
+  const totalViewsAll = totalImpressions;
+  const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrgOnly / totalViewsAll) * 100) : 100;
   const paidPct = 100 - orgPct;
+  const trafficPieData = [
+    { name: "Orgánico", value: totalViewsOrgOnly },
+    ...(totalViewsPaid > 0 ? [{ name: "Pagado", value: totalViewsPaid }] : []),
+  ];
+  const PIE_COLORS_TRAFFIC = ["#818cf8", "#f472b6"];
 
   // Chart data
   const chartData = sorted.map((d) => ({
@@ -226,13 +249,6 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   const sortedReels = [...reels].sort((a, b) => b.views_total - a.views_total);
   const bestReel = sortedReels[0] ?? null;
   const recentReels = sortedReels.slice(0, 7);
-
-  // Pie data for organic vs paid
-  const trafficPieData = [
-    { name: "Orgánico", value: totalViewsOrg },
-    ...(totalViewsPaid > 0 ? [{ name: "Pagado", value: totalViewsPaid }] : []),
-  ];
-  const PIE_COLORS_TRAFFIC = ["#818cf8", "#f472b6"];
 
   return (
     <div className="space-y-6">
@@ -249,13 +265,13 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
                   <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Impresiones</span>
                 </div>
                 <div>
-                  <span className="text-[28px] font-light tracking-[-0.02em] text-cyan-400">{fmt(totalReach)}</span>
-                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Alcance</span>
+                  <span className="text-[28px] font-light tracking-[-0.02em] text-cyan-400">{fmt(avgDailyReach)}</span>
+                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Alcance prom/día</span>
                 </div>
               </div>
             </div>
-            <div className={`flex items-center gap-1 text-[13px] font-medium ${impressionsTrend.positive ? "text-emerald-400" : "text-rose-400"}`}>
-              {impressionsTrend.positive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            <div className={`flex items-center gap-1 text-[13px] font-medium ${trendColor(impressionsTrend.value)}`}>
+              <TrendIcon value={impressionsTrend.value} />
               {impressionsTrend.value}
             </div>
           </div>
@@ -363,8 +379,8 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
               <span className="text-[13px] font-light text-white/50">{fmt(totalProfileViews)} visitas</span>
               <span className="text-[13px] font-light text-white/50">→ {fmt(totalFollowersGained)} seguidores</span>
             </div>
-            <div className={`flex items-center gap-1 mt-2 text-[12px] font-medium ${profileViewsTrend.positive ? "text-emerald-400" : "text-rose-400"}`}>
-              {profileViewsTrend.positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+            <div className={`flex items-center gap-1 mt-2 text-[12px] font-medium ${trendColor(profileViewsTrend.value)}`}>
+              <TrendIcon value={profileViewsTrend.value} />
               {profileViewsTrend.value} vs período anterior
             </div>
           </div>
@@ -379,7 +395,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
               </div>
             </div>
             <CountUp value={fmt(totalFollowers)} className="stat-number-xl" />
-            <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedLast30d)} últimos 30 días</p>
+            <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedPeriod)} últimos {periodDays} días</p>
           </div>
 
           {/* Ventas generadas */}
@@ -392,7 +408,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
                   <DollarSign className="h-[16px] w-[16px]" />
                 </div>
               </div>
-              <CountUp value={`$${fmt(totalSales)}`} className="stat-number-xl text-emerald-300" />
+              <CountUp value={fmtSales(totalSales)} className="stat-number-xl text-emerald-300" />
               <p className="text-[13px] font-light text-white/30 mt-1">
                 {reels.filter((r) => (r.sales_amount ?? 0) > 0).length} reels con ventas
               </p>
@@ -405,7 +421,17 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
       <div className="grid grid-cols-12 gap-5">
         {/* ── Desglose orgánico/pagado (4 cols) ── */}
         <div className="col-span-12 md:col-span-4 glass-card p-6">
-          <p className="stat-label mb-5">Desglose de tráfico</p>
+          <div className="flex items-center gap-2 mb-5">
+            <p className="stat-label">Desglose de tráfico</p>
+            {totalViewsPaid > 0 && (
+              <span
+                className="text-[10px] text-white/30 border border-white/10 rounded px-1.5 py-0.5 cursor-help"
+                title="Meta no expone el breakdown nativo de orgánico/pagado por API. Este porcentaje es una estimación calculada usando views de Instagram API + video plays de Meta Ads API."
+              >
+                est.
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-6">
             <div className="h-[140px] w-[140px] neon-line-violet">
               <ResponsiveContainer width="100%" height="100%">
@@ -457,14 +483,14 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
           <div className="grid grid-cols-2 gap-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Heart className="h-4 w-4 text-rose-400" />
-                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Likes</span>
+                <Heart className="h-4 w-4 text-white/60" />
+                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Me gusta</span>
               </div>
               <p className="stat-number">{fmt(totalLikes)}</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="h-4 w-4 text-emerald-400" />
+                <MessageSquare className="h-4 w-4 text-white/60" />
                 <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Comentarios</span>
               </div>
               <p className="stat-number">{fmt(totalComments)}</p>
@@ -473,12 +499,12 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
           {/* Interaction sparklines — mini bars */}
           <div className="mt-5 space-y-3">
             {[
-              { label: "Guardados", value: sorted.reduce((s, d) => s + d.saves, 0), color: "#fbbf24", icon: Bookmark },
-              { label: "Compartidos", value: sorted.reduce((s, d) => s + d.shares, 0), color: "#60a5fa", icon: Play },
+              { label: "Guardados", value: sorted.reduce((s, d) => s + d.saves, 0), icon: Bookmark },
+              { label: "Compartidos", value: sorted.reduce((s, d) => s + d.shares, 0), icon: Play },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <item.icon className="h-3.5 w-3.5" style={{ color: item.color }} />
+                  <item.icon className="h-3.5 w-3.5 text-white/50" />
                   <span className="text-[12px] font-light text-white/45">{item.label}</span>
                 </div>
                 <span className="text-[16px] font-light text-white">{fmt(item.value)}</span>

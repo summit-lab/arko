@@ -93,7 +93,10 @@ export interface AdsSyncResult {
   adsMapped: number;
   adsUnmapped: number;
   reelsUpdated: number;
+  totalVideoPlays: number;
+  totalVideoPlays30d: number;
   errors: string[];
+  unmappedSamples?: Array<{ id: string; name: string; creative: Record<string, unknown> | null }>;
 }
 
 export interface AccountSyncResult {

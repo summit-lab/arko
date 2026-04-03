@@ -102,9 +102,9 @@ export async function syncInstagramReels(
 
     const igAccountId = connection.ig_business_account_id;
 
-    // 2. Fetch all media and filter to Reels only
+    // 2. Fetch all media — Reels + Posts + Carousels
     const allMediaRaw = await fetchAllMedia(igAccountId, accessToken);
-    const allMedia = allMediaRaw.filter((m) => m.media_product_type === 'REELS');
+    const allMedia = allMediaRaw.filter((m) => m.media_product_type === 'REELS' || m.media_type === 'IMAGE' || m.media_type === 'CAROUSEL_ALBUM');
 
     // Update total items
     const { error: totalItemsError } = await supabase

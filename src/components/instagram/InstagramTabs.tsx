@@ -2,14 +2,18 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useCallback } from "react";
-import { LayoutDashboard, Clapperboard, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked } from "lucide-react";
 
-export type TabKey = "dashboard" | "reels" | "metrics";
+export type TabKey = "dashboard" | "reels" | "historias" | "publicaciones" | "competencia" | "referencias" | "metrics";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { key: "reels", label: "Reels", icon: Clapperboard },
-  { key: "metrics", label: "Demografía", icon: BarChart3 },
+  { key: "dashboard",    label: "Dashboard",    icon: LayoutDashboard },
+  { key: "reels",        label: "Reels",        icon: Clapperboard },
+  { key: "historias",    label: "Historias",    icon: BookImage },
+  { key: "publicaciones",label: "Publicaciones",icon: Grid2X2 },
+  { key: "competencia",  label: "Competencia",  icon: Swords },
+  { key: "referencias",  label: "Referencias",  icon: BookMarked },
+  { key: "metrics",      label: "Demografía",   icon: BarChart3 },
 ];
 
 export function InstagramTabs() {
