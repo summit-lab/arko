@@ -44,10 +44,11 @@ interface ReelSummary {
   sales_amount?: number | null;
 }
 
-interface IGDashboardProps {
+export interface IGDashboardProps {
   dailyInsights: DayInsight[];
   reels: ReelSummary[];
   totalFollowers: number;
+  periodDays?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,6 +57,23 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toString();
+}
+
+function fmtSales(n: number): string {
+  return `$${n.toLocaleString("es-AR")}`;
+}
+
+function trendColor(value: string): string {
+  const num = parseFloat(value.replace("%", "").replace("+", ""));
+  if (num >= 0) return "text-emerald-400";
+  if (num >= -10) return "text-amber-400";
+  return "text-rose-400";
+}
+
+function TrendIcon({ value }: { value: string }) {
+  const num = parseFloat(value.replace("%", "").replace("+", ""));
+  if (num >= 0) return <ArrowUpRight className="h-3.5 w-3.5" />;
+  return <ArrowDownRight className="h-3.5 w-3.5" />;
 }
 
 function fmtDate(dateStr: string): string {
@@ -148,7 +166,7 @@ function ChartCursor({ points, height }: { points?: Array<{ x: number; y: number
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboardProps) {
+export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays = 90 }: IGDashboardProps) {
   if (dailyInsights.length === 0 && reels.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -188,8 +206,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
   });
 
   const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
-  const last30Days = effectiveFollowerChange.slice(-30);
-  const followersGainedLast30d = last30Days.reduce((s, v) => s + v, 0);
+  const followersGainedPeriod = effectiveFollowerChange.reduce((s, v) => s + v, 0);
 
   // Period-over-period comparison
   const firstHalfImpressions = firstHalf.reduce((s, d) => s + d.impressions, 0);
@@ -254,8 +271,8 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
                 </div>
               </div>
             </div>
-            <div className={`flex items-center gap-1 text-[13px] font-medium ${impressionsTrend.positive ? "text-emerald-400" : "text-rose-400"}`}>
-              {impressionsTrend.positive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            <div className={`flex items-center gap-1 text-[13px] font-medium ${trendColor(impressionsTrend.value)}`}>
+              <TrendIcon value={impressionsTrend.value} />
               {impressionsTrend.value}
             </div>
           </div>
@@ -363,8 +380,8 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
               <span className="text-[13px] font-light text-white/50">{fmt(totalProfileViews)} visitas</span>
               <span className="text-[13px] font-light text-white/50">→ {fmt(totalFollowersGained)} seguidores</span>
             </div>
-            <div className={`flex items-center gap-1 mt-2 text-[12px] font-medium ${profileViewsTrend.positive ? "text-emerald-400" : "text-rose-400"}`}>
-              {profileViewsTrend.positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+            <div className={`flex items-center gap-1 mt-2 text-[12px] font-medium ${trendColor(profileViewsTrend.value)}`}>
+              <TrendIcon value={profileViewsTrend.value} />
               {profileViewsTrend.value} vs período anterior
             </div>
           </div>
@@ -379,7 +396,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
               </div>
             </div>
             <CountUp value={fmt(totalFollowers)} className="stat-number-xl" />
-            <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedLast30d)} últimos 30 días</p>
+            <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedPeriod)} últimos {periodDays} días</p>
           </div>
 
           {/* Ventas generadas */}
@@ -392,7 +409,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
                   <DollarSign className="h-[16px] w-[16px]" />
                 </div>
               </div>
-              <CountUp value={`$${fmt(totalSales)}`} className="stat-number-xl text-emerald-300" />
+              <CountUp value={fmtSales(totalSales)} className="stat-number-xl text-emerald-300" />
               <p className="text-[13px] font-light text-white/30 mt-1">
                 {reels.filter((r) => (r.sales_amount ?? 0) > 0).length} reels con ventas
               </p>
@@ -457,14 +474,14 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
           <div className="grid grid-cols-2 gap-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Heart className="h-4 w-4 text-rose-400" />
-                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Likes</span>
+                <Heart className="h-4 w-4 text-white/60" />
+                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Me gusta</span>
               </div>
               <p className="stat-number">{fmt(totalLikes)}</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="h-4 w-4 text-emerald-400" />
+                <MessageSquare className="h-4 w-4 text-white/60" />
                 <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Comentarios</span>
               </div>
               <p className="stat-number">{fmt(totalComments)}</p>
@@ -473,12 +490,12 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers }: IGDashboar
           {/* Interaction sparklines — mini bars */}
           <div className="mt-5 space-y-3">
             {[
-              { label: "Guardados", value: sorted.reduce((s, d) => s + d.saves, 0), color: "#fbbf24", icon: Bookmark },
-              { label: "Compartidos", value: sorted.reduce((s, d) => s + d.shares, 0), color: "#60a5fa", icon: Play },
+              { label: "Guardados", value: sorted.reduce((s, d) => s + d.saves, 0), icon: Bookmark },
+              { label: "Compartidos", value: sorted.reduce((s, d) => s + d.shares, 0), icon: Play },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <item.icon className="h-3.5 w-3.5" style={{ color: item.color }} />
+                  <item.icon className="h-3.5 w-3.5 text-white/50" />
                   <span className="text-[12px] font-light text-white/45">{item.label}</span>
                 </div>
                 <span className="text-[16px] font-light text-white">{fmt(item.value)}</span>

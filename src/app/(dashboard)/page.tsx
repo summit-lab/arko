@@ -315,18 +315,23 @@ async function getDashboardData() {
 
   const quickStats = [
     { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: "últimos 30 días" },
-    { label: "Engagement Rate", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
+    { label: "Tasa de Engagement", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
     { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
     { label: "Nuevos Follows", value: newFollowsWeek > 0 ? formatCompact(newFollowsWeek) : "—", sub: "últimos 7 días" },
     ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
   ];
 
-  // Calendar reels (all, for this month)
+  // Calendar reels (all, for this month) — include KPIs for display
   const calendarReels = reels.map((r) => ({
+    id: r.id,
     published_at: r.published_at,
     caption: r.caption,
     has_ads: r.has_ads,
     reel_type: r.reel_type,
+    views_total: r.views_total,
+    likes: r.likes,
+    saves: r.saves,
+    comments: r.comments,
   }));
 
   // Top reels por ventas (para gráfico)
@@ -361,7 +366,7 @@ export default async function Home() {
   const kpis = data?.kpis ?? [];
   const topContent = data?.topContent ?? [];
   const quickStats = data?.quickStats ?? [];
-  const countries = data?.countries ?? [];
+  // countries removed (Top Países panel eliminado)
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
   const salesChartData = data?.salesChartData ?? [];
@@ -490,29 +495,8 @@ export default async function Home() {
           <MetasDonut
             views={data?.kpis[0]?.value ?? "—"}
             followers={quickStats.find(s => s.label === "Nuevos Follows")?.value ?? "—"}
-            engRate={quickStats.find(s => s.label === "Engagement Rate")?.value ?? "—"}
+            engRate={quickStats.find(s => s.label === "Tasa de Engagement")?.value ?? "—"}
           />
-
-          {/* Views by Country */}
-          <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
-            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Top Países</h3>
-            {countries.length > 0 ? (
-              <div className="space-y-3">
-                {countries.map((c) => (
-                  <div key={c.country} className="flex items-center gap-3">
-                    <span className="text-[14px]">{c.flag}</span>
-                    <span className="text-[12px] font-light text-white/60 w-20">{c.country}</span>
-                    <div className="flex-1 h-[4px] rounded-full bg-white/[0.05] overflow-hidden">
-                      <div className="h-full rounded-full bg-white/20" style={{ width: `${c.pct}%` }} />
-                    </div>
-                    <span className="text-[11px] text-white/30 font-light w-8 text-right">{c.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[13px] text-white/20 font-light text-center py-4">Sin datos demográficos</p>
-            )}
-          </div>
 
           {/* Top Ventas */}
           {salesChartData.length > 0 && (() => {
