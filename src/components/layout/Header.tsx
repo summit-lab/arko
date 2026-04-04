@@ -48,7 +48,8 @@ export async function Header() {
         supabase
           .from("reels")
           .select("reel_metrics (views_org), reel_metrics_paid (views_paid)")
-          .eq("workspace_id", workspaceId),
+          .eq("workspace_id", workspaceId)
+          .limit(500),
       ]);
       if (insights && insights.length > 0) {
         const latest = insights[0];

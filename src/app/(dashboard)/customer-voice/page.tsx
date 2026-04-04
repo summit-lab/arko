@@ -156,23 +156,63 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
     }
   }
 
-  // ─── Metas Insights Data ─────────────────────────────────────────────────
+  // ─── Metas Insights Data (always fetch — instant tab switch) ─────────────
 
   let metasInsights = { totalViews: 0, totalFollowers: 0, totalLikes: 0, totalSaves: 0, totalReach: 0, engagementRate: 0 };
 
-  if (workspaceId && activeTab === "metas") {
+  // ─── Calendar Data (always fetch — instant tab switch) ─────────────────────
+
+  let calendarReels: CalendarReel[] = [];
+  let calendarPlanItems: CalendarPlanItem[] = [];
+
+  if (workspaceId) {
     const supabase = await createClient();
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const metasMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    const { data: monthInsights } = await supabase
-      .from("ig_account_insights")
-      .select("impressions, reach, likes, saves, total_interactions, followers_total")
-      .eq("workspace_id", workspaceId)
-      .gte("metric_date", monthStart)
-      .lte("metric_date", yesterday);
+    const [monthYear, monthNum] = currentMonth.split("-").map(Number);
+    const calMonthStart = `${currentMonth}-01`;
+    const lastDay = new Date(monthYear, monthNum, 0).getDate();
+    const calMonthEnd = `${currentMonth}-${String(lastDay).padStart(2, "0")}`;
 
+    const [metasRes, reelsRes, planRes, benchmarkRes] = await Promise.all([
+      supabase
+        .from("ig_account_insights")
+        .select("impressions, reach, likes, saves, total_interactions, followers_total")
+        .eq("workspace_id", workspaceId)
+        .gte("metric_date", metasMonthStart)
+        .lte("metric_date", yesterday),
+      supabase
+        .from("reels")
+        .select(`
+          id, published_at, caption, thumbnail_url, permalink,
+          reel_metrics (views_org),
+          reel_metrics_paid (views_paid)
+        `)
+        .eq("workspace_id", workspaceId)
+        .eq("media_product_type", "REELS")
+        .gte("published_at", calMonthStart)
+        .lte("published_at", `${calMonthEnd}T23:59:59Z`)
+        .order("published_at", { ascending: true }),
+      supabase
+        .from("content_plan")
+        .select("id, planned_date, title, description, platform, content_type, status")
+        .eq("workspace_id", workspaceId)
+        .gte("planned_date", calMonthStart)
+        .lte("planned_date", calMonthEnd)
+        .order("planned_date", { ascending: true }),
+      supabase
+        .from("reel_benchmarks")
+        .select("avg_views_90d")
+        .eq("workspace_id", workspaceId)
+        .order("calculated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    // Process metas insights
+    const monthInsights = metasRes.data;
     if (monthInsights && monthInsights.length > 0) {
       const totalViews = monthInsights.reduce((s, d) => s + (d.impressions ?? 0), 0);
       const totalReach = monthInsights.reduce((s, d) => s + (d.reach ?? 0), 0);
@@ -190,53 +230,9 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         engagementRate: totalReach > 0 ? Number(((totalInteractions / totalReach) * 100).toFixed(2)) : 0,
       };
     }
-  }
 
-  // ─── Calendar Data ─────────────────────────────────────────────────────────
-
-  let calendarReels: CalendarReel[] = [];
-  let calendarPlanItems: CalendarPlanItem[] = [];
-
-  if (workspaceId && activeTab === "calendario") {
-    const supabase = await createClient();
-    const [monthYear, monthNum] = currentMonth.split("-").map(Number);
-    const monthStart = `${currentMonth}-01`;
-    const lastDay = new Date(monthYear, monthNum, 0).getDate();
-    const monthEnd = `${currentMonth}-${String(lastDay).padStart(2, "0")}`;
-
-    const [reelsRes, planRes] = await Promise.all([
-      supabase
-        .from("reels")
-        .select(`
-          id, published_at, caption, thumbnail_url, permalink,
-          reel_metrics (views_org),
-          reel_metrics_paid (views_paid)
-        `)
-        .eq("workspace_id", workspaceId)
-        .eq("media_product_type", "REELS")
-        .gte("published_at", monthStart)
-        .lte("published_at", `${monthEnd}T23:59:59Z`)
-        .order("published_at", { ascending: true }),
-      supabase
-        .from("content_plan")
-        .select("id, planned_date, title, description, platform, content_type, status")
-        .eq("workspace_id", workspaceId)
-        .gte("planned_date", monthStart)
-        .lte("planned_date", monthEnd)
-        .order("planned_date", { ascending: true }),
-    ]);
-
-    // Fetch benchmark separately (simpler)
-    const { data: benchmarkRow } = await supabase
-      .from("reel_benchmarks")
-      .select("avg_views_90d")
-      .eq("workspace_id", workspaceId)
-      .order("calculated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const avgViews = benchmarkRow?.avg_views_90d || 1;
-
+    // Process calendar reels
+    const avgViews = benchmarkRes.data?.avg_views_90d || 1;
     if (reelsRes.data) {
       type MetricsShape = { views_org: number };
       type PaidShape = { views_paid: number };
@@ -601,6 +597,7 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
 
       <Suspense>
         <CustomerVoiceTabs
+          initialTab={activeTab}
           adnContent={adnContent}
           competitorContent={competitorContent}
           calendarContent={calendarContent}

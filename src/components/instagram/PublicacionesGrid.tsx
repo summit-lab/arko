@@ -129,15 +129,12 @@ function PostCard({ post }: { post: Post }) {
             <MessageCircle className="h-2.5 w-2.5" /> {fmt(post.comments)}
           </span>
           {post.permalink && (
-            <a
-              href={post.permalink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.preventDefault()}
-              className="ml-auto text-white/20 hover:text-white/50 transition-colors"
+            <span
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(post.permalink!, "_blank", "noopener,noreferrer"); }}
+              className="ml-auto text-white/20 hover:text-white/50 transition-colors cursor-pointer"
             >
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </span>
           )}
         </div>
       </div>

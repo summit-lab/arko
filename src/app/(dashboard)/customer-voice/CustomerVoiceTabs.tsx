@@ -1,28 +1,37 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Fingerprint, Swords, CalendarDays, Target } from "lucide-react";
 
 type TabId = "adn" | "competencia" | "calendario" | "metas";
 
 interface CustomerVoiceTabsProps {
+  initialTab: TabId;
   adnContent: React.ReactNode;
   competitorContent: React.ReactNode;
   calendarContent: React.ReactNode;
   metasContent: React.ReactNode;
 }
 
-export function CustomerVoiceTabs({ adnContent, competitorContent, calendarContent, metasContent }: CustomerVoiceTabsProps) {
-  const router = useRouter();
+export function CustomerVoiceTabs({ initialTab, adnContent, competitorContent, calendarContent, metasContent }: CustomerVoiceTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const searchParams = useSearchParams();
-  const rawTab = searchParams.get("tab");
-  const activeTab: TabId =
-    rawTab === "competencia" ? "competencia" :
-    rawTab === "calendario" ? "calendario" :
-    rawTab === "metas" ? "metas" :
-    "adn";
-  const [isPending, startTransition] = useTransition();
+
+  const handleTabChange = useCallback((tabId: TabId) => {
+    if (activeTab === tabId) return;
+    setActiveTab(tabId);
+    // Update URL for shareability without server roundtrip
+    const params = new URLSearchParams(searchParams.toString());
+    if (tabId === "adn") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tabId);
+    }
+    if (tabId !== "calendario") params.delete("month");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `/customer-voice${qs ? `?${qs}` : ""}`);
+  }, [activeTab, searchParams]);
 
   const tabs = [
     { id: "adn" as const,         label: "ADN de Marca",  icon: Fingerprint },
@@ -30,22 +39,6 @@ export function CustomerVoiceTabs({ adnContent, competitorContent, calendarConte
     { id: "calendario" as const,  label: "Calendario",    icon: CalendarDays },
     { id: "metas" as const,       label: "Metas",         icon: Target },
   ];
-
-  function handleTabChange(tabId: TabId) {
-    if (activeTab === tabId) return;
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (tabId === "adn") {
-        params.delete("tab");
-      } else {
-        params.set("tab", tabId);
-      }
-      // Clear month param when leaving calendar tab
-      if (tabId !== "calendario") params.delete("month");
-      const qs = params.toString();
-      router.replace(`/customer-voice${qs ? `?${qs}` : ""}`, { scroll: false });
-    });
-  }
 
   return (
     <div>
@@ -73,8 +66,8 @@ export function CustomerVoiceTabs({ adnContent, competitorContent, calendarConte
         })}
       </div>
 
-      {/* Tab content */}
-      <div className={isPending ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+      {/* Tab content — instant switch, no server roundtrip */}
+      <div>
         {activeTab === "adn"         && <div key="adn">{adnContent}</div>}
         {activeTab === "competencia" && <div key="competencia">{competitorContent}</div>}
         {activeTab === "calendario"  && <div key="calendario">{calendarContent}</div>}

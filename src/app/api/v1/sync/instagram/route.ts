@@ -37,6 +37,14 @@ export async function POST(request: Request) {
       return api500();
     }
 
+    // For quick sync, also fire stories sync in background (server-side, no browser cancel)
+    if (steps === 'quick') {
+      supabase.functions.invoke('sync-instagram', {
+        body: { workspace_id: auth.workspaceId, steps: 'stories' },
+        headers: syncHeaders,
+      }).catch(() => { /* background */ });
+    }
+
     // Pass through the Edge Function response
     return apiSuccess(data);
   } catch (err) {
