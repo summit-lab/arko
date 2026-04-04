@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -751,10 +752,13 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   style={{ aspectRatio: "4/5" }}
                 >
                   {reel.thumbnail_url ? (
-                    <img
+                    <Image
                       src={reel.thumbnail_url}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
+                      loading="lazy"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">

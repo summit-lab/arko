@@ -95,6 +95,7 @@ export interface AdsSyncResult {
   reelsUpdated: number;
   totalVideoPlays: number;
   totalVideoPlays30d: number;
+  totalVideoPlays90d: number;
   errors: string[];
   unmappedSamples?: Array<{ id: string; name: string; creative: Record<string, unknown> | null }>;
 }
@@ -102,6 +103,13 @@ export interface AdsSyncResult {
 export interface AccountSyncResult {
   daysUpserted: number;
   demographicsUpserted: boolean;
+  errors: string[];
+}
+
+export interface StoriesSyncResult {
+  storiesFetched: number;
+  sequencesUpserted: number;
+  slidesUpserted: number;
   errors: string[];
 }
 
