@@ -115,7 +115,8 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           total_impressions, total_reach, total_replies, total_exits, archived,
           ig_story_slides (
             id, ig_media_id, slide_index, media_type, media_url, thumbnail_url, caption,
-            impressions, reach, replies, exits, taps_forward, taps_back, swipe_aways, archived
+            impressions, reach, replies, exits, taps_forward, taps_back, swipe_aways, archived,
+            media_storage_path
           )
         `)
         .eq("workspace_id", workspaceId)
@@ -153,6 +154,27 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
     // ── Process stories ──
     if (storiesResult?.data) {
+      // Collect all storage paths that need signed URLs
+      const allStoragePaths: string[] = [];
+      for (const seq of storiesResult.data as Array<{ ig_story_slides: Array<{ media_storage_path: string | null }> }>) {
+        for (const slide of seq.ig_story_slides || []) {
+          if (slide.media_storage_path) allStoragePaths.push(slide.media_storage_path);
+        }
+      }
+
+      // Generate signed URLs in bulk (1 hour expiry)
+      const signedUrlMap = new Map<string, string>();
+      if (allStoragePaths.length > 0) {
+        const { data: signedUrls } = await supabase.storage
+          .from("story-media")
+          .createSignedUrls(allStoragePaths, 3600);
+        if (signedUrls) {
+          for (const su of signedUrls) {
+            if (su.signedUrl && su.path) signedUrlMap.set(su.path, su.signedUrl);
+          }
+        }
+      }
+
       storySequences = (storiesResult.data as Array<{
         id: string; ig_story_id: string; published_at: string; expires_at: string | null;
         total_impressions: number; total_reach: number; total_replies: number; total_exits: number;
@@ -162,6 +184,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           media_url: string | null; thumbnail_url: string | null; caption: string | null;
           impressions: number; reach: number; replies: number; exits: number;
           taps_forward: number; taps_back: number; swipe_aways: number; archived: boolean;
+          media_storage_path: string | null;
         }>;
       }>).map((seq) => ({
         id: seq.id,
@@ -174,7 +197,12 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         total_exits: seq.total_exits,
         archived: seq.archived,
         slides: Array.isArray(seq.ig_story_slides)
-          ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index)
+          ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index).map((slide) => ({
+              ...slide,
+              // CDN-first fallback: use original URL if available, else archived storage URL
+              thumbnail_url: slide.thumbnail_url || (slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null),
+              media_url: slide.media_url || (slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null),
+            }))
           : [],
       }));
     }
