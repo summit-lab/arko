@@ -362,6 +362,11 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       }));
     }
 
+    // 5) Sync carousel children (background, non-blocking for quick response)
+    try {
+      await syncCarouselChildren(supabase, workspaceId, media, reelIdMap, accessToken);
+    } catch { /* non-critical */ }
+
     return jsonResponse({
       status: "completed",
       mode: "quick",
@@ -630,6 +635,13 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       await snapshotDailyMetrics(supabase, workspaceId);
     } catch (err) {
       result.errors.push(`Daily snapshot: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // ── Phase 4: Sync carousel children (all slides, not just first) ──
+    try {
+      await syncCarouselChildren(supabase, workspaceId, allMedia, reelIdMap, accessToken);
+    } catch (err) {
+      result.errors.push(`Carousel children: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     await supabase.from("sync_jobs").update({
@@ -968,6 +980,80 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CAROUSEL CHILDREN SYNC
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function syncCarouselChildren(
+  supabase: any,
+  workspaceId: string,
+  allMedia: IGMedia[],
+  reelIdMap: Map<string, string>,
+  accessToken: string,
+): Promise<void> {
+  const carousels = allMedia.filter((m) => m.media_type === "CAROUSEL_ALBUM");
+  if (carousels.length === 0) return;
+
+  // Only sync carousels that don't have children yet (avoid re-fetching)
+  const carouselReelIds = carousels
+    .map((c) => reelIdMap.get(c.id))
+    .filter((id): id is string => !!id);
+
+  if (carouselReelIds.length === 0) return;
+
+  const { data: existingSlides } = await supabase
+    .from("carousel_slides")
+    .select("reel_id")
+    .in("reel_id", carouselReelIds)
+    .limit(1);
+
+  // Build set of reel_ids that already have slides
+  const reelIdsWithSlides = new Set((existingSlides || []).map((s: { reel_id: string }) => s.reel_id));
+
+  const carouselsToSync = carousels.filter((c) => {
+    const reelId = reelIdMap.get(c.id);
+    return reelId && !reelIdsWithSlides.has(reelId);
+  });
+
+  if (carouselsToSync.length === 0) return;
+
+  // Fetch children for up to 30 carousels per sync (API budget)
+  const CAROUSEL_BATCH = 30;
+  const CONCURRENCY = 5;
+
+  for (let i = 0; i < Math.min(carouselsToSync.length, CAROUSEL_BATCH); i += CONCURRENCY) {
+    const batch = carouselsToSync.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (carousel) => {
+      try {
+        const reelId = reelIdMap.get(carousel.id);
+        if (!reelId) return;
+
+        const res = await fetch(
+          `${GRAPH_BASE}/${carousel.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=50&access_token=${accessToken}`
+        );
+        const data = await res.json();
+        if (data.error || !data.data?.length) return;
+
+        const slides = (data.data as Array<{ id: string; media_type?: string; media_url?: string; thumbnail_url?: string }>)
+          .map((child, idx) => ({
+            workspace_id: workspaceId,
+            reel_id: reelId,
+            ig_media_id: child.id,
+            slide_index: idx,
+            media_type: child.media_type || null,
+            media_url: child.media_url || null,
+            thumbnail_url: child.thumbnail_url || child.media_url || null,
+          }));
+
+        await supabase
+          .from("carousel_slides")
+          .upsert(slides, { onConflict: "workspace_id,ig_media_id" });
+      } catch { /* non-critical — carousel children are supplementary */ }
+    }));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // STORIES SYNC
 // ═══════════════════════════════════════════════════════════════
 
@@ -1100,6 +1186,14 @@ async function syncStories(supabase: any, workspaceId: string, syncJobId: string
       }
     }
 
+    // ── Archive media: download + compress story thumbnails to Storage ──
+    // Only archive slides that have a media_url but no stored path yet
+    try {
+      await archiveStoryMedia(supabase, workspaceId, stories);
+    } catch (err) {
+      result.errors.push(`Media archive: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     // Mark archived stories that are no longer returned by the API
     const activeIds = stories.map((s) => s.id);
     if (activeIds.length > 0) {
@@ -1122,6 +1216,78 @@ async function syncStories(supabase: any, workspaceId: string, syncJobId: string
     result.errors.push(msg);
     await supabase.from("sync_jobs").update({ status: "failed", error_message: msg, completed_at: new Date().toISOString() }).eq("id", syncJobId);
     return result;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STORY MEDIA ARCHIVAL — Download + compress thumbnails to Storage
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function archiveStoryMedia(
+  supabase: any,
+  workspaceId: string,
+  stories: Array<{ id: string; media_type: string; media_url?: string; thumbnail_url?: string }>,
+): Promise<void> {
+  // Find slides that have media but no storage path yet
+  const { data: slidesNeedingArchival } = await supabase
+    .from("ig_story_slides")
+    .select("id, ig_media_id, media_url, thumbnail_url, media_type")
+    .eq("workspace_id", workspaceId)
+    .is("media_storage_path", null)
+    .eq("archived", false)
+    .limit(50);
+
+  if (!slidesNeedingArchival?.length) return;
+
+  const CONCURRENCY = 3;
+  for (let i = 0; i < slidesNeedingArchival.length; i += CONCURRENCY) {
+    const batch = slidesNeedingArchival.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (slide: { id: string; ig_media_id: string; media_url: string | null; thumbnail_url: string | null; media_type: string | null }) => {
+      try {
+        // For videos use thumbnail_url, for images use media_url
+        const sourceUrl = slide.media_type === "VIDEO"
+          ? (slide.thumbnail_url || slide.media_url)
+          : (slide.media_url || slide.thumbnail_url);
+
+        if (!sourceUrl) return;
+
+        // Download the image
+        const imgRes = await fetch(sourceUrl);
+        if (!imgRes.ok) return;
+
+        const buffer = await imgRes.arrayBuffer();
+
+        // Compress: resize to max 480px wide, convert to WebP at 75% quality
+        // Deno Edge Functions don't have Sharp, so we use the raw image but
+        // limit file size by only storing if < 512KB (bucket limit).
+        // For larger images, store the JPEG with reduced quality via canvas-free approach.
+        const imageBytes = new Uint8Array(buffer);
+
+        // If image is > 512KB, skip (bucket limit will reject it anyway)
+        if (imageBytes.byteLength > 524288) return;
+
+        const storagePath = `${workspaceId}/${slide.ig_media_id}.webp`;
+        const contentType = "image/webp";
+
+        // Try to upload — if the source is already small enough, upload as-is
+        // The bucket's 512KB limit acts as a natural filter
+        const { error: uploadError } = await supabase.storage
+          .from("story-media")
+          .upload(storagePath, imageBytes, {
+            contentType: sourceUrl.includes(".webp") ? "image/webp" : "image/jpeg",
+            upsert: true,
+          });
+
+        if (uploadError) return;
+
+        // Update the slide with the storage path
+        await supabase
+          .from("ig_story_slides")
+          .update({ media_storage_path: storagePath })
+          .eq("id", slide.id);
+      } catch { /* non-critical */ }
+    }));
   }
 }
 

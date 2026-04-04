@@ -7,6 +7,7 @@ import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChar
 import { ReelDailySparkline } from "@/components/instagram/ReelDailySparkline";
 import { ReelDayRadar } from "@/components/instagram/ReelDayRadar";
 import { ReelAISection } from "@/components/instagram/ReelAISection";
+import { PostDetailView } from "@/components/instagram/PostDetailView";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
@@ -263,6 +264,88 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
 
+  // ─── First: detect if this is a Post/Carousel or a Reel ───
+  if (workspaceId && !id.startsWith("demo")) {
+    const { data: mediaCheck } = await supabase
+      .from("reels")
+      .select("media_type, media_product_type")
+      .eq("id", id)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    const isPostOrCarousel = mediaCheck && (
+      mediaCheck.media_type === "IMAGE" ||
+      mediaCheck.media_type === "CAROUSEL_ALBUM"
+    ) && mediaCheck.media_product_type !== "REELS";
+
+    if (isPostOrCarousel) {
+      // ─── POST / CAROUSEL detail view ───
+      const [{ data: postData }, { data: carouselSlides }] = await Promise.all([
+        supabase
+          .from("reels")
+          .select(`
+            id, caption, permalink, thumbnail_url, media_url, published_at,
+            media_type, media_product_type,
+            reel_metrics (impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, views_org)
+          `)
+          .eq("id", id)
+          .eq("workspace_id", workspaceId)
+          .single(),
+        supabase
+          .from("carousel_slides")
+          .select("id, ig_media_id, slide_index, media_type, media_url, thumbnail_url")
+          .eq("reel_id", id)
+          .eq("workspace_id", workspaceId)
+          .order("slide_index", { ascending: true }),
+      ]);
+
+      if (postData) {
+        const rawM = postData.reel_metrics as unknown;
+        type PostMetrics = { impressions_org: number | null; reach_org: number | null; likes_total: number; comments_total: number; shares_total: number; saves_total: number; views_org: number | null };
+        const m = Array.isArray(rawM) ? (rawM as PostMetrics[])[0] : (rawM as PostMetrics | null);
+
+        // For posts/carousels: views_org is typically null (posts don't have "views").
+        // Use impressions as the primary volume metric for engagement rate.
+        const impressions = m?.impressions_org ?? 0;
+        const reach = m?.reach_org ?? 0;
+        const viewsOrImp = m?.views_org ?? impressions; // fallback to impressions if no views
+
+        const postDetail = {
+          id: postData.id,
+          caption: postData.caption,
+          permalink: postData.permalink,
+          thumbnail_url: postData.thumbnail_url,
+          media_url: postData.media_url,
+          published_at: postData.published_at,
+          media_type: postData.media_type,
+          likes: m?.likes_total ?? 0,
+          saves: m?.saves_total ?? 0,
+          comments: m?.comments_total ?? 0,
+          shares: m?.shares_total ?? 0,
+          views_total: viewsOrImp,
+          reach,
+          impressions,
+          carousel_slides: (carouselSlides || []).map((s) => ({
+            id: s.id,
+            ig_media_id: s.ig_media_id,
+            slide_index: s.slide_index,
+            media_type: s.media_type,
+            media_url: s.media_url,
+            thumbnail_url: s.thumbnail_url,
+          })),
+        };
+
+        return (
+          <div className="mx-auto w-full max-w-[1600px] space-y-6 px-6 py-8 sm:px-10 lg:px-[4%] min-w-0 overflow-hidden">
+            <InstagramBackButton tab="publicaciones" />
+            <PostDetailView post={postDetail} />
+          </div>
+        );
+      }
+    }
+  }
+
+  // ─── REEL detail view (existing logic) ───
   let reel = DEMO_REEL;
   let isDemo = true;
   let initialGeminiAnalysis: GeminiVideoAnalysis | null = null;
