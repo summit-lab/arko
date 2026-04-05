@@ -47,6 +47,7 @@ interface ReelCard {
   id: string;
   ig_media_id: string;
   caption: string | null;
+  auto_title: string | null;
   permalink: string | null;
   thumbnail_url: string | null;
   published_at: string | null;
@@ -69,6 +70,7 @@ interface ReelCard {
 interface DashboardReel {
   id: string;
   caption: string | null;
+  auto_title: string | null;
   thumbnail_url: string | null;
   permalink: string | null;
   published_at: string | null;
@@ -137,6 +139,8 @@ interface PostCard {
   published_at: string | null;
   media_type: string | null;
   views_total: number;
+  impressions: number;
+  reach: number;
   likes: number;
   saves: number;
   comments: number;
@@ -212,8 +216,11 @@ export function InstagramShell({
     const totalLikes = posts.reduce((s, p) => s + p.likes, 0);
     const totalSaves = posts.reduce((s, p) => s + p.saves, 0);
     const totalComments = posts.reduce((s, p) => s + p.comments, 0);
+    const totalShares = posts.reduce((s, p) => s + p.shares, 0);
     const avgLikes = posts.length > 0 ? Math.round(totalLikes / posts.length) : 0;
-    return { totalPosts, totalCarruseles, totalLikes, totalSaves, totalComments, avgLikes };
+    const avgComments = posts.length > 0 ? Math.round(totalComments / posts.length) : 0;
+    const avgSaves = posts.length > 0 ? Math.round(totalSaves / posts.length) : 0;
+    return { totalPosts, totalCarruseles, totalLikes, totalSaves, totalComments, totalShares, avgLikes, avgComments, avgSaves };
   })() : undefined;
 
   return (
@@ -269,7 +276,7 @@ export function InstagramShell({
       )}
 
       {activeTab === "historias" && (
-        <StoriesGrid sequences={storySequences} />
+        <StoriesGrid sequences={storySequences} totalFollowers={totalFollowers} />
       )}
 
       {activeTab === "publicaciones" && (

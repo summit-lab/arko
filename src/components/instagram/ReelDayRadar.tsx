@@ -41,8 +41,8 @@ export function ReelDayRadar({ data }: { data: DayData[] }) {
             <Radar
               name="Views"
               dataKey="views"
-              stroke="#818cf8"
-              fill="#818cf8"
+              stroke="#7A86E0"
+              fill="#7A86E0"
               fillOpacity={0.18}
               strokeWidth={2}
               animationDuration={1200}
@@ -53,12 +53,12 @@ export function ReelDayRadar({ data }: { data: DayData[] }) {
       </div>
       <div
         className="rounded-xl px-3 py-2.5 mt-2"
-        style={{ background: "rgba(129,140,248,0.06)", border: "1px solid rgba(129,140,248,0.1)" }}
+        style={{ background: "rgba(122,134,224,0.06)", border: "1px solid rgba(122,134,224,0.12)" }}
       >
-        <p className="text-[9px] text-indigo-300/70 font-medium uppercase tracking-[0.08em] mb-0.5">Día con más views</p>
+        <p className="text-[9px] font-medium uppercase tracking-[0.08em] mb-0.5" style={{ color: "rgba(122,134,224,0.7)" }}>Día con más views</p>
         <p className="text-[11px] text-white/50 font-light">
           <span className="text-white">{bestDay.day}</span>
-          {" — "}<span className="text-indigo-300">{bestDay.views.toLocaleString("es-AR")}</span> views
+          {" — "}<span style={{ color: "#7A86E0" }}>{bestDay.views.toLocaleString("es-AR")}</span> views
         </p>
       </div>
     </div>

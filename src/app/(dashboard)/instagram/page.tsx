@@ -7,6 +7,7 @@ import { PeriodFilter } from "@/components/instagram/PeriodFilter";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
+import { ReelTitlesBulkGenerator } from "@/components/instagram/ReelTitlesBulkGenerator";
 import { Suspense } from "react";
 
 // ─── Page Component ───
@@ -26,7 +27,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
   // Default empty data for all tabs
   type ReelCard = {
-    id: string; ig_media_id: string; caption: string | null; permalink: string | null;
+    id: string; ig_media_id: string; caption: string | null; auto_title: string | null; permalink: string | null;
     thumbnail_url: string | null; published_at: string | null; duration_seconds: number | null;
     reel_type: string; has_ads: boolean; views_org: number; views_paid: number; views_total: number;
     likes: number; saves: number; comments: number; shares: number; follows: number;
@@ -45,7 +46,8 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     id: string; ig_media_id: string; caption: string | null;
     thumbnail_url: string | null; permalink: string | null;
     published_at: string | null; media_type: string | null;
-    views_total: number; likes: number; saves: number; comments: number; shares: number;
+    views_total: number; impressions: number; reach: number;
+    likes: number; saves: number; comments: number; shares: number;
   }> = [];
   let storySequences: Array<{
     id: string; ig_story_id: string; published_at: string; expires_at: string | null;
@@ -83,7 +85,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       supabase
         .from("reels")
         .select(`
-          id, ig_media_id, caption, permalink, thumbnail_url, media_url, published_at,
+          id, ig_media_id, caption, auto_title, permalink, thumbnail_url, media_url, published_at,
           duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
           reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, follows_generated),
           reel_metrics_paid (views_paid)
@@ -128,7 +130,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .select(`
           id, ig_media_id, caption, permalink, thumbnail_url, published_at,
           media_type, media_product_type,
-          reel_metrics (likes_total, comments_total, shares_total, saves_total),
+          reel_metrics (likes_total, comments_total, shares_total, saves_total, impressions_org, reach_org),
           reel_metrics_paid (views_paid)
         `)
         .eq("workspace_id", workspaceId)
@@ -209,7 +211,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
     // ── Process posts ──
     if (postsResult?.data) {
-      type MShape = { likes_total: number; comments_total: number; shares_total: number; saves_total: number };
+      type MShape = { likes_total: number; comments_total: number; shares_total: number; saves_total: number; impressions_org: number; reach_org: number };
       type PShape = { views_paid: number };
       const getM = (raw: unknown): MShape | null => Array.isArray(raw) ? (raw as MShape[])[0] : (raw as MShape | null);
       const getP = (raw: unknown): PShape | null => Array.isArray(raw) ? (raw as PShape[])[0] : (raw as PShape | null);
@@ -224,7 +226,10 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           id: r.id, ig_media_id: r.ig_media_id, caption: r.caption,
           thumbnail_url: r.thumbnail_url, permalink: r.permalink,
           published_at: r.published_at, media_type: r.media_type,
-          views_total: p?.views_paid || 0, likes: m?.likes_total || 0,
+          views_total: p?.views_paid || 0,
+          impressions: m?.impressions_org || 0,
+          reach: m?.reach_org || 0,
+          likes: m?.likes_total || 0,
           saves: m?.saves_total || 0, comments: m?.comments_total || 0, shares: m?.shares_total || 0,
         };
       });
@@ -264,7 +269,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           const viewsTotal = viewsOrg + viewsPaid;
           const multiple = avgViewsBenchmark > 0 ? viewsTotal / avgViewsBenchmark : null;
           return {
-            id: r.id, ig_media_id: r.ig_media_id, caption: r.caption,
+            id: r.id, ig_media_id: r.ig_media_id, caption: r.caption, auto_title: r.auto_title ?? null,
             permalink: r.permalink, thumbnail_url: r.thumbnail_url,
             published_at: r.published_at, duration_seconds: r.duration_seconds,
             reel_type: r.reel_type, has_ads: r.has_ads,
@@ -293,9 +298,10 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
   const hasRealData = reels.length > 0 || dailyInsights.length > 0;
   const reelsMissingDuration = reels.filter((r) => r.duration_seconds === null).length;
+  const reelsMissingTitles = reels.some((r) => !r.auto_title);
 
   const dashboardReels = reels.map((r) => ({
-    id: r.id, caption: r.caption, thumbnail_url: r.thumbnail_url, permalink: r.permalink,
+    id: r.id, caption: r.caption, auto_title: r.auto_title ?? null, thumbnail_url: r.thumbnail_url, permalink: r.permalink,
     published_at: r.published_at, views_org: r.views_org, views_paid: r.views_paid,
     views_total: r.views_total, likes: r.likes, saves: r.saves,
     comments: r.comments, shares: r.shares, sales_amount: r.sales_amount,
@@ -307,6 +313,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="px-8 py-10 space-y-8">
+      <ReelTitlesBulkGenerator hasMissingTitles={reelsMissingTitles} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

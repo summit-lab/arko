@@ -95,11 +95,11 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
           <h3 className="text-[15px] font-light text-white tracking-wide">Alcance & Visibilidad</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />
+              <div className="h-1.5 w-1.5 rounded-full bg-[#7A86E0]" />
               <span>Alcance</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#c084fc]" />
+              <div className="h-1.5 w-1.5 rounded-full bg-[#AF6EC7]" />
               <span>Impresiones</span>
             </div>
           </div>
@@ -110,12 +110,12 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
               <AreaChart data={growthData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradReach" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#818cf8" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#7A86E0" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gradImpressions" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#c084fc" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#c084fc" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#AF6EC7" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#AF6EC7" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -142,7 +142,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   type="monotone"
                   dataKey="reach"
                   name="Alcance"
-                  stroke="#818cf8"
+                  stroke="#7A86E0"
                   strokeWidth={2}
                   fill="url(#gradReach)"
                   isAnimationActive={true}
@@ -154,7 +154,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   type="monotone"
                   dataKey="impressions"
                   name="Impresiones"
-                  stroke="#c084fc"
+                  stroke="#AF6EC7"
                   strokeWidth={2}
                   fill="url(#gradImpressions)"
                   isAnimationActive={true}
@@ -178,15 +178,15 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
           <h3 className="text-[15px] font-light text-white tracking-wide">Interacciones</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#f472b6]" />
+              <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#7A86E0" }} />
               <span>Me gusta</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#22d3ee]" />
+              <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#AF6EC7" }} />
               <span>Guardados</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#34d399]" />
+              <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#4BCEAF" }} />
               <span>Comentarios</span>
             </div>
           </div>
@@ -215,9 +215,9 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   tickFormatter={(v: number) => formatCompactValue(v)}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.06)" }} />
-                <Bar dataKey="likes" name="Me gusta" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
-                <Bar dataKey="saves" name="Guardados" fill="#22d3ee" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
-                <Bar dataKey="comments" name="Comentarios" fill="#34d399" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.8} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="likes" name="Me gusta" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="saves" name="Guardados" fill="#AF6EC7" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="comments" name="Comentarios" fill="#4BCEAF" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />
               </BarChart>
             </ResponsiveContainer>
           ) : (

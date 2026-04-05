@@ -118,8 +118,8 @@ function TrendBadge({ pct, up }: { pct: string; up: boolean }) {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PIE_COLORS = ["#818cf8", "#f472b6", "#22d3ee", "#34d399", "#fbbf24", "#a78bfa", "#f97316", "#71717a"];
-const ENGAGEMENT_COLORS = { likes: "#f472b6", saves: "#fbbf24", comments: "#34d399", shares: "#60a5fa" };
+const PIE_COLORS = ["#7A86E0", "#EB6991", "#4BCEAF", "#AF6EC7", "#A5ADEE", "#F0A0BB", "#7EE0CE", "#C89ED8"];
+const ENGAGEMENT_COLORS = { likes: "#EB6991", saves: "#AF6EC7", comments: "#4BCEAF", shares: "#7A86E0" };
 const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 // ─── Process gender+age demographics ─────────────────────────────────────────
@@ -366,32 +366,32 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
             <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="m-imp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#818cf8" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#7A86E0" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="m-reach" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#4BCEAF" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#4BCEAF" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="m-pv" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#34d399" stopOpacity={0.2} />
-                  <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#4BCEAF" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#4BCEAF" stopOpacity={0} />
                 </linearGradient>
                 <filter id="m-glow-v" x="-20%" y="-20%" width="140%" height="140%">
                   <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feFlood floodColor="#818cf8" floodOpacity="0.7" result="color" />
+                  <feFlood floodColor="#7A86E0" floodOpacity="0.7" result="color" />
                   <feComposite in="color" in2="blur" operator="in" result="glow" />
                   <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
                 <filter id="m-glow-c" x="-20%" y="-20%" width="140%" height="140%">
                   <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feFlood floodColor="#22d3ee" floodOpacity="0.7" result="color" />
+                  <feFlood floodColor="#4BCEAF" floodOpacity="0.7" result="color" />
                   <feComposite in="color" in2="blur" operator="in" result="glow" />
                   <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
                 <filter id="m-glow-e" x="-20%" y="-20%" width="140%" height="140%">
                   <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feFlood floodColor="#34d399" floodOpacity="0.7" result="color" />
+                  <feFlood floodColor="#4BCEAF" floodOpacity="0.7" result="color" />
                   <feComposite in="color" in2="blur" operator="in" result="glow" />
                   <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
@@ -404,17 +404,17 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={xInterval} />
               <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={48} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-              <Area type="monotone" dataKey="impressions" name="Impresiones" stroke="#818cf8" fill="url(#m-imp)" strokeWidth={2.5} dot={false} animationDuration={1200} animationEasing="ease-out" style={{ filter: "url(#m-glow-v)" }} activeDot={{ r: 5, fill: "#818cf8", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#m-dot)" }} />
-              <Area type="monotone" dataKey="reach" name="Alcance" stroke="#22d3ee" fill="url(#m-reach)" strokeWidth={2.5} dot={false} animationDuration={1400} animationEasing="ease-out" style={{ filter: "url(#m-glow-c)" }} activeDot={{ r: 5, fill: "#22d3ee", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#m-dot)" }} />
-              <Area type="monotone" dataKey="profile_views" name="Visitas perfil" stroke="#34d399" fill="url(#m-pv)" strokeWidth={2} dot={false} animationDuration={1600} animationEasing="ease-out" style={{ filter: "url(#m-glow-e)" }} activeDot={{ r: 4, fill: "#34d399", stroke: "#6ee7b7", strokeWidth: 2, filter: "url(#m-dot)" }} />
+              <Area type="monotone" dataKey="impressions" name="Impresiones" stroke="#7A86E0" fill="url(#m-imp)" strokeWidth={2.5} dot={false} animationDuration={1200} animationEasing="ease-out" style={{ filter: "url(#m-glow-v)" }} activeDot={{ r: 5, fill: "#7A86E0", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#m-dot)" }} />
+              <Area type="monotone" dataKey="reach" name="Alcance" stroke="#4BCEAF" fill="url(#m-reach)" strokeWidth={2.5} dot={false} animationDuration={1400} animationEasing="ease-out" style={{ filter: "url(#m-glow-c)" }} activeDot={{ r: 5, fill: "#4BCEAF", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#m-dot)" }} />
+              <Area type="monotone" dataKey="profile_views" name="Visitas perfil" stroke="#4BCEAF" fill="url(#m-pv)" strokeWidth={2} dot={false} animationDuration={1600} animationEasing="ease-out" style={{ filter: "url(#m-glow-e)" }} activeDot={{ r: 4, fill: "#4BCEAF", stroke: "#6ee7b7", strokeWidth: 2, filter: "url(#m-dot)" }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
         <div className="flex items-center gap-6 mt-4 flex-wrap">
           {[
-            { color: "#818cf8", label: "Impresiones" },
-            { color: "#22d3ee", label: "Alcance" },
-            { color: "#34d399", label: "Visitas al perfil" },
+            { color: "#7A86E0", label: "Impresiones" },
+            { color: "#4BCEAF", label: "Alcance" },
+            { color: "#4BCEAF", label: "Visitas al perfil" },
           ].map((l) => (
             <div key={l.label} className="flex items-center gap-2">
               <div className="h-0.5 w-5 rounded-full" style={{ backgroundColor: l.color, boxShadow: `0 0 6px ${l.color}` }} />
@@ -561,15 +561,15 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                   <AreaChart data={followerCurveData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                     <defs>
                       <linearGradient id="followerGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#4BCEAF" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#4BCEAF" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={Math.max(0, Math.floor(followerCurveData.length / 7) - 1)} />
                     <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={45} domain={["dataMin - 10", "dataMax + 10"]} />
                     <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(255,255,255,0.1)" }} />
-                    <Area type="monotone" dataKey="total" name="Seguidores" stroke="#34d399" strokeWidth={2} fill="url(#followerGrad)" animationDuration={1200} />
+                    <Area type="monotone" dataKey="total" name="Seguidores" stroke="#4BCEAF" strokeWidth={2} fill="url(#followerGrad)" animationDuration={1200} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -595,8 +595,8 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                   <Radar
                     name="Interacciones"
                     dataKey="avg"
-                    stroke="#818cf8"
-                    fill="#818cf8"
+                    stroke="#7A86E0"
+                    fill="#7A86E0"
                     fillOpacity={0.18}
                     strokeWidth={2}
                     animationDuration={1200}
@@ -704,8 +704,8 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             <XAxis dataKey="range" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={35} />
                             <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-                            <Bar dataKey="hombre" name="Hombre" fill="#818cf8" radius={[4, 4, 0, 0]} animationDuration={1200} />
-                            <Bar dataKey="mujer" name="Mujer" fill="#f472b6" radius={[4, 4, 0, 0]} animationDuration={1400} />
+                            <Bar dataKey="hombre" name="Hombre" fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
+                            <Bar dataKey="mujer" name="Mujer" fill="#EB6991" radius={[4, 4, 0, 0]} animationDuration={1400} />
                           </BarChart>
                         ) : (
                           <BarChart data={genderData.ageBars} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -713,7 +713,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             <XAxis dataKey="range" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={35} />
                             <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-                            <Bar dataKey="value" name="Seguidores" fill="#818cf8" radius={[4, 4, 0, 0]} animationDuration={1200} />
+                            <Bar dataKey="value" name="Seguidores" fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
                           </BarChart>
                         )}
                       </ResponsiveContainer>
@@ -721,11 +721,11 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                     {genderData.ageGenderBars.length > 0 && (
                       <div className="flex items-center gap-4 mt-3">
                         <div className="flex items-center gap-1.5">
-                          <div className="h-2 w-2 rounded-full bg-[#818cf8]" />
+                          <div className="h-2 w-2 rounded-full bg-[#7A86E0]" />
                           <span className="text-[11px] text-white/35">Hombre</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <div className="h-2 w-2 rounded-full bg-[#f472b6]" />
+                          <div className="h-2 w-2 rounded-full bg-[#EB6991]" />
                           <span className="text-[11px] text-white/35">Mujer</span>
                         </div>
                       </div>
