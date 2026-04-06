@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   Heart, Bookmark, MessageCircle, Share2, Eye,
-  Images, Grid2X2, ExternalLink,
+  Images, Grid2X2, ExternalLink, TrendingUp, Check, ChevronDown,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+  AreaChart, Area, XAxis, CartesianGrid,
 } from "recharts";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -20,27 +20,41 @@ interface Post {
   thumbnail_url: string | null;
   permalink: string | null;
   published_at: string | null;
-  media_type: string | null;       // IMAGE | CAROUSEL_ALBUM | VIDEO
+  media_type: string | null;
   views_total: number;
+  impressions: number;
+  reach: number;
   likes: number;
   saves: number;
   comments: number;
   shares: number;
 }
 
-interface PostsSummary {
+export interface PostsSummary {
   totalPosts: number;
   totalCarruseles: number;
   totalLikes: number;
   totalSaves: number;
   totalComments: number;
+  totalShares: number;
   avgLikes: number;
+  avgComments: number;
+  avgSaves: number;
 }
 
 interface PublicacionesGridProps {
   posts: Post[];
   summary?: PostsSummary;
 }
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+
+const PALETTE = {
+  indigo:  "#7A86E0",
+  purple:  "#AF6EC7",
+  teal:    "#4BCEAF",
+  pink:    "#EB6991",
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -60,21 +74,280 @@ function timeAgo(date: string): string {
   return `${Math.floor(days / 30)}mes`;
 }
 
-const PIE_COLORS = ["#818cf8", "#22d3ee"];
+function fmtDateShort(date: string): string {
+  const d = new Date(date);
+  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+}
+
+// ─── Glass tokens ─────────────────────────────────────────────────────────────
+
+const glassCard = {
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
+  backdropFilter: "blur(20px)",
+} as const;
+
+// ─── Sort dropdown ────────────────────────────────────────────────────────────
+
+type SortKey = "published_at" | "likes" | "comments" | "saves" | "shares";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "published_at", label: "Fecha" },
+  { value: "likes",        label: "Likes" },
+  { value: "comments",     label: "Comentarios" },
+  { value: "saves",        label: "Guardados" },
+  { value: "shares",       label: "Compartidos" },
+];
+
+function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = SORT_OPTIONS.find((o) => o.value === value);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] cursor-pointer"
+      >
+        <span>{selected?.label}</span>
+        <ChevronDown size={11} className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-white/10 bg-black/40 shadow-2xl backdrop-blur-2xl">
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`flex w-full items-center justify-between gap-6 px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.08] cursor-pointer ${
+                o.value === value ? "text-white" : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <span>{o.label}</span>
+              {o.value === value && <Check size={11} className="text-white" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Sidebar tooltips ─────────────────────────────────────────────────────────
+
+function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { color: string } }> }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] pointer-events-none"
+      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+      {payload.map((e) => (
+        <p key={e.name} style={{ color: e.payload.color }}>{e.name}: {fmt(e.value)}</p>
+      ))}
+    </div>
+  );
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+
+function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: PostsSummary }) {
+  const totalEngagement = summary.totalLikes + summary.totalSaves + summary.totalComments;
+
+  // Distribución donut
+  const distData = [
+    ...(summary.totalCarruseles > 0 ? [{ name: "Carruseles", value: summary.totalCarruseles, color: PALETTE.indigo }] : []),
+    ...(summary.totalPosts > 0      ? [{ name: "Posts",      value: summary.totalPosts,      color: PALETTE.purple }] : []),
+  ];
+
+  // Engagement breakdown donut
+  const engData = [
+    { name: "Likes",       value: summary.totalLikes,    color: PALETTE.pink   },
+    { name: "Guardados",   value: summary.totalSaves,    color: PALETTE.purple },
+    { name: "Comentarios", value: summary.totalComments, color: PALETTE.teal   },
+  ].filter((d) => d.value > 0);
+
+  // Timeline: likes per post chronologically (last 15)
+  const trendData = [...posts]
+    .filter((p) => p.published_at)
+    .sort((a, b) => a.published_at!.localeCompare(b.published_at!))
+    .slice(-15)
+    .map((p, i) => ({
+      idx: i + 1,
+      date: fmtDateShort(p.published_at!),
+      caption: p.caption?.slice(0, 28) ?? "Sin descripción",
+      likes: p.likes,
+    }));
+
+  // Top 5 by likes
+  const top5 = [...posts].sort((a, b) => b.likes - a.likes).slice(0, 5);
+  const maxLikes = top5[0]?.likes || 1;
+  const barColors = [PALETTE.indigo, PALETTE.purple, PALETTE.teal, "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
+
+  return (
+    <div className="w-[360px] shrink-0 space-y-3 pb-6 sticky top-6 self-start">
+
+      {/* ── Panel: Resumen ── */}
+      <div className="glass-panel rounded-xl px-5 py-4">
+        <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.12em] mb-4">
+          Resumen · {posts.length} publicaciones
+        </p>
+
+        {/* Type breakdown — text only, no chart */}
+        <div className="flex items-center gap-3 mb-4">
+          {distData.map((d) => (
+            <div key={d.name} className="flex-1 rounded-lg px-3 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="h-1.5 w-1.5 rounded-full" style={{ background: d.color }} />
+                <span className="text-[9px] text-white/35 uppercase tracking-wider">{d.name}</span>
+              </div>
+              <p className="text-[22px] font-light text-white leading-none">{d.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Totals */}
+        <div className="space-y-2">
+          {[
+            { label: "Total likes",        value: fmt(summary.totalLikes)    },
+            { label: "Total guardados",    value: fmt(summary.totalSaves)    },
+            { label: "Total comentarios",  value: fmt(summary.totalComments) },
+            { label: "Total compartidos",  value: fmt(summary.totalShares)   },
+            { label: "Prom. likes / post", value: fmt(summary.avgLikes)      },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex items-center justify-between">
+              <span className="text-[10px] text-white/30">{label}</span>
+              <span className="text-[13px] font-light text-white">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Panel: Engagement ── */}
+      <div className="glass-panel rounded-xl px-5 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Engagement</p>
+          <TrendingUp size={13} className="text-violet-400" />
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={engData} dataKey="value" cx="50%" cy="50%"
+                  innerRadius={28} outerRadius={44} paddingAngle={2} strokeWidth={0}>
+                  {engData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip content={<PieTooltip />} position={{ x: 0, y: -38 }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[15px] font-light text-white leading-none">{fmt(totalEngagement)}</span>
+            </div>
+          </div>
+          <div className="flex-1 space-y-2.5">
+            {[
+              { icon: Heart,         value: summary.totalLikes,    label: "Likes",       avg: summary.avgLikes,    color: PALETTE.pink   },
+              { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   avg: summary.avgSaves,    color: PALETTE.purple },
+              { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", avg: summary.avgComments, color: PALETTE.teal   },
+            ].map(({ icon: Icon, value, label, avg, color }) => (
+              <div key={label} className="flex items-center gap-2">
+                <Icon size={12} strokeWidth={1.5} style={{ color }} />
+                <span className="text-[11px] text-white/35 flex-1">{label}</span>
+                <div className="text-right">
+                  <p className="text-[13px] font-light text-white leading-none">{fmt(value)}</p>
+                  <p className="text-[9px] text-white/20">~{fmt(avg)} prom.</p>
+                </div>
+              </div>
+            ))}
+            {summary.totalShares > 0 && (
+              <div className="flex items-center gap-2">
+                <Share2 size={12} strokeWidth={1.5} style={{ color: PALETTE.indigo }} />
+                <span className="text-[11px] text-white/35 flex-1">Compartidos</span>
+                <p className="text-[13px] font-light text-white">{fmt(summary.totalShares)}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Panel: Evolución de likes ── */}
+      {trendData.length >= 2 && (
+        <div className="glass-panel rounded-xl px-5 py-4">
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">Evolución de Likes</p>
+          <p className="text-[9px] text-white/20 mb-3">Cronológico · últimas {trendData.length} publicaciones</p>
+          <div style={{ height: 90 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="pubLikesGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={PALETTE.indigo} stopOpacity={0.5} />
+                    <stop offset="100%" stopColor={PALETTE.indigo} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="idx" hide />
+                <Tooltip
+                  cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1 }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0]?.payload as { caption: string; date: string; likes: number };
+                    return (
+                      <div className="rounded-lg border border-white/10 px-3 py-2 text-[11px]"
+                        style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", maxWidth: 180 }}>
+                        <p className="text-white/50 mb-1 leading-snug">{d.caption}</p>
+                        <p className="text-white font-medium">{fmt(d.likes)} likes</p>
+                        <p className="text-white/30 text-[10px]">{d.date}</p>
+                      </div>
+                    );
+                  }}
+                />
+                <Area type="monotone" dataKey="likes" stroke={PALETTE.indigo} strokeWidth={2}
+                  fill="url(#pubLikesGrad)" dot={false}
+                  activeDot={{ r: 4, fill: PALETTE.indigo, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* ── Panel: Top 5 por likes ── */}
+      {top5.length > 0 && (
+        <div className="glass-panel rounded-xl px-5 py-4">
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-4">Top 5 por Likes</p>
+          <div className="space-y-3">
+            {top5.map((p, i) => {
+              const pct = Math.round((p.likes / maxLikes) * 88);
+              const label = p.caption ? p.caption.slice(0, 28) + (p.caption.length > 28 ? "…" : "") : "Sin título";
+              return (
+                <div key={p.id}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] text-white/25 w-3 shrink-0 font-light">{i + 1}</span>
+                    <span className="text-[10px] text-white/50 flex-1 truncate font-light">{label}</span>
+                    <span className="text-[11px] text-white font-light shrink-0">{fmt(p.likes)}</span>
+                  </div>
+                  <div className="h-[3px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColors[i] }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Post card ───────────────────────────────────────────────────────────────
 
 function PostCard({ post }: { post: Post }) {
   const isCarrusel = post.media_type === "CAROUSEL_ALBUM";
-  const engRate = (post.likes + post.comments + post.saves + post.shares) > 0 && post.views_total > 0
-    ? (((post.likes + post.comments + post.saves + post.shares) / post.views_total) * 100).toFixed(1)
-    : null;
 
   return (
-    <Link
-      href={`/instagram/${post.id}`}
-      className="group block rounded-xl overflow-hidden transition-all duration-200 hover:scale-[1.015]"
-      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+    <a
+      href={post.permalink ?? "#"}
+      target={post.permalink ? "_blank" : undefined}
+      rel="noopener noreferrer"
+      className="group block rounded-xl overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:shadow-xl cursor-pointer"
+      style={glassCard}
+      onClick={!post.permalink ? (e) => e.preventDefault() : undefined}
     >
       {/* Thumbnail */}
       <div className="relative overflow-hidden" style={{ aspectRatio: "1/1" }}>
@@ -87,97 +360,101 @@ function PostCard({ post }: { post: Post }) {
             sizes="200px"
           />
         ) : (
-          <div className="flex items-center justify-center h-full bg-white/[0.03]">
-            <Grid2X2 className="h-8 w-8 text-white/15" />
+          <div className="flex items-center justify-center h-full" style={{ background: "rgba(255,255,255,0.03)" }}>
+            <Grid2X2 className="h-8 w-8 text-white/10" />
           </div>
         )}
+
         {/* Type badge */}
-        <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          {isCarrusel ? <Images className="h-2.5 w-2.5 text-violet-300" /> : <Grid2X2 className="h-2.5 w-2.5 text-cyan-300" />}
+        <div
+          className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+        >
+          {isCarrusel
+            ? <Images className="h-2.5 w-2.5" style={{ color: PALETTE.indigo }} />
+            : <Grid2X2 className="h-2.5 w-2.5" style={{ color: PALETTE.purple }} />
+          }
           <span className="text-white/70">{isCarrusel ? "Carrusel" : "Post"}</span>
         </div>
-        {/* Time */}
+
+        {/* Time badge */}
         {post.published_at && (
           <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[9px] text-white/50"
             style={{ background: "rgba(0,0,0,0.5)" }}>
             {timeAgo(post.published_at)}
           </div>
         )}
-        {/* Eng rate overlay */}
-        {engRate && (
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-medium text-emerald-300"
-            style={{ background: "rgba(52,211,153,0.15)", backdropFilter: "blur(4px)" }}>
-            {engRate}%
+
+        {/* Gradient */}
+        <div className="absolute inset-x-0 bottom-0 h-10"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)" }} />
+
+        {/* External link hint */}
+        {post.permalink && (
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ExternalLink className="h-3 w-3 text-white/50" />
           </div>
         )}
       </div>
 
       {/* Caption + stats */}
       <div className="p-3 space-y-2">
-        <p className="text-[11px] font-light text-white/60 group-hover:text-white/80 transition-colors line-clamp-2 leading-relaxed">
+        <p className="text-[11px] font-light text-white/55 group-hover:text-white/75 transition-colors line-clamp-2 leading-relaxed">
           {post.caption?.slice(0, 80) || "Sin descripción"}
         </p>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="flex items-center gap-0.5 text-[10px] text-white/40">
-            <Heart className="h-2.5 w-2.5" /> {fmt(post.likes)}
+        {post.impressions > 0 && (
+          <div className="flex items-center gap-1 text-[10px] text-white/45">
+            <Eye className="h-2.5 w-2.5 text-white/30" />
+            <span>{fmt(post.impressions)} impresiones</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className="flex items-center gap-1 text-[10px] text-white/40">
+            <Heart className="h-2.5 w-2.5 text-white/35" />
+            {fmt(post.likes)}
           </span>
-          <span className="flex items-center gap-0.5 text-[10px] text-white/40">
-            <Bookmark className="h-2.5 w-2.5" /> {fmt(post.saves)}
+          <span className="flex items-center gap-1 text-[10px] text-white/40">
+            <Bookmark className="h-2.5 w-2.5 text-white/35" />
+            {fmt(post.saves)}
           </span>
-          <span className="flex items-center gap-0.5 text-[10px] text-white/40">
-            <MessageCircle className="h-2.5 w-2.5" /> {fmt(post.comments)}
+          <span className="flex items-center gap-1 text-[10px] text-white/40">
+            <MessageCircle className="h-2.5 w-2.5 text-white/35" />
+            {fmt(post.comments)}
           </span>
-          {post.permalink && (
-            <span
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(post.permalink!, "_blank", "noopener,noreferrer"); }}
-              className="ml-auto text-white/20 hover:text-white/50 transition-colors cursor-pointer"
-            >
-              <ExternalLink className="h-3 w-3" />
+          {post.shares > 0 && (
+            <span className="flex items-center gap-1 text-[10px] text-white/30">
+              <Share2 className="h-2.5 w-2.5 text-white/30" />
+              {fmt(post.shares)}
             </span>
           )}
         </div>
       </div>
-    </Link>
+    </a>
   );
 }
 
-// ─── Sidebar tooltip ──────────────────────────────────────────────────────────
-
-function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { fill: string } }> }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] pointer-events-none"
-      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)" }}>
-      {payload.map((e) => (
-        <p key={e.name} style={{ color: e.payload.fill }}>{e.name}: {fmt(e.value)}</p>
-      ))}
-    </div>
-  );
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
   const [typeFilter, setTypeFilter] = useState<"all" | "post" | "carrusel">("all");
+  const [sortKey, setSortKey] = useState<SortKey>("published_at");
 
   const filtered = useMemo(() => {
-    return posts.filter((p) => {
+    const base = posts.filter((p) => {
       if (typeFilter === "carrusel") return p.media_type === "CAROUSEL_ALBUM";
-      if (typeFilter === "post") return p.media_type !== "CAROUSEL_ALBUM";
+      if (typeFilter === "post")     return p.media_type !== "CAROUSEL_ALBUM";
       return true;
     });
-  }, [posts, typeFilter]);
-
-  const pieData = summary ? [
-    { name: "Posts", value: summary.totalPosts },
-    { name: "Carruseles", value: summary.totalCarruseles },
-  ].filter(d => d.value > 0) : [];
+    return [...base].sort((a, b) => {
+      if (sortKey === "published_at") return (b.published_at ?? "").localeCompare(a.published_at ?? "");
+      return (b[sortKey] as number) - (a[sortKey] as number);
+    });
+  }, [posts, typeFilter, sortKey]);
 
   if (posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="h-14 w-14 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(255,255,255,0.04)" }}>
           <Grid2X2 className="h-6 w-6 text-white/20" />
         </div>
         <h3 className="text-[15px] font-light text-white/50">Sin publicaciones en el período</h3>
@@ -189,16 +466,20 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
   }
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-6 items-start">
       {/* ── Grid (main) ── */}
       <div className="flex-1 min-w-0 space-y-5">
-        {/* Filters */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        {/* Filters row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Type pills */}
+          <div
+            className="flex items-center gap-1 p-1 rounded-lg"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
             {([
-              { key: "all" as const, label: "Todos" },
-              { key: "post" as const, label: "Posts" },
-              { key: "carrusel" as const, label: "Carruseles" },
+              { key: "all"      as const, label: "Todos"     },
+              { key: "post"     as const, label: "Posts"     },
+              { key: "carrusel" as const, label: "Carruseles"},
             ]).map(({ key, label }) => (
               <button
                 key={key}
@@ -211,72 +492,23 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
               </button>
             ))}
           </div>
+
+          {/* Sort */}
+          <SortSelect value={sortKey} onChange={setSortKey} />
+
           <span className="text-[11px] text-white/25">{filtered.length} publicaciones</span>
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {filtered.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
         </div>
       </div>
 
-      {/* ── Summary sidebar ── */}
-      <div className="w-[240px] shrink-0 space-y-4">
-        {summary && (
-          <>
-            {/* Donut */}
-            {pieData.length > 0 && (
-              <div className="glass-card p-5">
-                <p className="text-[11px] font-medium text-white/40 uppercase tracking-[0.1em] mb-4">Distribución</p>
-                <div className="flex items-center gap-4">
-                  <div className="h-[100px] w-[100px] shrink-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={3} strokeWidth={0}>
-                          {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip content={<PieTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="space-y-2">
-                    {pieData.map((d, i) => (
-                      <div key={d.name} className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
-                        <div>
-                          <p className="text-[10px] text-white/40">{d.name}</p>
-                          <p className="text-[15px] font-light text-white">{d.value}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* KPIs */}
-            <div className="glass-card p-5 space-y-4">
-              <p className="text-[11px] font-medium text-white/40 uppercase tracking-[0.1em]">Totales</p>
-              {[
-                { label: "Me gusta", value: fmt(summary.totalLikes), icon: Heart },
-                { label: "Guardados", value: fmt(summary.totalSaves), icon: Bookmark },
-                { label: "Comentarios", value: fmt(summary.totalComments), icon: MessageCircle },
-                { label: "Promedio likes", value: fmt(summary.avgLikes), icon: Eye },
-              ].map((s) => (
-                <div key={s.label} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <s.icon className="h-3.5 w-3.5 text-white/30" />
-                    <span className="text-[12px] font-light text-white/50">{s.label}</span>
-                  </div>
-                  <span className="text-[15px] font-light text-white">{s.value}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      {/* ── Sidebar ── */}
+      {summary && <PublicacionesSidebar posts={posts} summary={summary} />}
     </div>
   );
 }

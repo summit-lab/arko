@@ -4,6 +4,7 @@ import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemin
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
 import { ReelPerformanceChart } from "@/components/instagram/ReelPerformanceChart";
+import { ReelAutoTitle } from "@/components/instagram/ReelAutoTitle";
 import { ReelDailySparkline } from "@/components/instagram/ReelDailySparkline";
 import { ReelDayRadar } from "@/components/instagram/ReelDayRadar";
 import { ReelAISection } from "@/components/instagram/ReelAISection";
@@ -11,7 +12,7 @@ import { PostDetailView } from "@/components/instagram/PostDetailView";
 import type { ReelAudioAnalysis, ReelNarrativeAnalysis, ReelTranscript, ReelVisualAnalysis } from "@/types/database";
 import {
   Eye, Heart, Bookmark, MessageSquare, Share2,
-  Clock, Play, Megaphone, TrendingUp,
+  Clock, Play, Megaphone,
   ExternalLink, AlertTriangle, DollarSign,
 } from "lucide-react";
 
@@ -23,22 +24,9 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-function formatOptionalNumber(n: number | null | undefined): string {
-  if (n == null) return "—";
-  return formatNumber(n);
-}
-
 function formatOptionalPercent(value: number | null | undefined): string {
   if (value == null) return "—";
   return `${value.toFixed(2)}%`;
-}
-
-function formatCents(cents: number | null | undefined): string {
-  if (cents == null) return "—";
-  return new Intl.NumberFormat("es-AR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(cents / 100);
 }
 
 function formatTime(seconds: number | null | undefined): string {
@@ -51,21 +39,6 @@ function formatTime(seconds: number | null | undefined): string {
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m ${String(secs).padStart(2, "0")}s`;
   return `${secs}s`;
-}
-
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("es-AR", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function truncateText(value: string, maxLength = 180): string {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 1)}…`;
 }
 
 function pctOf(part: number, total: number): string {
@@ -194,6 +167,7 @@ function serializeGeminiForArko(analysis: GeminiVideoAnalysis): string {
 const DEMO_REEL = {
   id: "demo-1",
   caption: "Errores que te cuestan $10K/mes en tu negocio digital — y cómo evitarlos paso a paso",
+  auto_title: null as string | null,
   permalink: "https://instagram.com/reel/demo",
   thumbnail_url: null as string | null,
   media_url: null as string | null,
@@ -360,7 +334,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         supabase
           .from("reels")
           .select(`
-            id, caption, permalink, thumbnail_url, media_url, published_at,
+            id, caption, auto_title, permalink, thumbnail_url, media_url, published_at,
             duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
             reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, total_interactions, follows_generated, profile_visits, avg_watch_time_sec, completion_rate),
             reel_metrics_paid (views_paid, impressions_paid, reach_paid, clicks, spend_cents, video_plays),
@@ -470,6 +444,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           ...DEMO_REEL,
           id: reelData.id,
           caption: reelData.caption || "",
+          auto_title: (reelData as { auto_title?: string | null }).auto_title ?? null,
           permalink: reelData.permalink,
           thumbnail_url: reelData.thumbnail_url,
           media_url: reelData.media_url,
@@ -594,14 +569,6 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const savesComp = compareToBenchmark(savesPct, reel.benchmark.avg_saves_pct);
   const commentsComp = compareToBenchmark(commentsPct, reel.benchmark.avg_comments_pct);
   const sharesComp = compareToBenchmark(sharesPct, reel.benchmark.avg_shares_pct);
-  const absoluteOverviewMetrics = [
-    { label: "Views totales", value: reel.views_total, accent: "text-white" },
-    { label: "Reach total", value: reel.reach_total, accent: "text-sky-300" },
-    { label: "Impresiones conocidas", value: knownImpressionsTotal, accent: "text-amber-300", note: reel.impressions_org == null ? "Meta no expone impresiones orgánicas en todos los Reels." : null },
-    { label: "Interacciones", value: reel.total_interactions, accent: "text-emerald-300" },
-    { label: "Watch time promedio", value: formatTime(reel.avg_watch_time_seconds), accent: "text-cyan-300" },
-    ...(hasPaidSignals ? [{ label: "Plays pagos", value: reel.paid_video_plays, accent: "text-purple-300" }] : []),
-  ];
   const explicitRatioMetrics = [
     {
       label: "Interacciones / Views",
@@ -653,10 +620,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
     },
   ].filter((metric) => hasPaidBreakdown && metric.segments.some((segment) => segment.label === "Paid" && segment.value > 0));
   const interactionMetrics = [
-    { label: "Likes", count: reel.likes, ratio: likesPct, benchmark: reel.benchmark.avg_likes_pct, color: "bg-rose-400/80" },
-    { label: "Saves", count: reel.saves, ratio: savesPct, benchmark: reel.benchmark.avg_saves_pct, color: "bg-amber-400/80" },
-    { label: "Comments", count: reel.comments, ratio: commentsPct, benchmark: reel.benchmark.avg_comments_pct, color: "bg-emerald-400/80" },
-    { label: "Shares", count: reel.shares, ratio: sharesPct, benchmark: reel.benchmark.avg_shares_pct, color: "bg-blue-400/80" },
+    { label: "Me gusta", count: reel.likes, ratio: likesPct, benchmark: reel.benchmark.avg_likes_pct, color: "bg-rose-400/80" },
+    { label: "Guardados", count: reel.saves, ratio: savesPct, benchmark: reel.benchmark.avg_saves_pct, color: "bg-amber-400/80" },
+    { label: "Comentarios", count: reel.comments, ratio: commentsPct, benchmark: reel.benchmark.avg_comments_pct, color: "bg-emerald-400/80" },
+    { label: "Compartidos", count: reel.shares, ratio: sharesPct, benchmark: reel.benchmark.avg_shares_pct, color: "bg-blue-400/80" },
   ];
   const retentionRows = hasRetentionInputs
     ? [
@@ -669,34 +636,35 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const reelPosterUrl = reel.thumbnail_url || null;
 
   // Day-of-week views distribution for radar
+  // reel_metrics_daily stores cumulative snapshots → compute delta per day first
   const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
   const dowViews: number[] = Array(7).fill(0);
-  (dailyMetricsData ?? []).forEach((d) => {
+  const sortedDaily = [...(dailyMetricsData ?? [])].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
+  sortedDaily.forEach((d, i) => {
+    const cumulative = (d.views_org || 0) + (d.views_paid || 0);
+    const prev = sortedDaily[i - 1];
+    const prevCumulative = prev ? ((prev.views_org || 0) + (prev.views_paid || 0)) : cumulative;
+    const delta = i === 0 ? 0 : Math.max(0, cumulative - prevCumulative);
     const [year, month, day] = d.metric_date.split("-").map(Number);
     const date = new Date(Date.UTC(year, month - 1, day));
-    dowViews[date.getUTCDay()] += (d.views_org || 0) + (d.views_paid || 0);
+    dowViews[date.getUTCDay()] += delta;
   });
   const dayRadarData = DAYS_ES.map((day, i) => ({ day, views: dowViews[i] }));
 
   // ─── REEL detail layout ─────────────────────────────────────────
+  const PALETTE = ["#7A86E0", "#AF6EC7", "#4BCEAF", "#EB6991", "#373A71"] as const;
+
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-6 py-8 sm:px-10 lg:px-[4%] min-w-0 overflow-hidden">
-      {/* Back nav */}
+    <div className="mx-auto w-full max-w-[1600px] space-y-5 px-6 py-8 sm:px-10 lg:px-[4%] min-w-0 overflow-hidden">
       <InstagramBackButton />
 
-      {/* Hero: Thumbnail + Title + Meta */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
-        {/* Thumbnail / Video */}
-        <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-4 max-w-[300px] md:max-w-none md:sticky md:top-6 self-start">
-          <div className="relative aspect-[9/14.8] overflow-hidden rounded-[20px] border border-white/10 bg-black">
+      {/* ── Section 1: Hero ── */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Video / Thumbnail */}
+        <div className="glass-panel rounded-2xl p-3 max-w-[300px] md:max-w-none md:sticky md:top-6 self-start">
+          <div className="relative aspect-[9/14.8] overflow-hidden rounded-xl border border-white/[0.06] bg-black">
             {reelPlaybackUrl ? (
-              <video
-                className="absolute inset-0 h-full w-full object-cover"
-                controls
-                playsInline
-                preload="none"
-                poster={reelPosterUrl ?? undefined}
-              >
+              <video className="absolute inset-0 h-full w-full object-cover" controls playsInline preload="none" poster={reelPosterUrl ?? undefined}>
                 <source src={reelPlaybackUrl} />
               </video>
             ) : reelPosterUrl ? (
@@ -706,10 +674,9 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                 <Play className="h-12 w-12 text-white/20" />
               </div>
             )}
-
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3">
               {reel.performer_multiple >= 3 ? (
-                <div className="rounded-lg bg-gradient-to-r from-emerald-400 to-green-500 px-2.5 py-1 text-sm font-bold text-black shadow-lg">
+                <div className="rounded-lg px-2.5 py-1 text-[13px] font-bold text-black shadow-lg" style={{ background: "#4BCEAF" }}>
                   x{reel.performer_multiple.toFixed(1)}
                 </div>
               ) : <div />}
@@ -719,28 +686,23 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
           </div>
-
           {reel.permalink && (
             <div className="mt-3 flex justify-center">
-              <a
-                href={reel.permalink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/60 transition-all cursor-pointer hover:text-white hover:bg-white/[0.06]"
-                style={{ border: "1px solid rgba(255,255,255,0.08)" }}
-              >
+              <a href={reel.permalink} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/50 transition-all cursor-pointer hover:text-white/80 hover:bg-white/[0.06]"
+                style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                 <ExternalLink className="h-3 w-3" />
                 Abrir en Instagram
               </a>
             </div>
           )}
-
         </div>
 
-        {/* Caption + Quick metrics + Views chart — must match video height */}
-        <div className="flex flex-col gap-5">
-          <div className="glass-panel rounded-3xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-6">
-            <div className="flex items-center gap-2 mb-2">
+        {/* Right: Caption + 5 KPIs + Sparkline */}
+        <div className="flex flex-col gap-4">
+          {/* Caption */}
+          <div className="glass-panel rounded-2xl p-5">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               {reel.reel_type === "trial_likely" && (
                 <span className="flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">
                   <AlertTriangle className="h-2.5 w-2.5" /> Trial Reel
@@ -752,109 +714,75 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                 </span>
               )}
             </div>
-            <p className="text-base leading-relaxed text-zinc-100 sm:text-lg">{reel.caption}</p>
-            <p className="mt-3 text-xs text-zinc-300">
-              Publicado: {reel.published_at ? new Date(reel.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "--"}
+            <ReelAutoTitle reelId={reel.id} autoTitle={reel.auto_title} />
+            {reel.caption && (
+              <p className="text-[12px] leading-relaxed text-white/40">{reel.caption}</p>
+            )}
+            <p className="mt-3 text-[12px] text-white/35">
+              Publicado el {reel.published_at ? new Date(reel.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "--"}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* 5 KPI cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
-              { label: "Likes", pct: `${likesPct.toFixed(2)}%`, raw: reel.likes, icon: Heart, comp: likesComp },
-              { label: "Saves", pct: `${savesPct.toFixed(2)}%`, raw: reel.saves, icon: Bookmark, comp: savesComp },
-              { label: "Shares", pct: `${sharesPct.toFixed(2)}%`, raw: reel.shares, icon: Share2, comp: sharesComp },
-              { label: "Comments", pct: `${commentsPct.toFixed(2)}%`, raw: reel.comments, icon: MessageSquare, comp: commentsComp },
+              { label: "Me gusta",     pct: likesPct,    raw: reel.likes,    icon: Heart,         comp: likesComp    },
+              { label: "Guardados",    pct: savesPct,    raw: reel.saves,    icon: Bookmark,      comp: savesComp    },
+              { label: "Compartidos",  pct: sharesPct,   raw: reel.shares,   icon: Share2,        comp: sharesComp   },
+              { label: "Comentarios",  pct: commentsPct, raw: reel.comments, icon: MessageSquare, comp: commentsComp },
+              { label: "Ventas",       pct: null,        raw: reel.sales_amount ?? 0, icon: DollarSign, comp: { label: reel.sales_amount != null && reel.sales_amount > 0 ? "Atribuidas" : "Sin datos", color: reel.sales_amount != null && reel.sales_amount > 0 ? "text-emerald-400" : "text-white/25" }, isMoney: true },
             ].map((m) => (
-              <div key={m.label} className="glass-panel rounded-xl border border-white/10 bg-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-xl flex flex-col justify-between">
-                <div className="flex items-center gap-2 mb-2">
-                  <m.icon className="h-3.5 w-3.5 text-white" fill="currentColor" strokeWidth={0.5} />
-                  <span className="text-[11px] font-medium text-zinc-400">{m.label}</span>
+              <div key={m.label} className="glass-panel rounded-xl p-4 flex flex-col">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <m.icon className="h-3.5 w-3.5 text-white/60" strokeWidth={1.8} />
+                  <span className="text-[11px] font-medium text-white/45">{m.label}</span>
                 </div>
-                <p className="text-[28px] font-light text-white leading-none tracking-tight">{formatNumber(m.raw)}</p>
+                <p className="text-[28px] font-light text-white leading-none tracking-tight">
+                  {(m as { isMoney?: boolean }).isMoney ? (m.raw > 0 ? `$${formatNumber(m.raw)}` : "—") : formatNumber(m.raw)}
+                </p>
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="text-[11px] font-light text-white/40">{m.pct} de views</span>
+                  {m.pct != null && <span className="text-[11px] text-white/30">{m.pct.toFixed(2)}% de vistas</span>}
                   <span className={`text-[10px] font-medium ${m.comp.color}`}>{m.comp.label}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl flex-1">
-            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-              <Eye className="h-3.5 w-3.5 text-zinc-400" />
-              Evolución de Views
-            </h3>
-            <ReelDailySparkline data={dailyViews} />
+          {/* Sparkline — siempre visible */}
+          <div className="glass-panel rounded-xl p-5 flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Eye className="h-3.5 w-3.5 text-white/30" />
+              <span className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em]">Evolución de Vistas</span>
+            </div>
+            {dailyViews.length >= 2 ? (
+              <ReelDailySparkline data={dailyViews} />
+            ) : (
+              <p className="text-[12px] text-white/25 font-light mt-4 pb-2">Sin datos de evolución aún. Se acumula con cada sync.</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Full-width: Métricas Extendidas + Interacciones vs Benchmark */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_440px] xl:items-start">
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-3 shadow-xl shadow-black/20 backdrop-blur-xl">
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold text-zinc-200">
-            <TrendingUp className="h-3 w-3 text-zinc-400" />
-            Métricas Extendidas
-          </h3>
-          {(() => {
-            const extMetrics = [
-              { label: "Views Org", value: formatNumber(reel.views_org), color: "text-emerald-400" },
-              { label: "Views Total", value: formatNumber(reel.views_total), color: "text-white" },
-              { label: "Reach Org", value: formatNumber(reel.reach_org), color: "text-sky-300" },
-              { label: "Reach Total", value: formatNumber(reel.reach_total), color: "text-white" },
-              { label: "Interacciones", value: formatNumber(reel.total_interactions), color: "text-amber-300" },
-              { label: "Watch Total", value: formatTime(reel.total_watch_time_seconds), color: "text-cyan-300" },
-              ...(hasPaidSignals ? [
-                { label: "Views Paid", value: formatNumber(reel.views_paid), color: "text-purple-400" },
-                { label: "Reach Paid", value: formatNumber(reel.reach_paid), color: "text-purple-300" },
-                { label: "Impr. Paid", value: formatNumber(reel.impressions_paid), color: "text-zinc-100" },
-              ] : []),
-            ];
-            const ratioMetrics = [
-              { label: "Watch Prom.", value: formatTime(reel.avg_watch_time_seconds), sub: watchPct != null ? `${watchPct}%` : null },
-              { label: "Engagement", value: `${engagementRate.toFixed(1)}%`, sub: "int/views" },
-              { label: "Views/Reach", value: viewsPerReach == null ? "—" : `${viewsPerReach.toFixed(2)}x`, sub: "frecuencia" },
-              { label: "Retención", value: formatOptionalPercent(retentionRate), sub: "avg/dur" },
-              { label: "Saves/Views", value: `${savesPct.toFixed(2)}%`, sub: null },
-              { label: "Abandono", value: formatTime(avgDropoffSeconds), sub: "promedio" },
-              ...(reel.profile_visits != null ? [{ label: "Profile Visits", value: formatNumber(reel.profile_visits), sub: null }] : []),
-              ...(reel.follows != null ? [{ label: "Follows", value: `+${formatNumber(reel.follows)}`, sub: null, color: "text-cyan-400" }] : []),
-              ...(hasPaidSignals ? [
-                { label: "CTR Pago", value: formatOptionalPercent(paidCtr), sub: null },
-                { label: "CPV", value: paidCpv == null ? "—" : formatCents(Math.round(paidCpv * 100)), sub: null },
-                { label: "CPM", value: paidCpm == null ? "—" : formatCents(Math.round(paidCpm * 100)), sub: null },
-                { label: "Clicks", value: formatNumber(reel.paid_clicks), sub: null },
-                { label: "Spend", value: formatCents(reel.spend_cents), sub: null, color: "text-purple-300" },
-              ] : []),
-            ].filter((m) => m.value !== "—" && m.value !== "--");
-            const extCols = extMetrics.length <= 6 ? extMetrics.length : Math.ceil(extMetrics.length / 2);
-            const ratioCols = ratioMetrics.length <= 6 ? ratioMetrics.length : Math.ceil(ratioMetrics.length / 2);
-            return (
-              <>
-                <div className="flex flex-wrap gap-2">
-                  {extMetrics.map((m) => (
-                    <div key={m.label} className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-2 py-2 text-center overflow-hidden" style={{ flex: `1 1 calc(${100 / extCols}% - 8px)`, minWidth: 0 }}>
-                      <p className={`text-sm font-light truncate ${m.color || "text-zinc-100"}`}>{m.value}</p>
-                      <p className="text-[9px] text-zinc-400 mt-0.5 truncate">{m.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/5 pt-2">
-                  {ratioMetrics.map((m) => (
-                    <div key={m.label} className="rounded-md bg-white/5 px-2 py-1 overflow-hidden" style={{ flex: `1 1 calc(${100 / ratioCols}% - 6px)`, minWidth: 0 }}>
-                      <p className="text-[9px] text-zinc-500 truncate">{m.label}</p>
-                      <p className={`text-xs font-semibold truncate ${(m as { color?: string }).color || "text-white"}`}>
-                        {m.value}
-                        {m.sub && <span className="ml-1 text-[9px] font-normal text-zinc-500">{m.sub}</span>}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </div>
+      {/* ── Section 2: Core Metrics Strip ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: "Vistas",         value: formatNumber(reel.views_total),              sub: `Org: ${formatNumber(reel.views_org)}` },
+          { label: "Alcance",        value: formatNumber(reel.reach_total),               sub: hasPaidSignals ? `Pago: ${formatNumber(reel.reach_paid)}` : "alcance total" },
+          { label: "Interacciones",  value: `${engagementRate.toFixed(1)}%`,              sub: "int / vistas" },
+          { label: "T. de Vista",    value: formatTime(reel.avg_watch_time_seconds),      sub: watchPct != null ? `${watchPct}% del reel` : "promedio" },
+          { label: "Retención",      value: formatOptionalPercent(retentionRate),         sub: "estimada" },
+          { label: "Rendimiento",    value: reel.performer_multiple >= 0.01 ? `${reel.performer_multiple.toFixed(1)}x` : "—", sub: "vs benchmark 90d" },
+        ].map((kpi, i) => (
+          <div key={kpi.label} className="glass-panel rounded-xl p-4">
+            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.07em] mb-2">{kpi.label}</p>
+            <p className="text-[24px] font-light text-white leading-none tracking-tight" style={i === 0 ? { color: PALETTE[0] } : undefined}>{kpi.value}</p>
+            <p className="mt-1.5 text-[10px] text-white/25">{kpi.sub}</p>
+          </div>
+        ))}
+      </div>
 
+      {/* ── Section 3: Charts Row ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <ReelPerformanceChart
           likes={reel.likes}
           saves={reel.saves}
@@ -866,203 +794,217 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           benchmarkComments={reel.benchmark.avg_comments_pct}
           benchmarkShares={reel.benchmark.avg_shares_pct}
         />
-      </div>
 
-      {/* Radar + Sales row */}
-      {(dayRadarData.some((d) => d.views > 0) || (reel.sales_amount != null && reel.sales_amount > 0)) && (
-        <div className="flex gap-6 items-start flex-wrap">
-          {dayRadarData.some((d) => d.views > 0) && (
-            <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-xl w-[420px] shrink-0">
-              <ReelDayRadar data={dayRadarData} />
-            </div>
-          )}
-          {reel.sales_amount != null && reel.sales_amount > 0 && (
-            <div className="glass-panel rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 shadow-xl shadow-black/20 backdrop-blur-xl flex-1 min-w-[280px]">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-emerald-400" />
-                  <span className="text-[11px] font-medium text-emerald-400/70 uppercase tracking-wider">Ventas generadas</span>
+        {/* Right: Radar OR Retention visual */}
+        <div className="glass-panel rounded-xl p-5 min-h-[340px]">
+          {dayRadarData.some((d) => d.views > 0) ? (
+            <ReelDayRadar data={dayRadarData} />
+          ) : (
+            <div>
+              <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Retención estimada</p>
+              <p className="text-[10px] text-white/20 mb-5">avg watch time / duración — no es curva real por segundo</p>
+              {retentionRows.length > 0 ? (
+                <div className="space-y-5">
+                  {retentionRows.map((row) => (
+                    <div key={row.label} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-light text-white/60">{row.label}</span>
+                        <span className="font-light text-white">{row.value.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${row.value}%`, background: `linear-gradient(90deg, ${PALETTE[0]}, ${PALETTE[1]})` }} />
+                      </div>
+                      <p className="text-[11px] text-white/25">{row.detail}</p>
+                    </div>
+                  ))}
                 </div>
-                {reel.views_total > 0 && (
-                  <span className="text-[11px] text-white/30">
-                    ${(reel.sales_amount / reel.views_total).toFixed(2)} por view
-                  </span>
-                )}
-              </div>
-              <p className="text-[42px] font-light text-emerald-300 leading-none tracking-tight">
-                ${formatNumber(reel.sales_amount)}
-              </p>
-              {reel.views_total > 0 && (
-                <div className="mt-3 pt-3 border-t border-emerald-500/10">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-white/30">Conversión estimada</span>
-                    <span className="text-emerald-400/70">{((reel.saves / reel.views_total) * 100).toFixed(2)}% saves → compra</span>
-                  </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/10 p-4 text-[12px] text-white/30" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  {retentionMissingMessage}
                 </div>
               )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
-          <h3 className="mb-1 text-base font-semibold text-zinc-100">Volumen absoluto y ratios claros</h3>
-          <p className="mb-4 text-xs text-zinc-300">Acá no hay barras sin base: arriba ves valores absolutos y abajo barras del tipo x de y.</p>
-          <div className="grid grid-cols-2 gap-3">
-            {absoluteOverviewMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-xl bg-white/6 p-4 ring-1 ring-white/5">
-                <p className="mb-1 text-[11px] font-medium text-zinc-300">{metric.label}</p>
-                <p className={`text-xl font-semibold ${metric.accent}`}>{typeof metric.value === "number" ? formatNumber(metric.value) : (metric.value ?? "—")}</p>
-                {metric.note ? <p className="mt-1 text-[10px] text-zinc-500">{metric.note}</p> : null}
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 space-y-4 border-t border-white/5 pt-4">
-            {explicitRatioMetrics.map((metric) => {
-              const ratio = metric.denominator > 0 ? (metric.numerator / metric.denominator) * 100 : 0;
-
-              return (
-                <div key={metric.label} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="font-medium text-zinc-200">{metric.label}</span>
-                    <span className="font-semibold text-white">{ratio.toFixed(2)}%</span>
-                  </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-white/5">
-                    <div className={metric.color} style={{ width: `${clampPercentage(ratio)}%`, height: "100%" }} />
-                  </div>
-                  <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-300">
-                    <span>{formatNumber(metric.numerator)} de {formatNumber(metric.denominator)}</span>
-                    <span>{metric.helper}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-6 border-t border-white/5 pt-4">
-            {splitMetrics.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {splitMetrics.map((metric) => (
-                  <div key={metric.label} className="space-y-2">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-medium text-zinc-200">{metric.label}</span>
-                      <span className="font-semibold text-white">{formatNumber(metric.total)}</span>
-                    </div>
-                    <div className="flex h-2.5 overflow-hidden rounded-full bg-white/5">
-                      {metric.segments.map((segment) => (
-                        <div
-                          key={`${metric.label}-${segment.label}`}
-                          className={segment.color}
-                          style={{ width: `${metric.total > 0 ? (segment.value / metric.total) * 100 : 0}%` }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-3 text-[11px] text-zinc-300">
-                      {metric.segments.map((segment) => (
-                        <span key={`${metric.label}-${segment.label}-legend`}>
-                          {segment.label}: {formatNumber(segment.value)} ({pctOf(segment.value, metric.total)})
-                        </span>
-                      ))}
-                    </div>
+              {/* Retention mini KPIs */}
+              <div className="grid grid-cols-2 gap-2 mt-5">
+                {[
+                  { label: "Retención",     value: formatOptionalPercent(retentionRate),          sub: "avg / duración" },
+                  { label: "Watch Time",    value: formatTime(reel.avg_watch_time_seconds),        sub: "promedio" },
+                  { label: "Duración",      value: durationStr,                                    sub: effectiveDuration ? "Apify / DB" : "No disponible" },
+                  { label: "Abandono",      value: formatTime(avgDropoffSeconds),                  sub: "promedio" },
+                ].map((kpi) => (
+                  <div key={kpi.label} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <p className="text-[10px] text-white/30 mb-0.5">{kpi.label}</p>
+                    <p className="text-[13px] font-light text-white">{kpi.value}</p>
+                    <p className="text-[9px] text-white/20 mt-0.5">{kpi.sub}</p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-xs text-zinc-300">
-                No hay un split orgánico/pagado útil para mostrar en este Reel. Si no existen métricas paid reales, asumir 100% orgánico es técnicamente cierto pero visualmente engañoso.
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+      </div>
 
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
-          <h3 className="mb-1 text-base font-semibold text-zinc-100">Interacción sobre views vs promedio 90d</h3>
-          <p className="mb-4 text-xs text-zinc-300">Cada fila compara el porcentaje actual sobre views totales del Reel contra el benchmark de los últimos 90 días.</p>
-          {hasInteractionBenchmark ? (
+      {/* ── Section 4: Breakdowns ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        {/* Interacciones vs Benchmark */}
+        {hasInteractionBenchmark && (
+          <div className="glass-panel rounded-xl p-5">
+            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Interacciones vs Benchmark 90d</p>
+            <p className="text-[10px] text-white/20 mb-5">% sobre views — vs promedio de tu cuenta</p>
             <div className="space-y-4">
-              {interactionMetrics.map((metric) => {
+              {interactionMetrics.map((metric, i) => {
                 const comparison = compareToBenchmark(metric.ratio, metric.benchmark);
                 const width = metric.benchmark != null && metric.benchmark > 0
                   ? clampPercentage((metric.ratio / metric.benchmark) * 100)
                   : 0;
-
                 return (
                   <div key={metric.label} className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-medium text-zinc-200">{metric.label}</span>
-                      <span className="font-semibold text-white">{formatNumber(metric.count)}</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-light text-white/60">{metric.label}</span>
+                      <span className="font-light text-white">{formatNumber(metric.count)}</span>
                     </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-white/5">
-                      <div className={`h-full rounded-full ${comparison.barClass}`} style={{ width: `${width}%` }} />
+                    <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${width}%`, background: PALETTE[i % 4] }} />
                     </div>
-                    <div className="flex items-center justify-between gap-3 text-[11px]">
-                      <span className="text-zinc-300">Actual {metric.ratio.toFixed(2)}%</span>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-white/25">Actual {metric.ratio.toFixed(2)}%</span>
                       <span className={comparison.color}>{comparison.label}</span>
                     </div>
-                    <div className="text-[11px] text-zinc-500">
-                      Promedio 90d {metric.benchmark?.toFixed(2)}%
+                    <p className="text-[10px] text-white/20">Benchmark {metric.benchmark?.toFixed(2)}%</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Ratios explícitos */}
+        {explicitRatioMetrics.length > 0 && (
+          <div className="glass-panel rounded-xl p-5">
+            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Ratios clave</p>
+            <p className="text-[10px] text-white/20 mb-5">Proporciones con denominador real</p>
+            <div className="space-y-4">
+              {explicitRatioMetrics.map((metric, i) => {
+                const ratio = metric.denominator > 0 ? (metric.numerator / metric.denominator) * 100 : 0;
+                return (
+                  <div key={metric.label} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-light text-white/60">{metric.label}</span>
+                      <span className="font-light text-white">{ratio.toFixed(2)}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${clampPercentage(ratio)}%`, background: PALETTE[i % 4] }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-white/25">
+                      <span>{formatNumber(metric.numerator)} de {formatNumber(metric.denominator)}</span>
+                      <span>{metric.helper}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-4 text-xs text-zinc-300">
-              Todavía no hay benchmark 90d usable para este workspace. En vez de mostrar promedios falsos en `0.00%`, la ficha deja esta comparación en espera hasta que exista un snapshot real.
-            </div>
-          )}
-        </div>
 
-        <div className="glass-panel rounded-xl border border-white/10 bg-black/35 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl min-w-0">
-          <h3 className="mb-1 text-base font-semibold text-zinc-100">Retención estimada</h3>
-          <p className="mb-4 text-xs text-zinc-300">Calculado con avg watch time (Meta) + duración (Apify). No es curva real por segundo.</p>
-          {retentionRows.length > 0 ? (
-            <div className="space-y-4">
-              {retentionRows.map((row) => (
-                <div key={row.label} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="font-medium text-zinc-200">{row.label}</span>
-                    <span className="font-semibold text-white">{row.value.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-white/5">
-                    <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-violet-400" style={{ width: `${row.value}%` }} />
-                  </div>
-                  <p className="text-[11px] text-zinc-300">{row.detail}</p>
+            {/* Paid details */}
+            {hasPaidSignals && (
+              <div className="mt-5 pt-4 border-t border-white/[0.05]">
+                <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.08em] mb-3">Métricas pagas</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "CTR",    value: formatOptionalPercent(paidCtr) },
+                    { label: "CPV",    value: paidCpv == null ? "—" : `$${paidCpv.toFixed(3)}` },
+                    { label: "CPM",    value: paidCpm == null ? "—" : `$${paidCpm.toFixed(2)}` },
+                    { label: "Clicks", value: formatNumber(reel.paid_clicks) },
+                    { label: "Plays",  value: formatNumber(reel.paid_video_plays) },
+                    { label: "Spend",  value: `$${(reel.spend_cents / 100).toFixed(2)}` },
+                  ].map((kpi) => (
+                    <div key={kpi.label} className="rounded-lg p-2.5" style={{ background: "rgba(175,110,199,0.07)", border: "1px solid rgba(175,110,199,0.12)" }}>
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">{kpi.label}</p>
+                      <p className="text-[13px] font-light text-white">{kpi.value}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-4 text-xs text-zinc-300">
-              {retentionMissingMessage}
-            </div>
-          )}
-          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-white/5 pt-4">
-            <div className="rounded-xl bg-white/6 p-3 ring-1 ring-white/5">
-              <p className="mb-1 text-[11px] font-medium text-zinc-300">Retención</p>
-              <p className="text-base font-semibold text-white">{formatOptionalPercent(retentionRate)}</p>
-              <p className="mt-0.5 text-[10px] text-zinc-500">avg_watch / duración</p>
-            </div>
-            <div className="rounded-xl bg-white/6 p-3 ring-1 ring-white/5">
-              <p className="mb-1 text-[11px] font-medium text-zinc-300">Watch Time Prom.</p>
-              <p className="text-base font-semibold text-white">{formatTime(reel.avg_watch_time_seconds)}</p>
-              <p className="mt-0.5 text-[10px] text-zinc-500">ig_reels_avg_watch_time</p>
-            </div>
-            <div className="rounded-xl bg-white/6 p-3 ring-1 ring-white/5">
-              <p className="mb-1 text-[11px] font-medium text-zinc-300">Duración</p>
-              <p className="text-base font-semibold text-white">{durationStr}</p>
-              <p className="mt-0.5 text-[10px] text-zinc-500">{effectiveDuration ? "Apify / DB" : "No disponible"}</p>
-            </div>
-            <div className="rounded-xl bg-white/6 p-3 ring-1 ring-white/5">
-              <p className="mb-1 text-[11px] font-medium text-zinc-300">Abandono prom.</p>
-              <p className="text-base font-semibold text-white">{formatTime(avgDropoffSeconds)}</p>
-              <p className="mt-0.5 text-[10px] text-zinc-500">duración - avg_watch</p>
-            </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
+        {/* Split Org/Paid + Retention details (when radar is shown above) */}
+        {(splitMetrics.length > 0 || (dayRadarData.some((d) => d.views > 0))) && (
+          <div className="glass-panel rounded-xl p-5">
+            {splitMetrics.length > 0 && (
+              <>
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Split Orgánico / Pagado</p>
+                <p className="text-[10px] text-white/20 mb-5">Distribución real de views y alcance</p>
+                <div className="space-y-4">
+                  {splitMetrics.map((metric) => (
+                    <div key={metric.label} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-light text-white/60">{metric.label}</span>
+                        <span className="font-light text-white">{formatNumber(metric.total)}</span>
+                      </div>
+                      <div className="flex h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                        <div style={{ width: `${metric.total > 0 ? (metric.segments[0].value / metric.total) * 100 : 0}%`, background: PALETTE[2] }} className="h-full" />
+                        {metric.segments[1] && (
+                          <div style={{ width: `${metric.total > 0 ? (metric.segments[1].value / metric.total) * 100 : 0}%`, background: PALETTE[1] }} className="h-full" />
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-[11px] text-white/25">
+                        {metric.segments.map((seg, si) => (
+                          <span key={seg.label}>
+                            <span style={{ color: PALETTE[si === 0 ? 2 : 1] }}>{seg.label}</span>
+                            {": "}{formatNumber(seg.value)} ({pctOf(seg.value, metric.total)})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Retention mini KPIs (when radar is shown in section 3) */}
+            {dayRadarData.some((d) => d.views > 0) && (
+              <>
+                {splitMetrics.length > 0 && <div className="mt-5 pt-4 border-t border-white/[0.05]" />}
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-3">Retención</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Retención",  value: formatOptionalPercent(retentionRate),      sub: "avg / duración" },
+                    { label: "Watch Time", value: formatTime(reel.avg_watch_time_seconds),   sub: "promedio" },
+                    { label: "Duración",   value: durationStr,                               sub: effectiveDuration ? "Apify / DB" : "No disponible" },
+                    { label: "Abandono",   value: formatTime(avgDropoffSeconds),              sub: "promedio" },
+                  ].map((kpi) => (
+                    <div key={kpi.label} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <p className="text-[10px] text-white/30 mb-0.5">{kpi.label}</p>
+                      <p className="text-[13px] font-light text-white">{kpi.value}</p>
+                      <p className="text-[9px] text-white/20 mt-0.5">{kpi.sub}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* SECTION 3: Análisis Profundo + Chat Arko AI */}
+      {/* ── Section 5: Sales (conditional) ── */}
+      {reel.sales_amount != null && reel.sales_amount > 0 && (
+        <div className="rounded-xl p-5 backdrop-blur-xl" style={{ background: "rgba(75,206,175,0.04)", border: "1px solid rgba(75,206,175,0.12)", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" style={{ color: PALETTE[2] }} />
+              <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(75,206,175,0.7)" }}>Ventas generadas</span>
+            </div>
+            {reel.views_total > 0 && (
+              <span className="text-[11px] text-white/25">${(reel.sales_amount / reel.views_total).toFixed(2)} por view</span>
+            )}
+          </div>
+          <p className="text-[44px] font-light leading-none tracking-tight" style={{ color: PALETTE[2] }}>
+            ${formatNumber(reel.sales_amount)}
+          </p>
+        </div>
+      )}
+
+      {/* ── Section 6: AI Analysis ── */}
       {workspaceId && (
         <ReelAISection
           reelId={reel.id}
@@ -1076,7 +1018,6 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           showChat={!isDemo}
         />
       )}
-
     </div>
   );
 }

@@ -236,7 +236,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
     { name: "Orgánico", value: totalViewsOrgOnly },
     ...(totalViewsPaid > 0 ? [{ name: "Pagado", value: totalViewsPaid }] : []),
   ];
-  const PIE_COLORS_TRAFFIC = ["#818cf8", "#f472b6"];
+  const PIE_COLORS_TRAFFIC = ["#7A86E0", "#AF6EC7"];
 
   // Chart data
   const chartData = sorted.map((d) => ({
@@ -280,19 +280,19 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
               <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="dashImpGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#818cf8" stopOpacity={0.35} />
-                    <stop offset="40%" stopColor="#818cf8" stopOpacity={0.12} />
-                    <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.35} />
+                    <stop offset="40%" stopColor="#7A86E0" stopOpacity={0.12} />
+                    <stop offset="100%" stopColor="#7A86E0" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="dashReachGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.25} />
-                    <stop offset="40%" stopColor="#22d3ee" stopOpacity={0.06} />
-                    <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#4BCEAF" stopOpacity={0.25} />
+                    <stop offset="40%" stopColor="#4BCEAF" stopOpacity={0.06} />
+                    <stop offset="100%" stopColor="#4BCEAF" stopOpacity={0} />
                   </linearGradient>
                   {/* Glow filters for neon lines */}
                   <filter id="glowViolet" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feFlood floodColor="#818cf8" floodOpacity="0.6" result="color" />
+                    <feFlood floodColor="#7A86E0" floodOpacity="0.6" result="color" />
                     <feComposite in="color" in2="blur" operator="in" result="glow" />
                     <feMerge>
                       <feMergeNode in="glow" />
@@ -301,7 +301,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                   </filter>
                   <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="2.5" result="blur" />
-                    <feFlood floodColor="#22d3ee" floodOpacity="0.5" result="color" />
+                    <feFlood floodColor="#4BCEAF" floodOpacity="0.5" result="color" />
                     <feComposite in="color" in2="blur" operator="in" result="glow" />
                     <feMerge>
                       <feMergeNode in="glow" />
@@ -340,22 +340,22 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                   type="monotone"
                   dataKey="impressions"
                   name="Impresiones"
-                  stroke="#818cf8"
+                  stroke="#7A86E0"
                   fill="url(#dashImpGrad)"
                   strokeWidth={2.5}
                   dot={false}
-                  activeDot={{ r: 5, fill: "#818cf8", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#dotGlow)" }}
+                  activeDot={{ r: 5, fill: "#7A86E0", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#dotGlow)" }}
                   style={{ filter: "url(#glowViolet)" }}
                 />
                 <Area
                   type="monotone"
                   dataKey="reach"
                   name="Alcance"
-                  stroke="#22d3ee"
+                  stroke="#4BCEAF"
                   fill="url(#dashReachGrad)"
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: "#22d3ee", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#dotGlow)" }}
+                  activeDot={{ r: 4, fill: "#4BCEAF", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#dotGlow)" }}
                   style={{ filter: "url(#glowCyan)" }}
                 />
               </AreaChart>
@@ -369,7 +369,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           <div className="glass-card p-6 flex-1">
             <div className="flex items-center justify-between mb-3">
               <p className="stat-label">Conversión de perfil</p>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full text-violet-400"
+              <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50"
                 style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
                 <TrendingUp className="h-[16px] w-[16px]" />
               </div>
@@ -389,7 +389,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           <div className="glass-card p-6 flex-1">
             <div className="flex items-center justify-between mb-3">
               <p className="stat-label">Crecimiento de perfil</p>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full text-emerald-400"
+              <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50"
                 style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
                 <Users className="h-[16px] w-[16px]" />
               </div>
@@ -403,8 +403,8 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
             <div className="glass-card p-6 flex-1">
               <div className="flex items-center justify-between mb-3">
                 <p className="stat-label">Ventas generadas</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full text-emerald-400"
-                  style={{ background: "rgba(52,211,153,0.08)", boxShadow: "inset 0 1px 0 rgba(52,211,153,0.15)" }}>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50"
+                  style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
                   <DollarSign className="h-[16px] w-[16px]" />
                 </div>
               </div>
@@ -457,7 +457,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
             </div>
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
-                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#818cf8" }} />
+                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#7A86E0" }} />
                 <div>
                   <p className="text-[12px] text-white/40">Orgánico</p>
                   <p className="text-[18px] font-light text-white">{orgPct}%</p>
@@ -465,7 +465,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
               </div>
               {totalViewsPaid > 0 && (
                 <div className="flex items-center gap-2.5">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#f472b6" }} />
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#AF6EC7" }} />
                   <div>
                     <p className="text-[12px] text-white/40">Pagado</p>
                     <p className="text-[18px] font-light text-white">{paidPct}%</p>

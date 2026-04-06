@@ -42,7 +42,7 @@ function CustomTooltip({ active, payload, label }: {
       <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.1em] mb-2">{label}</p>
       {actual && (
         <div className="flex items-baseline gap-1.5 mb-1">
-          <span className="text-[18px] font-light text-violet-300">{actual.value.toFixed(2)}%</span>
+          <span className="text-[18px] font-light" style={{ color: "#7A86E0" }}>{actual.value.toFixed(2)}%</span>
           <span className="text-[10px] text-white/30">este reel</span>
         </div>
       )}
@@ -87,30 +87,34 @@ export function ReelPerformanceChart({
 
   return (
     <div
-      className="flex h-full flex-col rounded-xl border border-white/10 bg-black/35 p-3 shadow-xl shadow-black/20 backdrop-blur-xl"
+      className="flex h-full flex-col rounded-xl p-5 backdrop-blur-xl"
+      style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[11px] font-medium text-zinc-300">Interacciones vs Benchmark</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.08em]">Interacciones vs Benchmark</p>
+          <p className="text-[10px] text-white/20 mt-0.5">% sobre views totales vs promedio 90d</p>
+        </div>
         {hasBenchmark && (
           <div className="flex items-center gap-3 text-[9px]">
             <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-sm bg-violet-500/80" />
+              <div className="h-2 w-2 rounded-sm" style={{ background: "#7A86E0" }} />
               <span className="text-white/35">Reel</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="h-[1.5px] w-3 bg-white/25 rounded" />
+              <div className="h-[1.5px] w-3 rounded" style={{ background: "rgba(255,255,255,0.25)" }} />
               <span className="text-white/35">Bench</span>
             </div>
           </div>
         )}
       </div>
-      <div className="min-h-[140px] w-full flex-1">
+      <div className="min-h-[260px] w-full flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="perfBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#818cf8" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#818cf8" stopOpacity={0.5} />
+                <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#7A86E0" stopOpacity={0.5} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />

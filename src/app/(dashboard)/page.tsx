@@ -292,28 +292,28 @@ async function getDashboardData(periodDays: number = 30) {
       change: viewsChange.text,
       up: viewsChange.up,
       icon: "eye" as const,
-      color: "text-blue-400",
+      color: "text-white/60",
     },
     {
       label: "Guardados",
       value: sumCurrent.saves > 0 ? formatCompact(sumCurrent.saves) : "—",
       ...pctChange(sumCurrent.saves, sumPrevious.saves),
       icon: "bookmark" as const,
-      color: "text-amber-400",
+      color: "text-white/60",
     },
     {
       label: "Me gusta",
       value: sumCurrent.likes > 0 ? formatCompact(sumCurrent.likes) : "—",
       ...pctChange(sumCurrent.likes, sumPrevious.likes),
       icon: "heart" as const,
-      color: "text-rose-400",
+      color: "text-white/60",
     },
     {
       label: "Comentarios",
       value: sumCurrent.comments > 0 ? formatCompact(sumCurrent.comments) : "—",
       ...pctChange(sumCurrent.comments, sumPrevious.comments),
       icon: "message" as const,
-      color: "text-emerald-400",
+      color: "text-white/60",
     },
   ];
 

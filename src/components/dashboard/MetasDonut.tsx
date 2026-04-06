@@ -68,9 +68,9 @@ export function MetasDonut({ views, followers, engRate }: MetasDonutProps) {
         </a>
       </div>
       <div className="flex items-start justify-around">
-        <SingleDonut pct={72} color="#60a5fa" label="Views" current={views} goal="100K" />
-        <SingleDonut pct={48} color="#34d399" label="Seguidores" current={followers} goal="200" />
-        <SingleDonut pct={63} color="#fbbf24" label="Eng. Rate" current={engRate} goal="3%" />
+        <SingleDonut pct={72} color="#7A86E0" label="Views" current={views} goal="100K" />
+        <SingleDonut pct={48} color="#4BCEAF" label="Seguidores" current={followers} goal="200" />
+        <SingleDonut pct={63} color="#AF6EC7" label="Eng. Rate" current={engRate} goal="3%" />
       </div>
     </div>
   );
