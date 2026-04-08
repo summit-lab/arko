@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus, ExternalLink, X, BookMarked, Loader2, Sparkles,
   RefreshCw, Users, Play, Heart, MessageCircle, CheckCircle2,
@@ -478,24 +478,11 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ReferencesTab({ workspaceId }: { workspaceId: string | null }) {
-  const [references, setReferences] = useState<Reference[]>([]);
-  const [loading, setLoading]       = useState(true);
+export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId: string | null; initialReferences?: Reference[] }) {
+  const [references, setReferences] = useState<Reference[]>(initialReferences ?? []);
+  const [loading, setLoading]       = useState(false);
   const [showModal, setShowModal]   = useState(false);
   const [openReelsId, setOpenReelsId] = useState<string | null>(null);
-
-  const fetchReferences = useCallback(async () => {
-    if (!workspaceId) { setLoading(false); return; }
-    try {
-      const res = await fetch(`/api/v1/references?workspace_id=${workspaceId}`);
-      const json = await res.json() as { data?: { references: Reference[] } };
-      setReferences(json.data?.references ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId]);
-
-  useEffect(() => { fetchReferences(); }, [fetchReferences]);
 
   function handleSave(ref: Reference) {
     setReferences((prev) => [...prev, ref]);

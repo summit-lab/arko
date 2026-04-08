@@ -73,6 +73,9 @@ async function getDashboardData(periodDays: number = 30) {
   const thirtyDaysAgo = periodAgo;
   const sixtyDaysAgo = prevPeriodAgo;
 
+  // Current month start for goals period
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
   const [
     insightsCurrent,
     insightsPrevious,
@@ -80,6 +83,7 @@ async function getDashboardData(periodDays: number = 30) {
     insightsMonthly,
     reelsData,
     demographics,
+    goalsResult,
   ] = await Promise.all([
     // Query 1: Last 30 days insights
     supabase
@@ -140,6 +144,13 @@ async function getDashboardData(periodDays: number = 30) {
       .order("snapshot_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Query 7: Workspace goals for current month
+    supabase
+      .from("workspace_goals")
+      .select("metric, target_value")
+      .eq("workspace_id", workspaceId)
+      .eq("period_start", monthStart),
   ]);
 
   // ─── Log query errors ───
@@ -351,7 +362,28 @@ async function getDashboardData(periodDays: number = 30) {
       views: r.views_total,
     }));
 
-  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels };
+  // ─── Goals (from DB) ───
+  const goalsMap = new Map<string, number>();
+  for (const g of (goalsResult.data ?? []) as { metric: string; target_value: number }[]) {
+    goalsMap.set(g.metric, Number(g.target_value));
+  }
+  const goals = {
+    views: goalsMap.get("views") ?? null,
+    followers: goalsMap.get("followers") ?? null,
+    engagement_rate: goalsMap.get("engagement_rate") ?? null,
+    likes: goalsMap.get("likes") ?? null,
+    saves: goalsMap.get("saves") ?? null,
+    reach: goalsMap.get("reach") ?? null,
+  };
+
+  // Raw numeric values for donut calculation
+  const metasActuals = {
+    views: totalViews,
+    followers: newFollowsWeek,
+    engRate: engRate30d,
+  };
+
+  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels, goals, metasActuals };
 }
 
 // ─── Icon mapping (can't pass components as serialized data) ───
@@ -508,9 +540,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
           {/* Metas del Mes — Donuts */}
           <MetasDonut
-            views={data?.kpis[0]?.value ?? "—"}
-            followers={quickStats.find(s => s.label === "Nuevos Follows")?.value ?? "—"}
-            engRate={quickStats.find(s => s.label === "Tasa de Engagement")?.value ?? "—"}
+            views={data?.metasActuals?.views ?? 0}
+            followers={data?.metasActuals?.followers ?? 0}
+            engRate={data?.metasActuals?.engRate ?? 0}
+            goalViews={data?.goals?.views ?? null}
+            goalFollowers={data?.goals?.followers ?? null}
+            goalEngRate={data?.goals?.engagement_rate ?? null}
           />
 
           {/* Top Ventas */}

@@ -144,7 +144,7 @@ interface PostCard {
   impressions: number;
   reach: number;
   likes: number;
-  saves: number;
+  saves: number | null;
   comments: number;
   shares: number;
 }
@@ -169,6 +169,11 @@ export interface InstagramShellProps {
   reelsSummary: ReelsSummary | undefined;
   reelsMissingDuration: number;
   workspaceId: string | null;
+  // Pre-fetched data for instant tab switching (no client-side fetch on mount)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialCompetitors: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialReferences: any[];
 }
 
 // ─── Tab definitions ───
@@ -198,6 +203,8 @@ export function InstagramShell({
   posts,
   reelsSummary,
   workspaceId,
+  initialCompetitors,
+  initialReferences,
 }: InstagramShellProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const searchParams = useSearchParams();
@@ -217,7 +224,7 @@ export function InstagramShell({
     const totalPosts = posts.filter(p => p.media_type !== "CAROUSEL_ALBUM").length;
     const totalCarruseles = posts.filter(p => p.media_type === "CAROUSEL_ALBUM").length;
     const totalLikes = posts.reduce((s, p) => s + p.likes, 0);
-    const totalSaves = posts.reduce((s, p) => s + p.saves, 0);
+    const totalSaves = posts.reduce((s, p) => s + (p.saves ?? 0), 0);
     const totalComments = posts.reduce((s, p) => s + p.comments, 0);
     const totalShares = posts.reduce((s, p) => s + p.shares, 0);
     const avgLikes = posts.length > 0 ? Math.round(totalLikes / posts.length) : 0;
@@ -289,6 +296,7 @@ export function InstagramShell({
       {activeTab === "competencia" && (
         <CompetitorTab
           workspaceId={workspaceId ?? null}
+          initialCompetitors={initialCompetitors}
           myStats={{
             avgViews:    reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.views_total, 0) / reels.length) : 0,
             followers:   totalFollowers,
@@ -303,7 +311,7 @@ export function InstagramShell({
       )}
 
       {activeTab === "referencias" && (
-        <ReferencesTab workspaceId={workspaceId ?? null} />
+        <ReferencesTab workspaceId={workspaceId ?? null} initialReferences={initialReferences} />
       )}
 
       {activeTab === "metrics" && (

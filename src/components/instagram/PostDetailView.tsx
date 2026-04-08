@@ -28,7 +28,7 @@ interface PostDetailData {
   published_at: string | null;
   media_type: string | null;
   likes: number;
-  saves: number;
+  saves: number | null;
   comments: number;
   shares: number;
   views_total: number;
@@ -156,7 +156,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
 
 export function PostDetailView({ post }: { post: PostDetailData }) {
   const isCarousel = post.media_type === "CAROUSEL_ALBUM";
-  const totalInteractions = post.likes + post.saves + post.comments + post.shares;
+  const totalInteractions = post.likes + (post.saves ?? 0) + post.comments + post.shares;
   // Posts don't have "views" — use impressions or reach as denominator
   const engDenominator = post.impressions > 0 ? post.impressions : post.reach > 0 ? post.reach : post.views_total;
   const engRate = engDenominator > 0
@@ -229,7 +229,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
             { label: "Likes", value: post.likes, icon: Heart, color: "text-rose-400" },
-            { label: "Guardados", value: post.saves, icon: Bookmark, color: "text-amber-400" },
+            { label: "Guardados", value: post.saves ?? 0, icon: Bookmark, color: "text-amber-400", unavailable: post.saves === null },
             { label: "Comentarios", value: post.comments, icon: MessageCircle, color: "text-emerald-400" },
             { label: "Compartidos", value: post.shares, icon: Share2, color: "text-blue-400" },
           ].map((kpi) => (
@@ -246,8 +246,8 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
                 <kpi.icon className={`h-3.5 w-3.5 ${kpi.color} opacity-60`} strokeWidth={1.8} />
                 <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">{kpi.label}</span>
               </div>
-              <p className="text-[28px] font-light text-white leading-none tracking-tight">{fmt(kpi.value)}</p>
-              {engDenominator > 0 && (
+              <p className="text-[28px] font-light text-white leading-none tracking-tight">{"unavailable" in kpi && kpi.unavailable ? "—" : fmt(kpi.value)}</p>
+              {engDenominator > 0 && !("unavailable" in kpi && kpi.unavailable) && (
                 <p className="mt-1.5 text-[11px] text-white/30">{pctOf(kpi.value, engDenominator)} de {post.impressions > 0 ? "impresiones" : "alcance"}</p>
               )}
             </div>
@@ -287,7 +287,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
               <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
                 {[
                   { value: post.likes, color: "bg-rose-400/80" },
-                  { value: post.saves, color: "bg-amber-400/80" },
+                  { value: post.saves ?? 0, color: "bg-amber-400/80" },
                   { value: post.comments, color: "bg-emerald-400/80" },
                   { value: post.shares, color: "bg-blue-400/80" },
                 ].map((seg, i) => (
@@ -300,7 +300,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
               </div>
               <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-white/40">
                 <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400/80 mr-1" />Likes {pctOf(post.likes, totalInteractions)}</span>
-                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400/80 mr-1" />Guardados {pctOf(post.saves, totalInteractions)}</span>
+                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400/80 mr-1" />Guardados {pctOf(post.saves ?? 0, totalInteractions)}</span>
                 <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400/80 mr-1" />Comentarios {pctOf(post.comments, totalInteractions)}</span>
                 <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400/80 mr-1" />Compartidos {pctOf(post.shares, totalInteractions)}</span>
               </div>

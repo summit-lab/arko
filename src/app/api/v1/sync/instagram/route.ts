@@ -37,13 +37,7 @@ export async function POST(request: Request) {
       return api500();
     }
 
-    // For quick sync, also fire stories sync in background (server-side, no browser cancel)
-    if (steps === 'quick') {
-      supabase.functions.invoke('sync-instagram', {
-        body: { workspace_id: auth.workspaceId, steps: 'stories' },
-        headers: syncHeaders,
-      }).catch(() => { /* background */ });
-    }
+    // Stories sync is now included inline in quick sync (no separate background call needed)
 
     // Disparar generación de títulos en background para nuevos reels sin título
     fetch(`${getAppUrl()}/api/v1/reels/generate-titles-bulk`, {

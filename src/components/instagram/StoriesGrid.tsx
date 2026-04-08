@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   Eye, MessageCircle, Image as ImageIcon, TrendingDown,
   ChevronLeft, ChevronRight, BookImage, ArrowLeft,
-  ArrowRight, Users, Reply, BarChart3,
+  ArrowRight, Users, Reply, BarChart3, Clock,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -659,10 +659,10 @@ function SequenceDetail({
 
         <div
           ref={setScrollRef}
-          className="overflow-x-auto pb-4"
+          className="overflow-x-auto pb-4 text-center"
           style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}
         >
-          <div className="flex items-start min-w-max">
+          <div className="inline-flex items-start min-w-max">
             {slides.map((slide, i) => {
               const drop = i > 0 ? dropPct(slides[i - 1].impressions, slide.impressions) : 0;
               const thumb = slide.thumbnail_url ?? slide.media_url;
@@ -778,12 +778,13 @@ function SequenceDetail({
       </div>
 
       {/* ── 2. KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: "Impresiones", value: fmt(firstViews) },
           { label: "Completaron", value: fmt(lastViews) },
           { label: "Completion Rate", value: `${rate.toFixed(1)}%` },
           { label: "Slides", value: slides.length.toString() },
+          { label: "Respuestas", value: fmt(seq.total_replies) },
         ].map((kpi) => (
           <div key={kpi.label} className="rounded-xl p-4" style={glassCard}>
             <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>
@@ -922,9 +923,22 @@ export function StoriesGrid({ sequences, totalFollowers = 0 }: StoriesGridProps)
     );
   }
 
+  const hasActiveWithNoMetrics = sequences.some(
+    (s) => !s.archived && s.expires_at && new Date(s.expires_at) > new Date() && s.total_impressions === 0
+  );
+
   return (
     <div className="flex gap-6 items-start">
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 space-y-3">
+        {hasActiveWithNoMetrics && (
+          <div
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[12px] text-white/50"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <Clock className="h-3.5 w-3.5 text-amber-400/60 shrink-0" />
+            <span>Las métricas de historias recientes pueden tardar unos minutos en estar disponibles. Sincronizá de nuevo en un rato.</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
           {allSequences.map((seq) => (
             <StoryCard key={seq.id} seq={seq} onClick={() => setSelectedId(seq.id)} />
