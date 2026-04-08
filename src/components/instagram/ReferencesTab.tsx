@@ -152,14 +152,15 @@ function ReelThumb({ reel }: { reel: ScrapedReel }) {
 
 // ─── Reference Card ───────────────────────────────────────────────────────────
 
-function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete }: {
+function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete, reelsOpen, onReelsToggle }: {
   reference: Reference;
   workspaceId: string;
   onDelete: (id: string) => void;
   onScrapeComplete: (id: string, data: Partial<Reference>) => void;
+  reelsOpen: boolean;
+  onReelsToggle: (open: boolean) => void;
 }) {
   const [scraping, setScraping]         = useState(false);
-  const [reelsOpen, setReelsOpen]       = useState(false);
   const [deleting, setDeleting]         = useState(false);
   const [confirmDel, setConfirmDel]     = useState(false);
 
@@ -182,7 +183,7 @@ function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete }: {
           scraped_reels: json.data.scraped_reels,
           last_scraped_at: new Date().toISOString(),
         });
-        setReelsOpen(true);
+        onReelsToggle(true);
       }
     } finally {
       setScraping(false);
@@ -315,7 +316,7 @@ function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete }: {
 
         {/* Toggle reels */}
         {hasReels && (
-          <button onClick={() => setReelsOpen((v) => !v)}
+          <button onClick={() => onReelsToggle(!reelsOpen)}
             className="flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer ml-auto"
             style={{
               background: reelsOpen ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)",
@@ -481,6 +482,7 @@ export function ReferencesTab({ workspaceId }: { workspaceId: string | null }) {
   const [references, setReferences] = useState<Reference[]>([]);
   const [loading, setLoading]       = useState(true);
   const [showModal, setShowModal]   = useState(false);
+  const [openReelsId, setOpenReelsId] = useState<string | null>(null);
 
   const fetchReferences = useCallback(async () => {
     if (!workspaceId) { setLoading(false); return; }
@@ -547,13 +549,16 @@ export function ReferencesTab({ workspaceId }: { workspaceId: string | null }) {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {references.map((ref) => (
-              <ReferenceCard
-                key={ref.id}
-                reference={ref}
-                workspaceId={workspaceId!}
-                onDelete={handleDelete}
-                onScrapeComplete={handleScrapeComplete}
-              />
+              <div key={ref.id} className={openReelsId === ref.id ? "lg:col-span-2" : ""}>
+                <ReferenceCard
+                  reference={ref}
+                  workspaceId={workspaceId!}
+                  onDelete={handleDelete}
+                  onScrapeComplete={handleScrapeComplete}
+                  reelsOpen={openReelsId === ref.id}
+                  onReelsToggle={(open) => setOpenReelsId(open ? ref.id : null)}
+                />
+              </div>
             ))}
           </div>
         )}
