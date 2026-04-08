@@ -25,7 +25,7 @@ interface Post {
   impressions: number;
   reach: number;
   likes: number;
-  saves: number;
+  saves: number | null;
   comments: number;
   shares: number;
 }
@@ -415,7 +415,7 @@ function PostCard({ post }: { post: Post }) {
           </span>
           <span className="flex items-center gap-1 text-[10px] text-white/40">
             <Bookmark className="h-2.5 w-2.5 text-white/35" />
-            {fmt(post.saves)}
+            {post.saves !== null ? fmt(post.saves) : "—"}
           </span>
           <span className="flex items-center gap-1 text-[10px] text-white/40">
             <MessageCircle className="h-2.5 w-2.5 text-white/35" />
@@ -447,7 +447,7 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
     });
     return [...base].sort((a, b) => {
       if (sortKey === "published_at") return (b.published_at ?? "").localeCompare(a.published_at ?? "");
-      return (b[sortKey] as number) - (a[sortKey] as number);
+      return ((b[sortKey] as number) ?? 0) - ((a[sortKey] as number) ?? 0);
     });
   }, [posts, typeFilter, sortKey]);
 

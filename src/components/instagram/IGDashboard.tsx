@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import {
   Eye, Users, TrendingUp, Heart, MessageSquare, Bookmark,
-  Trophy, Play, ArrowUpRight, ArrowDownRight, DollarSign,
+  Trophy, Play, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import Image from "next/image";
 import { CountUp } from "@/components/ui/CountUp";
@@ -60,9 +60,6 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-function fmtSales(n: number): string {
-  return `$${n.toLocaleString("es-AR")}`;
-}
 
 function trendColor(value: string): string {
   const num = parseFloat(value.replace("%", "").replace("+", ""));
@@ -224,7 +221,6 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
     : "0";
 
   // Total sales
-  const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
   // Traffic split — use account-level impressions as total, ads API video plays as paid.
   const totalViewsPaid = Math.min(totalAdVideoPlays, totalImpressions);
@@ -398,22 +394,6 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
             <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedPeriod)} últimos {periodDays} días</p>
           </div>
 
-          {/* Ventas generadas */}
-          {totalSales > 0 && (
-            <div className="glass-card p-6 flex-1">
-              <div className="flex items-center justify-between mb-3">
-                <p className="stat-label">Ventas generadas</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50"
-                  style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
-                  <DollarSign className="h-[16px] w-[16px]" />
-                </div>
-              </div>
-              <CountUp value={fmtSales(totalSales)} className="stat-number-xl text-emerald-300" />
-              <p className="text-[13px] font-light text-white/30 mt-1">
-                {reels.filter((r) => (r.sales_amount ?? 0) > 0).length} reels con ventas
-              </p>
-            </div>
-          )}
         </div>
       </div>
 

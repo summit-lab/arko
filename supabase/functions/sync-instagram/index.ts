@@ -367,6 +367,19 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       await syncCarouselChildren(supabase, workspaceId, media, reelIdMap, accessToken);
     } catch { /* non-critical */ }
 
+    // 6) Sync stories inline (so they appear on router.refresh)
+    let storiesResult: StoriesSyncResult = { storiesFetched: 0, sequencesUpserted: 0, slidesUpserted: 0, errors: [] };
+    try {
+      const { data: storiesJob } = await supabase
+        .from("sync_jobs")
+        .insert({ workspace_id: workspaceId, job_type: "stories_sync", status: "queued" })
+        .select("id")
+        .single();
+      if (storiesJob) {
+        storiesResult = await syncStories(supabase, workspaceId, storiesJob.id, igAccountId, accessToken);
+      }
+    } catch { /* non-critical */ }
+
     return jsonResponse({
       status: "completed",
       mode: "quick",
@@ -374,6 +387,8 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       reels_synced: upserted?.length ?? 0,
       insights_fetched: insightsFetched,
       insights_skipped: insightsSkipped,
+      stories_fetched: storiesResult.storiesFetched,
+      stories_slides: storiesResult.slidesUpserted,
     });
   } catch (err) {
     return jsonResponse({
@@ -1497,10 +1512,31 @@ async function fetchPostInsightsFallback(igMediaId: string, accessToken: string)
       if (result.saved !== undefined) result.saves = result.saved;
       return result;
     }
+    console.warn(`[sync] Post fallback1 FAILED for ${igMediaId}: error=${data.error?.message ?? 'no data'}, dataLen=${data.data?.length ?? 0}`);
   } catch { /* fall through */ }
 
-  // Final fallback: use direct media fields (works for ALL media types including carousels)
-  return await fetchMediaFieldsFallback(igMediaId, accessToken);
+  // Fallback: direct media fields (likes, comments) + separate saved insight request
+  const base = await fetchMediaFieldsFallback(igMediaId, accessToken);
+  if (!base) return null;
+
+  // Try to fetch saved metric individually via /insights
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=saved&access_token=${accessToken}`);
+    const data = await res.json();
+    if (!data.error && data.data && data.data.length > 0) {
+      const savedInsight = data.data.find((i: { name: string }) => i.name === 'saved');
+      if (savedInsight) {
+        base.saved = savedInsight.values?.[0]?.value ?? 0;
+        console.log(`[sync] Saved insight OK for ${igMediaId}: saved=${base.saved}`);
+      }
+    } else {
+      console.warn(`[sync] Saved insight FAILED for ${igMediaId}: error=${data.error?.message ?? 'no data'}`);
+    }
+  } catch {
+    console.warn(`[sync] Could not fetch saved insight for ${igMediaId}`);
+  }
+
+  return base;
 }
 
 async function fetchMediaFieldsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {

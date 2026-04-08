@@ -144,7 +144,7 @@ interface PostCard {
   impressions: number;
   reach: number;
   likes: number;
-  saves: number;
+  saves: number | null;
   comments: number;
   shares: number;
 }
