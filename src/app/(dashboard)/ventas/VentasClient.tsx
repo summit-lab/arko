@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import {
   DollarSign, Plus, TrendingUp, Clock, X, Check,
-  ChevronDown, Search, Trash2, Play, ArrowRight,
+  Search, Trash2, Play, ArrowRight,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -36,9 +36,19 @@ interface ReelPicker {
   published_at: string | null;
 }
 
+interface StoryPicker {
+  id: string;
+  published_at: string;
+  total_impressions: number;
+  total_reach: number;
+  slide_count: number;
+  first_thumbnail: string | null;
+}
+
 interface VentasClientProps {
   initialSales: Sale[];
   reelsForPicker: ReelPicker[];
+  storiesForPicker: StoryPicker[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -88,73 +98,102 @@ const SOURCE_BG: Record<string, string> = {
   link_bio: "rgba(235,105,145,0.12)",
   otro: "rgba(255,255,255,0.05)",
 };
-const METHOD_OPTIONS = ["Transferencia", "Mercado Pago", "Efectivo", "Tarjeta", "Crypto", "Otro"];
+// ─── Date range presets ─────────────────────────────────────────────────────
 
-// ─── Custom select dropdown ───────────────────────────────────────────────────
+type DatePreset = "hoy" | "ayer" | "7d" | "mes" | "custom";
 
-function CustomSelect({ value, onChange, options, placeholder }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  placeholder?: string;
+interface DateRange {
+  from: string; // YYYY-MM-DD
+  to: string;   // YYYY-MM-DD
+}
+
+function getPresetRange(preset: DatePreset): DateRange {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const toISO = (d: Date) => d.toISOString().split("T")[0];
+  const todayStr = toISO(today);
+
+  switch (preset) {
+    case "hoy":
+      return { from: todayStr, to: todayStr };
+    case "ayer": {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      return { from: toISO(y), to: toISO(y) };
+    }
+    case "7d": {
+      const d7 = new Date(today);
+      d7.setDate(d7.getDate() - 6);
+      return { from: toISO(d7), to: todayStr };
+    }
+    case "mes": {
+      const m1 = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { from: toISO(m1), to: todayStr };
+    }
+    case "custom":
+      return { from: "", to: "" };
+  }
+}
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: "hoy", label: "Hoy" },
+  { key: "ayer", label: "Ayer" },
+  { key: "7d", label: "Última semana" },
+  { key: "mes", label: "Este mes" },
+  { key: "custom", label: "Personalizado" },
+];
+
+// ─── Date Range Picker ───────────────────────────────────────────────────────
+
+function DateRangeFilter({ preset, range, onPreset, onRange }: {
+  preset: DatePreset;
+  range: DateRange;
+  onPreset: (p: DatePreset) => void;
+  onRange: (r: DateRange) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[12px] cursor-pointer transition-colors text-left"
-        style={{
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          color: value ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.25)",
-        }}
+    <div className="flex items-center gap-2 flex-wrap">
+      <div
+        className="inline-flex items-center gap-0.5 p-0.5 rounded-full"
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <span>{value || placeholder || "Seleccionar..."}</span>
-        <ChevronDown
-          className="h-3.5 w-3.5 text-white/30 shrink-0 transition-transform"
-          style={{ transform: open ? "rotate(180deg)" : undefined }}
-        />
-      </button>
-
-      {open && (
-        <div
-          className="absolute z-50 w-full mt-1.5 rounded-xl overflow-hidden"
-          style={{
-            background: "linear-gradient(180deg, rgba(30,30,50,0.98) 0%, rgba(18,18,34,0.99) 100%)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderTop: "1px solid rgba(255,255,255,0.16)",
-            boxShadow: "0 16px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07)",
-            backdropFilter: "blur(20px)",
-          }}
-        >
-          {options.map(opt => (
+        {DATE_PRESETS.map(p => {
+          const active = preset === p.key;
+          return (
             <button
-              key={opt}
-              type="button"
-              onClick={() => { onChange(opt); setOpen(false); }}
-              className="w-full text-left px-3 py-2.5 text-[12px] cursor-pointer transition-colors"
-              style={{
-                color: value === opt ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.45)",
-                background: value === opt ? "rgba(122,134,224,0.12)" : "transparent",
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = value === opt ? "rgba(122,134,224,0.12)" : "transparent"; }}
+              key={p.key}
+              onClick={() => onPreset(p.key)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 cursor-pointer ${
+                active ? "text-white" : "text-white/35 hover:text-white/55"
+              }`}
+              style={active ? {
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                boxShadow: "0 1px 8px rgba(255,255,255,0.04)",
+              } : undefined}
             >
-              {opt}
+              {p.label}
             </button>
-          ))}
+          );
+        })}
+      </div>
+      {preset === "custom" && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={range.from}
+            onChange={e => onRange({ ...range, from: e.target.value })}
+            className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-[11px] text-white outline-none focus:border-white/20 transition-colors"
+            style={{ colorScheme: "dark" }}
+          />
+          <span className="text-[10px] text-white/25">—</span>
+          <input
+            type="date"
+            value={range.to}
+            onChange={e => onRange({ ...range, to: e.target.value })}
+            className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-[11px] text-white outline-none focus:border-white/20 transition-colors"
+            style={{ colorScheme: "dark" }}
+          />
         </div>
       )}
     </div>
@@ -166,6 +205,7 @@ const PALETTE = ["#7A86E0", "#AF6EC7", "#4BCEAF", "#EB6991", "#A5ADEE"];
 
 const EMPTY_FORM = {
   reel_id: "",
+  story_sequence_id: "",
   source_type: "reel",
   source_label: "",
   amount_total: "",
@@ -174,13 +214,13 @@ const EMPTY_FORM = {
   expected_date: "",
   payment_type: "full",
   sale_date: new Date().toISOString().split("T")[0],
-  payment_method: "",
   notes: "",
   client_name: "",
 };
 
-function NewSaleModal({ reels, onClose, onSaved }: {
+function NewSaleModal({ reels, stories, onClose, onSaved }: {
   reels: ReelPicker[];
+  stories: StoryPicker[];
   onClose: () => void;
   onSaved: (s: Sale) => void;
 }) {
@@ -232,6 +272,7 @@ function NewSaleModal({ reels, onClose, onSaved }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reel_id:          form.reel_id || null,
+          story_sequence_id: form.story_sequence_id || null,
           source_type:      form.source_type,
           source_label:     form.source_label || null,
           amount_total:     amountTotal,
@@ -239,7 +280,7 @@ function NewSaleModal({ reels, onClose, onSaved }: {
           payment_type:     form.payment_type,
           payment_status:   derivedStatus(),
           sale_date:        form.sale_date,
-          payment_method:   form.payment_method || null,
+          payment_method:   null,
           notes:            buildNotes(),
           client_name:      form.client_name || null,
           client_contact:   null,
@@ -282,7 +323,7 @@ function NewSaleModal({ reels, onClose, onSaved }: {
           <div>
             <h3 className="text-[15px] font-light text-white">Nueva Venta</h3>
             <p className="text-[11px] text-white/30 mt-0.5">
-              Paso {step} de 2 — {step === 1 ? "Fuente & Cliente" : "Montos & Pago"}
+              Paso {step} de 2 — {step === 1 ? "Información de la venta" : "Fuente & Cliente"}
             </p>
           </div>
           <button onClick={onClose} className="text-white/25 hover:text-white/60 cursor-pointer transition-colors">
@@ -303,162 +344,8 @@ function NewSaleModal({ reels, onClose, onSaved }: {
 
         <div className="px-6 py-5 space-y-5">
 
-          {/* ── Step 1: Fuente & Cliente ── */}
+          {/* ── Step 1: Información de la venta ── */}
           {step === 1 && (
-            <>
-              {/* Source type */}
-              <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fuente de la venta</label>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {Object.entries(SOURCE_LABEL).map(([k, label]) => {
-                    const active = form.source_type === k;
-                    return (
-                      <button
-                        key={k}
-                        onClick={() => { set("source_type", k); set("source_label", ""); set("reel_id", ""); }}
-                        className={`py-2 rounded-xl text-[10px] font-medium text-center cursor-pointer transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
-                        style={active
-                          ? {
-                              background: SOURCE_BG[k],
-                              border: `1px solid ${SOURCE_HEX[k]}66`,
-                              borderTop: `1px solid ${SOURCE_HEX[k]}99`,
-                              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 12px rgba(0,0,0,0.3)`,
-                            }
-                          : { border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Reel picker */}
-              {form.source_type === "reel" && (
-                <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Reel que generó la venta</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-white/25" />
-                    <input
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder="Buscar por caption..."
-                      className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-8 pr-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
-                    />
-                  </div>
-                  <div
-                    className="space-y-0.5 max-h-[180px] overflow-y-auto rounded-xl"
-                    style={{ border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}
-                  >
-                    {filtered.map(r => (
-                      <button
-                        key={r.id}
-                        onClick={() => set("reel_id", r.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all text-left ${form.reel_id === r.id ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
-                      >
-                        <div className="h-9 w-6 rounded overflow-hidden shrink-0 bg-white/[0.04]">
-                          {r.thumbnail_url
-                            ? <Image src={r.thumbnail_url} alt="" width={24} height={36} className="object-cover w-full h-full" />
-                            : <Play className="h-3 w-3 text-white/20 m-auto mt-2" />}
-                        </div>
-                        <span className="text-[11px] font-light text-white/60 truncate flex-1 leading-snug">
-                          {r.caption?.slice(0, 65) || "Sin título"}
-                        </span>
-                        {form.reel_id === r.id && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: "#4BCEAF" }} />}
-                      </button>
-                    ))}
-                    {filtered.length === 0 && (
-                      <p className="text-[11px] text-white/25 text-center py-4">Sin resultados</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Historia / Post: text */}
-              {(form.source_type === "historia" || form.source_type === "post") && (
-                <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
-                    {form.source_type === "historia" ? "Historia que generó la venta" : "Post que generó la venta"}
-                  </label>
-                  <input
-                    value={form.source_label}
-                    onChange={e => set("source_label", e.target.value)}
-                    placeholder={form.source_type === "historia" ? "Describí la historia..." : "Describí el post..."}
-                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
-                  />
-                </div>
-              )}
-
-              {/* Link en Bio: platform select */}
-              {form.source_type === "link_bio" && (
-                <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Plataforma del link</label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {["YouTube", "Instagram"].map(p => {
-                      const active = form.source_label === p;
-                      return (
-                        <button
-                          key={p}
-                          onClick={() => set("source_label", p)}
-                          className={`py-2.5 rounded-xl text-[11px] cursor-pointer transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
-                          style={active
-                            ? {
-                                background: "linear-gradient(180deg, rgba(235,105,145,0.16) 0%, rgba(235,105,145,0.08) 100%)",
-                                border: "1px solid rgba(235,105,145,0.32)",
-                                borderTop: "1px solid rgba(235,105,145,0.5)",
-                                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
-                              }
-                            : { border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Otro: text */}
-              {form.source_type === "otro" && (
-                <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Describí la fuente</label>
-                  <input
-                    value={form.source_label}
-                    onChange={e => set("source_label", e.target.value)}
-                    placeholder="Referido, evento, DM directo..."
-                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
-                  />
-                </div>
-              )}
-
-              {/* Client */}
-              <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Cliente (opcional)</label>
-                <input
-                  value={form.client_name}
-                  onChange={e => set("client_name", e.target.value)}
-                  placeholder="Nombre del cliente..."
-                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
-                />
-              </div>
-
-              <button
-                onClick={() => setStep(2)}
-                className="w-full py-3 rounded-xl text-[13px] font-medium text-white cursor-pointer transition-all hover:brightness-110 flex items-center justify-center gap-2"
-                style={{
-                  background: "linear-gradient(180deg, rgba(122,134,224,0.18) 0%, rgba(122,134,224,0.1) 100%)",
-                  border: "1px solid rgba(122,134,224,0.3)",
-                  borderTop: "1px solid rgba(122,134,224,0.5)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
-                }}
-              >
-                Siguiente <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </>
-          )}
-
-          {/* ── Step 2: Montos & Pago ── */}
-          {step === 2 && (
             <>
               {/* Payment type tabs */}
               <div className="space-y-2">
@@ -513,7 +400,7 @@ function NewSaleModal({ reels, onClose, onSaved }: {
                         <p className="text-[11px]" style={{ color: "#4BCEAF" }}>
                           Pago completo — {fmtMoney(amountTotal)}
                         </p>
-                        <p className="text-[10px] text-white/30 mt-0.5">Revenue y cash cobrado coinciden</p>
+                        <p className="text-[10px] text-white/30 mt-0.5">Facturación y efectivo recolectado coinciden</p>
                       </div>
                     </div>
                   )}
@@ -577,11 +464,11 @@ function NewSaleModal({ reels, onClose, onSaved }: {
                       style={{ background: "rgba(122,134,224,0.05)", border: "1px solid rgba(122,134,224,0.14)" }}
                     >
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-white/40">Revenue total</span>
+                        <span className="text-white/40">Facturación</span>
                         <span className="text-white">{fmtMoney(amountTotal)}</span>
                       </div>
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-white/40">Cash cobrado</span>
+                        <span className="text-white/40">Efectivo recolectado</span>
                         <span style={{ color: "#4BCEAF" }}>{fmtMoney(amountCollected)}</span>
                       </div>
                       <div className="flex justify-between text-[11px] pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -640,7 +527,7 @@ function NewSaleModal({ reels, onClose, onSaved }: {
                       style={{ background: "rgba(175,110,199,0.05)", border: "1px solid rgba(175,110,199,0.14)" }}
                     >
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-white/40">Revenue total</span>
+                        <span className="text-white/40">Facturación</span>
                         <span className="text-white">{fmtMoney(amountTotal)}</span>
                       </div>
                       <div className="flex justify-between text-[11px]">
@@ -656,27 +543,16 @@ function NewSaleModal({ reels, onClose, onSaved }: {
                 </>
               )}
 
-              {/* Date + method */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fecha de venta</label>
-                  <input
-                    type="date"
-                    value={form.sale_date}
-                    onChange={e => set("sale_date", e.target.value)}
-                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white outline-none focus:border-white/20 transition-colors"
-                    style={{ colorScheme: "dark" }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Método de pago</label>
-                  <CustomSelect
-                    value={form.payment_method}
-                    onChange={v => set("payment_method", v)}
-                    options={METHOD_OPTIONS}
-                    placeholder="Seleccionar..."
-                  />
-                </div>
+              {/* Date + notes */}
+              <div className="space-y-2">
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fecha de venta</label>
+                <input
+                  type="date"
+                  value={form.sale_date}
+                  onChange={e => set("sale_date", e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white outline-none focus:border-white/20 transition-colors"
+                  style={{ colorScheme: "dark" }}
+                />
               </div>
 
               {/* Notes */}
@@ -688,6 +564,212 @@ function NewSaleModal({ reels, onClose, onSaved }: {
                   rows={2}
                   placeholder="Detalles adicionales..."
                   className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors resize-none"
+                />
+              </div>
+
+              <button
+                onClick={() => setStep(2)}
+                className="w-full py-3 rounded-xl text-[13px] font-medium text-white cursor-pointer transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                style={{
+                  background: "linear-gradient(180deg, rgba(122,134,224,0.18) 0%, rgba(122,134,224,0.1) 100%)",
+                  border: "1px solid rgba(122,134,224,0.3)",
+                  borderTop: "1px solid rgba(122,134,224,0.5)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
+                }}
+              >
+                Siguiente <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+
+          {/* ── Step 2: Fuente & Cliente ── */}
+          {step === 2 && (
+            <>
+              {/* Source type */}
+              <div className="space-y-2">
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fuente de la venta</label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {Object.entries(SOURCE_LABEL).map(([k, label]) => {
+                    const active = form.source_type === k;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => { set("source_type", k); set("source_label", ""); set("reel_id", ""); set("story_sequence_id", ""); }}
+                        className={`py-2 rounded-xl text-[10px] font-medium text-center cursor-pointer transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
+                        style={active
+                          ? {
+                              background: SOURCE_BG[k],
+                              border: `1px solid ${SOURCE_HEX[k]}66`,
+                              borderTop: `1px solid ${SOURCE_HEX[k]}99`,
+                              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 12px rgba(0,0,0,0.3)`,
+                            }
+                          : { border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reel picker */}
+              {form.source_type === "reel" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Reel que generó la venta</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-white/25" />
+                    <input
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Buscar por caption..."
+                      className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-8 pr-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+                    />
+                  </div>
+                  <div
+                    className="space-y-0.5 max-h-[180px] overflow-y-auto rounded-xl"
+                    style={{ border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}
+                  >
+                    {filtered.map(r => (
+                      <button
+                        key={r.id}
+                        onClick={() => set("reel_id", r.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all text-left ${form.reel_id === r.id ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+                      >
+                        <div className="h-9 w-6 rounded overflow-hidden shrink-0 bg-white/[0.04]">
+                          {r.thumbnail_url
+                            ? <Image src={r.thumbnail_url} alt="" width={24} height={36} className="object-cover w-full h-full" />
+                            : <Play className="h-3 w-3 text-white/20 m-auto mt-2" />}
+                        </div>
+                        <span className="text-[11px] font-light text-white/60 truncate flex-1 leading-snug">
+                          {r.caption?.slice(0, 65) || "Sin título"}
+                        </span>
+                        {form.reel_id === r.id && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: "#4BCEAF" }} />}
+                      </button>
+                    ))}
+                    {filtered.length === 0 && (
+                      <p className="text-[11px] text-white/25 text-center py-4">Sin resultados</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Historia: story sequence picker */}
+              {form.source_type === "historia" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Historia que generó la venta</label>
+                  {stories.length > 0 ? (
+                    <div
+                      className="space-y-0.5 max-h-[200px] overflow-y-auto rounded-xl"
+                      style={{ border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}
+                    >
+                      {stories.map(seq => {
+                        const selected = form.story_sequence_id === seq.id;
+                        const date = new Date(seq.published_at);
+                        const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+                        return (
+                          <button
+                            key={seq.id}
+                            onClick={() => {
+                              set("story_sequence_id", seq.id);
+                              set("source_label", `Historia del ${dateStr}`);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all text-left ${selected ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+                          >
+                            <div className="h-10 w-7 rounded overflow-hidden shrink-0 bg-white/[0.04]">
+                              {seq.first_thumbnail ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={seq.first_thumbnail} alt="" className="object-cover w-full h-full" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Play className="h-3 w-3 text-white/15" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-light text-white/60 leading-snug">{dateStr}</p>
+                              <p className="text-[9px] text-white/25 mt-0.5">
+                                {seq.slide_count} slide{seq.slide_count !== 1 ? "s" : ""} · {seq.total_impressions.toLocaleString()} imp. · {seq.total_reach.toLocaleString()} alcance
+                              </p>
+                            </div>
+                            {selected && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: "#4BCEAF" }} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <input
+                      value={form.source_label}
+                      onChange={e => set("source_label", e.target.value)}
+                      placeholder="Describí la historia..."
+                      className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Post: text */}
+              {form.source_type === "post" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Post que generó la venta</label>
+                  <input
+                    value={form.source_label}
+                    onChange={e => set("source_label", e.target.value)}
+                    placeholder="Describí el post..."
+                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Link en Bio: platform select */}
+              {form.source_type === "link_bio" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Plataforma del link</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {["YouTube", "Instagram"].map(p => {
+                      const active = form.source_label === p;
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => set("source_label", p)}
+                          className={`py-2.5 rounded-xl text-[11px] cursor-pointer transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
+                          style={active
+                            ? {
+                                background: "linear-gradient(180deg, rgba(235,105,145,0.16) 0%, rgba(235,105,145,0.08) 100%)",
+                                border: "1px solid rgba(235,105,145,0.32)",
+                                borderTop: "1px solid rgba(235,105,145,0.5)",
+                                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
+                              }
+                            : { border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Otro: text */}
+              {form.source_type === "otro" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Describí la fuente</label>
+                  <input
+                    value={form.source_label}
+                    onChange={e => set("source_label", e.target.value)}
+                    placeholder="Referido, evento, DM directo..."
+                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Client */}
+              <div className="space-y-2">
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Cliente (opcional)</label>
+                <input
+                  value={form.client_name}
+                  onChange={e => set("client_name", e.target.value)}
+                  placeholder="Nombre del cliente..."
+                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
                 />
               </div>
 
@@ -749,12 +831,25 @@ function SalesTooltip({ active, payload, label }: {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps) {
+export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }: VentasClientProps) {
   const [sales, setSales] = useState<Sale[]>(initialSales);
   const [showModal, setShowModal] = useState(false);
+  const [datePreset, setDatePreset] = useState<DatePreset>("mes");
+  const [customRange, setCustomRange] = useState<DateRange>({ from: "", to: "" });
 
-  // KPIs
-  const activeSales    = sales.filter(s => s.payment_status !== "cancelled");
+  // Date filtering
+  const activeRange = datePreset === "custom" ? customRange : getPresetRange(datePreset);
+  const filteredSales = useMemo(() => {
+    if (!activeRange.from && !activeRange.to) return sales;
+    return sales.filter(s => {
+      if (activeRange.from && s.sale_date < activeRange.from) return false;
+      if (activeRange.to && s.sale_date > activeRange.to) return false;
+      return true;
+    });
+  }, [sales, activeRange]);
+
+  // KPIs (use filtered sales)
+  const activeSales    = filteredSales.filter(s => s.payment_status !== "cancelled");
   const totalRevenue   = activeSales.reduce((s, v) => s + v.amount_total, 0);
   const totalCollected = activeSales.reduce((s, v) => s + v.amount_collected, 0);
   const totalPending   = totalRevenue - totalCollected;
@@ -802,10 +897,10 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
   return (
     <div className="px-8 py-10">
       {/* ── Header ── */}
-      <div className="animate-slide-up mb-8 flex items-start justify-between">
+      <div className="animate-slide-up mb-6 flex items-start justify-between">
         <div>
           <h1 className="page-title">Ventas</h1>
-          <p className="text-white/35 mt-3 text-[15px] font-light">Revenue generado desde tu contenido.</p>
+          <p className="text-white/35 mt-3 text-[15px] font-light">Facturación generada desde tu contenido.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -817,11 +912,21 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
         </button>
       </div>
 
+      {/* ── Date filter ── */}
+      <div className="mb-8 animate-slide-up stagger-1">
+        <DateRangeFilter
+          preset={datePreset}
+          range={customRange}
+          onPreset={setDatePreset}
+          onRange={setCustomRange}
+        />
+      </div>
+
       {/* ── KPI cards ── */}
       <div className="grid grid-cols-3 gap-5 mb-8 animate-slide-up stagger-1">
         {([
           {
-            label: "Revenue Total",
+            label: "Facturación",
             value: fmtMoney(totalRevenue),
             sub: `${activeSales.length} venta${activeSales.length !== 1 ? "s" : ""}`,
             icon: DollarSign,
@@ -829,7 +934,7 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
             bg: "rgba(122,134,224,0.08)",
           },
           {
-            label: "Cash Cobrado",
+            label: "Efectivo Recolectado",
             value: fmtMoney(totalCollected),
             sub: totalRevenue > 0 ? `${Math.round((totalCollected / totalRevenue) * 100)}% del total` : "—",
             icon: TrendingUp,
@@ -865,7 +970,7 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
           {/* Monthly chart */}
           {chartData.length > 0 && (
             <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
-              <h3 className="text-[13px] font-light text-white/80 mb-5">Revenue mensual</h3>
+              <h3 className="text-[13px] font-light text-white/80 mb-5">Facturación mensual</h3>
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 4, right: 4, left: -15, bottom: 0 }}>
@@ -900,7 +1005,7 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
           {/* Sales table */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
             <h3 className="text-[13px] font-light text-white/80 mb-5">Historial de ventas</h3>
-            {sales.length === 0 ? (
+            {filteredSales.length === 0 ? (
               <div className="py-14 text-center">
                 <DollarSign className="h-10 w-10 text-white/[0.07] mx-auto mb-3" />
                 <p className="text-[13px] text-white/25 font-light">No hay ventas registradas aún</p>
@@ -920,13 +1025,13 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
                   style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
                 >
                   <div className="col-span-4">Fuente / Cliente</div>
-                  <div className="col-span-2 text-right">Revenue</div>
-                  <div className="col-span-2 text-right">Cobrado</div>
+                  <div className="col-span-2 text-right">Facturación</div>
+                  <div className="col-span-2 text-right">Recolectado</div>
                   <div className="col-span-2 text-center">Tipo</div>
                   <div className="col-span-2 text-center">Estado</div>
                 </div>
 
-                {sales.map((s) => (
+                {filteredSales.map((s) => (
                   <div
                     key={s.id}
                     className="grid grid-cols-12 gap-2 items-center py-3 px-2 rounded-xl hover:bg-white/[0.025] transition-all group"
@@ -1015,7 +1120,7 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
             {/* Attribution: Fuentes de revenue */}
             {sourceData.length > 0 && (
               <div className="glass-panel rounded-xl p-5">
-                <h3 className="text-[11px] font-medium text-white/35 uppercase tracking-[0.1em] mb-5">Fuentes de revenue</h3>
+                <h3 className="text-[11px] font-medium text-white/35 uppercase tracking-[0.1em] mb-5">Fuentes de facturación</h3>
                 <div className="space-y-4">
                   {sourceData.map((s, i) => (
                     <div key={s.key}>
@@ -1093,6 +1198,7 @@ export function VentasClient({ initialSales, reelsForPicker }: VentasClientProps
       {showModal && (
         <NewSaleModal
           reels={reelsForPicker}
+          stories={storiesForPicker}
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
         />

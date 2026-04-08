@@ -47,7 +47,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     thumbnail_url: string | null; permalink: string | null;
     published_at: string | null; media_type: string | null;
     views_total: number; impressions: number; reach: number;
-    likes: number; saves: number; comments: number; shares: number;
+    likes: number; saves: number | null; comments: number; shares: number;
   }> = [];
   let storySequences: Array<{
     id: string; ig_story_id: string; published_at: string; expires_at: string | null;
@@ -60,6 +60,10 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       taps_forward: number; taps_back: number; swipe_aways: number; archived: boolean;
     }>;
   }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let initialCompetitors: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let initialReferences: any[] = [];
 
   if (workspaceId) {
     // Date calculations
@@ -80,6 +84,8 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       postsResult,
       adsSyncResult,
       salesResult,
+      competitorsResult,
+      referencesResult,
     ] = await Promise.all([
       supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).maybeSingle(),
       supabase
@@ -140,6 +146,37 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .limit(200),
       supabase.from("sync_jobs").select("metadata").eq("workspace_id", workspaceId).eq("job_type", "ads_insights").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("sales").select("reel_id, amount_total").eq("workspace_id", workspaceId).not("reel_id", "is", null),
+      // ── Pre-fetch competitors + references (avoid client-side fetch on tab mount) ──
+      supabase
+        .from("workspace_competitors")
+        .select(`
+          id, name, ig_url, why_better, scraped_data, last_scraped_at, analysis_status,
+          competitor_reels (
+            id, short_code, permalink, caption,
+            likes_count, comments_count, views_count, shares_count,
+            duration_seconds, published_at, thumbnail_url,
+            hashtags, music_artist, music_name,
+            competitor_reel_analysis (
+              hook_text, hook_type, narrative_structure, content_type,
+              cta_text, cta_type, topic_cluster, style_notes,
+              strengths, weaknesses, ai_summary, model_used
+            )
+          ),
+          competitor_follower_snapshots (
+            snapshot_date, follower_count
+          )
+        `)
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: true })
+        .order("published_at", { ascending: false, referencedTable: "competitor_reels" })
+        .limit(24, { referencedTable: "competitor_reels" })
+        .order("snapshot_date", { ascending: false, referencedTable: "competitor_follower_snapshots" })
+        .limit(90, { referencedTable: "competitor_follower_snapshots" }),
+      supabase
+        .from("workspace_references")
+        .select("id, brand_name, brand_url, what_they_like, created_at, scraped_data, scraped_reels, last_scraped_at")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: true }),
     ]);
 
     connectionStatus = connectionResult.data?.status || null;
@@ -230,7 +267,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           impressions: m?.impressions_org || 0,
           reach: m?.reach_org || 0,
           likes: m?.likes_total || 0,
-          saves: m?.saves_total || 0, comments: m?.comments_total || 0, shares: m?.shares_total || 0,
+          saves: m?.saves_total ?? null, comments: m?.comments_total || 0, shares: m?.shares_total || 0,
         };
       });
     }
@@ -282,6 +319,16 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           };
         });
       }
+    }
+
+    // ── Process competitors ──
+    if (competitorsResult?.data) {
+      initialCompetitors = competitorsResult.data;
+    }
+
+    // ── Process references ──
+    if (referencesResult?.data) {
+      initialReferences = referencesResult.data;
     }
   }
 
@@ -360,6 +407,8 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         reelsSummary={reelsSummary}
         reelsMissingDuration={reelsMissingDuration}
         workspaceId={workspaceId}
+        initialCompetitors={initialCompetitors}
+        initialReferences={initialReferences}
       />
 
       {/* Auto-enrich durations */}

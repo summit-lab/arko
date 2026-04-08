@@ -34,7 +34,11 @@ export async function GET(request: Request) {
         )
       `)
       .eq('workspace_id', auth.workspaceId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('published_at', { ascending: false, referencedTable: 'competitor_reels' })
+      .limit(24, { referencedTable: 'competitor_reels' })
+      .order('snapshot_date', { ascending: false, referencedTable: 'competitor_follower_snapshots' })
+      .limit(90, { referencedTable: 'competitor_follower_snapshots' });
 
     if (error) {
       return api500('Error cargando competidores');

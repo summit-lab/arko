@@ -1373,10 +1373,16 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (k: SortK
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CompetitorTab({ workspaceId, myStats, myReels, myFollowerHistory }: { workspaceId: string | null; myStats: MyStats; myReels: MyReel[]; myFollowerHistory: MyFollowerPoint[] }) {
-  const [competitors, setCompetitors] = useState<Competitor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReels, myFollowerHistory }: {
+  workspaceId: string | null;
+  initialCompetitors?: Competitor[];
+  myStats: MyStats;
+  myReels: MyReel[];
+  myFollowerHistory: MyFollowerPoint[];
+}) {
+  const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors ?? []);
+  const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(initialCompetitors?.[0]?.id ?? null);
   const [scraping, setScraping] = useState<string | null>(null);
   const [analyzingReels, setAnalyzingReels] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -1389,6 +1395,7 @@ export function CompetitorTab({ workspaceId, myStats, myReels, myFollowerHistory
     ...(workspaceId ? { "x-workspace-id": workspaceId } : {}),
   }), [workspaceId]);
 
+  // Re-fetch competitors from API (used after scrape/analyze operations)
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/competitors", { headers });
@@ -1404,8 +1411,6 @@ export function CompetitorTab({ workspaceId, myStats, myReels, myFollowerHistory
     }
   }, [headers]);
 
-  useEffect(() => { void load(); }, [load]);
-
   const handleScrapeAndAnalyze = useCallback(async (competitorId: string) => {
     setScraping(competitorId);
     setError(null);
@@ -1415,7 +1420,13 @@ export function CompetitorTab({ workspaceId, myStats, myReels, myFollowerHistory
         const err = await scrapeRes.json() as { error?: string };
         throw new Error(err.error ?? "Error en scraping");
       }
-      await fetch(`/api/v1/competitors/${competitorId}/analyze`, { method: "POST", headers });
+      const scrapeJson = await scrapeRes.json() as { data?: { reels_inserted?: number } };
+      const newReels = scrapeJson.data?.reels_inserted ?? 0;
+
+      // Only call analyze (Gemini AI = $$$) if scrape found new unanalyzed reels
+      if (newReels > 0) {
+        await fetch(`/api/v1/competitors/${competitorId}/analyze`, { method: "POST", headers });
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar");

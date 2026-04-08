@@ -23,10 +23,11 @@ export default async function VentasPage() {
   }> = [];
 
   let reelsForPicker: Array<{ id: string; caption: string | null; thumbnail_url: string | null; published_at: string | null }> = [];
+  let storiesForPicker: Array<{ id: string; published_at: string; total_impressions: number; total_reach: number; slide_count: number; first_thumbnail: string | null }> = [];
 
   if (workspaceId) {
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const [salesResult, reelsResult] = await Promise.all([
+    const [salesResult, reelsResult, storiesResult] = await Promise.all([
       supabase
         .from("sales")
         .select(`
@@ -45,6 +46,16 @@ export default async function VentasPage() {
         .gte("published_at", ninetyDaysAgo)
         .order("published_at", { ascending: false })
         .limit(100),
+      supabase
+        .from("ig_story_sequences")
+        .select(`
+          id, published_at, total_impressions, total_reach,
+          ig_story_slides (thumbnail_url, slide_index)
+        `)
+        .eq("workspace_id", workspaceId)
+        .gte("published_at", ninetyDaysAgo)
+        .order("published_at", { ascending: false })
+        .limit(60),
     ]);
 
     if (salesResult.data) {
@@ -54,7 +65,24 @@ export default async function VentasPage() {
       })) as typeof sales;
     }
     if (reelsResult.data) reelsForPicker = reelsResult.data;
+    if (storiesResult.data) {
+      storiesForPicker = (storiesResult.data as Array<{
+        id: string; published_at: string; total_impressions: number; total_reach: number;
+        ig_story_slides: Array<{ thumbnail_url: string | null; slide_index: number }>;
+      }>).map((seq) => {
+        const slides = Array.isArray(seq.ig_story_slides) ? seq.ig_story_slides : [];
+        const first = [...slides].sort((a, b) => a.slide_index - b.slide_index)[0];
+        return {
+          id: seq.id,
+          published_at: seq.published_at,
+          total_impressions: seq.total_impressions,
+          total_reach: seq.total_reach,
+          slide_count: slides.length,
+          first_thumbnail: first?.thumbnail_url ?? null,
+        };
+      });
+    }
   }
 
-  return <VentasClient initialSales={sales} reelsForPicker={reelsForPicker} />;
+  return <VentasClient initialSales={sales} reelsForPicker={reelsForPicker} storiesForPicker={storiesForPicker} />;
 }
