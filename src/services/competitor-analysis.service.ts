@@ -67,9 +67,11 @@ function classifyHookType(hookText: string): string {
   return 'desconocido';
 }
 
-// ─── Fallback: caption-only analysis via Claude ─────────────────────────────
+// ─── Text-only analysis via Gemini (no video upload) ─────────────────────────
+// Used when Gemini is available but no video_url exists.
+// Avoids needing ANTHROPIC_API_KEY for the fallback path.
 
-const FALLBACK_SYSTEM_PROMPT = `Sos Arko, consultor experto en marketing de contenido en Instagram. Usás el Framework de Fran (Francisco Doglio).
+const TEXT_ONLY_SYSTEM_PROMPT = `Sos Arko, consultor experto en marketing de contenido en Instagram. Usás el Framework de Fran (Francisco Doglio).
 
 RESPONDE 100% EN ESPAÑOL.
 
@@ -93,6 +95,84 @@ Respondé SOLO con un JSON válido (sin markdown, sin backticks):
   "weaknesses": "debilidades según framework de Fran",
   "ai_summary": "Análisis de Arko: por qué funciona o no este contenido según el framework. Concepto + estructura + acción (guardable/compartible). 3-4 oraciones."
 }`;
+
+async function analyzeReelWithGeminiText(reel: CompetitorReel): Promise<ReelAnalysisData> {
+  const apiKey = getGeminiKey()?.trim();
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+
+  const userContent = `Analizá este reel de un competidor usando el Framework de Fran (solo caption disponible, sin video):
+
+CAPTION: ${reel.caption || '(sin caption)'}
+
+MÉTRICAS:
+- Views: ${reel.views_count ?? 'N/A'}
+- Likes: ${reel.likes_count ?? 'N/A'}
+- Comments: ${reel.comments_count ?? 'N/A'}
+- Shares: ${reel.shares_count ?? 'N/A'}
+- Duración: ${reel.duration_seconds ? `${reel.duration_seconds}s` : 'N/A'}
+
+HASHTAGS: ${reel.hashtags.length > 0 ? reel.hashtags.join(', ') : 'ninguno'}
+MÚSICA: ${reel.music_artist ? `${reel.music_artist}` : 'N/A'}`;
+
+  const BASE = 'https://generativelanguage.googleapis.com';
+  const genRes = await fetch(
+    `${BASE}/v1beta/models/gemini-2.5-flash:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: TEXT_ONLY_SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: userContent }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+      }),
+      signal: AbortSignal.timeout(30_000),
+    }
+  );
+
+  if (!genRes.ok) throw new Error(`Gemini text analysis failed: ${genRes.status}`);
+
+  const genData = await genRes.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    usageMetadata?: { totalTokenCount?: number };
+  };
+
+  const rawText = genData.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  const totalTokens = genData.usageMetadata?.totalTokenCount ?? 0;
+
+  let analysis: Record<string, string | null>;
+  try {
+    const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    analysis = JSON.parse(cleaned);
+  } catch {
+    analysis = {
+      hook_text: null, hook_type: 'desconocido', narrative_structure: null,
+      content_type: null, cta_text: null, cta_type: 'ninguno',
+      topic_cluster: null, style_notes: null, strengths: null,
+      weaknesses: null, ai_summary: rawText.substring(0, 500),
+    };
+  }
+
+  return {
+    hook_text: analysis.hook_text ?? null,
+    hook_type: analysis.hook_type ?? null,
+    narrative_structure: analysis.narrative_structure ?? null,
+    content_type: analysis.content_type ?? null,
+    cta_text: analysis.cta_text ?? null,
+    cta_type: analysis.cta_type ?? null,
+    topic_cluster: analysis.topic_cluster ?? null,
+    style_notes: analysis.style_notes ?? null,
+    strengths: analysis.strengths ?? null,
+    weaknesses: analysis.weaknesses ?? null,
+    ai_summary: analysis.ai_summary ?? null,
+    model_used: 'gemini-2.5-flash',
+    tokens_used: totalTokens,
+  };
+}
+
+// ─── Fallback: caption-only analysis via callLLM (Anthropic/OpenAI) ──────────
+// Only used when Gemini is NOT configured.
+
+const FALLBACK_SYSTEM_PROMPT = TEXT_ONLY_SYSTEM_PROMPT;
 
 async function analyzeReelFallback(reel: CompetitorReel): Promise<ReelAnalysisData> {
   const content = `Analizá este reel de un competidor usando el Framework de Fran (solo caption disponible, sin video):
@@ -185,14 +265,17 @@ function parseGeminiResponseRelaxed(text: string): {
     const hookText = safeStr(narrative?.hook) ?? safeStr(parsed.hook_text);
 
     // Prefer Gemini's hook_type classification, fallback to keyword-based
-    const geminiHookType = safeStr(narrative?.hook_type)?.toLowerCase();
+    // Normalize accents so "transformación" matches "transformacion"
+    const normalizeAccents = (s: string) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const geminiHookType = safeStr(narrative?.hook_type) ? normalizeAccents(safeStr(narrative!.hook_type)!) : null;
     const VALID_HOOK_TYPES = ['transformacion', 'enemigo', 'negativo', 'promesa', 'curiosidad'];
     const hookType = geminiHookType && VALID_HOOK_TYPES.includes(geminiHookType)
       ? geminiHookType
       : hookText ? classifyHookType(hookText) : 'desconocido';
 
     // Prefer Gemini's content_type, fallback to tone-based inference
-    const geminiContentType = safeStr(narrative?.content_type)?.toLowerCase();
+    const geminiContentType = safeStr(narrative?.content_type) ? normalizeAccents(safeStr(narrative!.content_type)!) : null;
     const contentType = (geminiContentType === 'reputacion' || geminiContentType === 'conexion')
       ? geminiContentType
       : (() => {
@@ -473,14 +556,20 @@ export async function analyzeSingleCompetitorReel(
     let extractedTranscript: string | null = null;
 
     if (geminiAvailable && (reel as CompetitorReel).video_url) {
+      // Gemini video analysis (best quality)
       try {
         const geminiResult = await analyzeReelWithGemini(reel as CompetitorReel);
         extractedTranscript = geminiResult.transcript;
         analysisData = geminiResult;
       } catch {
-        analysisData = await analyzeReelFallback(reel as CompetitorReel);
+        // Video analysis failed → try Gemini text-only
+        analysisData = await analyzeReelWithGeminiText(reel as CompetitorReel);
       }
+    } else if (geminiAvailable) {
+      // No video URL but Gemini is available → text-only (avoids needing Anthropic key)
+      analysisData = await analyzeReelWithGeminiText(reel as CompetitorReel);
     } else {
+      // Gemini not configured → use callLLM (Anthropic/OpenAI)
       analysisData = await analyzeReelFallback(reel as CompetitorReel);
     }
 
@@ -561,16 +650,18 @@ export async function analyzeCompetitorReels(
       let analysisData: ReelAnalysisData;
       let extractedTranscript: string | null = null;
 
-      // Try Gemini video analysis first, fall back to Claude caption-only
+      // Gemini video → Gemini text → callLLM fallback
       if (geminiAvailable && (reel as CompetitorReel).video_url) {
         try {
           const geminiResult = await analyzeReelWithGemini(reel as CompetitorReel);
           extractedTranscript = geminiResult.transcript;
           analysisData = geminiResult;
         } catch (geminiErr) {
-          console.warn(`[competitor-analysis] Gemini failed for reel ${reel.id}, falling back to Claude:`, geminiErr);
-          analysisData = await analyzeReelFallback(reel as CompetitorReel);
+          console.warn(`[competitor-analysis] Gemini video failed for reel ${reel.id}, using Gemini text:`, geminiErr);
+          analysisData = await analyzeReelWithGeminiText(reel as CompetitorReel);
         }
+      } else if (geminiAvailable) {
+        analysisData = await analyzeReelWithGeminiText(reel as CompetitorReel);
       } else {
         analysisData = await analyzeReelFallback(reel as CompetitorReel);
       }

@@ -21,6 +21,8 @@ const ReelsGrid = dynamic(() => import("./ReelsGrid").then(m => ({ default: m.Re
 const StoriesGrid = dynamic(() => import("./StoriesGrid").then(m => ({ default: m.StoriesGrid })), { ssr: false, loading: TabSkeleton });
 const PublicacionesGrid = dynamic(() => import("./PublicacionesGrid").then(m => ({ default: m.PublicacionesGrid })), { ssr: false, loading: TabSkeleton });
 const IGMetricsClient = dynamic(() => import("./IGMetricsClient").then(m => ({ default: m.IGMetricsClient })), { ssr: false, loading: TabSkeleton });
+const CompetitorTab = dynamic(() => import("./CompetitorTab").then(m => ({ default: m.CompetitorTab })), { ssr: false, loading: TabSkeleton });
+const ReferencesTab = dynamic(() => import("./ReferencesTab").then(m => ({ default: m.ReferencesTab })), { ssr: false, loading: TabSkeleton });
 
 // Lazy-load heavy dashboard (charts) — only when user visits the tab
 const IGDashboard = dynamic(
@@ -195,6 +197,7 @@ export function InstagramShell({
   storySequences,
   posts,
   reelsSummary,
+  workspaceId,
 }: InstagramShellProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const searchParams = useSearchParams();
@@ -284,31 +287,23 @@ export function InstagramShell({
       )}
 
       {activeTab === "competencia" && (
-        <div className="py-16 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center">
-              <span className="text-2xl">⚔️</span>
-            </div>
-            <div>
-              <p className="text-white/50 font-light text-[15px]">Análisis de Competencia — próximamente</p>
-              <p className="text-white/25 text-sm mt-1 font-light">Comparativa de métricas contra tus competidores definidos en el ADN</p>
-            </div>
-          </div>
-        </div>
+        <CompetitorTab
+          workspaceId={workspaceId ?? null}
+          myStats={{
+            avgViews:    reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.views_total, 0) / reels.length) : 0,
+            followers:   totalFollowers,
+            avgLikes:    reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.likes,       0) / reels.length) : 0,
+            avgComments: reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.comments,    0) / reels.length) : 0,
+          }}
+          myReels={reels.map((r) => ({ published_at: r.published_at, views_total: r.views_total }))}
+          myFollowerHistory={dailyInsights
+            .filter((d) => d.followers_total > 0)
+            .map((d) => ({ date: d.metric_date, followers: d.followers_total }))}
+        />
       )}
 
       {activeTab === "referencias" && (
-        <div className="py-16 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center">
-              <span className="text-2xl">📌</span>
-            </div>
-            <div>
-              <p className="text-white/50 font-light text-[15px]">Módulo de Referencias — próximamente</p>
-              <p className="text-white/25 text-sm mt-1 font-light">Inspiración y benchmarks de contenido de referencia</p>
-            </div>
-          </div>
-        </div>
+        <ReferencesTab workspaceId={workspaceId ?? null} />
       )}
 
       {activeTab === "metrics" && (
