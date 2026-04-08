@@ -2,6 +2,17 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmtCompact(n: number, unit?: string): string {
+  if (unit === "%") return `${n.toFixed(1)}%`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(Math.round(n));
+}
+
+// ─── Single Donut ────────────────────────────────────────────────────────────
+
 interface DonutProps {
   pct: number;
   color: string;
@@ -11,9 +22,10 @@ interface DonutProps {
 }
 
 function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
+  const clamped = Math.min(Math.max(pct, 0), 100);
   const data = [
-    { value: pct },
-    { value: 100 - pct },
+    { value: clamped },
+    { value: 100 - clamped },
   ];
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -38,7 +50,7 @@ function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
         </ResponsiveContainer>
         {/* Center text */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[13px] font-light text-white">{pct}%</span>
+          <span className="text-[13px] font-light text-white">{Math.round(clamped)}%</span>
         </div>
       </div>
       <div className="text-center">
@@ -52,13 +64,53 @@ function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
   );
 }
 
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 interface MetasDonutProps {
-  views: string;
-  followers: string;
-  engRate: string;
+  views: number;
+  followers: number;
+  engRate: number;
+  goalViews: number | null;
+  goalFollowers: number | null;
+  goalEngRate: number | null;
 }
 
-export function MetasDonut({ views, followers, engRate }: MetasDonutProps) {
+export function MetasDonut({ views, followers, engRate, goalViews, goalFollowers, goalEngRate }: MetasDonutProps) {
+  const hasGoals = goalViews !== null || goalFollowers !== null || goalEngRate !== null;
+
+  // Build donut items dynamically from configured goals
+  const items: DonutProps[] = [];
+
+  if (goalViews !== null && goalViews > 0) {
+    items.push({
+      pct: (views / goalViews) * 100,
+      color: "#7A86E0",
+      label: "Views",
+      current: fmtCompact(views),
+      goal: fmtCompact(goalViews),
+    });
+  }
+
+  if (goalFollowers !== null && goalFollowers > 0) {
+    items.push({
+      pct: (followers / goalFollowers) * 100,
+      color: "#4BCEAF",
+      label: "Seguidores",
+      current: fmtCompact(followers),
+      goal: fmtCompact(goalFollowers),
+    });
+  }
+
+  if (goalEngRate !== null && goalEngRate > 0) {
+    items.push({
+      pct: (engRate / goalEngRate) * 100,
+      color: "#AF6EC7",
+      label: "Eng. Rate",
+      current: fmtCompact(engRate, "%"),
+      goal: fmtCompact(goalEngRate, "%"),
+    });
+  }
+
   return (
     <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
       <div className="flex items-center justify-between mb-5">
@@ -67,11 +119,25 @@ export function MetasDonut({ views, followers, engRate }: MetasDonutProps) {
           Configurar →
         </a>
       </div>
-      <div className="flex items-start justify-around">
-        <SingleDonut pct={72} color="#7A86E0" label="Views" current={views} goal="100K" />
-        <SingleDonut pct={48} color="#4BCEAF" label="Seguidores" current={followers} goal="200" />
-        <SingleDonut pct={63} color="#AF6EC7" label="Eng. Rate" current={engRate} goal="3%" />
-      </div>
+
+      {!hasGoals ? (
+        <div className="py-6 text-center">
+          <p className="text-[12px] text-white/25 font-light">No hay metas configuradas</p>
+          <a
+            href="/settings/metas"
+            className="inline-block mt-2 text-[11px] font-medium transition-colors hover:text-white/60"
+            style={{ color: "rgba(122,134,224,0.7)" }}
+          >
+            + Configurar metas
+          </a>
+        </div>
+      ) : (
+        <div className="flex items-start justify-around">
+          {items.map(item => (
+            <SingleDonut key={item.label} {...item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

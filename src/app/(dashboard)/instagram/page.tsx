@@ -47,7 +47,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     thumbnail_url: string | null; permalink: string | null;
     published_at: string | null; media_type: string | null;
     views_total: number; impressions: number; reach: number;
-    likes: number; saves: number | null; comments: number; shares: number;
+    likes: number; saves: number; comments: number; shares: number;
   }> = [];
   let storySequences: Array<{
     id: string; ig_story_id: string; published_at: string; expires_at: string | null;
@@ -267,7 +267,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           impressions: m?.impressions_org || 0,
           reach: m?.reach_org || 0,
           likes: m?.likes_total || 0,
-          saves: m?.saves_total ?? null, comments: m?.comments_total || 0, shares: m?.shares_total || 0,
+          saves: m?.saves_total || 0, comments: m?.comments_total || 0, shares: m?.shares_total || 0,
         };
       });
     }
