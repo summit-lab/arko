@@ -3,7 +3,8 @@ import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
-import { PeriodFilter } from "@/components/instagram/PeriodFilter";
+import { DateFilter } from "@/components/ui/DateFilter";
+import { parseDateParams, nextDay, toISOStart } from "@/lib/date-utils";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
@@ -14,11 +15,12 @@ import { Suspense } from "react";
 // Fetches ALL tab data in parallel upfront, then delegates to InstagramShell
 // for instant client-side tab switching (zero server roundtrips on tab change).
 
-export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; tab?: string }> }) {
+export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string; tab?: string }> }) {
   const params = await searchParams;
   const activeTab = (params.tab as TabKey) || "dashboard";
-  const periodDays = parseInt(params.days || "90", 10);
-  const periodStartIso = new Date(new Date().getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString();
+  const dateRange = parseDateParams(params, "90d");
+  const periodDays = dateRange.days;
+  const periodStartIso = toISOStart(dateRange.from);
 
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
@@ -66,12 +68,9 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   let initialReferences: any[] = [];
 
   if (workspaceId) {
-    // Date calculations
-    const todayUtc = new Date();
-    todayUtc.setUTCHours(0, 0, 0, 0);
-    const yesterdayUtc = new Date(todayUtc.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayDate = yesterdayUtc.toISOString().split("T")[0];
-    const periodStartDate = new Date(todayUtc.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    // Date calculations — derived from dateRange
+    const periodStartDate = dateRange.from;
+    const yesterdayDate = dateRange.to;
 
     // ── Fetch ALL queries in parallel (no conditional — instant tab switching) ──
     const [
@@ -374,7 +373,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         </div>
         <div className="flex items-center gap-4">
           <Suspense fallback={null}>
-            <PeriodFilter />
+            <DateFilter mode="url" defaultPreset="90d" />
           </Suspense>
           {!connectionStatus && (
             <Link

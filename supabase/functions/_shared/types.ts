@@ -54,6 +54,8 @@ export interface AdRecord {
 
 export interface InsightRow {
   ad_id: string;
+  date_start?: string;
+  date_stop?: string;
   impressions: string;
   reach: string;
   clicks: string;
