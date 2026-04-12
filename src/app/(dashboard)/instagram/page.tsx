@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
 import { DateFilter } from "@/components/ui/DateFilter";
-import { parseDateParams, nextDay, toISOStart } from "@/lib/date-utils";
+import { parseDateParams, toISOStart } from "@/lib/date-utils";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";

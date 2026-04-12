@@ -232,7 +232,6 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   const totalViewsPaid = Math.min(estimatedPaid, Math.round(totalImpressions * 0.9));
   const totalViewsOrgOnly = Math.max(0, totalImpressions - totalViewsPaid);
   const totalViewsAll = totalImpressions;
-  const isTrafficEstimated = reelViewsPaid < totalViewsPaid;
   const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrgOnly / totalViewsAll) * 100) : 100;
   const paidPct = 100 - orgPct;
   const trafficPieData = [

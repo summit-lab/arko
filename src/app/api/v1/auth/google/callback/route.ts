@@ -83,7 +83,8 @@ export async function GET(request: Request) {
 
     // Step 3: Discover YouTube channel
     // Try mine=true first, then fallback to listing all channels for this account
-    let channel: Record<string, unknown> | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let channel: any = null;
 
     const channelRes = await fetch(
       `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&mine=true`,

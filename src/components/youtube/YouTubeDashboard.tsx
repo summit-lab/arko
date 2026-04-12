@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Eye, ThumbsUp, MessageSquare, Clock, ChevronRight, Play, RefreshCw, Youtube, TrendingUp, Users } from "lucide-react";
+import { Eye, ThumbsUp, MessageSquare, Clock, ChevronRight, Play, RefreshCw, TrendingUp, Users } from "lucide-react";
 import Image from "next/image";
 import { CountUp } from "@/components/ui/CountUp";
 
@@ -76,7 +76,7 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
   const handleSync = useCallback(async () => {
     setSyncing(true);
     try {
-      await fetch(`/api/v1/sync/youtube?steps=quick&workspace_id=${workspaceId}`, {
+      await fetch(`/api/v1/sync/youtube?steps=quick&workspace_id=${encodeURIComponent(workspaceId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -87,7 +87,7 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
     } finally {
       setSyncing(false);
     }
-  }, []);
+  }, [workspaceId]);
 
   // Sort videos
   const sorted = [...videos].sort((a, b) => {
@@ -104,10 +104,6 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
   const totalLikes = videos.reduce((s, v) => s + v.like_count, 0);
   const totalComments = videos.reduce((s, v) => s + v.comment_count, 0);
   const avgEngagement = totalViews > 0 ? ((totalLikes + totalComments) / totalViews * 100) : 0;
-  const avgDuration = videos.length > 0
-    ? videos.reduce((s, v) => s + (v.duration_seconds ?? 0), 0) / videos.length
-    : 0;
-
   const kpis = [
     { label: "Views Totales", value: fmt(totalViews), icon: Eye },
     { label: "Suscriptores", value: fmt(channel.subscriber_count), icon: Users },
@@ -192,7 +188,7 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
 
         {sorted.length === 0 ? (
           <div className="text-center py-12 text-white/25 text-[13px]">
-            No hay videos sincronizados. Click "Sincronizar" para traer tus videos.
+            No hay videos sincronizados. Click en Sincronizar para traer tus videos.
           </div>
         ) : (
           <div className="space-y-0.5">

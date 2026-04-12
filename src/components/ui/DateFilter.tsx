@@ -147,8 +147,9 @@ type DateFilterProps = (DateFilterUrlProps | DateFilterStateProps) & {
 };
 
 export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: DateFilterProps) {
-  const router = mode === "url" ? useRouter() : null;
-  const searchParams = mode === "url" ? useSearchParams() : null;
+  // Hooks must be called unconditionally — unused in "state" mode but that's fine
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
   const getInitialRange = useCallback((): DateRange => {
