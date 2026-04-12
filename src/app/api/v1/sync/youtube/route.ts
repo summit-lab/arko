@@ -4,7 +4,6 @@
  * to a Supabase Edge Function.
  *
  * Query: ?steps=quick|all
- * Body (optional): { channel_input: string } — for first-time connect
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -20,20 +19,11 @@ export async function POST(request: Request) {
     const url = new URL(request.url);
     const steps = url.searchParams.get('steps') || 'all';
 
-    // Optional: channel_input for first-time connect
-    let channelInput: string | undefined;
-    try {
-      const body = await request.json();
-      channelInput = body.channel_input;
-    } catch {
-      // No body — that's fine for re-sync
-    }
-
     const supabase = await createClient();
     const syncHeaders = { 'x-sync-secret': env.SYNC_SECRET ?? '' };
 
     const { data, error } = await supabase.functions.invoke('sync-youtube', {
-      body: { workspace_id: auth.workspaceId, steps, ...(channelInput ? { channel_input: channelInput } : {}) },
+      body: { workspace_id: auth.workspaceId, steps },
       headers: syncHeaders,
     });
 
