@@ -220,10 +220,16 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
     ? ((totalFollowersGained / totalProfileViews) * 100).toFixed(1)
     : "0";
 
-  // Total sales
-
-  // Traffic split — use account-level impressions as total, ads API video plays as paid.
-  const totalViewsPaid = Math.min(totalAdVideoPlays, totalImpressions);
+  // Traffic split — scale 30d ad plays proportionally to selected period
+  // totalAdVideoPlays is always for 30d window; scale to current period
+  const reelViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);
+  const scaledAdPlays = periodDays <= 30
+    ? Math.round(totalAdVideoPlays * (sorted.length / 30))
+    : totalAdVideoPlays;
+  // Use reel-level paid if available, else scaled account-level estimate
+  const estimatedPaid = Math.max(reelViewsPaid, scaledAdPlays);
+  // Cap at 90% of impressions — organic always exists, avoid 100% paid
+  const totalViewsPaid = Math.min(estimatedPaid, Math.round(totalImpressions * 0.9));
   const totalViewsOrgOnly = Math.max(0, totalImpressions - totalViewsPaid);
   const totalViewsAll = totalImpressions;
   const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrgOnly / totalViewsAll) * 100) : 100;
@@ -234,12 +240,16 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   ];
   const PIE_COLORS_TRAFFIC = ["#7A86E0", "#AF6EC7"];
 
-  // Chart data
-  const chartData = sorted.map((d) => ({
+  // Chart data — duplicate single point so Recharts draws a flat line instead of dots
+  const rawChartData = sorted.map((d) => ({
     date: fmtDate(d.metric_date),
     impressions: d.impressions,
     reach: d.reach,
   }));
+  const isSingleDay = rawChartData.length === 1;
+  const chartData = isSingleDay
+    ? [rawChartData[0], { ...rawChartData[0], date: rawChartData[0].date + " " }]
+    : rawChartData;
 
   // Best reel by views
   const sortedReels = [...reels].sort((a, b) => b.views_total - a.views_total);

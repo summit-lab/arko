@@ -704,6 +704,8 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
     }
 
     const paidByReel = new Map<string, { views_paid: number; impressions_paid: number; reach_paid: number; clicks: number; spend_cents: number; video_plays: number }>();
+    // Collect all ads info for daily metrics (ALL ads, not just mapped)
+    const allAdsLookup = new Map<string, { campaign_id: string; adset_id: string; ad_name: string; ad_account_id: string }>();
 
     for (const acctId of adAccountIds) {
       try {
@@ -712,6 +714,11 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
 
         const insightsMap = await fetchInsightsByAd(acctId, accessToken);
         const adsById = new Map<string, AdRecord>(ads.map((ad) => [ad.id, ad]));
+
+        // Register ALL ads for daily metrics lookup
+        for (const ad of ads) {
+          allAdsLookup.set(ad.id, { campaign_id: ad.campaign_id, adset_id: ad.adset_id, ad_name: ad.name, ad_account_id: acctId });
+        }
 
         // Recover missing ads
         const missingAdIds = [...insightsMap.keys()].filter((adId) => !adsById.has(adId));
@@ -798,6 +805,42 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
       if (!error) {
         result.reelsUpdated++;
         await supabase.from("reels").update({ has_ads: true, attribution_confidence: "high" }).eq("id", reelId);
+      }
+    }
+
+    // ── Upsert daily ad metrics for ALL ads (not just mapped) ──
+    for (const acctId of adAccountIds) {
+      try {
+        const dailyRows = await fetchDailyInsightsByAd(acctId, accessToken);
+        const batch: Array<Record<string, unknown>> = [];
+        for (const row of dailyRows) {
+          if (!row.date_start) continue;
+          const lookup = allAdsLookup.get(row.ad_id);
+          const outboundClicks = getActionMetricValue(row.outbound_clicks, "outbound_click");
+          const inlineLinkClicks = parseInt(row.inline_link_clicks || "0") || 0;
+          const clicks = outboundClicks || inlineLinkClicks || (parseInt(row.clicks || "0") || 0);
+          batch.push({
+            workspace_id: workspaceId,
+            ad_id: row.ad_id,
+            campaign_id: lookup?.campaign_id ?? "unknown",
+            adset_id: lookup?.adset_id ?? "unknown",
+            ad_account_id: acctId,
+            ad_name: lookup?.ad_name ?? null,
+            metric_date: row.date_start,
+            impressions: parseInt(row.impressions || "0") || 0,
+            reach: parseInt(row.reach || "0") || 0,
+            clicks,
+            spend_cents: Math.round(parseFloat(row.spend || "0") * 100) || 0,
+            video_plays: getActionMetricValue(row.video_play_actions, "video_view"),
+            fetched_at: new Date().toISOString(),
+          });
+        }
+        // Upsert in chunks of 200
+        for (let i = 0; i < batch.length; i += 200) {
+          await supabase.from("ad_metrics_daily").upsert(batch.slice(i, i + 200), { onConflict: "workspace_id,ad_id,metric_date" });
+        }
+      } catch (err) {
+        result.errors.push(`daily metrics ${acctId}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -1601,6 +1644,23 @@ async function fetchInsightsByAd(adAccountId: string, accessToken: string, days 
     url = json.paging?.next || null;
   }
   return map;
+}
+
+/** Fetch daily breakdown of ad insights (time_increment=1 returns one row per ad per day) */
+async function fetchDailyInsightsByAd(adAccountId: string, accessToken: string, days = 90): Promise<InsightRow[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const until = new Date().toISOString().split("T")[0];
+  const fields = "ad_id,date_start,date_stop,impressions,reach,clicks,spend,inline_link_clicks,outbound_clicks,video_play_actions";
+  const rows: InsightRow[] = [];
+  let url: string | null = `${GRAPH_BASE}/${adAccountId}/insights?level=ad&time_increment=1&time_range={"since":"${since}","until":"${until}"}&fields=${fields}&limit=500&access_token=${accessToken}`;
+  while (url) {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error) break;
+    for (const row of json.data || []) rows.push(row);
+    url = json.paging?.next || null;
+  }
+  return rows;
 }
 
 function resolveAdToReel(ad: AdRecord, byId: Map<string, string>, byPermalink: Map<string, string>, byShortcode: Map<string, string>): MatchResult | null {

@@ -10,6 +10,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
+import { DateFilter } from "@/components/ui/DateFilter";
+import { resolvePreset } from "@/lib/date-utils";
+import type { DateRange as SharedDateRange } from "@/types/date-filter";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -98,107 +101,8 @@ const SOURCE_BG: Record<string, string> = {
   link_bio: "rgba(235,105,145,0.12)",
   otro: "rgba(255,255,255,0.05)",
 };
-// ─── Date range presets ─────────────────────────────────────────────────────
+// ─── Date range (uses shared DateFilter) ─────────────────────────────────────
 
-type DatePreset = "hoy" | "ayer" | "7d" | "mes" | "custom";
-
-interface DateRange {
-  from: string; // YYYY-MM-DD
-  to: string;   // YYYY-MM-DD
-}
-
-function getPresetRange(preset: DatePreset): DateRange {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const toISO = (d: Date) => d.toISOString().split("T")[0];
-  const todayStr = toISO(today);
-
-  switch (preset) {
-    case "hoy":
-      return { from: todayStr, to: todayStr };
-    case "ayer": {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
-      return { from: toISO(y), to: toISO(y) };
-    }
-    case "7d": {
-      const d7 = new Date(today);
-      d7.setDate(d7.getDate() - 6);
-      return { from: toISO(d7), to: todayStr };
-    }
-    case "mes": {
-      const m1 = new Date(today.getFullYear(), today.getMonth(), 1);
-      return { from: toISO(m1), to: todayStr };
-    }
-    case "custom":
-      return { from: "", to: "" };
-  }
-}
-
-const DATE_PRESETS: { key: DatePreset; label: string }[] = [
-  { key: "hoy", label: "Hoy" },
-  { key: "ayer", label: "Ayer" },
-  { key: "7d", label: "Última semana" },
-  { key: "mes", label: "Este mes" },
-  { key: "custom", label: "Personalizado" },
-];
-
-// ─── Date Range Picker ───────────────────────────────────────────────────────
-
-function DateRangeFilter({ preset, range, onPreset, onRange }: {
-  preset: DatePreset;
-  range: DateRange;
-  onPreset: (p: DatePreset) => void;
-  onRange: (r: DateRange) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <div
-        className="inline-flex items-center gap-0.5 p-0.5 rounded-full"
-        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-      >
-        {DATE_PRESETS.map(p => {
-          const active = preset === p.key;
-          return (
-            <button
-              key={p.key}
-              onClick={() => onPreset(p.key)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 cursor-pointer ${
-                active ? "text-white" : "text-white/35 hover:text-white/55"
-              }`}
-              style={active ? {
-                background: "rgba(255,255,255,0.1)",
-                border: "1px solid rgba(255,255,255,0.18)",
-                boxShadow: "0 1px 8px rgba(255,255,255,0.04)",
-              } : undefined}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-      {preset === "custom" && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="date"
-            value={range.from}
-            onChange={e => onRange({ ...range, from: e.target.value })}
-            className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-[11px] text-white outline-none focus:border-white/20 transition-colors"
-            style={{ colorScheme: "dark" }}
-          />
-          <span className="text-[10px] text-white/25">—</span>
-          <input
-            type="date"
-            value={range.to}
-            onChange={e => onRange({ ...range, to: e.target.value })}
-            className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-[11px] text-white outline-none focus:border-white/20 transition-colors"
-            style={{ colorScheme: "dark" }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
 const PALETTE = ["#7A86E0", "#AF6EC7", "#4BCEAF", "#EB6991", "#A5ADEE"];
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -834,11 +738,9 @@ function SalesTooltip({ active, payload, label }: {
 export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }: VentasClientProps) {
   const [sales, setSales] = useState<Sale[]>(initialSales);
   const [showModal, setShowModal] = useState(false);
-  const [datePreset, setDatePreset] = useState<DatePreset>("mes");
-  const [customRange, setCustomRange] = useState<DateRange>({ from: "", to: "" });
+  const [activeRange, setActiveRange] = useState<SharedDateRange>(() => resolvePreset("este_mes"));
 
   // Date filtering
-  const activeRange = datePreset === "custom" ? customRange : getPresetRange(datePreset);
   const filteredSales = useMemo(() => {
     if (!activeRange.from && !activeRange.to) return sales;
     return sales.filter(s => {
@@ -914,11 +816,10 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
 
       {/* ── Date filter ── */}
       <div className="mb-8 animate-slide-up stagger-1">
-        <DateRangeFilter
-          preset={datePreset}
-          range={customRange}
-          onPreset={setDatePreset}
-          onRange={setCustomRange}
+        <DateFilter
+          mode="state"
+          defaultPreset="este_mes"
+          onChange={setActiveRange}
         />
       </div>
 
