@@ -26,7 +26,7 @@ function SparkTooltip({ active, payload }: { active?: boolean; payload?: Array<{
     >
       <p className="text-[10px] text-white/40 font-medium">{d.date}</p>
       <p className="text-[13px] text-white font-light">+{d.views.toLocaleString()} <span className="text-[10px] text-white/40">views</span></p>
-      <p className="text-[11px] text-violet-300 font-light">{d.cumulative.toLocaleString()} <span className="text-[10px] text-white/30">acumuladas</span></p>
+      <p className="text-[11px] font-light" style={{ color: "#7A86E0" }}>{d.cumulative.toLocaleString()} <span className="text-[10px] text-white/30">acumuladas</span></p>
     </div>
   );
 }
@@ -41,8 +41,8 @@ export function ReelDailySparkline({ data }: Props) {
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#7A86E0" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
@@ -56,7 +56,7 @@ export function ReelDailySparkline({ data }: Props) {
             <Area
               type="monotone"
               dataKey="views"
-              stroke="#8b5cf6"
+              stroke="#7A86E0"
               strokeWidth={1.5}
               fill="url(#sparkGrad)"
               baseValue={0}

@@ -33,6 +33,11 @@ const envSchema = z.object({
   META_APP_SECRET: z.string().optional(),
   META_TOKENS_ENCRYPTION_KEY: z.string().optional(),
 
+  // ─── Google OAuth (YouTube) ───
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_TOKENS_ENCRYPTION_KEY: z.string().optional(),
+
   // ─── Proveedores IA / externos (opcionales según feature) ───
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
@@ -56,6 +61,9 @@ function parseEnv() {
     META_APP_ID: process.env.META_APP_ID,
     META_APP_SECRET: process.env.META_APP_SECRET,
     META_TOKENS_ENCRYPTION_KEY: process.env.META_TOKENS_ENCRYPTION_KEY,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_TOKENS_ENCRYPTION_KEY: process.env.GOOGLE_TOKENS_ENCRYPTION_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
@@ -99,6 +107,11 @@ export function getAppUrl(): string {
  *  para tener https://localhost:3000. Preview y prod ya son HTTPS. */
 export function getMetaRedirectUri(): string {
   return `${getAppUrl()}/api/v1/auth/meta/callback`;
+}
+
+/** URI completa de callback para Google OAuth (YouTube). */
+export function getGoogleRedirectUri(): string {
+  return `${getAppUrl()}/api/v1/auth/google/callback`;
 }
 
 /** true si estamos en producción */

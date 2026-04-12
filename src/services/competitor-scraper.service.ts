@@ -7,6 +7,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getApifyToken as getApifyTokenFromEnv } from '@/lib/env';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -220,6 +221,48 @@ async function scrapeReels(username: string, token: string, limit: number): Prom
   }));
 }
 
+// ─── Image Storage Helpers ──────────────────────────────────────────────────
+// The 'competitor-assets' bucket is created via migration
+// (20260407000033_competitor_assets_and_follower_snapshots.sql).
+// Do NOT try to create it at runtime — the client auth token doesn't have
+// storage admin rights and the call would silently fail.
+
+const STORAGE_BUCKET = 'competitor-assets';
+
+async function downloadAndUploadImage(
+  sourceUrl: string,
+  storagePath: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(sourceUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+
+    const buffer = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+
+    // Use service-role client — the scraper runs server-side but the user
+    // session (anon key) doesn't have storage write permissions.
+    const adminClient = createAdminClient();
+    const { error } = await adminClient.storage
+      .from(STORAGE_BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: true });
+
+    if (error) {
+      console.warn('[competitor-scraper] Storage upload error:', error.message);
+      return null;
+    }
+
+    const { data } = adminClient.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
+    return data.publicUrl;
+  } catch (err) {
+    console.warn('[competitor-scraper] Image upload failed:', err);
+    return null;
+  }
+}
+
 // ─── Main scrape function ───────────────────────────────────────────────────
 
 export async function scrapeCompetitor(
@@ -262,6 +305,15 @@ export async function scrapeCompetitor(
     }),
   ]);
 
+  // Upload profile pic to Supabase Storage (so it never expires)
+  if (profile?.ig_profile_pic_url) {
+    const storageUrl = await downloadAndUploadImage(
+      profile.ig_profile_pic_url,
+      `${workspaceId}/${competitorId}/profile.jpg`
+    );
+    if (storageUrl) profile.ig_profile_pic_url = storageUrl;
+  }
+
   // Update competitor record with profile data
   if (profile) {
     await supabase
@@ -271,7 +323,33 @@ export async function scrapeCompetitor(
         last_scraped_at: new Date().toISOString(),
       })
       .eq('id', competitorId);
+
+    // Upsert daily follower snapshot (builds historical trend over time)
+    if (profile.ig_follower_count && profile.ig_follower_count > 0) {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      await supabase
+        .from('competitor_follower_snapshots')
+        .upsert({
+          competitor_id: competitorId,
+          workspace_id: workspaceId,
+          snapshot_date: today,
+          follower_count: profile.ig_follower_count,
+        }, { onConflict: 'competitor_id,snapshot_date' });
+    }
   }
+
+  // Upload reel thumbnails to storage in parallel (so they never expire)
+  const reelsWithStableUrls = await Promise.all(
+    reels.map(async (reel, i) => {
+      if (!reel.thumbnail_url) return reel;
+      const key = reel.short_code ?? `reel-${i}`;
+      const storageUrl = await downloadAndUploadImage(
+        reel.thumbnail_url,
+        `${workspaceId}/${competitorId}/reels/${key}.jpg`
+      );
+      return storageUrl ? { ...reel, thumbnail_url: storageUrl } : reel;
+    })
+  );
 
   // Delete old reels for this competitor, then insert fresh
   await supabase
@@ -280,7 +358,7 @@ export async function scrapeCompetitor(
     .eq('competitor_id', competitorId);
 
   let reelsInserted = 0;
-  for (const reel of reels) {
+  for (const reel of reelsWithStableUrls) {
     const { error: insertError } = await supabase
       .from('competitor_reels')
       .insert({
@@ -313,7 +391,7 @@ export async function scrapeCompetitor(
     }
   }
 
-  return { profile, reels, reelsInserted };
+  return { profile, reels: reelsWithStableUrls, reelsInserted };
 }
 
 // ─── Check if scraping is available ─────────────────────────────────────────

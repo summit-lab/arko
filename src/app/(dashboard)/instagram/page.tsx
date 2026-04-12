@@ -3,56 +3,38 @@ import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
-import { PeriodFilter } from "@/components/instagram/PeriodFilter";
-import { InstagramTabs } from "@/components/instagram/InstagramTabs";
-import { ReelsGrid, type ReelsSummary } from "@/components/instagram/ReelsGrid";
-import { IGMetricsClient } from "@/components/instagram/IGMetricsClient";
-import { IGDashboardClient } from "@/components/instagram/IGDashboardClient";
+import { DateFilter } from "@/components/ui/DateFilter";
+import { parseDateParams, toISOStart } from "@/lib/date-utils";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
-import { ReelsHeatmap } from "@/components/instagram/ReelsHeatmap";
-import { ReelsScatterPlot } from "@/components/instagram/ReelsScatterPlot";
-import { StoriesGrid } from "@/components/instagram/StoriesGrid";
-import { PublicacionesGrid } from "@/components/instagram/PublicacionesGrid";
+import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
+import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
+import { ReelTitlesBulkGenerator } from "@/components/instagram/ReelTitlesBulkGenerator";
 import { Suspense } from "react";
 
-// ─── Types for this page ───
-
-interface ReelCard {
-  id: string;
-  ig_media_id: string;
-  caption: string | null;
-  permalink: string | null;
-  thumbnail_url: string | null;
-  published_at: string | null;
-  duration_seconds: number | null;
-  reel_type: string;
-  has_ads: boolean;
-  views_org: number;
-  views_paid: number;
-  views_total: number;
-  likes: number;
-  saves: number;
-  comments: number;
-  shares: number;
-  follows: number;
-  performer_multiple: number | null;
-  is_top_performer: boolean;
-  sales_amount: number | null;
-}
-
-type TabKey = "dashboard" | "reels" | "historias" | "publicaciones" | "competencia" | "referencias" | "metrics";
-
 // ─── Page Component ───
+// Fetches ALL tab data in parallel upfront, then delegates to InstagramShell
+// for instant client-side tab switching (zero server roundtrips on tab change).
 
-export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; tab?: string }> }) {
+export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string; tab?: string }> }) {
   const params = await searchParams;
   const activeTab = (params.tab as TabKey) || "dashboard";
-  const periodDays = parseInt(params.days || "90", 10);
-  const periodStartIso = new Date(new Date().getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString();
+  const dateRange = parseDateParams(params, "90d");
+  const periodDays = dateRange.days;
+  const periodStartIso = toISOStart(dateRange.from);
 
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
 
+  let connectionStatus: string | null = null;
+
+  // Default empty data for all tabs
+  type ReelCard = {
+    id: string; ig_media_id: string; caption: string | null; auto_title: string | null; permalink: string | null;
+    thumbnail_url: string | null; published_at: string | null; duration_seconds: number | null;
+    reel_type: string; has_ads: boolean; views_org: number; views_paid: number; views_total: number;
+    likes: number; saves: number; comments: number; shares: number; follows: number;
+    performer_multiple: number | null; is_top_performer: boolean; sales_amount: number | null;
+  };
   let reels: ReelCard[] = [];
   let dailyInsights: Array<{
     metric_date: string; impressions: number; reach: number; profile_views: number;
@@ -60,14 +42,14 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     shares: number; saves: number; follower_count: number; followers_total: number; follows_count: number; media_count: number;
   }> = [];
   let demographics: { audience_gender_age: Record<string, number>; audience_city: Record<string, number>; audience_country: Record<string, number> } | null = null;
-  let connectionStatus: string | null = null;
   let totalFollowers = 0;
   let totalAdVideoPlays = 0;
   let posts: Array<{
     id: string; ig_media_id: string; caption: string | null;
     thumbnail_url: string | null; permalink: string | null;
     published_at: string | null; media_type: string | null;
-    views_total: number; likes: number; saves: number; comments: number; shares: number;
+    views_total: number; impressions: number; reach: number;
+    likes: number; saves: number; comments: number; shares: number;
   }> = [];
   let storySequences: Array<{
     id: string; ig_story_id: string; published_at: string; expires_at: string | null;
@@ -80,98 +62,120 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       taps_forward: number; taps_back: number; swipe_aways: number; archived: boolean;
     }>;
   }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let initialCompetitors: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let initialReferences: any[] = [];
 
   if (workspaceId) {
-    const needsMedia = activeTab === "reels" || activeTab === "dashboard";
-    const needsInsights = activeTab === "dashboard" || activeTab === "metrics";
+    // Date calculations — derived from dateRange
+    const periodStartDate = dateRange.from;
+    const yesterdayDate = dateRange.to;
 
-    // ── Build queries ──
-    const mediaQuery = needsMedia
-      ? supabase
-          .from("reels")
-          .select(`
-            id, ig_media_id, caption, permalink, thumbnail_url, media_url, published_at,
-            duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
-            reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, follows_generated),
-            reel_metrics_paid (views_paid)
-          `)
-          .eq("workspace_id", workspaceId)
-          .gte("published_at", periodStartIso)
-          .order("published_at", { ascending: false })
-          .limit(200)
-      : null;
-
-    const todayUtc = new Date();
-    todayUtc.setUTCHours(0, 0, 0, 0);
-    const yesterdayUtc = new Date(todayUtc.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayDate = yesterdayUtc.toISOString().split("T")[0];
-    const periodStartDate = new Date(todayUtc.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-    const insightsQuery = needsInsights
-      ? supabase
-          .from("ig_account_insights")
-          .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
-          .eq("workspace_id", workspaceId)
-          .gte("metric_date", periodStartDate)
-          .lte("metric_date", yesterdayDate)
-          .order("metric_date", { ascending: true })
-          .limit(90)
-      : null;
-
-    const demoQuery = activeTab === "metrics"
-      ? supabase
-          .from("ig_account_demographics")
-          .select("audience_gender_age, audience_city, audience_country")
-          .eq("workspace_id", workspaceId)
-          .order("snapshot_date", { ascending: false })
-          .limit(1)
-          .single()
-      : null;
-
-    const postsQuery = activeTab === "publicaciones"
-      ? supabase
-          .from("reels")
-          .select(`
-            id, ig_media_id, caption, permalink, thumbnail_url, published_at,
-            media_type, media_product_type,
-            reel_metrics (likes_total, comments_total, shares_total, saves_total),
-            reel_metrics_paid (views_paid)
-          `)
-          .eq("workspace_id", workspaceId)
-          .not("media_product_type", "eq", "REELS")
-          .gte("published_at", periodStartIso)
-          .order("published_at", { ascending: false })
-          .limit(200)
-      : null;
-
-    const storiesQuery = activeTab === "historias"
-      ? supabase
-          .from("ig_story_sequences")
-          .select(`
-            id, ig_story_id, published_at, expires_at,
-            total_impressions, total_reach, total_replies, total_exits, archived,
-            ig_story_slides (
-              id, ig_media_id, slide_index, media_type, media_url, thumbnail_url, caption,
-              impressions, reach, replies, exits, taps_forward, taps_back, swipe_aways, archived
-            )
-          `)
-          .eq("workspace_id", workspaceId)
-          .gte("published_at", periodStartIso)
-          .order("published_at", { ascending: false })
-          .limit(100)
-      : null;
-
-    // ── Fetch all in parallel ──
-    const [connectionResult, mediaResult, benchmarkResult, insightsResult, demoResult, storiesResult, postsResult, adsSyncResult, salesResult] = await Promise.all([
+    // ── Fetch ALL queries in parallel (no conditional — instant tab switching) ──
+    const [
+      connectionResult,
+      mediaResult,
+      benchmarkResult,
+      insightsResult,
+      demoResult,
+      storiesResult,
+      postsResult,
+      adsSyncResult,
+      salesResult,
+      competitorsResult,
+      referencesResult,
+    ] = await Promise.all([
       supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).maybeSingle(),
-      mediaQuery ?? Promise.resolve({ data: null as null }),
+      supabase
+        .from("reels")
+        .select(`
+          id, ig_media_id, caption, auto_title, permalink, thumbnail_url, media_url, published_at,
+          duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
+          reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, follows_generated),
+          reel_metrics_paid (views_paid)
+        `)
+        .eq("workspace_id", workspaceId)
+        .gte("published_at", periodStartIso)
+        .order("published_at", { ascending: false })
+        .limit(200),
       supabase.from("reel_benchmarks").select("avg_views_90d").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
-      insightsQuery ?? Promise.resolve({ data: null as null }),
-      demoQuery ?? Promise.resolve({ data: null as null }),
-      storiesQuery ?? Promise.resolve({ data: null as null }),
-      postsQuery ?? Promise.resolve({ data: null as null }),
+      supabase
+        .from("ig_account_insights")
+        .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
+        .eq("workspace_id", workspaceId)
+        .gte("metric_date", periodStartDate)
+        .lte("metric_date", yesterdayDate)
+        .order("metric_date", { ascending: true })
+        .limit(90),
+      supabase
+        .from("ig_account_demographics")
+        .select("audience_gender_age, audience_city, audience_country")
+        .eq("workspace_id", workspaceId)
+        .order("snapshot_date", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("ig_story_sequences")
+        .select(`
+          id, ig_story_id, published_at, expires_at,
+          total_impressions, total_reach, total_replies, total_exits, archived,
+          ig_story_slides (
+            id, ig_media_id, slide_index, media_type, media_url, thumbnail_url, caption,
+            impressions, reach, replies, exits, taps_forward, taps_back, swipe_aways, archived,
+            media_storage_path
+          )
+        `)
+        .eq("workspace_id", workspaceId)
+        .gte("published_at", periodStartIso)
+        .order("published_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("reels")
+        .select(`
+          id, ig_media_id, caption, permalink, thumbnail_url, published_at,
+          media_type, media_product_type,
+          reel_metrics (likes_total, comments_total, shares_total, saves_total, impressions_org, reach_org),
+          reel_metrics_paid (views_paid)
+        `)
+        .eq("workspace_id", workspaceId)
+        .not("media_product_type", "eq", "REELS")
+        .gte("published_at", periodStartIso)
+        .order("published_at", { ascending: false })
+        .limit(200),
       supabase.from("sync_jobs").select("metadata").eq("workspace_id", workspaceId).eq("job_type", "ads_insights").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("sales").select("reel_id, amount_total").eq("workspace_id", workspaceId).not("reel_id", "is", null),
+      // ── Pre-fetch competitors + references (avoid client-side fetch on tab mount) ──
+      supabase
+        .from("workspace_competitors")
+        .select(`
+          id, name, ig_url, why_better, scraped_data, last_scraped_at, analysis_status,
+          competitor_reels (
+            id, short_code, permalink, caption,
+            likes_count, comments_count, views_count, shares_count,
+            duration_seconds, published_at, thumbnail_url,
+            hashtags, music_artist, music_name,
+            competitor_reel_analysis (
+              hook_text, hook_type, narrative_structure, content_type,
+              cta_text, cta_type, topic_cluster, style_notes,
+              strengths, weaknesses, ai_summary, model_used
+            )
+          ),
+          competitor_follower_snapshots (
+            snapshot_date, follower_count
+          )
+        `)
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: true })
+        .order("published_at", { ascending: false, referencedTable: "competitor_reels" })
+        .limit(24, { referencedTable: "competitor_reels" })
+        .order("snapshot_date", { ascending: false, referencedTable: "competitor_follower_snapshots" })
+        .limit(90, { referencedTable: "competitor_follower_snapshots" }),
+      supabase
+        .from("workspace_references")
+        .select("id, brand_name, brand_url, what_they_like, created_at, scraped_data, scraped_reels, last_scraped_at")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: true }),
     ]);
 
     connectionStatus = connectionResult.data?.status || null;
@@ -180,14 +184,35 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       ? (adsMeta?.totalVideoPlays30d ?? adsMeta?.totalVideoPlays ?? 0)
       : (adsMeta?.totalVideoPlays ?? 0);
 
-    // Build reel_id → sales amount map from the sales table (source of truth)
+    // Build reel_id → sales amount map
     const salesByReel = new Map<string, number>();
     for (const s of (salesResult.data ?? []) as { reel_id: string; amount_total: number }[]) {
       salesByReel.set(s.reel_id, (salesByReel.get(s.reel_id) ?? 0) + Number(s.amount_total));
     }
 
-    // Process stories
+    // ── Process stories ──
     if (storiesResult?.data) {
+      // Collect all storage paths that need signed URLs
+      const allStoragePaths: string[] = [];
+      for (const seq of storiesResult.data as Array<{ ig_story_slides: Array<{ media_storage_path: string | null }> }>) {
+        for (const slide of seq.ig_story_slides || []) {
+          if (slide.media_storage_path) allStoragePaths.push(slide.media_storage_path);
+        }
+      }
+
+      // Generate signed URLs in bulk (1 hour expiry)
+      const signedUrlMap = new Map<string, string>();
+      if (allStoragePaths.length > 0) {
+        const { data: signedUrls } = await supabase.storage
+          .from("story-media")
+          .createSignedUrls(allStoragePaths, 3600);
+        if (signedUrls) {
+          for (const su of signedUrls) {
+            if (su.signedUrl && su.path) signedUrlMap.set(su.path, su.signedUrl);
+          }
+        }
+      }
+
       storySequences = (storiesResult.data as Array<{
         id: string; ig_story_id: string; published_at: string; expires_at: string | null;
         total_impressions: number; total_reach: number; total_replies: number; total_exits: number;
@@ -197,6 +222,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           media_url: string | null; thumbnail_url: string | null; caption: string | null;
           impressions: number; reach: number; replies: number; exits: number;
           taps_forward: number; taps_back: number; swipe_aways: number; archived: boolean;
+          media_storage_path: string | null;
         }>;
       }>).map((seq) => ({
         id: seq.id,
@@ -209,14 +235,19 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         total_exits: seq.total_exits,
         archived: seq.archived,
         slides: Array.isArray(seq.ig_story_slides)
-          ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index)
+          ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index).map((slide) => ({
+              ...slide,
+              // CDN-first fallback: use original URL if available, else archived storage URL
+              thumbnail_url: slide.thumbnail_url || (slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null),
+              media_url: slide.media_url || (slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null),
+            }))
           : [],
       }));
     }
 
-    // Process posts (non-REELS media)
+    // ── Process posts ──
     if (postsResult?.data) {
-      type MShape = { likes_total: number; comments_total: number; shares_total: number; saves_total: number };
+      type MShape = { likes_total: number; comments_total: number; shares_total: number; saves_total: number; impressions_org: number; reach_org: number };
       type PShape = { views_paid: number };
       const getM = (raw: unknown): MShape | null => Array.isArray(raw) ? (raw as MShape[])[0] : (raw as MShape | null);
       const getP = (raw: unknown): PShape | null => Array.isArray(raw) ? (raw as PShape[])[0] : (raw as PShape | null);
@@ -228,33 +259,26 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         const m = getM(r.reel_metrics);
         const p = getP(r.reel_metrics_paid);
         return {
-          id: r.id,
-          ig_media_id: r.ig_media_id,
-          caption: r.caption,
-          thumbnail_url: r.thumbnail_url,
-          permalink: r.permalink,
-          published_at: r.published_at,
-          media_type: r.media_type,
+          id: r.id, ig_media_id: r.ig_media_id, caption: r.caption,
+          thumbnail_url: r.thumbnail_url, permalink: r.permalink,
+          published_at: r.published_at, media_type: r.media_type,
           views_total: p?.views_paid || 0,
+          impressions: m?.impressions_org || 0,
+          reach: m?.reach_org || 0,
           likes: m?.likes_total || 0,
-          saves: m?.saves_total || 0,
-          comments: m?.comments_total || 0,
-          shares: m?.shares_total || 0,
+          saves: m?.saves_total || 0, comments: m?.comments_total || 0, shares: m?.shares_total || 0,
         };
       });
     }
 
-    // Process insights — filter out days with zero metrics (incomplete sync data)
+    // ── Process insights ──
     if (insightsResult?.data) {
-      dailyInsights = insightsResult.data.filter(
-        (d) => d.impressions > 0 || d.reach > 0
-      );
-      // For followers_total, check all rows (including zero-metric ones) to get latest value
+      dailyInsights = insightsResult.data.filter((d) => d.impressions > 0 || d.reach > 0);
       const latestDay = [...insightsResult.data].sort((a, b) => b.metric_date.localeCompare(a.metric_date))[0];
       if (latestDay?.followers_total) totalFollowers = latestDay.followers_total;
     }
 
-    // Process demographics
+    // ── Process demographics ──
     if (demoResult?.data) {
       demographics = {
         audience_gender_age: (demoResult.data.audience_gender_age as Record<string, number>) ?? {},
@@ -263,60 +287,51 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       };
     }
 
-    // Process media
-    if (needsMedia) {
-      const mediaData = mediaResult.data;
+    // ── Process media (reels) ──
+    if (mediaResult?.data && mediaResult.data.length > 0) {
+      type MetricsShape = { views_org: number; impressions_org: number; reach_org: number; likes_total: number; comments_total: number; shares_total: number; saves_total: number; follows_generated: number };
+      type PaidShape = { views_paid: number };
+      const getMetrics = (raw: unknown): MetricsShape | null => Array.isArray(raw) ? (raw as MetricsShape[])[0] : (raw as MetricsShape | null);
+      const getPaid = (raw: unknown): PaidShape | null => Array.isArray(raw) ? (raw as PaidShape[])[0] : (raw as PaidShape | null);
+      const reelsData = mediaResult.data.filter((r) => r.media_product_type === "REELS");
 
-      if (mediaData && mediaData.length > 0) {
-        type MetricsShape = { views_org: number; impressions_org: number; reach_org: number; likes_total: number; comments_total: number; shares_total: number; saves_total: number; follows_generated: number };
-        type PaidShape = { views_paid: number };
-
-        const getMetrics = (raw: unknown): MetricsShape | null => Array.isArray(raw) ? (raw as MetricsShape[])[0] : (raw as MetricsShape | null);
-        const getPaid = (raw: unknown): PaidShape | null => Array.isArray(raw) ? (raw as PaidShape[])[0] : (raw as PaidShape | null);
-
-        const reelsData = mediaData.filter((r) => r.media_product_type === "REELS");
-
-        if (reelsData.length > 0) {
-          const avgViewsBenchmark = benchmarkResult.data?.avg_views_90d || 1;
-
-          reels = reelsData.map((r) => {
-            const m = getMetrics(r.reel_metrics);
-            const p = getPaid(r.reel_metrics_paid);
-            const viewsOrg = m?.views_org || 0;
-            const viewsPaid = p?.views_paid || 0;
-            const viewsTotal = viewsOrg + viewsPaid;
-            const multiple = avgViewsBenchmark > 0 ? viewsTotal / avgViewsBenchmark : null;
-
-            return {
-              id: r.id,
-              ig_media_id: r.ig_media_id,
-              caption: r.caption,
-              permalink: r.permalink,
-              thumbnail_url: r.thumbnail_url,
-              published_at: r.published_at,
-              duration_seconds: r.duration_seconds,
-              reel_type: r.reel_type,
-              has_ads: r.has_ads,
-              views_org: viewsOrg,
-              views_paid: viewsPaid,
-              views_total: viewsTotal,
-              likes: m?.likes_total || 0,
-              saves: m?.saves_total || 0,
-              comments: m?.comments_total || 0,
-              shares: m?.shares_total || 0,
-              follows: m?.follows_generated || 0,
-              performer_multiple: multiple,
-              is_top_performer: (multiple || 0) >= 3,
-              sales_amount: salesByReel.get(r.id) ?? null,
-            };
-          });
-        }
-
+      if (reelsData.length > 0) {
+        const avgViewsBenchmark = benchmarkResult.data?.avg_views_90d || 1;
+        reels = reelsData.map((r) => {
+          const m = getMetrics(r.reel_metrics);
+          const p = getPaid(r.reel_metrics_paid);
+          const viewsOrg = m?.views_org || 0;
+          const viewsPaid = p?.views_paid || 0;
+          const viewsTotal = viewsOrg + viewsPaid;
+          const multiple = avgViewsBenchmark > 0 ? viewsTotal / avgViewsBenchmark : null;
+          return {
+            id: r.id, ig_media_id: r.ig_media_id, caption: r.caption, auto_title: r.auto_title ?? null,
+            permalink: r.permalink, thumbnail_url: r.thumbnail_url,
+            published_at: r.published_at, duration_seconds: r.duration_seconds,
+            reel_type: r.reel_type, has_ads: r.has_ads,
+            views_org: viewsOrg, views_paid: viewsPaid, views_total: viewsTotal,
+            likes: m?.likes_total || 0, saves: m?.saves_total || 0,
+            comments: m?.comments_total || 0, shares: m?.shares_total || 0,
+            follows: m?.follows_generated || 0, performer_multiple: multiple,
+            is_top_performer: (multiple || 0) >= 3,
+            sales_amount: salesByReel.get(r.id) ?? null,
+          };
+        });
       }
+    }
+
+    // ── Process competitors ──
+    if (competitorsResult?.data) {
+      initialCompetitors = competitorsResult.data;
+    }
+
+    // ── Process references ──
+    if (referencesResult?.data) {
+      initialReferences = referencesResult.data;
     }
   }
 
-  // Aggregate stats for Reels KPI bar
+  // ── Aggregates for ReelsGrid ──
   const totalViews = reels.reduce((s, r) => s + r.views_total, 0);
   const totalViewsOrg = reels.reduce((s, r) => s + r.views_org, 0);
   const totalViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);
@@ -329,26 +344,22 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
 
   const hasRealData = reels.length > 0 || dailyInsights.length > 0;
   const reelsMissingDuration = reels.filter((r) => r.duration_seconds === null).length;
+  const reelsMissingTitles = reels.some((r) => !r.auto_title);
 
-  // Dashboard reels summary
   const dashboardReels = reels.map((r) => ({
-    id: r.id,
-    caption: r.caption,
-    thumbnail_url: r.thumbnail_url,
-    permalink: r.permalink,
-    published_at: r.published_at,
-    views_org: r.views_org,
-    views_paid: r.views_paid,
-    views_total: r.views_total,
-    likes: r.likes,
-    saves: r.saves,
-    comments: r.comments,
-    shares: r.shares,
-    sales_amount: r.sales_amount,
+    id: r.id, caption: r.caption, auto_title: r.auto_title ?? null, thumbnail_url: r.thumbnail_url, permalink: r.permalink,
+    published_at: r.published_at, views_org: r.views_org, views_paid: r.views_paid,
+    views_total: r.views_total, likes: r.likes, saves: r.saves,
+    comments: r.comments, shares: r.shares, sales_amount: r.sales_amount,
   }));
+
+  const reelsSummary: ReelsSummary | undefined = reels.length > 0
+    ? { totalViews, avgViews, totalViewsOrg, totalViewsPaid, totalLikes, totalSaves, totalComments, topPerformers, paidPct }
+    : undefined;
 
   return (
     <div className="px-8 py-10 space-y-8">
+      <ReelTitlesBulkGenerator hasMissingTitles={reelsMissingTitles} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -362,7 +373,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         </div>
         <div className="flex items-center gap-4">
           <Suspense fallback={null}>
-            <PeriodFilter />
+            <DateFilter mode="url" defaultPreset="90d" />
           </Suspense>
           {!connectionStatus && (
             <Link
@@ -380,95 +391,24 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
 
-      {/* Tabs */}
-      <Suspense fallback={null}>
-        <InstagramTabs />
-      </Suspense>
-
-      {/* ── TAB: Dashboard (default) ─────────────────────────────── */}
-      {activeTab === "dashboard" && (
-        <IGDashboardClient
-          dailyInsights={dailyInsights}
-          reels={dashboardReels}
-          totalFollowers={totalFollowers}
-          periodDays={periodDays}
-          totalAdVideoPlays={totalAdVideoPlays}
-        />
-      )}
-
-      {/* ── TAB: Reels ────────────────────────────────────────────── */}
-      {activeTab === "reels" && (
-        <ReelsGrid
-          reels={reels}
-          summary={reels.length > 0 ? ({
-            totalViews,
-            avgViews,
-            totalViewsOrg,
-            totalViewsPaid,
-            totalLikes,
-            totalSaves,
-            totalComments,
-            topPerformers,
-            paidPct,
-          } satisfies ReelsSummary) : undefined}
-        />
-      )}
-
-      {/* ── TAB: Historias ───────────────────────────────────────── */}
-      {activeTab === "historias" && (
-        <StoriesGrid sequences={storySequences} />
-      )}
-
-      {/* ── TAB: Publicaciones ───────────────────────────────────── */}
-      {activeTab === "publicaciones" && (() => {
-        const totalPosts = posts.filter(p => p.media_type !== "CAROUSEL_ALBUM").length;
-        const totalCarruseles = posts.filter(p => p.media_type === "CAROUSEL_ALBUM").length;
-        const totalLikes = posts.reduce((s, p) => s + p.likes, 0);
-        const totalSaves = posts.reduce((s, p) => s + p.saves, 0);
-        const totalComments = posts.reduce((s, p) => s + p.comments, 0);
-        const avgLikes = posts.length > 0 ? Math.round(totalLikes / posts.length) : 0;
-        return (
-          <PublicacionesGrid
-            posts={posts}
-            summary={posts.length > 0 ? { totalPosts, totalCarruseles, totalLikes, totalSaves, totalComments, avgLikes } : undefined}
-          />
-        );
-      })()}
-
-      {/* ── TAB: Competencia ─────────────────────────────────────── */}
-      {activeTab === "competencia" && (
-        <div className="py-16 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center">
-              <span className="text-2xl">⚔️</span>
-            </div>
-            <div>
-              <p className="text-white/50 font-light text-[15px]">Análisis de Competencia — próximamente</p>
-              <p className="text-white/25 text-sm mt-1 font-light">Comparativa de métricas contra tus competidores definidos en el ADN</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: Referencias ─────────────────────────────────────── */}
-      {activeTab === "referencias" && (
-        <div className="py-16 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-white/[0.05] flex items-center justify-center">
-              <span className="text-2xl">📌</span>
-            </div>
-            <div>
-              <p className="text-white/50 font-light text-[15px]">Módulo de Referencias — próximamente</p>
-              <p className="text-white/25 text-sm mt-1 font-light">Inspiración y benchmarks de contenido de referencia</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: Demografía ──────────────────────────────────────── */}
-      {activeTab === "metrics" && (
-        <IGMetricsClient dailyInsights={dailyInsights} demographics={demographics} />
-      )}
+      {/* Shell: tabs + content (instant client-side switching) */}
+      <InstagramShell
+        initialTab={activeTab}
+        periodDays={periodDays}
+        totalAdVideoPlays={totalAdVideoPlays}
+        totalFollowers={totalFollowers}
+        reels={reels}
+        dashboardReels={dashboardReels}
+        dailyInsights={dailyInsights}
+        demographics={demographics}
+        storySequences={storySequences}
+        posts={posts}
+        reelsSummary={reelsSummary}
+        reelsMissingDuration={reelsMissingDuration}
+        workspaceId={workspaceId}
+        initialCompetitors={initialCompetitors}
+        initialReferences={initialReferences}
+      />
 
       {/* Auto-enrich durations */}
       {workspaceId && reelsMissingDuration > 0 && (

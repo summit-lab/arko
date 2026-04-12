@@ -5,7 +5,9 @@ import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ContentCalendar } from "@/components/dashboard/ContentCalendar";
 import { MetasDonut } from "@/components/dashboard/MetasDonut";
 import { CountUp } from "@/components/ui/CountUp";
-import { PeriodFilter } from "@/components/instagram/PeriodFilter";
+import { DateFilter } from "@/components/ui/DateFilter";
+import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
+import type { DateRange } from "@/types/date-filter";
 import { Suspense } from "react";
 
 // ─── Helpers ───
@@ -56,22 +58,24 @@ const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
 
 // ─── Data Fetching ───
 
-async function getDashboardData(periodDays: number = 30) {
+async function getDashboardData(range: DateRange) {
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) return null;
 
+  const periodDays = range.days;
   const supabase = await createClient();
-  const now = new Date();
-  const today = now.toISOString().split("T")[0];
-
-  const periodAgo = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const prevPeriodAgo = new Date(now.getTime() - periodDays * 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const today = nextDay(range.to); // exclusive upper bound for .lt()
+  const thirtyDaysAgo = range.from;
+  const prev = previousPeriod(range);
+  const sixtyDaysAgo = prev.from;
   // Keep 90d window for reels (need content calendar and top content regardless of filter)
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  // Aliases for backward compat
-  const thirtyDaysAgo = periodAgo;
-  const sixtyDaysAgo = prevPeriodAgo;
+  const ninetyDaysAgo = toISOStart(new Date(new Date().getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
+  const sevenDaysAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const periodAgo = range.from;
+
+  // Current month start for goals period
+  const nowDate = new Date();
+  const monthStart = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-01`;
 
   const [
     insightsCurrent,
@@ -80,6 +84,7 @@ async function getDashboardData(periodDays: number = 30) {
     insightsMonthly,
     reelsData,
     demographics,
+    goalsResult,
   ] = await Promise.all([
     // Query 1: Last 30 days insights
     supabase
@@ -91,14 +96,14 @@ async function getDashboardData(periodDays: number = 30) {
       .order("metric_date", { ascending: false })
       .limit(30),
 
-    // Query 2: Previous 30 days insights (for % change)
+    // Query 2: Previous period insights (for % change)
     supabase
       .from("ig_account_insights")
       .select("reach, likes, comments, shares, saves")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", sixtyDaysAgo)
       .lt("metric_date", thirtyDaysAgo)
-      .limit(30),
+      .limit(periodDays),
 
     // Query 3: Follower growth last 7 days (via followers_total diff or follower_count sum)
     supabase
@@ -140,6 +145,13 @@ async function getDashboardData(periodDays: number = 30) {
       .order("snapshot_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Query 7: Workspace goals for current month
+    supabase
+      .from("workspace_goals")
+      .select("metric, target_value")
+      .eq("workspace_id", workspaceId)
+      .eq("period_start", monthStart),
   ]);
 
   // ─── Log query errors ───
@@ -292,35 +304,35 @@ async function getDashboardData(periodDays: number = 30) {
       change: viewsChange.text,
       up: viewsChange.up,
       icon: "eye" as const,
-      color: "text-blue-400",
+      color: "text-white/60",
     },
     {
       label: "Guardados",
       value: sumCurrent.saves > 0 ? formatCompact(sumCurrent.saves) : "—",
       ...pctChange(sumCurrent.saves, sumPrevious.saves),
       icon: "bookmark" as const,
-      color: "text-amber-400",
+      color: "text-white/60",
     },
     {
       label: "Me gusta",
       value: sumCurrent.likes > 0 ? formatCompact(sumCurrent.likes) : "—",
       ...pctChange(sumCurrent.likes, sumPrevious.likes),
       icon: "heart" as const,
-      color: "text-rose-400",
+      color: "text-white/60",
     },
     {
       label: "Comentarios",
       value: sumCurrent.comments > 0 ? formatCompact(sumCurrent.comments) : "—",
       ...pctChange(sumCurrent.comments, sumPrevious.comments),
       icon: "message" as const,
-      color: "text-emerald-400",
+      color: "text-white/60",
     },
   ];
 
   // ─── Quick Stats ───
 
   const quickStats = [
-    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: `últimos ${periodDays} días` },
+    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: `últimos ${range.days} días` },
     { label: "Tasa de Engagement", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
     { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
     { label: "Nuevos Follows", value: newFollowsWeek > 0 ? formatCompact(newFollowsWeek) : "—", sub: "últimos 7 días" },
@@ -351,7 +363,28 @@ async function getDashboardData(periodDays: number = 30) {
       views: r.views_total,
     }));
 
-  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels };
+  // ─── Goals (from DB) ───
+  const goalsMap = new Map<string, number>();
+  for (const g of (goalsResult.data ?? []) as { metric: string; target_value: number }[]) {
+    goalsMap.set(g.metric, Number(g.target_value));
+  }
+  const goals = {
+    views: goalsMap.get("views") ?? null,
+    followers: goalsMap.get("followers") ?? null,
+    engagement_rate: goalsMap.get("engagement_rate") ?? null,
+    likes: goalsMap.get("likes") ?? null,
+    saves: goalsMap.get("saves") ?? null,
+    reach: goalsMap.get("reach") ?? null,
+  };
+
+  // Raw numeric values for donut calculation
+  const metasActuals = {
+    views: totalViews,
+    followers: newFollowsWeek,
+    engRate: engRate30d,
+  };
+
+  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels, goals, metasActuals };
 }
 
 // ─── Icon mapping (can't pass components as serialized data) ───
@@ -365,10 +398,10 @@ const ICON_MAP = {
 
 // ─── Page ───
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string }> }) {
   const params = await searchParams;
-  const periodDays = parseInt(params.days || "30", 10);
-  const data = await getDashboardData(periodDays);
+  const dateRange = parseDateParams(params, "30d");
+  const data = await getDashboardData(dateRange);
 
   const hasData = data !== null;
   const kpis = data?.kpis ?? [];
@@ -390,7 +423,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </div>
         <div className="mt-1">
           <Suspense fallback={null}>
-            <PeriodFilter />
+            <DateFilter mode="url" defaultPreset="30d" />
           </Suspense>
         </div>
       </div>
@@ -508,9 +541,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
           {/* Metas del Mes — Donuts */}
           <MetasDonut
-            views={data?.kpis[0]?.value ?? "—"}
-            followers={quickStats.find(s => s.label === "Nuevos Follows")?.value ?? "—"}
-            engRate={quickStats.find(s => s.label === "Tasa de Engagement")?.value ?? "—"}
+            views={data?.metasActuals?.views ?? 0}
+            followers={data?.metasActuals?.followers ?? 0}
+            engRate={data?.metasActuals?.engRate ?? 0}
+            goalViews={data?.goals?.views ?? null}
+            goalFollowers={data?.goals?.followers ?? null}
+            goalEngRate={data?.goals?.engagement_rate ?? null}
           />
 
           {/* Top Ventas */}

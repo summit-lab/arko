@@ -222,3 +222,58 @@ Supabase PostgreSQL con las siguientes áreas principales:
 4. **Degradación graceful:** Si un dato externo no está en DB, mostrar "—" en vez de bloquear
 5. **Sync incremental:** Límites por sync (`MAX_INSIGHTS_PER_SYNC=30`, `MAX_DURATION_ENRICHMENTS=5`)
 **Consecuencias:** Páginas cargan en <3s, datos se enriquecen gradualmente en background
+
+### ADR-006: Carga Inteligente — Tabs con switch instantáneo (Client-Side Shell)
+**Fecha:** 2026-04-04
+**Contexto:** Páginas con tabs (Instagram, Customer Voice) re-ejecutaban el server component en cada cambio de tab (query params → server roundtrip → 500-1500ms de espera). Esto hacía que navegar entre Dashboard → Reels → Historias se sintiera lento.
+
+**Decisión: Patrón "Fetch-All Upfront + Client-Side Shell"**
+
+1. **El server component fetchea TODA la data de TODOS los tabs en un solo `Promise.all()`** — no hay queries condicionales por tab. Todas corren en paralelo, el costo total es el de la query más lenta.
+2. **Un componente client "Shell" recibe todos los datos como props** y maneja los tabs con `useState`. Ejemplo: `InstagramShell`, `CustomerVoiceTabs`.
+3. **Cambiar de tab es instantáneo** — cero server roundtrip, la data ya está en memoria.
+4. **La URL se actualiza con `window.history.replaceState()`** — para shareability y back/forward, pero SIN triggear navegación de Next.js.
+5. **Los filtros de periodo (`?days=`) sí hacen server roundtrip** — porque cambian los datos reales (diferente rango de fechas).
+
+**Cuándo aplicar este patrón:**
+- Página con 2+ tabs que muestran datos diferentes
+- Los datos de cada tab caben en memoria (no son gigabytes)
+- El usuario va a switchear entre tabs frecuentemente
+
+**Cuándo NO aplicar:**
+- Páginas sin tabs (single view)
+- Cuando cada tab necesita datos de un API externo costoso que no queremos cargar upfront
+- Cuando cambiar un filtro cambia los datos subyacentes (requiere server roundtrip)
+
+**Implementación paso a paso:**
+```
+1. Server Component (page.tsx):
+   - Eliminar queries condicionales (if activeTab === "x")
+   - Meter TODAS las queries en Promise.all()
+   - Procesar todos los resultados
+   - Pasar todo al Shell como props
+
+2. Client Shell Component (XxxShell.tsx):
+   - Recibir todos los datos como props
+   - useState para activeTab (inicializado desde prop initialTab)
+   - window.history.replaceState() para actualizar URL sin navegar
+   - Renderizar condicionalmente por activeTab
+
+3. Tabs Component:
+   - NO usar router.push() ni router.replace()
+   - Llamar al handler del Shell que hace setState + replaceState
+```
+
+**Páginas implementadas:**
+| Página | Shell Component | Tabs | Estado |
+|--------|----------------|------|--------|
+| Instagram Intelligence | `InstagramShell` | 7 tabs | ✅ Implementado |
+| Customer Voice | `CustomerVoiceTabs` | 4 tabs | ✅ Implementado |
+| Dashboard principal | — | Sin tabs | N/A (single view) |
+| YouTube, Ads, etc. | — | Placeholder | Aplicar cuando tengan data real |
+
+**Consecuencias:**
+- Tab switching pasa de ~800ms a ~0ms (instantáneo)
+- Primera carga puede ser ~100ms más lenta (más queries), pero el Promise.all() las paraleliza
+- Más datos en memoria del browser, pero son KBs (insignificante)
+- La URL sigue siendo shareable y el back/forward del browser funciona

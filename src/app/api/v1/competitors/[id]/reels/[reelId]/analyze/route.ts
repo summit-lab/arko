@@ -75,9 +75,17 @@ export async function POST(
       return api400(result.error ?? 'Error analizando reel');
     }
 
+    // Fetch the saved analysis to return it directly (avoids client needing to refetch)
+    const { data: analysis } = await supabase
+      .from('competitor_reel_analysis')
+      .select('hook_text, hook_type, narrative_structure, content_type, cta_text, cta_type, topic_cluster, style_notes, strengths, weaknesses, ai_summary, model_used')
+      .eq('competitor_reel_id', reelId)
+      .maybeSingle();
+
     return apiSuccess({
       reel_id: reelId,
       tokens_used: result.tokensUsed,
+      analysis,
     });
   } catch (error) {
     console.error('[competitors/reels/analyze] Error:', error);

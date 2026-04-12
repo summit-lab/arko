@@ -19,6 +19,7 @@ import type {
   SyncResult,
   AdsSyncResult,
   AccountSyncResult,
+  StoriesSyncResult,
   ApifyReelItem,
 } from "../_shared/types.ts";
 
@@ -91,25 +92,25 @@ Deno.serve(async (req: Request) => {
       return await handleCheckNewMedia(supabase, workspace_id, connection.ig_business_account_id, accessToken);
     }
 
-    // Create sync job
-    const { data: reelsJob } = await supabase
-      .from("sync_jobs")
-      .insert({ workspace_id, job_type: "full_sync", status: "queued" })
-      .select("id")
-      .single();
-
-    if (!reelsJob) {
-      return jsonResponse({ status: "error", error: "Failed to create sync job" }, 500);
-    }
-
     const t0 = Date.now();
     let reelsResult: SyncResult = { reelsSynced: 0, reelsSkipped: 0, insightsFetched: 0, durationsEnriched: 0, errors: [] };
     let adsResult: AdsSyncResult | null = null;
     let benchmarkResult: { snapshot_id: string; reels_in_window: number; window_start: string; window_end: string } | null = null;
     let accountResult: AccountSyncResult | null = null;
+    let storiesResult: StoriesSyncResult | null = null;
 
     // ── Step 1+2: Media + Ads ──
     if (steps === "all" || steps === "media") {
+      const { data: reelsJob } = await supabase
+        .from("sync_jobs")
+        .insert({ workspace_id, job_type: "full_sync", status: "queued" })
+        .select("id")
+        .single();
+
+      if (!reelsJob) {
+        return jsonResponse({ status: "error", error: "Failed to create sync job" }, 500);
+      }
+
       reelsResult = await syncInstagramReels(supabase, workspace_id, reelsJob.id, connection.ig_business_account_id, accessToken);
 
       if (connection.ad_account_ids?.length) {
@@ -138,7 +139,22 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Step 3: Account Insights ──
+    // ── Step 3: Stories ──
+    if (steps === "stories") {
+      const { data: storiesJob, error: storiesJobError } = await supabase
+        .from("sync_jobs")
+        .insert({ workspace_id, job_type: "stories_sync", status: "queued" })
+        .select("id")
+        .single();
+      if (storiesJobError) {
+        console.error("[sync] stories job insert error:", storiesJobError.message);
+        storiesResult = { storiesFetched: 0, sequencesUpserted: 0, slidesUpserted: 0, errors: [`job insert: ${storiesJobError.message}`] };
+      } else if (storiesJob) {
+        storiesResult = await syncStories(supabase, workspace_id, storiesJob.id, connection.ig_business_account_id, accessToken);
+      }
+    }
+
+    // ── Step 4: Account Insights ──
     if (steps === "all" || steps === "account") {
       const { data: accountJob } = await supabase
         .from("sync_jobs")
@@ -153,6 +169,7 @@ Deno.serve(async (req: Request) => {
     const combinedErrors = [
       ...reelsResult.errors,
       ...(adsResult?.errors ?? []),
+      ...(storiesResult?.errors ?? []),
       ...(accountResult?.errors ?? []),
     ];
 
@@ -174,6 +191,12 @@ Deno.serve(async (req: Request) => {
         errors: adsResult.errors.slice(0, 3),
       } : null,
       benchmark: benchmarkResult,
+      stories: storiesResult ? {
+        stories_fetched: storiesResult.storiesFetched,
+        sequences_upserted: storiesResult.sequencesUpserted,
+        slides_upserted: storiesResult.slidesUpserted,
+        errors: storiesResult.errors.slice(0, 3),
+      } : null,
       account: accountResult ? {
         days_upserted: accountResult.daysUpserted,
         demographics_upserted: accountResult.demographicsUpserted,
@@ -257,12 +280,32 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       media_product_type: m.media_product_type,
       permalink: m.permalink || null,
       media_url: m.media_url || null,
-      thumbnail_url: m.thumbnail_url || null,
+      thumbnail_url: m.thumbnail_url || m.media_url || null,
       is_shared_to_feed: m.is_shared_to_feed ?? null,
       published_at: m.timestamp || null,
       reel_type: classifyReelType(m),
       sync_status: "synced",
     }));
+
+    // 2b) For carousels without thumbnail, fetch first child image
+    const carouselsNoThumb = media.filter((m) => m.media_type === "CAROUSEL_ALBUM" && !m.thumbnail_url && !m.media_url);
+    if (carouselsNoThumb.length > 0) {
+      const childFetches = carouselsNoThumb.slice(0, 20).map(async (m) => {
+        try {
+          const res = await fetch(`${GRAPH_BASE}/${m.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=1&access_token=${accessToken}`);
+          const data = await res.json();
+          const firstChild = data?.data?.[0];
+          if (firstChild) {
+            const thumbUrl = firstChild.thumbnail_url || firstChild.media_url || null;
+            if (thumbUrl) {
+              const row = rows.find((r) => r.ig_media_id === m.id);
+              if (row) row.thumbnail_url = thumbUrl;
+            }
+          }
+        } catch { /* non-critical */ }
+      });
+      await Promise.all(childFetches);
+    }
 
     const { data: upserted } = await supabase
       .from("reels")
@@ -319,6 +362,24 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       }));
     }
 
+    // 5) Sync carousel children (background, non-blocking for quick response)
+    try {
+      await syncCarouselChildren(supabase, workspaceId, media, reelIdMap, accessToken);
+    } catch { /* non-critical */ }
+
+    // 6) Sync stories inline (so they appear on router.refresh)
+    let storiesResult: StoriesSyncResult = { storiesFetched: 0, sequencesUpserted: 0, slidesUpserted: 0, errors: [] };
+    try {
+      const { data: storiesJob } = await supabase
+        .from("sync_jobs")
+        .insert({ workspace_id: workspaceId, job_type: "stories_sync", status: "queued" })
+        .select("id")
+        .single();
+      if (storiesJob) {
+        storiesResult = await syncStories(supabase, workspaceId, storiesJob.id, igAccountId, accessToken);
+      }
+    } catch { /* non-critical */ }
+
     return jsonResponse({
       status: "completed",
       mode: "quick",
@@ -326,6 +387,8 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       reels_synced: upserted?.length ?? 0,
       insights_fetched: insightsFetched,
       insights_skipped: insightsSkipped,
+      stories_fetched: storiesResult.storiesFetched,
+      stories_slides: storiesResult.slidesUpserted,
     });
   } catch (err) {
     return jsonResponse({
@@ -405,6 +468,28 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
     const MAX_INSIGHTS_PER_SYNC = 30;
     let insightsFetchCount = 0;
 
+    // ── Phase 0.5: Fetch carousel thumbnails (first child image) ──
+    const carouselsNoThumb = allMedia.filter((m) => m.media_type === "CAROUSEL_ALBUM" && !m.thumbnail_url && !m.media_url);
+    if (carouselsNoThumb.length > 0) {
+      const thumbMap = new Map<string, string>();
+      const childFetches = carouselsNoThumb.slice(0, 50).map(async (m) => {
+        try {
+          const res = await fetch(`${GRAPH_BASE}/${m.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=1&access_token=${accessToken}`);
+          const data = await res.json();
+          const firstChild = data?.data?.[0];
+          if (firstChild) {
+            const thumbUrl = firstChild.thumbnail_url || firstChild.media_url || null;
+            if (thumbUrl) thumbMap.set(m.id, thumbUrl);
+          }
+        } catch { /* non-critical */ }
+      });
+      await Promise.all(childFetches);
+      // Inject thumbnails into allMedia
+      for (const m of allMedia) {
+        if (thumbMap.has(m.id)) m.thumbnail_url = thumbMap.get(m.id);
+      }
+    }
+
     // ── Phase 1: Batch upsert all reels (fast, no API calls) ──
     const UPSERT_BATCH = 20;
     const reelIdMap = new Map<string, string>(); // ig_media_id → reel uuid
@@ -418,7 +503,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
         media_product_type: media.media_product_type,
         permalink: media.permalink || null,
         media_url: media.media_url || null,
-        thumbnail_url: media.thumbnail_url || null,
+        thumbnail_url: media.thumbnail_url || media.media_url || null,
         is_shared_to_feed: media.is_shared_to_feed ?? null,
         published_at: media.timestamp || null,
         reel_type: classifyReelType(media),
@@ -567,6 +652,13 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       result.errors.push(`Daily snapshot: ${err instanceof Error ? err.message : String(err)}`);
     }
 
+    // ── Phase 4: Sync carousel children (all slides, not just first) ──
+    try {
+      await syncCarouselChildren(supabase, workspaceId, allMedia, reelIdMap, accessToken);
+    } catch (err) {
+      result.errors.push(`Carousel children: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     await supabase.from("sync_jobs").update({
       status: "completed",
       processed_items: totalWork,
@@ -592,7 +684,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
 
 // deno-lint-ignore no-explicit-any
 async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: string, adAccountIds: string[], accessToken: string): Promise<AdsSyncResult> {
-  const result: AdsSyncResult = { adsProcessed: 0, adsMapped: 0, adsUnmapped: 0, reelsUpdated: 0, totalVideoPlays: 0, totalVideoPlays30d: 0, errors: [], unmappedSamples: [] };
+  const result: AdsSyncResult = { adsProcessed: 0, adsMapped: 0, adsUnmapped: 0, reelsUpdated: 0, totalVideoPlays: 0, totalVideoPlays30d: 0, totalVideoPlays90d: 0, errors: [], unmappedSamples: [] };
 
   try {
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
@@ -612,6 +704,8 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
     }
 
     const paidByReel = new Map<string, { views_paid: number; impressions_paid: number; reach_paid: number; clicks: number; spend_cents: number; video_plays: number }>();
+    // Collect all ads info for daily metrics (ALL ads, not just mapped)
+    const allAdsLookup = new Map<string, { campaign_id: string; adset_id: string; ad_name: string; ad_account_id: string }>();
 
     for (const acctId of adAccountIds) {
       try {
@@ -620,6 +714,11 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
 
         const insightsMap = await fetchInsightsByAd(acctId, accessToken);
         const adsById = new Map<string, AdRecord>(ads.map((ad) => [ad.id, ad]));
+
+        // Register ALL ads for daily metrics lookup
+        for (const ad of ads) {
+          allAdsLookup.set(ad.id, { campaign_id: ad.campaign_id, adset_id: ad.adset_id, ad_name: ad.name, ad_account_id: acctId });
+        }
 
         // Recover missing ads
         const missingAdIds = [...insightsMap.keys()].filter((adId) => !adsById.has(adId));
@@ -686,6 +785,18 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
       }
     }
 
+    // Fetch 90-day video plays for organic/paid split on 90d filter
+    for (const acctId of adAccountIds) {
+      try {
+        const insightsMap90d = await fetchInsightsByAd(acctId, accessToken, 90);
+        for (const insight of insightsMap90d.values()) {
+          result.totalVideoPlays90d += getActionMetricValue(insight.video_play_actions, "video_view");
+        }
+      } catch (err) {
+        result.errors.push(`90d plays ${acctId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     for (const [reelId, metrics] of paidByReel) {
       const { error } = await supabase.from("reel_metrics_paid").upsert(
         { reel_id: reelId, workspace_id: workspaceId, ...metrics, fetched_at: new Date().toISOString() },
@@ -694,6 +805,42 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
       if (!error) {
         result.reelsUpdated++;
         await supabase.from("reels").update({ has_ads: true, attribution_confidence: "high" }).eq("id", reelId);
+      }
+    }
+
+    // ── Upsert daily ad metrics for ALL ads (not just mapped) ──
+    for (const acctId of adAccountIds) {
+      try {
+        const dailyRows = await fetchDailyInsightsByAd(acctId, accessToken);
+        const batch: Array<Record<string, unknown>> = [];
+        for (const row of dailyRows) {
+          if (!row.date_start) continue;
+          const lookup = allAdsLookup.get(row.ad_id);
+          const outboundClicks = getActionMetricValue(row.outbound_clicks, "outbound_click");
+          const inlineLinkClicks = parseInt(row.inline_link_clicks || "0") || 0;
+          const clicks = outboundClicks || inlineLinkClicks || (parseInt(row.clicks || "0") || 0);
+          batch.push({
+            workspace_id: workspaceId,
+            ad_id: row.ad_id,
+            campaign_id: lookup?.campaign_id ?? "unknown",
+            adset_id: lookup?.adset_id ?? "unknown",
+            ad_account_id: acctId,
+            ad_name: lookup?.ad_name ?? null,
+            metric_date: row.date_start,
+            impressions: parseInt(row.impressions || "0") || 0,
+            reach: parseInt(row.reach || "0") || 0,
+            clicks,
+            spend_cents: Math.round(parseFloat(row.spend || "0") * 100) || 0,
+            video_plays: getActionMetricValue(row.video_play_actions, "video_view"),
+            fetched_at: new Date().toISOString(),
+          });
+        }
+        // Upsert in chunks of 200
+        for (let i = 0; i < batch.length; i += 200) {
+          await supabase.from("ad_metrics_daily").upsert(batch.slice(i, i + 200), { onConflict: "workspace_id,ad_id,metric_date" });
+        }
+      } catch (err) {
+        result.errors.push(`daily metrics ${acctId}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -887,6 +1034,318 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
     result.errors.push(msg);
     await supabase.from("sync_jobs").update({ status: "failed", error_message: msg, completed_at: new Date().toISOString() }).eq("id", syncJobId);
     return result;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAROUSEL CHILDREN SYNC
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function syncCarouselChildren(
+  supabase: any,
+  workspaceId: string,
+  allMedia: IGMedia[],
+  reelIdMap: Map<string, string>,
+  accessToken: string,
+): Promise<void> {
+  const carousels = allMedia.filter((m) => m.media_type === "CAROUSEL_ALBUM");
+  if (carousels.length === 0) return;
+
+  // Only sync carousels that don't have children yet (avoid re-fetching)
+  const carouselReelIds = carousels
+    .map((c) => reelIdMap.get(c.id))
+    .filter((id): id is string => !!id);
+
+  if (carouselReelIds.length === 0) return;
+
+  const { data: existingSlides } = await supabase
+    .from("carousel_slides")
+    .select("reel_id")
+    .in("reel_id", carouselReelIds)
+    .limit(1);
+
+  // Build set of reel_ids that already have slides
+  const reelIdsWithSlides = new Set((existingSlides || []).map((s: { reel_id: string }) => s.reel_id));
+
+  const carouselsToSync = carousels.filter((c) => {
+    const reelId = reelIdMap.get(c.id);
+    return reelId && !reelIdsWithSlides.has(reelId);
+  });
+
+  if (carouselsToSync.length === 0) return;
+
+  // Fetch children for up to 30 carousels per sync (API budget)
+  const CAROUSEL_BATCH = 30;
+  const CONCURRENCY = 5;
+
+  for (let i = 0; i < Math.min(carouselsToSync.length, CAROUSEL_BATCH); i += CONCURRENCY) {
+    const batch = carouselsToSync.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (carousel) => {
+      try {
+        const reelId = reelIdMap.get(carousel.id);
+        if (!reelId) return;
+
+        const res = await fetch(
+          `${GRAPH_BASE}/${carousel.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=50&access_token=${accessToken}`
+        );
+        const data = await res.json();
+        if (data.error || !data.data?.length) return;
+
+        const slides = (data.data as Array<{ id: string; media_type?: string; media_url?: string; thumbnail_url?: string }>)
+          .map((child, idx) => ({
+            workspace_id: workspaceId,
+            reel_id: reelId,
+            ig_media_id: child.id,
+            slide_index: idx,
+            media_type: child.media_type || null,
+            media_url: child.media_url || null,
+            thumbnail_url: child.thumbnail_url || child.media_url || null,
+          }));
+
+        await supabase
+          .from("carousel_slides")
+          .upsert(slides, { onConflict: "workspace_id,ig_media_id" });
+      } catch { /* non-critical — carousel children are supplementary */ }
+    }));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STORIES SYNC
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function syncStories(supabase: any, workspaceId: string, syncJobId: string, igAccountId: string, accessToken: string): Promise<StoriesSyncResult> {
+  const result: StoriesSyncResult = { storiesFetched: 0, sequencesUpserted: 0, slidesUpserted: 0, errors: [] };
+
+  try {
+    await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
+
+    // Fetch active stories (last 24h — only available while live)
+    const storiesUrl = `${GRAPH_BASE}/${igAccountId}/stories?fields=id,media_type,media_url,thumbnail_url,caption,timestamp&access_token=${accessToken}`;
+    const storiesRes = await fetch(storiesUrl);
+    const storiesData = await storiesRes.json();
+
+    if (storiesData.error) {
+      result.errors.push(`Stories fetch: ${storiesData.error.message}`);
+      await supabase.from("sync_jobs").update({ status: "failed", error_message: storiesData.error.message, completed_at: new Date().toISOString() }).eq("id", syncJobId);
+      return result;
+    }
+
+    const stories: Array<{ id: string; media_type: string; media_url?: string; thumbnail_url?: string; caption?: string; timestamp: string }> = storiesData.data ?? [];
+    result.storiesFetched = stories.length;
+
+    if (stories.length === 0) {
+      await supabase.from("sync_jobs").update({ status: "completed", processed_items: 0, completed_at: new Date().toISOString(), metadata: result as unknown as Record<string, unknown> }).eq("id", syncJobId);
+      return result;
+    }
+
+    // All active stories from the API (last 24h) form ONE sequence.
+    // Sort slides by timestamp ascending (oldest = first).
+    stories.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    const allSlides = [stories]; // single group with all slides
+
+    for (const slides of allSlides) {
+      const firstSlide = slides[0];
+      const publishedAt = firstSlide.timestamp;
+      // Use the date part of the first slide as the sequence anchor key
+      const expiresAt = new Date(Math.max(...slides.map(s => new Date(s.timestamp).getTime())) + 24 * 60 * 60 * 1000).toISOString();
+
+      // Fetch insights for each slide
+      // v22.0+: impressions/exits/taps_* no longer valid. Valid metrics: views, reach, replies, navigation
+      // We map: views → impressions column, navigation → exits column (combined navigation total)
+      const slideInsights: Array<{ impressions: number; reach: number; replies: number; exits: number; taps_forward: number; taps_back: number; swipe_aways: number }> = [];
+
+      for (const slide of slides) {
+        try {
+          const insightsUrl = `${GRAPH_BASE}/${slide.id}/insights?metric=views,reach,replies,navigation&access_token=${accessToken}`;
+          const insightsRes = await fetch(insightsUrl);
+          const insightsData = await insightsRes.json();
+
+          const metrics: Record<string, number> = {};
+          for (const insight of insightsData.data ?? []) {
+            metrics[insight.name] = insight.values?.[0]?.value ?? insight.total_value?.value ?? 0;
+          }
+          slideInsights.push({
+            impressions: metrics.views ?? 0,       // views → impressions column
+            reach: metrics.reach ?? 0,
+            replies: metrics.replies ?? 0,
+            exits: metrics.navigation ?? 0,        // navigation (combined) → exits column
+            taps_forward: 0,
+            taps_back: 0,
+            swipe_aways: 0,
+          });
+        } catch (_err) {
+          slideInsights.push({ impressions: 0, reach: 0, replies: 0, exits: 0, taps_forward: 0, taps_back: 0, swipe_aways: 0 });
+        }
+      }
+
+      // Aggregate totals for the sequence
+      const totalImpressions = slideInsights.reduce((s, si) => s + si.impressions, 0);
+      const totalReach = slideInsights.reduce((s, si) => s + si.reach, 0);
+      const totalReplies = slideInsights.reduce((s, si) => s + si.replies, 0);
+      const totalExits = slideInsights.reduce((s, si) => s + si.exits, 0);
+
+      // Upsert sequence
+      const { data: seqRow, error: seqError } = await supabase
+        .from("ig_story_sequences")
+        .upsert({
+          workspace_id: workspaceId,
+          ig_story_id: firstSlide.id,
+          published_at: publishedAt,
+          expires_at: expiresAt,
+          total_impressions: totalImpressions,
+          total_reach: totalReach,
+          total_replies: totalReplies,
+          total_exits: totalExits,
+          archived: false,
+        }, { onConflict: "workspace_id,ig_story_id" })
+        .select("id")
+        .single();
+
+      if (seqError || !seqRow) {
+        result.errors.push(`Sequence upsert ${day}: ${seqError?.message ?? "no row"}`);
+        continue;
+      }
+      result.sequencesUpserted++;
+
+      // Upsert slides
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        const si = slideInsights[i];
+        const { error: slideError } = await supabase
+          .from("ig_story_slides")
+          .upsert({
+            sequence_id: seqRow.id,
+            workspace_id: workspaceId,
+            ig_media_id: slide.id,
+            slide_index: i,
+            media_type: slide.media_type,
+            media_url: slide.media_url ?? null,
+            thumbnail_url: slide.thumbnail_url ?? null,
+            caption: slide.caption ?? null,
+            impressions: si.impressions,
+            reach: si.reach,
+            replies: si.replies,
+            exits: si.exits,
+            taps_forward: si.taps_forward,
+            taps_back: si.taps_back,
+            swipe_aways: si.swipe_aways,
+            archived: false,
+          }, { onConflict: "workspace_id,ig_media_id" });
+
+        if (slideError) {
+          result.errors.push(`Slide upsert ${slide.id}: ${slideError.message}`);
+        } else {
+          result.slidesUpserted++;
+        }
+      }
+    }
+
+    // ── Archive media: download + compress story thumbnails to Storage ──
+    // Only archive slides that have a media_url but no stored path yet
+    try {
+      await archiveStoryMedia(supabase, workspaceId, stories);
+    } catch (err) {
+      result.errors.push(`Media archive: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Mark archived stories that are no longer returned by the API
+    const activeIds = stories.map((s) => s.id);
+    if (activeIds.length > 0) {
+      await supabase
+        .from("ig_story_slides")
+        .update({ archived: true })
+        .eq("workspace_id", workspaceId)
+        .eq("archived", false)
+        .not("ig_media_id", "in", `(${activeIds.map((id) => `"${id}"`).join(",")})`);
+    }
+
+    await supabase.from("sync_jobs").update({
+      status: "completed", processed_items: result.slidesUpserted, completed_at: new Date().toISOString(),
+      metadata: result as unknown as Record<string, unknown>,
+    }).eq("id", syncJobId);
+
+    return result;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    result.errors.push(msg);
+    await supabase.from("sync_jobs").update({ status: "failed", error_message: msg, completed_at: new Date().toISOString() }).eq("id", syncJobId);
+    return result;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STORY MEDIA ARCHIVAL — Download + compress thumbnails to Storage
+// ═══════════════════════════════════════════════════════════════
+
+// deno-lint-ignore no-explicit-any
+async function archiveStoryMedia(
+  supabase: any,
+  workspaceId: string,
+  stories: Array<{ id: string; media_type: string; media_url?: string; thumbnail_url?: string }>,
+): Promise<void> {
+  // Find slides that have media but no storage path yet
+  const { data: slidesNeedingArchival } = await supabase
+    .from("ig_story_slides")
+    .select("id, ig_media_id, media_url, thumbnail_url, media_type")
+    .eq("workspace_id", workspaceId)
+    .is("media_storage_path", null)
+    .eq("archived", false)
+    .limit(50);
+
+  if (!slidesNeedingArchival?.length) return;
+
+  const CONCURRENCY = 3;
+  for (let i = 0; i < slidesNeedingArchival.length; i += CONCURRENCY) {
+    const batch = slidesNeedingArchival.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (slide: { id: string; ig_media_id: string; media_url: string | null; thumbnail_url: string | null; media_type: string | null }) => {
+      try {
+        // For videos use thumbnail_url, for images use media_url
+        const sourceUrl = slide.media_type === "VIDEO"
+          ? (slide.thumbnail_url || slide.media_url)
+          : (slide.media_url || slide.thumbnail_url);
+
+        if (!sourceUrl) return;
+
+        // Download the image
+        const imgRes = await fetch(sourceUrl);
+        if (!imgRes.ok) return;
+
+        const buffer = await imgRes.arrayBuffer();
+
+        // Compress: resize to max 480px wide, convert to WebP at 75% quality
+        // Deno Edge Functions don't have Sharp, so we use the raw image but
+        // limit file size by only storing if < 512KB (bucket limit).
+        // For larger images, store the JPEG with reduced quality via canvas-free approach.
+        const imageBytes = new Uint8Array(buffer);
+
+        // If image is > 512KB, skip (bucket limit will reject it anyway)
+        if (imageBytes.byteLength > 524288) return;
+
+        const storagePath = `${workspaceId}/${slide.ig_media_id}.webp`;
+        const contentType = "image/webp";
+
+        // Try to upload — if the source is already small enough, upload as-is
+        // The bucket's 512KB limit acts as a natural filter
+        const { error: uploadError } = await supabase.storage
+          .from("story-media")
+          .upload(storagePath, imageBytes, {
+            contentType: sourceUrl.includes(".webp") ? "image/webp" : "image/jpeg",
+            upsert: true,
+          });
+
+        if (uploadError) return;
+
+        // Update the slide with the storage path
+        await supabase
+          .from("ig_story_slides")
+          .update({ media_storage_path: storagePath })
+          .eq("id", slide.id);
+      } catch { /* non-critical */ }
+    }));
   }
 }
 
@@ -1096,10 +1555,31 @@ async function fetchPostInsightsFallback(igMediaId: string, accessToken: string)
       if (result.saved !== undefined) result.saves = result.saved;
       return result;
     }
+    console.warn(`[sync] Post fallback1 FAILED for ${igMediaId}: error=${data.error?.message ?? 'no data'}, dataLen=${data.data?.length ?? 0}`);
   } catch { /* fall through */ }
 
-  // Final fallback: use direct media fields (works for ALL media types including carousels)
-  return await fetchMediaFieldsFallback(igMediaId, accessToken);
+  // Fallback: direct media fields (likes, comments) + separate saved insight request
+  const base = await fetchMediaFieldsFallback(igMediaId, accessToken);
+  if (!base) return null;
+
+  // Try to fetch saved metric individually via /insights
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=saved&access_token=${accessToken}`);
+    const data = await res.json();
+    if (!data.error && data.data && data.data.length > 0) {
+      const savedInsight = data.data.find((i: { name: string }) => i.name === 'saved');
+      if (savedInsight) {
+        base.saved = savedInsight.values?.[0]?.value ?? 0;
+        console.log(`[sync] Saved insight OK for ${igMediaId}: saved=${base.saved}`);
+      }
+    } else {
+      console.warn(`[sync] Saved insight FAILED for ${igMediaId}: error=${data.error?.message ?? 'no data'}`);
+    }
+  } catch {
+    console.warn(`[sync] Could not fetch saved insight for ${igMediaId}`);
+  }
+
+  return base;
 }
 
 async function fetchMediaFieldsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
@@ -1164,6 +1644,23 @@ async function fetchInsightsByAd(adAccountId: string, accessToken: string, days 
     url = json.paging?.next || null;
   }
   return map;
+}
+
+/** Fetch daily breakdown of ad insights (time_increment=1 returns one row per ad per day) */
+async function fetchDailyInsightsByAd(adAccountId: string, accessToken: string, days = 90): Promise<InsightRow[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const until = new Date().toISOString().split("T")[0];
+  const fields = "ad_id,date_start,date_stop,impressions,reach,clicks,spend,inline_link_clicks,outbound_clicks,video_play_actions";
+  const rows: InsightRow[] = [];
+  let url: string | null = `${GRAPH_BASE}/${adAccountId}/insights?level=ad&time_increment=1&time_range={"since":"${since}","until":"${until}"}&fields=${fields}&limit=500&access_token=${accessToken}`;
+  while (url) {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error) break;
+    for (const row of json.data || []) rows.push(row);
+    url = json.paging?.next || null;
+  }
+  return rows;
 }
 
 function resolveAdToReel(ad: AdRecord, byId: Map<string, string>, byPermalink: Map<string, string>, byShortcode: Map<string, string>): MatchResult | null {

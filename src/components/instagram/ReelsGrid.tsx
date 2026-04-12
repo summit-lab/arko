@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +23,7 @@ import { ReelDayRadar } from "./ReelDayRadar";
 interface Reel {
   id: string;
   caption: string | null;
+  auto_title: string | null;
   thumbnail_url: string | null;
   permalink: string | null;
   published_at: string | null;
@@ -230,19 +232,19 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
 
   // Donut data — traffic
   const trafficData = [
-    { name: "Orgánico", value: summary.totalViewsOrg, color: "#818cf8" },
-    ...(summary.totalViewsPaid > 0 ? [{ name: "Pagado", value: summary.totalViewsPaid, color: "#f472b6" }] : []),
+    { name: "Orgánico", value: summary.totalViewsOrg, color: "#7A86E0" },
+    ...(summary.totalViewsPaid > 0 ? [{ name: "Pagado", value: summary.totalViewsPaid, color: "#AF6EC7" }] : []),
   ];
 
   // Donut data — engagement breakdown
   const engData = [
     { name: "Likes",  value: summary.totalLikes,    color: "#f87171" },
-    { name: "Saves",  value: summary.totalSaves,    color: "#fbbf24" },
-    { name: "Cmts",   value: summary.totalComments, color: "#34d399" },
+    { name: "Saves",  value: summary.totalSaves,    color: "#AF6EC7" },
+    { name: "Cmts",   value: summary.totalComments, color: "#4BCEAF" },
   ].filter((d) => d.value > 0);
 
   // Top 5 bar colors — neon palette
-  const barColors = ["#fbbf24", "#818cf8", "#22d3ee", "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
+  const barColors = ["#7A86E0", "#AF6EC7", "#4BCEAF", "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
 
   return (
     <div className="w-[340px] shrink-0 space-y-3 pb-6 sticky top-6 self-start">
@@ -283,7 +285,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           <div className="flex-1 space-y-2">
             <div>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <div className="h-2 w-2 rounded-full bg-[#818cf8]" />
+                <div className="h-2 w-2 rounded-full bg-[#7A86E0]" />
                 <span className="text-[10px] text-white/40">Orgánico</span>
               </div>
               <p className="text-[17px] font-light text-white leading-none">{orgPct}%</p>
@@ -291,7 +293,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
             {summary.paidPct > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <div className="h-2 w-2 rounded-full bg-[#f472b6]" />
+                  <div className="h-2 w-2 rounded-full" style={{ background: "#AF6EC7" }} />
                   <span className="text-[10px] text-white/40">Pagado</span>
                 </div>
                 <p className="text-[17px] font-light text-white leading-none">{summary.paidPct}%</p>
@@ -319,7 +321,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           .slice(-12)
           .map((r, idx) => ({
             idx: idx + 1,
-            caption: r.caption ? r.caption.slice(0, 30) + (r.caption.length > 30 ? "…" : "") : "Sin caption",
+            caption: r.auto_title ?? (r.caption ? r.caption.slice(0, 30) + (r.caption.length > 30 ? "…" : "") : "Sin título"),
             date: timeAgo(r.published_at!),
             views: r.views_total,
           }));
@@ -333,13 +335,13 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                 <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="sidebarViewsGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.5} />
-                      <stop offset="50%" stopColor="#818cf8" stopOpacity={0.15} />
-                      <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.5} />
+                      <stop offset="50%" stopColor="#7A86E0" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#7A86E0" stopOpacity={0} />
                     </linearGradient>
                     <filter id="areaGlow" x="-20%" y="-20%" width="140%" height="140%">
                       <feGaussianBlur stdDeviation="3" result="blur" />
-                      <feFlood floodColor="#818cf8" floodOpacity="0.6" result="color" />
+                      <feFlood floodColor="#7A86E0" floodOpacity="0.6" result="color" />
                       <feComposite in="color" in2="blur" operator="in" result="glow" />
                       <feMerge>
                         <feMergeNode in="glow" />
@@ -374,11 +376,11 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                   <Area
                     type="monotone"
                     dataKey="views"
-                    stroke="#818cf8"
+                    stroke="#7A86E0"
                     strokeWidth={2.5}
                     fill="url(#sidebarViewsGrad)"
                     dot={false}
-                    activeDot={{ r: 5, fill: "#818cf8", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#dotGlowSidebar)" }}
+                    activeDot={{ r: 5, fill: "#7A86E0", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#dotGlowSidebar)" }}
                     animationDuration={1200}
                     animationEasing="ease-out"
                     style={{ filter: "url(#areaGlow)" }}
@@ -425,8 +427,8 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           <div className="flex-1 space-y-2.5">
             {[
               { icon: Heart,         value: summary.totalLikes,    label: "Likes",       color: "#f87171" },
-              { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   color: "#fbbf24" },
-              { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#34d399" },
+              { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   color: "#AF6EC7" },
+              { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#4BCEAF" },
             ].map(({ icon: Icon, value, label, color }) => (
               <div key={label} className="flex items-center gap-2">
                 <Icon size={12} strokeWidth={1.5} style={{ color }} />
@@ -448,7 +450,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
         const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
         if (topSales.length === 0) return null;
         const maxSales = topSales[0]?.sales_amount ?? 1;
-        const salesColors = ["#34d399", "#6ee7b7", "#a7f3d0", "rgba(52,211,153,0.4)", "rgba(52,211,153,0.25)"];
+        const salesColors = ["#4BCEAF", "#7A86E0", "#AF6EC7", "rgba(75,206,175,0.4)", "rgba(75,206,175,0.25)"];
         return (
           <div className="glass-panel rounded-xl px-5 py-4">
             <div className="flex items-center justify-between mb-1">
@@ -461,14 +463,14 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
             <div className="space-y-3">
               {topSales.map((r, i) => {
                 const pct = Math.round(((r.sales_amount ?? 0) / maxSales) * 88);
-                const caption = r.caption
+                const label = r.auto_title ?? (r.caption
                   ? r.caption.slice(0, 26) + (r.caption.length > 26 ? "…" : "")
-                  : "Sin caption";
+                  : "Sin título");
                 return (
                   <div key={r.id}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] text-white/25 w-3 shrink-0 font-light">{i + 1}</span>
-                      <span className="text-[10px] text-white/50 flex-1 truncate font-light">{caption}</span>
+                      <span className="text-[10px] text-white/50 flex-1 truncate font-light">{label}</span>
                       <span className="text-[12px] text-emerald-300 font-light shrink-0">${fmt(r.sales_amount ?? 0)}</span>
                     </div>
                     <div className="h-[4px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
@@ -489,14 +491,14 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           <div className="space-y-3">
             {top5.map((r, i) => {
               const pct = Math.round((r.views_total / maxViews) * 88); // cap at 88% so #1 never bleeds to edge
-              const caption = r.caption
+              const label = r.auto_title ?? (r.caption
                 ? r.caption.slice(0, 26) + (r.caption.length > 26 ? "…" : "")
-                : "Sin caption";
+                : "Sin título");
               return (
                 <div key={r.id}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] text-white/25 w-3 shrink-0 font-light">{i + 1}</span>
-                    <span className="text-[10px] text-white/50 flex-1 truncate font-light">{caption}</span>
+                    <span className="text-[10px] text-white/50 flex-1 truncate font-light">{label}</span>
                     <span className="text-[12px] text-white/80 font-light shrink-0">{fmt(r.views_total)}</span>
                   </div>
                   <div className="h-[4px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
@@ -515,9 +517,9 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
         <div className="grid grid-cols-2 gap-3">
           {[
             { icon: Heart,         value: summary.totalLikes,    label: "Likes",       color: "#f87171" },
-            { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   color: "#fbbf24" },
-            { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#34d399" },
-            { icon: Share2,        value: reels.reduce((s, r) => s + r.shares, 0), label: "Shares",       color: "#60a5fa" },
+            { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   color: "#AF6EC7" },
+            { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#4BCEAF" },
+            { icon: Share2,        value: reels.reduce((s, r) => s + r.shares, 0), label: "Compartidos",  color: "#7A86E0" },
           ].map(({ icon: Icon, value, label, color }) => (
             <div key={label} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
               style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -722,9 +724,9 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             const durationStr = reel.duration_seconds
               ? `${Math.floor(reel.duration_seconds / 60)}:${String(Math.floor(reel.duration_seconds % 60)).padStart(2, "0")}`
               : "--";
-            const caption = reel.caption
+            const displayTitle = reel.auto_title ?? (reel.caption
               ? reel.caption.length > 120 ? reel.caption.slice(0, 120) + "…" : reel.caption
-              : "Sin caption";
+              : "Sin caption");
 
             return (
               <div
@@ -751,10 +753,13 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   style={{ aspectRatio: "4/5" }}
                 >
                   {reel.thumbnail_url ? (
-                    <img
+                    <Image
                       src={reel.thumbnail_url}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
+                      loading="lazy"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -846,8 +851,8 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                     </p>
                   </div>
 
-                  {/* Row 3: Caption — min-height so buttons always align */}
-                  <p className="text-[10px] text-zinc-400 font-light leading-snug line-clamp-2 min-h-[2.5em]">{caption}</p>
+                  {/* Row 3: Title — auto_title when available, else caption */}
+                  <p className="text-[10px] text-zinc-400 font-light leading-snug line-clamp-2 min-h-[2.5em]">{displayTitle}</p>
 
                   {/* Row 4: Action buttons */}
                   <div className="pt-1 border-t border-white/[0.05]">

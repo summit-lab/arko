@@ -63,6 +63,13 @@ const LLM_CONFIG = {
     model: 'gemini-2.5-flash',
     maxTokens: 8192,
   },
+
+  /** Reel auto-title — genera título corto (≤60 chars) a partir de la transcripción */
+  'reel-auto-title': {
+    provider: 'anthropic' as LLMProvider,
+    model: 'claude-haiku-4-5-20251001',
+    maxTokens: 128,
+  },
 } as const satisfies Record<string, LLMFeatureConfig>;
 
 export type LLMFeature = keyof typeof LLM_CONFIG;

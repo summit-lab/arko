@@ -42,6 +42,7 @@ export async function upsertGoal(metric: string, targetValue: number) {
 
   revalidatePath("/");
   revalidatePath("/customer-voice");
+  revalidatePath("/settings/metas");
 }
 
 export async function deleteGoal(metric: string) {
@@ -66,6 +67,7 @@ export async function deleteGoal(metric: string) {
 
   revalidatePath("/");
   revalidatePath("/customer-voice");
+  revalidatePath("/settings/metas");
 }
 
 // ─── Content Calendar Actions ────────────────────────────────────────────────

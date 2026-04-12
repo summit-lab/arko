@@ -448,9 +448,10 @@ async function fetchPostInsights(
 
     if (data.error) {
       console.warn(`[ig-sync] Post insights error for ${igMediaId} (code=${data.error.code}):`, data.error.message);
-      // Carousel albums and some post types don't support all insights metrics
       return await fetchPostInsightsFallback(igMediaId, accessToken);
     }
+    console.log(`[ig-sync] Post insights OK for ${igMediaId}: metrics=${(data.data || []).map(d => d.name).join(',')}`);
+
 
     const result: Record<string, number> = {};
     for (const insight of (data.data || []) as IGInsight[]) {
@@ -479,6 +480,7 @@ async function fetchPostInsightsFallback(
     );
     const data: { data?: IGInsight[]; error?: { message: string } } = await res.json();
     if (!data.error && data.data && data.data.length > 0) {
+      console.log(`[ig-sync] Post fallback1 OK for ${igMediaId}: metrics=${data.data.map(d => d.name).join(',')}`);
       const result: Record<string, number> = {};
       for (const insight of data.data as IGInsight[]) {
         result[insight.name] = insight.values?.[0]?.value ?? 0;
@@ -486,12 +488,35 @@ async function fetchPostInsightsFallback(
       if (result.saved !== undefined) result.saves = result.saved;
       return result;
     }
-  } catch {
-    // Fall through to direct fields
+    console.warn(`[ig-sync] Post fallback1 FAILED for ${igMediaId}: error=${data.error?.message ?? 'no data'}, dataLen=${data.data?.length ?? 0}`);
+  } catch (err) {
+    console.warn(`[ig-sync] Post fallback1 EXCEPTION for ${igMediaId}:`, err);
   }
 
-  // Final fallback: use direct media fields (works for ALL media types including carousels)
-  return fetchMediaFieldsFallback(igMediaId, accessToken);
+  // Fallback: direct media fields (likes, comments) + separate saved insight request
+  const base = await fetchMediaFieldsFallback(igMediaId, accessToken);
+  if (!base) return null;
+
+  // Try to fetch saved metric individually via /insights
+  try {
+    const res: Response = await fetch(
+      `${GRAPH_BASE}/${igMediaId}/insights?metric=saved&access_token=${accessToken}`
+    );
+    const data: { data?: IGInsight[]; error?: { message: string } } = await res.json();
+    if (!data.error && data.data && data.data.length > 0) {
+      const savedValue = (data.data as IGInsight[]).find(i => i.name === 'saved');
+      if (savedValue) {
+        base.saved = savedValue.values?.[0]?.value ?? 0;
+        console.log(`[ig-sync] Saved insight OK for ${igMediaId}: saved=${base.saved}`);
+      }
+    } else {
+      console.warn(`[ig-sync] Saved insight FAILED for ${igMediaId}: error=${data.error?.message ?? 'no data'}`);
+    }
+  } catch (err) {
+    console.warn(`[ig-sync] Saved insight EXCEPTION for ${igMediaId}:`, err);
+  }
+
+  return base;
 }
 
 /**
