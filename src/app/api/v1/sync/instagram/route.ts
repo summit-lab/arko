@@ -13,7 +13,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api500 } from '@/lib/api/response';
-import { env, getAppUrl } from '@/lib/env';
+import { env } from '@/lib/env';
+import { generateMissingTitles } from '@/services/reel-titles.service';
 
 export async function POST(request: Request) {
   try {
@@ -37,13 +38,8 @@ export async function POST(request: Request) {
       return api500();
     }
 
-    // Stories sync is now included inline in quick sync (no separate background call needed)
-
-    // Disparar generación de títulos en background para nuevos reels sin título
-    fetch(`${getAppUrl()}/api/v1/reels/generate-titles-bulk`, {
-      method: 'POST',
-      headers: { cookie: request.headers.get('cookie') ?? '' },
-    }).catch(() => { /* background, no crítico */ });
+    // Generate titles for new reels in background (non-blocking)
+    generateMissingTitles(auth.workspaceId).catch(() => { /* background, no crítico */ });
 
     // Pass through the Edge Function response
     return apiSuccess(data);
