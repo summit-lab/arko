@@ -416,7 +416,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   return (
     <div className="px-8 py-10">
       {/* Header */}
-      <div className="animate-slide-up mb-10 flex items-start justify-between">
+      <div className="animate-slide-up mb-10 flex items-start justify-between relative" style={{ zIndex: 100 }}>
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
