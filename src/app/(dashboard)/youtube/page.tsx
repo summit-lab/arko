@@ -1,10 +1,15 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { YouTubeConnect } from "@/components/youtube/YouTubeConnect";
 import { YouTubeDashboard, type YTChannel, type YTVideo } from "@/components/youtube/YouTubeDashboard";
+import { DateFilter } from "@/components/ui/DateFilter";
+import { parseDateParams, toISOStart } from "@/lib/date-utils";
 
-export default async function YouTubePage() {
+export default async function YouTubePage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const params = await searchParams;
   const workspaceId = await getWorkspaceId();
+  const dateRange = parseDateParams(params, "90d");
 
   if (!workspaceId) {
     return (
@@ -41,6 +46,8 @@ export default async function YouTubePage() {
     );
   }
 
+  const periodStartIso = toISOStart(dateRange.from);
+
   // Fetch channel + videos + metrics
   const [channelResult, videosResult] = await Promise.all([
     supabase
@@ -56,6 +63,7 @@ export default async function YouTubePage() {
       `)
       .eq("workspace_id", workspaceId)
       .gte("duration_seconds", 240)
+      .gte("published_at", periodStartIso)
       .order("published_at", { ascending: false })
       .limit(100),
   ]);
@@ -89,13 +97,16 @@ export default async function YouTubePage() {
   return (
     <div className="px-8 py-10 space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between relative" style={{ zIndex: 100 }}>
         <div>
           <h1 className="page-title tracking-[-0.04em]">YT Intelligence</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">
             Análisis profundo de tu canal de YouTube.
           </p>
         </div>
+        <Suspense fallback={null}>
+          <DateFilter mode="url" defaultPreset="90d" />
+        </Suspense>
       </div>
 
       <YouTubeDashboard

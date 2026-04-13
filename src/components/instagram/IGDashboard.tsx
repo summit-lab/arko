@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  AreaChart, Area, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
@@ -221,30 +221,14 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
     : "0";
 
   // Traffic split — scale 30d ad plays proportionally to selected period
-  // totalAdVideoPlays is always for 30d window; scale to current period
-  const reelViewsPaid = reels.reduce((s, r) => s + r.views_paid, 0);
-  const scaledAdPlays = periodDays <= 30
-    ? Math.round(totalAdVideoPlays * (sorted.length / 30))
-    : totalAdVideoPlays;
-  // Use reel-level paid if available, else scaled account-level estimate
-  const estimatedPaid = Math.max(reelViewsPaid, scaledAdPlays);
-  // Cap at 90% of impressions — organic always exists, avoid 100% paid
-  const totalViewsPaid = Math.min(estimatedPaid, Math.round(totalImpressions * 0.9));
-  const totalViewsOrgOnly = Math.max(0, totalImpressions - totalViewsPaid);
-  const totalViewsAll = totalImpressions;
-  const orgPct = totalViewsAll > 0 ? Math.round((totalViewsOrgOnly / totalViewsAll) * 100) : 100;
-  const paidPct = 100 - orgPct;
-  const trafficPieData = [
-    { name: "Orgánico", value: totalViewsOrgOnly },
-    ...(totalViewsPaid > 0 ? [{ name: "Pagado", value: totalViewsPaid }] : []),
-  ];
-  const PIE_COLORS_TRAFFIC = ["#7A86E0", "#AF6EC7"];
+  // Traffic pie removed — replaced with followers/day chart
 
   // Chart data — duplicate single point so Recharts draws a flat line instead of dots
-  const rawChartData = sorted.map((d) => ({
+  const rawChartData = sorted.map((d, i) => ({
     date: fmtDate(d.metric_date),
     impressions: d.impressions,
     reach: d.reach,
+    newFollowers: effectiveFollowerChange[i] ?? 0,
   }));
   const isSingleDay = rawChartData.length === 1;
   const chartData = isSingleDay
@@ -409,61 +393,43 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
 
       {/* ═══ ROW 2: Desglose + Interacciones + Mejor Reel ═══ */}
       <div className="grid grid-cols-12 gap-5">
-        {/* ── Desglose orgánico/pagado (4 cols) ── */}
+        {/* ── Nuevos Seguidores / Día (4 cols) ── */}
         <div className="col-span-12 md:col-span-4 glass-card p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <p className="stat-label">Desglose de tráfico</p>
-            {totalViewsPaid > 0 && (
-              <span
-                className="text-[10px] text-white/30 border border-white/10 rounded px-1.5 py-0.5 cursor-help"
-                title="Meta no expone el breakdown nativo de orgánico/pagado por API. Este porcentaje es una estimación calculada usando views de Instagram API + video plays de Meta Ads API."
-              >
-                est.
-              </span>
-            )}
+          <div className="flex items-center justify-between mb-2">
+            <p className="stat-label">Nuevos seguidores / día</p>
+            <Users className="h-4 w-4 text-emerald-400/50" />
           </div>
-          <div className="flex items-center gap-6">
-            <div className="h-[140px] w-[140px] neon-line-violet">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={trafficPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={38}
-                    outerRadius={64}
-                    paddingAngle={3}
-                    strokeWidth={0}
-                  >
-                    {trafficPieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS_TRAFFIC[i % PIE_COLORS_TRAFFIC.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<PieTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#7A86E0" }} />
-                <div>
-                  <p className="text-[12px] text-white/40">Orgánico</p>
-                  <p className="text-[18px] font-light text-white">{orgPct}%</p>
-                </div>
-              </div>
-              {totalViewsPaid > 0 && (
-                <div className="flex items-center gap-2.5">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#AF6EC7" }} />
-                  <div>
-                    <p className="text-[12px] text-white/40">Pagado</p>
-                    <p className="text-[18px] font-light text-white">{paidPct}%</p>
-                  </div>
-                </div>
-              )}
-              <p className="text-[11px] text-white/25 mt-2">{fmt(totalViewsAll)} views totales</p>
-            </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <p className="text-[28px] font-light text-emerald-400">+{fmt(followersGainedPeriod)}</p>
+            <p className="text-[11px] text-white/25">últimos {periodDays} días</p>
+          </div>
+          <div style={{ height: 120, width: "100%" }}>
+            <ResponsiveContainer width="100%" height={120}>
+              <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="followersGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={false} axisLine={false} tickLine={false} height={0} />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{ background: "rgba(10,10,15,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }}
+                  labelStyle={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}
+                  formatter={(value: number) => [`+${fmt(value)}`, "Nuevos"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="newFollowers"
+                  stroke="#34d399"
+                  fill="url(#followersGrad)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3, fill: "#34d399", stroke: "#34d399" }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
