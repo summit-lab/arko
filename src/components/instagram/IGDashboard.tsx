@@ -417,7 +417,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 <Tooltip
                   contentStyle={{ background: "rgba(10,10,15,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }}
                   labelStyle={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}
-                  formatter={(value: number) => [`+${fmt(value)}`, "Nuevos"]}
+                  formatter={(value) => [`+${fmt(Number(value))}`, "Nuevos"]}
                 />
                 <Area
                   type="monotone"
