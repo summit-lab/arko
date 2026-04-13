@@ -336,7 +336,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
     <div className="p-8 space-y-6">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between relative" style={{ zIndex: 100 }}>
         <div>
           <h1 className="page-title">Ads Intelligence</h1>
           <p className="text-white/30 mt-1 text-[13px] font-light">Análisis de Meta Ads: data cuantitativa y cualitativa.</p>

@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Search, TrendingUp, Eye, Users } from "lucide-react";
+import { TrendingUp, Eye, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { cache } from "react";
@@ -117,7 +117,7 @@ export async function Header() {
               </span>
             </div>
           </div>
-          <ChevronDown className="w-3.5 h-3.5 text-white/15 group-hover:text-white/40 transition-colors" />
+          {/* Removed ChevronDown — no dropdown functionality */}
         </div>
 
         {/* Center — Quick Stats Ticker */}
@@ -142,36 +142,11 @@ export async function Header() {
 
         {/* Right — Search, Date, Bell */}
         <div className="flex items-center gap-2">
-          {/* Search */}
-          <div
-            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/[0.05] hover:border-white/[0.1]"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.05)",
-            }}
-          >
-            <Search className="h-3.5 w-3.5 text-white/20" strokeWidth={1.8} />
-            <span className="text-[11px] text-white/20 font-light">Search...</span>
-            <span className="text-[9px] text-white/12 font-medium ml-3 px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.04)" }}>⌘K</span>
-          </div>
+          {/* Search bar removed */}
 
           <HeaderClient />
 
-          {/* Bell */}
-          <button
-            className="h-8 w-8 flex items-center justify-center rounded-xl relative transition-all duration-200 hover:bg-white/[0.08]"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              color: "rgba(255,255,255,0.4)",
-              border: "1px solid rgba(255,255,255,0.05)",
-            }}
-          >
-            <Bell className="h-3.5 w-3.5" strokeWidth={1.8} />
-            <span
-              className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
-              style={{ background: "#ef4444", boxShadow: "0 0 6px #ef4444" }}
-            />
-          </button>
+          {/* Bell — disabled until notifications system is built */}
         </div>
       </div>
     </header>

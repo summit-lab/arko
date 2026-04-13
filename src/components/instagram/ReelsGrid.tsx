@@ -206,7 +206,6 @@ function ReelActions({ permalink }: { permalink?: string | null }) {
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[] }) {
-  const orgPct = 100 - summary.paidPct;
   const engagementRate = summary.totalViews > 0
     ? ((summary.totalLikes + summary.totalSaves + summary.totalComments) / summary.totalViews * 100).toFixed(1)
     : "0";
@@ -230,12 +229,6 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
     views: dowCount[i] > 0 ? Math.round(dowViews[i] / dowCount[i]) : 0,
   }));
 
-  // Donut data — traffic
-  const trafficData = [
-    { name: "Orgánico", value: summary.totalViewsOrg, color: "#7A86E0" },
-    ...(summary.totalViewsPaid > 0 ? [{ name: "Pagado", value: summary.totalViewsPaid, color: "#AF6EC7" }] : []),
-  ];
-
   // Donut data — engagement breakdown
   const engData = [
     { name: "Likes",  value: summary.totalLikes,    color: "#f87171" },
@@ -249,65 +242,25 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
   return (
     <div className="w-[340px] shrink-0 space-y-3 pb-6 sticky top-6 self-start">
 
-      {/* ── Panel 1: Views + Traffic donut ── */}
+      {/* ── Panel 1: Views Summary ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.12em] mb-4">
           Resumen · {reels.length} reels
         </p>
 
-        <div className="flex items-center gap-4">
-          {/* Donut */}
-          <div className="relative shrink-0" style={{ width: 110, height: 110 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <defs>
-                  <filter id="pieGlow1">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                </defs>
-                <Pie data={trafficData} dataKey="value" cx="50%" cy="50%"
-                  innerRadius={34} outerRadius={52} paddingAngle={2} strokeWidth={0}
-                  style={{ filter: "url(#pieGlow1)" }}>
-                  {trafficData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Pie>
-                <Tooltip content={<SidebarPieTooltip />} position={{ x: 0, y: -40 }} />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[20px] font-light text-white leading-none tracking-[-0.03em]">{fmt(summary.totalViews)}</span>
-              <span className="text-[8px] text-white/30 uppercase tracking-wider mt-0.5">views</span>
-            </div>
+        <div className="space-y-3">
+          <div>
+            <p className="text-[10px] text-white/30 mb-1">Views totales</p>
+            <p className="text-[28px] font-light text-white leading-none tracking-[-0.02em]">{fmt(summary.totalViews)}</p>
           </div>
-
-          {/* Legend + stats */}
-          <div className="flex-1 space-y-2">
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.06]">
             <div>
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <div className="h-2 w-2 rounded-full bg-[#7A86E0]" />
-                <span className="text-[10px] text-white/40">Orgánico</span>
-              </div>
-              <p className="text-[17px] font-light text-white leading-none">{orgPct}%</p>
+              <span className="text-[10px] text-white/30">Promedio</span>
+              <p className="text-[16px] font-light text-white">{fmt(summary.avgViews)}</p>
             </div>
-            {summary.paidPct > 0 && (
-              <div>
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <div className="h-2 w-2 rounded-full" style={{ background: "#AF6EC7" }} />
-                  <span className="text-[10px] text-white/40">Pagado</span>
-                </div>
-                <p className="text-[17px] font-light text-white leading-none">{summary.paidPct}%</p>
-              </div>
-            )}
-            <div className="pt-2 border-t border-white/[0.06] space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-white/30">Promedio</span>
-                <span className="text-[14px] font-light text-white">{fmt(summary.avgViews)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-white/30">Top ×3+</span>
-                <span className="text-[14px] font-light text-amber-300">{summary.topPerformers}</span>
-              </div>
+            <div>
+              <span className="text-[10px] text-white/30">Top ×3+</span>
+              <p className="text-[16px] font-light text-amber-300">{summary.topPerformers}</p>
             </div>
           </div>
         </div>
