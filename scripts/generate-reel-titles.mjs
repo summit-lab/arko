@@ -1,11 +1,22 @@
 /**
  * Script one-shot: genera auto_title para todos los reels sin título.
- * Usa Gemini Flash + caption como input. Corre: node scripts/generate-reel-titles.mjs
+ * Usa Gemini Flash + caption como input.
+ *
+ * Uso:
+ *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... GEMINI_API_KEY=... node scripts/generate-reel-titles.mjs
+ *
+ * O crear un .env.local y cargarlo manualmente antes de correr.
  */
 
-const SUPABASE_URL = "https://hrsvglgswatwklivkoyp.supabase.co";
-const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI4MTY1OCwiZXhwIjoyMDg5ODU3NjU4fQ.XJIzfhuv3IxdAagcpvtdciGRrsZsLpffvQ8_IpPT6FM";
-const GEMINI_KEY = "AIzaSyBd4MBk0DFEA7E3Sr7Jo5uvSXUwICy3hXs";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !GEMINI_KEY) {
+  console.error("Error: faltan variables de entorno. Requeridas: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY");
+  process.exit(1);
+}
+
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 const BATCH_SIZE = 5;
 
@@ -75,7 +86,6 @@ async function main() {
         fail++;
       }
     }));
-    // Pequeña pausa entre batches
     if (i + BATCH_SIZE < reels.length) await new Promise(r => setTimeout(r, 500));
   }
 
