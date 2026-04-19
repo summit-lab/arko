@@ -71,7 +71,7 @@ function classifyHookType(hookText: string): string {
 // Used when Gemini is available but no video_url exists.
 // Avoids needing ANTHROPIC_API_KEY for the fallback path.
 
-const TEXT_ONLY_SYSTEM_PROMPT = `Sos Arko, consultor experto en marketing de contenido en Instagram. Usás el Framework de Fran (Francisco Doglio).
+const TEXT_ONLY_SYSTEM_PROMPT = `Sos Moka, consultor experto en marketing de contenido en Instagram. Usás el Framework de Fran (Francisco Doglio).
 
 RESPONDE 100% EN ESPAÑOL.
 
@@ -414,7 +414,7 @@ async function analyzeReelWithGemini(reel: CompetitorReel): Promise<ReelAnalysis
   }
 
   // 4. Generate with Fran framework-enriched prompt for competitor analysis
-  const COMPETITOR_PROMPT = `Sos Arko, consultor experto en marketing de contenido en Instagram. Analizás este Reel de un competidor usando el Framework de Fran (Francisco Doglio).
+  const COMPETITOR_PROMPT = `Sos Moka, consultor experto en marketing de contenido en Instagram. Analizás este Reel de un competidor usando el Framework de Fran (Francisco Doglio).
 
 RESPONDE 100% EN ESPAÑOL. Cada campo, cada palabra, todo en español.
 

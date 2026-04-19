@@ -405,6 +405,123 @@
   transition: background-color 5000s ease-in-out 0s;
 }
 
+/* ══════════════════════════════════════════════════════════
+   LIGHT MODE — Clean & Minimal
+   Sin glassmorphism: surfaces sólidas, texto oscuro, sin blur
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Base ── */
+html:not(.dark) body {
+  background: #f5f2ee;
+  color: #111111;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
+  background-size: auto, 200px 200px;
+}
+html:not(.dark) body::before { display: none; }
+
+/* ── Header ── */
+html:not(.dark) header {
+  background: rgba(245,242,238,0.94) !important;
+  border-bottom: 1px solid rgba(100,50,15,0.08) !important;
+}
+html:not(.dark) header > div {
+  background: #ffffff !important;
+  border: 1px solid rgba(100,50,15,0.09) !important;
+  box-shadow: 0 1px 4px rgba(80,35,8,0.07) !important;
+}
+
+/* ── Glass surfaces → cards sólidas blancas con acento marrón ── */
+html:not(.dark) .glass-card,
+html:not(.dark) .glass-panel,
+html:not(.dark) .glass-section,
+html:not(.dark) .card-dark,
+html:not(.dark) .card-dark-lg {
+  background: #ffffff !important;
+  border: 1px solid rgba(100,50,15,0.10) !important;
+  border-top: 1px solid rgba(100,50,15,0.10) !important;
+  box-shadow: 0 1px 3px rgba(80,35,8,0.07), 0 4px 16px rgba(80,35,8,0.05) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html:not(.dark) .glass-card::before,
+html:not(.dark) .glass-card::after { display: none !important; }
+html:not(.dark) .glass-card:hover,
+html:not(.dark) .glass-panel:hover {
+  background: #fdfaf8 !important;
+  border-color: rgba(100,50,15,0.16) !important;
+  box-shadow: 0 2px 8px rgba(80,35,8,0.10), 0 6px 20px rgba(80,35,8,0.07) !important;
+  transform: translateY(-1px);
+}
+
+/* ── Typography classes ── */
+html:not(.dark) .stat-number, html:not(.dark) .stat-number-xl, html:not(.dark) .stat-number-hero { color: #111111; }
+html:not(.dark) .stat-label { color: rgba(0,0,0,0.52); }
+html:not(.dark) .page-title { color: #111111; }
+html:not(.dark) .page-title::after {
+  background: linear-gradient(90deg, #7c3b0f 0%, rgba(124,59,15,0.08) 100%);
+}
+html:not(.dark) .pill-badge { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.70); }
+
+/* ── text-white/* → texto oscuro — boosteado para legibilidad ── */
+html:not(.dark) .text-white    { color: #111111 !important; }
+html:not(.dark) .text-white\/10 { color: rgba(17,17,17,0.20) !important; }
+html:not(.dark) .text-white\/12 { color: rgba(17,17,17,0.24) !important; }
+html:not(.dark) .text-white\/15 { color: rgba(17,17,17,0.30) !important; }
+html:not(.dark) .text-white\/20 { color: rgba(17,17,17,0.40) !important; }
+html:not(.dark) .text-white\/25 { color: rgba(17,17,17,0.48) !important; }
+html:not(.dark) .text-white\/30 { color: rgba(17,17,17,0.56) !important; }
+html:not(.dark) .text-white\/35 { color: rgba(17,17,17,0.62) !important; }
+html:not(.dark) .text-white\/40 { color: rgba(17,17,17,0.68) !important; }
+html:not(.dark) .text-white\/45 { color: rgba(17,17,17,0.72) !important; }
+html:not(.dark) .text-white\/50 { color: rgba(17,17,17,0.76) !important; }
+html:not(.dark) .text-white\/55 { color: rgba(17,17,17,0.80) !important; }
+html:not(.dark) .text-white\/60 { color: rgba(17,17,17,0.84) !important; }
+html:not(.dark) .text-white\/65 { color: rgba(17,17,17,0.87) !important; }
+html:not(.dark) .text-white\/70 { color: rgba(17,17,17,0.89) !important; }
+html:not(.dark) .text-white\/75 { color: rgba(17,17,17,0.91) !important; }
+html:not(.dark) .text-white\/80 { color: rgba(17,17,17,0.93) !important; }
+html:not(.dark) .text-white\/85 { color: rgba(17,17,17,0.95) !important; }
+html:not(.dark) .text-white\/90 { color: rgba(17,17,17,0.97) !important; }
+
+/* ── bg-white/X → fondos sutiles oscuros ── */
+html:not(.dark) .bg-white\/\[0\.01\]  { background-color: rgba(0,0,0,0.01)  !important; }
+html:not(.dark) .bg-white\/\[0\.02\]  { background-color: rgba(0,0,0,0.02)  !important; }
+html:not(.dark) .bg-white\/\[0\.03\]  { background-color: rgba(0,0,0,0.025) !important; }
+html:not(.dark) .bg-white\/\[0\.04\]  { background-color: rgba(0,0,0,0.03)  !important; }
+html:not(.dark) .bg-white\/\[0\.05\]  { background-color: rgba(0,0,0,0.035) !important; }
+html:not(.dark) .bg-white\/\[0\.06\]  { background-color: rgba(0,0,0,0.05)  !important; }
+html:not(.dark) .bg-white\/\[0\.07\]  { background-color: rgba(0,0,0,0.055) !important; }
+html:not(.dark) .bg-white\/\[0\.08\]  { background-color: rgba(0,0,0,0.06)  !important; }
+html:not(.dark) .bg-white\/\[0\.1\]   { background-color: rgba(0,0,0,0.07)  !important; }
+html:not(.dark) .bg-white\/\[0\.15\]  { background-color: rgba(0,0,0,0.08)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.03\]:hover  { background-color: rgba(0,0,0,0.025) !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.04\]:hover  { background-color: rgba(0,0,0,0.03)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.05\]:hover  { background-color: rgba(0,0,0,0.035) !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.06\]:hover  { background-color: rgba(0,0,0,0.05)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.08\]:hover  { background-color: rgba(0,0,0,0.06)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.1\]:hover   { background-color: rgba(0,0,0,0.07)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.15\]:hover  { background-color: rgba(0,0,0,0.08)  !important; }
+
+/* ── border-white/X → gris sutil ── */
+html:not(.dark) .border-white\/\[0\.06\],
+html:not(.dark) .border-white\/\[0\.07\],
+html:not(.dark) .border-white\/\[0\.08\],
+html:not(.dark) .border-white\/\[0\.1\]  { border-color: rgba(0,0,0,0.08) !important; }
+
+/* ── Scrollbar ── */
+html:not(.dark) *::-webkit-scrollbar-thumb { background: rgba(80,35,8,0.12); }
+html:not(.dark) *::-webkit-scrollbar-thumb:hover { background: rgba(80,35,8,0.22); }
+html:not(.dark) * { scrollbar-color: rgba(80,35,8,0.12) transparent; }
+
+/* ── Autofill ── */
+html:not(.dark) .autofill-dark:-webkit-autofill,
+html:not(.dark) .autofill-dark:-webkit-autofill:hover,
+html:not(.dark) .autofill-dark:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: rgba(0,0,0,0.8) !important;
+  caret-color: rgba(0,0,0,0.8);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

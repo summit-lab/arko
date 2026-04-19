@@ -35,7 +35,7 @@ export function AdnMessage({ role, content, onCompetitorFormClick, competitorCou
                 <path fill="rgba(255,255,255,0.5)" d="M607.13,523.93h-204.93l-23.47-61.08c-18.53-49.04,6.47-104.64,55.35-123.28,48.72-18.58,104.22,5.99,123.21,54.68l49.84,129.68Z"/>
               </svg>
             </div>
-            <span className="text-[10px] font-medium text-white/30 tracking-wide">Arko</span>
+            <span className="text-[10px] font-medium text-white/30 tracking-wide">Moka</span>
           </div>
         )}
 

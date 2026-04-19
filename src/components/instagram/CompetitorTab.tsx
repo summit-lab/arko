@@ -392,7 +392,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Sparkles size={11} className="text-violet-400" />
-                  <p className="text-[10px] text-violet-300/60 uppercase tracking-wider font-medium">Análisis Arko</p>
+                  <p className="text-[10px] text-violet-300/60 uppercase tracking-wider font-medium">Análisis Moka</p>
                 </div>
                 <p className="text-[13px] text-white/60 font-light leading-relaxed">
                   {analysis.ai_summary}

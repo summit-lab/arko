@@ -34,7 +34,7 @@ interface UsageDailyChartProps {
 
 /** Feature label map for readable names */
 const FEATURE_LABELS: Record<string, string> = {
-  'ai-agents': 'Arko AI Chat',
+  'ai-agents': 'Moka AI Chat',
   'onboarding-adn': 'Onboarding ADN',
   'competitor-analysis': 'Análisis Competidores',
   'competitor-scraping': 'Scraping Competidores',
@@ -46,7 +46,7 @@ const FEATURE_LABELS: Record<string, string> = {
 
 /** Color map for features */
 const FEATURE_COLORS: Record<string, string> = {
-  'Arko AI Chat': '#818cf8',
+  'Moka AI Chat': '#818cf8',
   'Onboarding ADN': '#c084fc',
   'Análisis Competidores': '#f472b6',
   'Scraping Competidores': '#fb923c',

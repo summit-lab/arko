@@ -21,7 +21,7 @@ export default async function InvitePage({ params }: Props) {
     <div className="glass-panel rounded-xl p-8 space-y-6">
       {/* Logo */}
       <div className="flex items-center gap-3 justify-center mb-2">
-        <svg width="32" height="32" viewBox="0 0 607.13 523.93" xmlns="http://www.w3.org/2000/svg" aria-label="Arko">
+        <svg width="32" height="32" viewBox="0 0 607.13 523.93" xmlns="http://www.w3.org/2000/svg" aria-label="Moka">
           <defs>
             <linearGradient id="logo-grad-inv" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#ffffff" />
@@ -43,7 +43,7 @@ export default async function InvitePage({ params }: Props) {
         <>
           <div className="text-center">
             <h1 className="text-[22px] font-light text-white tracking-tight">
-              Bienvenido a Arko
+              Bienvenido a Moka
             </h1>
             <p className="text-white/35 mt-2 text-[14px] font-light">
               Creá tu cuenta para comenzar.

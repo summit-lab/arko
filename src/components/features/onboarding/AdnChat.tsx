@@ -222,7 +222,7 @@ export function AdnChat({
                     <span className="h-1.5 w-1.5 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: "150ms" }} />
                     <span className="h-1.5 w-1.5 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: "300ms" }} />
                   </div>
-                  <span className="text-[11px] text-white/25 font-light">Arko está pensando...</span>
+                  <span className="text-[11px] text-white/25 font-light">Moka está pensando...</span>
                 </div>
               </div>
             )}
@@ -236,7 +236,7 @@ export function AdnChat({
                     </svg>
                   </div>
                   <p className="text-[16px] font-light text-white/90 mb-1">ADN de Comunicación completo</p>
-                  <p className="text-[12px] text-white/40 font-light">Podés pedirle a Arko que modifique cualquier dato.</p>
+                  <p className="text-[12px] text-white/40 font-light">Podés pedirle a Moka que modifique cualquier dato.</p>
                 </div>
               </div>
             )}
@@ -257,7 +257,7 @@ export function AdnChat({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isComplete ? "Pedile a Arko que modifique algo..." : "Escribí tu respuesta..."}
+                placeholder={isComplete ? "Pedile a Moka que modifique algo..." : "Escribí tu respuesta..."}
                 disabled={isLoading}
                 rows={1}
                 className="w-full bg-transparent text-[14px] text-white/85 placeholder:text-white/20 font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"

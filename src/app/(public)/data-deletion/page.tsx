@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Data Deletion — Arko",
-  description: "Data Deletion instructions and policy for Arko platform.",
+  title: "Data Deletion — Moka",
+  description: "Data Deletion instructions and policy for Moka platform.",
 };
 
 export default function DataDeletionPage() {
@@ -42,7 +42,7 @@ export default function DataDeletionPage() {
           </h2>
           <div className="space-y-3 text-sm leading-relaxed text-white/60">
             <p>
-              Arko provides multiple ways to remove your data from our platform.
+              Moka provides multiple ways to remove your data from our platform.
               You can choose to disconnect a specific integration or delete your
               entire account.
             </p>
@@ -59,7 +59,7 @@ export default function DataDeletionPage() {
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-white/50">
               You can disconnect your Instagram/Facebook integration at any time
-              from your Arko dashboard by going to <strong className="text-white/70">Settings</strong> and
+              from your Moka dashboard by going to <strong className="text-white/70">Settings</strong> and
               clicking <strong className="text-white/70">&quot;Disconnect Meta Account&quot;</strong>. This will:
             </p>
             <ul className="mt-3 list-disc space-y-1 pl-6 text-sm text-white/50">
@@ -82,15 +82,15 @@ export default function DataDeletionPage() {
               Revoke Access via Facebook
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-white/50">
-              You can also revoke Arko&apos;s access directly from Facebook:
+              You can also revoke Moka&apos;s access directly from Facebook:
             </p>
             <ol className="mt-3 list-decimal space-y-1 pl-6 text-sm text-white/50">
               <li>Go to your <a href="https://www.facebook.com/settings?tab=business_tools" className="text-violet-400 underline underline-offset-4" target="_blank" rel="noopener noreferrer">Facebook Settings &gt; Business Integrations</a></li>
-              <li>Find &quot;Arko&quot; in the list of connected applications</li>
+              <li>Find &quot;Moka&quot; in the list of connected applications</li>
               <li>Click &quot;Remove&quot; to revoke all permissions</li>
             </ol>
             <p className="mt-3 text-sm text-white/40">
-              This will immediately prevent Arko from accessing any of your
+              This will immediately prevent Moka from accessing any of your
               Meta/Instagram data. Our system will detect the revocation and
               update your connection status accordingly.
             </p>
@@ -104,7 +104,7 @@ export default function DataDeletionPage() {
               Complete Account &amp; Data Deletion
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-white/50">
-              To request complete deletion of your Arko account and all
+              To request complete deletion of your Moka account and all
               associated data, send an email to:
             </p>
             <a
@@ -117,7 +117,7 @@ export default function DataDeletionPage() {
               Please include:
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-white/50">
-              <li>The email address associated with your Arko account</li>
+              <li>The email address associated with your Moka account</li>
               <li>Your Instagram username (if connected)</li>
               <li>Confirmation that you want all data permanently deleted</li>
             </ul>
@@ -201,11 +201,11 @@ export default function DataDeletionPage() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/[0.06] px-8 py-10 text-center">
         <p className="text-xs text-white/30">
-          &copy; {new Date().getFullYear()} Arko by Summit Lab. All rights reserved.
+          &copy; {new Date().getFullYear()} Moka by Summit Lab. All rights reserved.
         </p>
         <div className="mt-3 flex justify-center gap-6 text-xs text-white/40">
           <a href="/landing-arko" className="hover:text-white/70 transition-colors">
-            About Arko
+            About Moka
           </a>
           <a href="/privacy" className="hover:text-white/70 transition-colors">
             Privacy Policy

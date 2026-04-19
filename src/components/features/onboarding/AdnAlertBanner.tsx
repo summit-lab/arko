@@ -32,7 +32,7 @@ export function AdnAlertBanner() {
         <p className="text-[13px] text-amber-200/80 font-light flex-1">
           Tu{" "}
           <span className="font-medium text-amber-200">ADN de Comunicación</span>{" "}
-          está pendiente. Completalo para que Arko AI pueda darte análisis y recomendaciones personalizadas.
+          está pendiente. Completalo para que Moka AI pueda darte análisis y recomendaciones personalizadas.
         </p>
         <Link
           href="/onboarding/adn"
@@ -66,7 +66,7 @@ export function AdnBlockOverlay() {
           </svg>
         </div>
         <p className="text-[15px] font-medium text-white/80 mb-1.5">
-          Arko AI necesita tu ADN
+          Moka AI necesita tu ADN
         </p>
         <p className="text-[13px] text-white/40 font-light mb-5 leading-relaxed">
           Para darte análisis y recomendaciones personalizadas, primero completá tu ADN de Comunicación.

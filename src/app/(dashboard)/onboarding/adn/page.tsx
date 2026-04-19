@@ -6,7 +6,7 @@ import { getAdnProgress, getOrCreateAdnSession, getAdnData } from "@/services/ad
 import { ADN_WELCOME_MESSAGE } from "@/services/adn-prompts";
 
 export const metadata = {
-  title: "ADN de Comunicación | Arko",
+  title: "ADN de Comunicación | Moka",
 };
 
 export default async function AdnOnboardingPage() {

@@ -5,7 +5,7 @@ import { getAdnData, getAdnProgress } from "@/services/adn-progress.service";
 import { AdnEditor } from "@/components/settings/AdnEditor";
 
 export const metadata = {
-  title: "ADN de Marca | Arko",
+  title: "ADN de Marca | Moka",
 };
 
 export default async function AdnSettingsPage() {

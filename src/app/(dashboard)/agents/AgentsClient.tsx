@@ -203,7 +203,7 @@ export default function ArkoAIClient({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Preguntale a Arko..."
+                placeholder="Preguntale a Moka..."
                 disabled={isLoading}
                 rows={1}
                 className="w-full bg-transparent text-[14px] text-white/85 placeholder:text-white/20 font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
@@ -312,7 +312,7 @@ function EmptyState({
       </div>
 
       <h2 className="text-[20px] font-light text-white/75 mb-2 tracking-wide">
-        Arko AI
+        Moka AI
       </h2>
       <p className="text-[13px] text-white/30 font-light max-w-md text-center mb-10">
         Tu consultor de marketing con acceso a toda la data de tu workspace.

@@ -172,7 +172,7 @@ export function ReelChatPanel({
             <ArkoLogoSmall size={14} opacity={0.6} />
           </div>
           <span className="text-[13px] font-light text-white/60 group-hover:text-white/80 transition-colors">
-            Preguntale a Arko
+            Preguntale a Moka
           </span>
           <MessageSquareText className="h-3.5 w-3.5 text-white/30 group-hover:text-white/50 transition-colors" />
         </button>
@@ -191,7 +191,7 @@ export function ReelChatPanel({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-medium text-white/70 truncate">
-              Arko AI — Reel
+              Moka AI — Reel
             </p>
             <p className="text-[10px] text-white/30 font-light truncate">
               {captionPreview}
@@ -305,7 +305,7 @@ function ReelChatEmpty({
       </div>
 
       <p className="text-[13px] font-light text-white/50 mb-1">
-        Arko AI
+        Moka AI
       </p>
       <p className="text-[11px] text-white/25 font-light text-center mb-6 max-w-[280px]">
         Preguntame lo que quieras sobre este reel. Tengo todas las métricas y el contexto de tu cuenta.

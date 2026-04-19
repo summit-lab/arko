@@ -118,7 +118,7 @@ export function AdminSidebar() {
         >
           <ArrowLeft size={16} strokeWidth={1.5} className="text-white/40 group-hover:text-white/70" />
           <span className="text-[13px] tracking-wide font-light text-white/40 group-hover:text-white/70">
-            Volver a Arko
+            Volver a Moka
           </span>
         </Link>
       </div>

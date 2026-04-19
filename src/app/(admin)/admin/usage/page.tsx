@@ -60,7 +60,7 @@ interface TypeUsage {
 
 /** Human-readable feature labels */
 const FEATURE_LABELS: Record<string, string> = {
-  'ai-agents': 'Arko AI Chat',
+  'ai-agents': 'Moka AI Chat',
   'onboarding-adn': 'Onboarding ADN',
   'competitor-analysis': 'Análisis Competidores (IA)',
   'competitor-scraping': 'Scraping Competidores',

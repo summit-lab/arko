@@ -311,7 +311,7 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         Tu perfil de marca todavía no tiene datos
       </p>
       <p className="text-[13px] text-white/30 font-light mb-6 max-w-md mx-auto">
-        Completá tu ADN de Comunicación para que Arko conozca tu negocio, audiencia, competencia y marca.
+        Completá tu ADN de Comunicación para que Moka conozca tu negocio, audiencia, competencia y marca.
       </p>
       <Link
         href="/onboarding/adn"

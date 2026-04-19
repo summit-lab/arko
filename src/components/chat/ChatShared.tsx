@@ -163,7 +163,7 @@ export function ArkoMessage({
             <ArkoLogoSmall />
           </div>
           <span className="text-[10px] font-medium text-white/30 tracking-wide">
-            Arko
+            Moka
           </span>
         </div>
         <div className="whitespace-pre-wrap font-light">
@@ -191,7 +191,7 @@ export function ThinkingIndicator({
             <ArkoLogoSmall />
           </div>
           <span className="text-[10px] font-medium text-white/30 tracking-wide">
-            Arko
+            Moka
           </span>
         </div>
 

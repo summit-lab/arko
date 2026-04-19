@@ -210,7 +210,7 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
           href="/onboarding/adn"
           className="inline-flex items-center gap-1.5 text-[12px] text-white/25 hover:text-white/50 transition-colors"
         >
-          Completar con Arko AI →
+          Completar con Moka AI →
         </a>
       </Section>
 
@@ -313,7 +313,7 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
           href="/onboarding/adn"
           className="inline-flex items-center gap-1.5 text-[12px] text-white/25 hover:text-white/50 transition-colors"
         >
-          Agregar competidores con Arko AI →
+          Agregar competidores con Moka AI →
         </a>
       </Section>
 

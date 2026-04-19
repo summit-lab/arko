@@ -110,7 +110,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                   <ConnectMetaButton workspaceId={workspaceId || ""} />
                 </div>
                 <p className="text-[10px] text-zinc-600 mt-3">
-                  Al conectar, aceptás que Arko acceda a tus datos de Instagram y Meta Ads en modo lectura.
+                  Al conectar, aceptás que Moka acceda a tus datos de Instagram y Meta Ads en modo lectura.
                 </p>
               </div>
             </div>

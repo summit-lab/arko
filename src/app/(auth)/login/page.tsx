@@ -25,7 +25,7 @@ export default function LoginPage() {
       <div className="flex flex-col items-center mb-8">
         <Image
           src="/Arcadia Logo.png"
-          alt="Arko Logo"
+          alt="Moka Logo"
           width={160}
           height={36}
           className="h-auto w-auto brightness-200 mb-6"

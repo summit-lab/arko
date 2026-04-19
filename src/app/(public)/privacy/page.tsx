@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Arko",
-  description: "Privacy Policy for Arko, the AI Marketing Director platform.",
+  title: "Privacy Policy — Moka",
+  description: "Privacy Policy for Moka, the AI Marketing Director platform.",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -51,20 +51,20 @@ export default function PrivacyPolicyPage() {
 
         <Section title="1. Introduction">
           <p>
-            Arko (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is a SaaS analytics platform developed
+            Moka (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is a SaaS analytics platform developed
             by Summit Lab that provides AI-powered marketing intelligence for
             content creators and personal brands. This Privacy Policy describes
             how we collect, use, store, and protect your information when you use
             our platform at www.usearko.io (the &quot;Service&quot;).
           </p>
           <p>
-            By using Arko, you consent to the data practices described in this
+            By using Moka, you consent to the data practices described in this
             policy. If you do not agree, please do not use the Service.
           </p>
         </Section>
 
         <Section title="2. Information We Collect">
-          <p><strong className="text-white/80">Account Information:</strong> When you register or are invited to Arko, we collect your email address, name, and authentication credentials managed through Supabase Auth.</p>
+          <p><strong className="text-white/80">Account Information:</strong> When you register or are invited to Moka, we collect your email address, name, and authentication credentials managed through Supabase Auth.</p>
           <p><strong className="text-white/80">Instagram Data:</strong> When you connect your Instagram Business Account via Meta OAuth, we access and store:</p>
           <ul className="list-disc space-y-1 pl-6">
             <li>Profile information (username, name, follower count, following count, media count, biography, profile picture URL)</li>
@@ -145,13 +145,13 @@ export default function PrivacyPolicyPage() {
             <li><strong className="text-white/80">Disconnect:</strong> You can disconnect your Meta account at any time from your dashboard settings. This immediately nullifies all stored tokens.</li>
             <li><strong className="text-white/80">Data Access:</strong> You can request a copy of all data we store about you by contacting us.</li>
             <li><strong className="text-white/80">Data Deletion:</strong> You can request complete deletion of your account and all associated data. See our <a href="/data-deletion" className="text-violet-400 underline underline-offset-4">Data Deletion Policy</a>.</li>
-            <li><strong className="text-white/80">Revoke Meta Permissions:</strong> You can revoke Arko&apos;s access to your Meta data at any time through your <a href="https://www.facebook.com/settings?tab=business_tools" className="text-violet-400 underline underline-offset-4" target="_blank" rel="noopener noreferrer">Facebook Settings &gt; Business Integrations</a>.</li>
+            <li><strong className="text-white/80">Revoke Meta Permissions:</strong> You can revoke Moka&apos;s access to your Meta data at any time through your <a href="https://www.facebook.com/settings?tab=business_tools" className="text-violet-400 underline underline-offset-4" target="_blank" rel="noopener noreferrer">Facebook Settings &gt; Business Integrations</a>.</li>
           </ul>
         </Section>
 
         <Section title="8. Children's Privacy">
           <p>
-            Arko is not intended for use by individuals under the age of 18. We
+            Moka is not intended for use by individuals under the age of 18. We
             do not knowingly collect personal information from children. If we
             become aware that we have collected data from a child under 18, we
             will delete that information immediately.
@@ -187,11 +187,11 @@ export default function PrivacyPolicyPage() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/[0.06] px-8 py-10 text-center">
         <p className="text-xs text-white/30">
-          &copy; {new Date().getFullYear()} Arko by Summit Lab. All rights reserved.
+          &copy; {new Date().getFullYear()} Moka by Summit Lab. All rights reserved.
         </p>
         <div className="mt-3 flex justify-center gap-6 text-xs text-white/40">
           <a href="/landing-arko" className="hover:text-white/70 transition-colors">
-            About Arko
+            About Moka
           </a>
           <a href="/data-deletion" className="hover:text-white/70 transition-colors">
             Data Deletion

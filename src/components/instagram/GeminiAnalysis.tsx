@@ -146,7 +146,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
               <Sparkles className="h-5 w-5 text-violet-400" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-white">Análisis profundo con ArkoAI</p>
+              <p className="text-sm font-semibold text-white">Análisis profundo con MokaAI</p>
               <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
                 Transcripción con timestamps, narrativa, análisis visual, tono de voz, insights y potencial viral — todo en un solo análisis.
               </p>
@@ -178,7 +178,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
         <div className="flex items-center gap-4">
           <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
           <div>
-            <p className="text-sm font-semibold text-white">Analizando con ArkoAI</p>
+            <p className="text-sm font-semibold text-white">Analizando con MokaAI</p>
             <p className="text-xs text-zinc-400">Descargando y procesando el video. Puede tardar entre 30 y 90 segundos.</p>
           </div>
         </div>
@@ -216,7 +216,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-violet-400" />
-          <h3 className="text-sm font-semibold text-white">Análisis ArkoAI</h3>
+          <h3 className="text-sm font-semibold text-white">Análisis MokaAI</h3>
         </div>
         <button
           onClick={handleAnalyze}
