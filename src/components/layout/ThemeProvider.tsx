@@ -14,6 +14,14 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => {},
 });
 
+function applyClass(t: Theme) {
+  if (t === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
 
@@ -23,14 +31,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(resolved);
     applyClass(resolved);
   }, []);
-
-  function applyClass(t: Theme) {
-    if (t === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }
 
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
