@@ -12,8 +12,8 @@ import {
 import { logout } from "@/app/(auth)/actions";
 import { useTheme } from "./ThemeProvider";
 
-const BROWN = "#7c3b0f";
-const BROWN_LIGHT = "rgba(124,59,15,0.65)";
+const BROWN = "#3A1F04";
+const BROWN_LIGHT = "rgba(58,31,4,0.65)";
 
 const navItems = [
   { name: "Dashboard",  href: "/",          svg: "/svgs/dashboard_21.svg" },
@@ -71,8 +71,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
   function activeBarStyle() {
     return isLight
       ? {
-          background: `linear-gradient(to bottom, rgba(124,59,15,0.1) 0%, ${BROWN} 50%, rgba(124,59,15,0.1) 100%)`,
-          boxShadow: "0 0 8px rgba(124,59,15,0.35)",
+          background: `linear-gradient(to bottom, rgba(58,31,4,0.1) 0%, ${BROWN} 50%, rgba(58,31,4,0.1) 100%)`,
+          boxShadow: "0 0 8px rgba(58,31,4,0.35)",
         }
       : {
           background: "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.1) 100%)",
@@ -82,7 +82,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
 
   function iconFilter(isActive: boolean) {
     if (isLight) {
-      return { filter: "brightness(0)", opacity: isActive ? 0.85 : 0.45 };
+      // brightness(0)→black, sepia(1)→warm brown, saturate+brightness to reach #3A1F04
+      return { filter: "brightness(0) sepia(1) saturate(2) brightness(0.42)", opacity: isActive ? 1 : 0.60 };
     }
     return { filter: "brightness(0) invert(1)", opacity: isActive ? 1 : 0.4 };
   }
