@@ -33,6 +33,16 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 // ═══════════════════════════════════════════════════════════════
 
 Deno.serve(async (req: Request) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, x-sync-secret, content-type",
+      },
+    });
+  }
+
   // Only POST
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
@@ -902,45 +912,60 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
     // ── followers_total reconstruction ─────────────────────────────
     // Strategy:
     //   1. Today = real profile snapshot (currentFollowersTotal)
-    //   2. Days with Meta delta (follower_count > 0): walk backwards from today
-    //      to reconstruct the cumulative total for each day
+    //   2. Days with Meta delta (follower_count defined, even if 0): walk backwards
+    //      from today subtracting deltas to reconstruct cumulative total
     //   3. Gap days (between last Meta delta and today): interpolate linearly
-    //      so the chart shows a smooth line. These get replaced by real data
-    //      as Meta "unlocks" deltas for recent days over time.
-    //   4. Only write followers_total for days that don't already have one,
-    //      so we never overwrite a previously stored real snapshot.
+    //   4. Always overwrite followers_total — recomputed values are more accurate
+    //      than stale interpolations from previous syncs
     const currentFollowersTotal = profileData?.followers_count ?? 0;
     const syncDate = new Date().toISOString().split("T")[0];
     const sortedDates = [...dayMap.keys()].sort();
-
-    // Find which days already have a followers_total in the DB
-    const { data: existingFt } = await supabase
-      .from("ig_account_insights")
-      .select("metric_date, followers_total")
-      .eq("workspace_id", workspaceId)
-      .in("metric_date", sortedDates)
-      .gt("followers_total", 0);
-    const existingFtSet = new Set((existingFt ?? []).map((r: { metric_date: string }) => r.metric_date));
 
     // Compute followers_total for each day
     const followersTotalByDate = new Map<string, number>();
 
     if (currentFollowersTotal > 0 && sortedDates.length > 0) {
-      // Find the last day with a real delta from Meta
+      // Find the last day with a real delta from Meta (any day that has follower_count defined)
       let lastDeltaIdx = -1;
       for (let i = sortedDates.length - 1; i >= 0; i--) {
-        if ((dayMap.get(sortedDates[i])?.follower_count ?? 0) > 0) {
+        if (dayMap.get(sortedDates[i])?.follower_count != null) {
           lastDeltaIdx = i;
           break;
         }
       }
 
-      // Walk backwards from today's total through days with real deltas
-      let runningTotal = currentFollowersTotal;
-      followersTotalByDate.set(syncDate, currentFollowersTotal);
+      // Sum all known deltas to compute the total at lastDeltaIdx
+      // currentFollowersTotal = total_at_lastDeltaIdx + deltas[lastDeltaIdx+1..today] + growth_in_gap
+      // Since gap days have no deltas reported, we can only compute:
+      //   total_at_day_after_lastDelta = currentFollowersTotal (approximate, gap growth unknown)
+      //   total_at_lastDeltaIdx = currentFollowersTotal - sum(deltas from firstDelta to lastDelta going forward)
+      // Instead: sum ALL known deltas, then lastDeltaTotal = currentTotal - sumOfAllDeltasAfterThatDay
+      // But we only have deltas up to lastDeltaIdx, so:
+      //   totalAtLastDelta = currentTotal - (growth in gap days without deltas)
+      // We don't know gap growth, so use sum of known deltas to back-compute:
+      let sumAllDeltas = 0;
+      for (let i = 0; i <= lastDeltaIdx; i++) {
+        sumAllDeltas += (dayMap.get(sortedDates[i])?.follower_count ?? 0);
+      }
 
-      // The total at lastDeltaIdx = currentTotal (assuming 0 net change in gap)
-      // Then subtract deltas going further back
+      // The total at the start of our known-delta window:
+      // totalBeforeFirstDelta + sumAllDeltas + gapGrowth = currentFollowersTotal
+      // We can compute totalAtLastDelta = totalBeforeFirstDelta + sumAllDeltas
+      //   where totalBeforeFirstDelta = currentFollowersTotal - sumAllDeltas - gapGrowth
+      // Since we don't know gapGrowth, estimate it proportionally:
+      //   avgDailyGrowth from known deltas = sumAllDeltas / numDeltaDays
+      //   gapGrowth ≈ avgDailyGrowth * numGapDays
+      const numDeltaDays = lastDeltaIdx + 1;
+      const numGapDays = sortedDates.length - 1 - lastDeltaIdx; // gap = days after lastDelta in our window
+      const avgDailyGrowth = numDeltaDays > 0 ? sumAllDeltas / numDeltaDays : 0;
+      const estimatedGapGrowth = Math.round(avgDailyGrowth * numGapDays);
+
+      // Now we can compute the total at lastDeltaIdx
+      const totalAtLastDelta = currentFollowersTotal - estimatedGapGrowth;
+
+      // Walk backwards from totalAtLastDelta through days with real deltas
+      followersTotalByDate.set(syncDate, currentFollowersTotal);
+      let runningTotal = totalAtLastDelta;
       for (let i = lastDeltaIdx; i >= 0; i--) {
         followersTotalByDate.set(sortedDates[i], runningTotal);
         runningTotal -= (dayMap.get(sortedDates[i])?.follower_count ?? 0);
@@ -948,13 +973,11 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
 
       // Interpolate gap days (between lastDeltaIdx and today) with a straight line
       if (lastDeltaIdx >= 0 && lastDeltaIdx < sortedDates.length - 1) {
-        const gapStartDate = sortedDates[lastDeltaIdx];
-        const gapStartTotal = followersTotalByDate.get(gapStartDate) ?? currentFollowersTotal;
+        const gapStartTotal = totalAtLastDelta;
         const gapEndTotal = currentFollowersTotal;
-        const gapDays = sortedDates.length - 1 - lastDeltaIdx;
 
-        if (gapDays > 0) {
-          const dailyIncrement = (gapEndTotal - gapStartTotal) / gapDays;
+        if (numGapDays > 0) {
+          const dailyIncrement = (gapEndTotal - gapStartTotal) / numGapDays;
           for (let i = lastDeltaIdx + 1; i < sortedDates.length; i++) {
             const stepsFromStart = i - lastDeltaIdx;
             followersTotalByDate.set(sortedDates[i], Math.round(gapStartTotal + dailyIncrement * stepsFromStart));
@@ -966,10 +989,8 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
     console.log(`[account-sync] followers_total snapshot: ${currentFollowersTotal} for ${syncDate}, computed for ${followersTotalByDate.size} days`);
 
     for (const [date, metrics] of dayMap) {
-      // Compute followers_total: use new computed value only if DB doesn't have one yet
       const computedFt = followersTotalByDate.get(date);
-      const alreadyHasFt = existingFtSet.has(date);
-      const ftPayload = (!alreadyHasFt && computedFt != null && computedFt > 0)
+      const ftPayload = (computedFt != null && computedFt > 0)
         ? { followers_total: computedFt }
         : {};
 
