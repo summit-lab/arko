@@ -118,7 +118,11 @@ async function syncYouTube(
     const ch = chData.items?.[0];
     if (ch) {
       uploadsPlaylistId = ch.contentDetails?.relatedPlaylists?.uploads || null;
-      await supabase.from("yt_channels").upsert({
+      const subscriberCount = parseInt(ch.statistics?.subscriberCount || "0");
+      const videoCountStat = parseInt(ch.statistics?.videoCount || "0");
+      const viewCountStat = parseInt(ch.statistics?.viewCount || "0");
+
+      const { data: channelRow } = await supabase.from("yt_channels").upsert({
         workspace_id: workspaceId,
         yt_channel_id: channelId,
         title: ch.snippet?.title,
@@ -127,12 +131,26 @@ async function syncYouTube(
         thumbnail_url: ch.snippet?.thumbnails?.high?.url || ch.snippet?.thumbnails?.default?.url,
         country: ch.snippet?.country,
         published_at: ch.snippet?.publishedAt,
-        subscriber_count: parseInt(ch.statistics?.subscriberCount || "0"),
-        video_count: parseInt(ch.statistics?.videoCount || "0"),
-        view_count: parseInt(ch.statistics?.viewCount || "0"),
+        subscriber_count: subscriberCount,
+        video_count: videoCountStat,
+        view_count: viewCountStat,
         uploads_playlist_id: uploadsPlaylistId,
         fetched_at: new Date().toISOString(),
-      }, { onConflict: "workspace_id,yt_channel_id" });
+      }, { onConflict: "workspace_id,yt_channel_id" }).select("id").maybeSingle();
+
+      // Daily channel snapshot (idempotent within the day via UNIQUE constraint)
+      if (channelRow?.id) {
+        await supabase.from("yt_channel_metrics_daily").upsert({
+          channel_id: channelRow.id,
+          workspace_id: workspaceId,
+          metric_date: new Date().toISOString().split("T")[0],
+          subscriber_count: subscriberCount,
+          video_count: videoCountStat,
+          view_count: viewCountStat,
+          fetched_at: new Date().toISOString(),
+        }, { onConflict: "channel_id,metric_date" });
+      }
+
       result.channelUpdated = true;
     }
   } catch (err) {

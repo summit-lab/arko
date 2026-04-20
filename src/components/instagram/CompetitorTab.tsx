@@ -98,11 +98,11 @@ type SortKey = "views" | "likes" | "date";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const HOOK_TYPE_META: Record<string, { label: string; color: string; dot: string; hex: string }> = {
-  transformacion: { label: "Transformación", color: "text-violet-400",  dot: "bg-violet-400",  hex: "#a78bfa" },
-  enemigo:        { label: "Enemigo",         color: "text-rose-400",    dot: "bg-rose-400",    hex: "#fb7185" },
-  negativo:       { label: "Negativo",        color: "text-amber-400",   dot: "bg-amber-400",   hex: "#fbbf24" },
-  promesa:        { label: "Promesa",         color: "text-teal-400",    dot: "bg-teal-400",    hex: "#2dd4bf" },
-  curiosidad:     { label: "Curiosidad",      color: "text-sky-400",     dot: "bg-sky-400",     hex: "#38bdf8" },
+  transformacion: { label: "Transformación", color: "text-violet-700 dark:text-violet-400",  dot: "bg-violet-400",  hex: "#a78bfa" },
+  enemigo:        { label: "Enemigo",         color: "text-rose-700 dark:text-rose-400",    dot: "bg-rose-400",    hex: "#fb7185" },
+  negativo:       { label: "Negativo",        color: "text-amber-700 dark:text-amber-400",   dot: "bg-amber-400",   hex: "#fbbf24" },
+  promesa:        { label: "Promesa",         color: "text-teal-700 dark:text-teal-400",    dot: "bg-teal-400",    hex: "#2dd4bf" },
+  curiosidad:     { label: "Curiosidad",      color: "text-sky-700 dark:text-sky-400",     dot: "bg-sky-400",     hex: "#38bdf8" },
   desconocido:    { label: "Sin clasificar",  color: "text-muted-foreground",    dot: "bg-muted-foreground/40",    hex: "rgb(148,148,148)" },
 };
 
@@ -383,7 +383,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Sparkles size={11} className="text-violet-400" />
-                  <p className="text-[10px] text-violet-300/60 uppercase tracking-wider font-medium">Análisis Moka</p>
+                  <p className="text-[10px] text-violet-700 dark:text-violet-300/60 uppercase tracking-wider font-medium">Análisis Moka</p>
                 </div>
                 <AIMarkdown>{analysis.ai_summary}</AIMarkdown>
               </div>
@@ -560,7 +560,7 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
         ) : (
           <button
             onClick={() => onOpenAnalysis(reel, analysis)}
-            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-xl text-[11px] font-medium text-violet-300 hover:text-violet-200 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-xl text-[11px] font-medium text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 transition-all cursor-pointer"
             style={GLASS_VIOLET}
           >
             <Zap size={10} />
@@ -1238,7 +1238,7 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-3">
             <Lightbulb size={12} className="text-violet-400 shrink-0" />
-            <p className="text-[10px] text-violet-300/70 font-medium uppercase tracking-wider">
+            <p className="text-[10px] text-violet-700 dark:text-violet-300/70 font-medium uppercase tracking-wider">
               Patrones globales — {allAnalyzed.length} reels analizados
             </p>
           </div>
@@ -1308,7 +1308,7 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (k: SortK
               }`}>
               <opt.icon size={10} />
               {opt.label}
-              {value === opt.key && <span className="ml-auto text-violet-400 text-[10px]">✓</span>}
+              {value === opt.key && <span className="ml-auto text-violet-600 dark:text-violet-400 text-[10px]">✓</span>}
             </button>
           ))}
         </div>
@@ -1446,7 +1446,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             </p>
           </div>
           <a href="/settings/adn"
-            className="flex items-center gap-2 text-[13px] font-medium text-violet-300 px-5 py-2.5 rounded-full transition-all"
+            className="flex items-center gap-2 text-[13px] font-medium text-violet-700 dark:text-violet-300 px-5 py-2.5 rounded-full transition-all"
             style={GLASS_VIOLET}>
             <BookMarked size={14} /> Ir al ADN de Comunicación
           </a>
@@ -1530,7 +1530,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                       </p>
                     )}
                     {selected.why_better && (
-                      <p className="text-[11px] text-violet-300/50 font-light mt-1 leading-snug">
+                      <p className="text-[11px] text-violet-700 dark:text-violet-300/50 font-light mt-1 leading-snug">
                         Por qué son mejores: {selected.why_better}
                       </p>
                     )}
@@ -1547,7 +1547,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     ) : selected.competitor_reels.length > 0 ? (
                       <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">Re-analizar</span></>
                     ) : (
-                      <><Zap size={12} className="text-violet-400" /><span className="text-violet-300">Scrape + Analizar</span></>
+                      <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">Scrape + Analizar</span></>
                     )}
                   </button>
                 </div>
@@ -1571,7 +1571,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                   <p className="text-[10px] text-white/15 mt-1">Hacé click en "Scrape + Analizar"</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {sortedReels.map((reel) => (
                     <ReelGalleryCard
                       key={reel.id}
