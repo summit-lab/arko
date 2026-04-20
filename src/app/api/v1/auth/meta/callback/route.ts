@@ -8,7 +8,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 import { env, getAppUrl, getMetaRedirectUri } from '@/lib/env';
-import { subscribeIgAccountToWebhook } from '@/services/ig-webhook-subscription.service';
 
 function getWorkspaceIdFromState(stateParam: string | null) {
   if (!stateParam) {
@@ -174,36 +173,6 @@ export async function GET(request: Request) {
       console.error('[meta-callback] save_meta_connection RPC error:', rpcError);
       await markConnectionAsError(workspace_id, 'save_connection_failed');
       return NextResponse.redirect(`${getAppUrl()}/onboarding?error=save_connection_failed`);
-    }
-
-    // ── Subscribe IG business account to webhook (best-effort) ──
-    // Do NOT block the OAuth flow if this fails — user can retry from settings.
-    try {
-      const { data: conn } = await supabase
-        .from('meta_connections')
-        .select('id')
-        .eq('workspace_id', workspace_id)
-        .single();
-      if (conn?.id) {
-        const subscriptionToken = page?.access_token ?? accessToken;
-        if (!subscriptionToken || typeof subscriptionToken !== 'string') {
-          console.error('[meta-callback] No access token available for webhook subscription', {
-            workspace_id,
-            connection_id: conn.id,
-          });
-        } else {
-          const subResult = await subscribeIgAccountToWebhook({
-            id: conn.id,
-            ig_user_id: igBusinessAccountId,
-            access_token: subscriptionToken,
-          });
-          if (!subResult.ok) {
-            console.error('[meta-callback] Webhook subscription failed:', subResult.error);
-          }
-        }
-      }
-    } catch (subErr) {
-      console.error('[meta-callback] Webhook subscription threw:', subErr);
     }
 
     // Redirect to success page

@@ -1,8 +1,73 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Target, Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import { useState, useTransition, useRef, useEffect } from "react";
+import { Target, Pencil, Trash2, Plus, Check, X, ChevronDown } from "lucide-react";
 import { upsertGoal, deleteGoal } from "@/app/(dashboard)/customer-voice/actions";
+
+function MetricSelect({
+  value,
+  onChange,
+  options,
+  labels,
+  placeholder = "Elegir métrica...",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+  labels: Record<string, string>;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const selectedLabel = value ? (labels[value] ?? value) : placeholder;
+
+  return (
+    <div ref={ref} className="relative flex-1 min-w-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-1.5 rounded-md text-[13px] font-light bg-white/[0.06] border border-white/[0.1] outline-none cursor-pointer hover:bg-white/[0.08] transition-colors"
+      >
+        <span className={value ? "text-white" : "text-white/40"}>{selectedLabel}</span>
+        <ChevronDown
+          size={12}
+          strokeWidth={2}
+          className={`text-white/40 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-xl">
+          {options.length === 0 ? (
+            <div className="px-3 py-2 text-[12px] text-muted-foreground">Sin métricas disponibles</div>
+          ) : (
+            options.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { onChange(opt); setOpen(false); }}
+                className={`flex w-full items-center justify-between gap-4 px-3 py-2 text-[12px] font-light transition-colors hover:bg-white/[0.08] cursor-pointer ${
+                  opt === value ? "text-popover-foreground" : "text-muted-foreground hover:text-popover-foreground"
+                }`}
+              >
+                <span>{labels[opt] ?? opt}</span>
+                {opt === value && <Check size={12} strokeWidth={2.5} />}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface MetasEditorProps {
   goals: Record<string, number>;
@@ -152,16 +217,12 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
             className="flex items-center gap-3 px-4 py-3 rounded-lg mt-2 bg-white/[0.03]"
             style={{ border: "1px solid rgba(122,134,224,0.2)" }}
           >
-            <select
+            <MetricSelect
               value={newMetric}
-              onChange={(e) => setNewMetric(e.target.value)}
-              className="flex-1 px-2 py-1.5 rounded-md text-[13px] text-white font-light bg-white/[0.06] border border-white/[0.1] outline-none cursor-pointer"
-            >
-              <option value="" disabled>Elegir métrica...</option>
-              {availableMetrics.map((m) => (
-                <option key={m} value={m}>{metricLabels[m] ?? m}</option>
-              ))}
-            </select>
+              onChange={setNewMetric}
+              options={availableMetrics}
+              labels={metricLabels}
+            />
             <input
               type="number"
               value={newValue}

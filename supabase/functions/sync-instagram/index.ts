@@ -867,6 +867,11 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
           const outboundClicks = getActionMetricValue(row.outbound_clicks, "outbound_click");
           const inlineLinkClicks = parseInt(row.inline_link_clicks || "0") || 0;
           const clicks = outboundClicks || inlineLinkClicks || (parseInt(row.clicks || "0") || 0);
+          // Messaging conversations started from Click-to-Message ads (within 7d of click)
+          const messagingConversations = getActionMetricValue(
+            row.actions,
+            "onsite_conversion.messaging_conversation_started_7d"
+          );
           batch.push({
             workspace_id: workspaceId,
             ad_id: row.ad_id,
@@ -880,6 +885,7 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
             clicks,
             spend_cents: Math.round(parseFloat(row.spend || "0") * 100) || 0,
             video_plays: getActionMetricValue(row.video_play_actions, "video_view"),
+            messaging_conversations: messagingConversations,
             fetched_at: new Date().toISOString(),
           });
         }
@@ -1725,7 +1731,7 @@ async function fetchInsightsByAd(adAccountId: string, accessToken: string, days 
 async function fetchDailyInsightsByAd(adAccountId: string, accessToken: string, days = 90): Promise<InsightRow[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const until = new Date().toISOString().split("T")[0];
-  const fields = "ad_id,date_start,date_stop,impressions,reach,clicks,spend,inline_link_clicks,outbound_clicks,video_play_actions";
+  const fields = "ad_id,date_start,date_stop,impressions,reach,clicks,spend,inline_link_clicks,outbound_clicks,video_play_actions,actions";
   const rows: InsightRow[] = [];
   let url: string | null = `${GRAPH_BASE}/${adAccountId}/insights?level=ad&time_increment=1&time_range={"since":"${since}","until":"${until}"}&fields=${fields}&limit=500&access_token=${accessToken}`;
   while (url) {

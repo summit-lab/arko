@@ -1,21 +1,11 @@
 /**
  * POST /api/data-deletion-callback
  *
- * Meta App Review requirement: called when a user requests deletion of their
- * data from the Facebook/Instagram settings. Verifies the signed_request with
- * the app secret, records the request, performs inline deletion of the user's
- * IG conversation data, and responds with `{ url, confirmation_code }`.
- *
- * Deletion scope (tight by design):
- *   - `ig_conversation_events` rows where `sender_igsid = user_id`.
- *   - Nothing else — `meta_connections` belongs to the workspace, not the DM
- *     participant, and media/sales/ads data are scoped to connections rather
- *     than to individual end-users.
- *
- * Inline deletion is used because the Moka DM corpus is small (< a few
- * thousand rows per user even for high-volume workspaces) and Meta expects
- * a synchronous confirmation code. If volume grows, migrate to an Edge
- * function and mark the request as 'pending' until the job drains.
+ * Meta App Review requirement: verifies the signed_request, records the
+ * request, returns `{ url, confirmation_code }`. Moka does not store any
+ * per-end-user data (we only track aggregate metrics scoped to workspaces),
+ * so there is nothing to actually delete — the callback records the request
+ * for auditing and responds with the confirmation shape Meta expects.
  *
  * Ref: https://developers.facebook.com/docs/development/create-an-app/app-dashboard/data-deletion-callback/
  */
@@ -96,35 +86,12 @@ export async function POST(request: Request): Promise<Response> {
 
     const confirmationCode = inserted.code as string;
 
-    // 2) Inline deletion. Scope is strictly DM conversation rows keyed by
-    //    sender_igsid — the only place Moka persists data tied to an
-    //    individual Meta end-user.
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from('ig_conversation_events')
-      .delete()
-      .eq('sender_igsid', userId)
-      .select('id');
-
-    if (deleteError) {
-      console.error('[data-deletion-callback] Deletion failed', {
-        user_id: userId,
-        code: confirmationCode,
-        error: deleteError.message,
-      });
-      // Leave the row as 'pending' so operators can retry manually.
-      return NextResponse.json({
-        url: `${getAppUrl()}/data-deletion?code=${confirmationCode}`,
-        confirmation_code: confirmationCode,
-      });
-    }
-
-    const rowsDeleted = deletedRows?.length ?? 0;
-
+    // Mark as completed immediately — no per-user data to delete.
     const { error: updateError } = await supabase
       .from('data_deletion_requests')
       .update({
         status: 'completed',
-        rows_deleted: rowsDeleted,
+        rows_deleted: 0,
         completed_at: new Date().toISOString(),
       })
       .eq('code', confirmationCode);
@@ -136,10 +103,9 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    console.warn('[data-deletion-callback] Deletion completed', {
+    console.warn('[data-deletion-callback] Request recorded', {
       user_id: userId,
       confirmation_code: confirmationCode,
-      rows_deleted: rowsDeleted,
     });
 
     return NextResponse.json({
