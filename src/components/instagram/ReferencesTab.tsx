@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  Plus, ExternalLink, X, BookMarked, Loader2, Sparkles,
-  RefreshCw, Users, Play, Heart, MessageCircle, CheckCircle2,
-  ChevronDown, ChevronUp,
+  Plus, ExternalLink, X, Loader2, Sparkles, RefreshCw, Users,
+  CheckCircle2, Search, Copy, Check, Eye, Heart, BookMarked,
+  MessageCircleQuestion, List, Zap, Megaphone, GitCompare,
+  BookOpen, AlertTriangle, Languages, Type,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +44,36 @@ interface Reference {
   last_scraped_at: string | null;
 }
 
+type HookPattern = "pregunta" | "lista" | "contraste" | "cta" | "historia" | "shock" | "afirmacion";
+
+interface Hook {
+  id: string;
+  shortCode: string;
+  text: string;
+  fullCaption: string;
+  pattern: HookPattern;
+  referenceId: string;
+  referenceName: string;
+  referenceHandle: string | null;
+  views: number;
+  likes: number;
+  comments: number;
+  permalink: string | null;
+  thumbnailUrl: string | null;
+  engagementRate: number;
+  performanceTier: "top" | "mid" | "low";
+  language: string;
+  translation: string | null;
+  classifiedByAI: boolean;
+}
+
+interface ClassificationResponse {
+  reel_short_code: string;
+  pattern: HookPattern;
+  language: string;
+  translation: string | null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number | null | undefined): string {
@@ -57,8 +88,8 @@ function extractHandle(url: string | null): string | null {
   const clean = url.trim().replace(/\/$/, "");
   if (clean.startsWith("@")) return clean;
   try {
-    const parts = new URL(clean.startsWith("http") ? clean : `https://${clean}`)
-      .pathname.split("/").filter(Boolean);
+    const u = new URL(clean.startsWith("http") ? clean : `https://${clean}`);
+    const parts = u.pathname.split("/").filter(Boolean);
     return parts[0] ? `@${parts[0]}` : null;
   } catch { return null; }
 }
@@ -70,6 +101,38 @@ function toIgUrl(url: string | null): string | null {
   return `https://instagram.com/${handle}`;
 }
 
+// Heuristic classifier (fallback while Gemini loads or fails)
+function classifyHookHeuristic(text: string): HookPattern {
+  const t = text.trim().toLowerCase();
+  if (!t) return "afirmacion";
+  if (/^[¿?]/.test(text) || /\?/.test(text.slice(0, 120))) return "pregunta";
+  if (/^[\d]+[.)\s-]|^[•\-*]\s/.test(text) || /\s\d+\s+(cosas|formas|errores|tips|trucos|pasos)/i.test(text)) return "lista";
+  if (/\b(pero|sin embargo|en cambio|vs|versus|no\s+es\s+lo\s+mismo|dejá\s+de|antes\s+vs|ahora\s+vs)\b/i.test(t)) return "contraste";
+  if (/\b(comentá|coment[aá]|escribí|mand[aá]|envi[aá]|segu[íi]me|seguime|dale\s+like|guardá|compartí|link\s+en\s+bio|comenta|escribe|env[ií]ame|comment)\b/i.test(t)) return "cta";
+  return "afirmacion";
+}
+
+function extractHook(caption: string): string {
+  const firstLine = caption.split(/\n/)[0]?.trim() ?? "";
+  if (!firstLine) return "";
+  if (firstLine.length <= 120) return firstLine;
+  const sentEnd = firstLine.search(/[.!?¡¿]\s/);
+  if (sentEnd > 0 && sentEnd < 150) return firstLine.slice(0, sentEnd + 1);
+  return firstLine.slice(0, 150).trimEnd() + "…";
+}
+
+// ─── Pattern meta ─────────────────────────────────────────────────────────────
+
+const PATTERN_META: Record<HookPattern, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
+  pregunta:   { label: "Pregunta",   color: "#38bdf8", bg: "rgba(56,189,248,0.12)",  border: "rgba(56,189,248,0.28)",  icon: MessageCircleQuestion },
+  lista:      { label: "Lista",      color: "#c4b5fd", bg: "rgba(196,181,253,0.12)", border: "rgba(196,181,253,0.3)",  icon: List },
+  contraste:  { label: "Contraste",  color: "#fbbf24", bg: "rgba(251,191,36,0.12)",  border: "rgba(251,191,36,0.3)",   icon: GitCompare },
+  cta:        { label: "CTA",        color: "#34d399", bg: "rgba(52,211,153,0.12)",  border: "rgba(52,211,153,0.3)",   icon: Megaphone },
+  historia:   { label: "Historia",   color: "#fb7185", bg: "rgba(251,113,133,0.12)", border: "rgba(251,113,133,0.3)",  icon: BookOpen },
+  shock:      { label: "Shock",      color: "#f472b6", bg: "rgba(244,114,182,0.12)", border: "rgba(244,114,182,0.3)",  icon: AlertTriangle },
+  afirmacion: { label: "Afirmación", color: "#a78bfa", bg: "rgba(167,139,250,0.12)", border: "rgba(167,139,250,0.3)",  icon: Zap },
+};
+
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 const PALETTES = [
@@ -78,7 +141,6 @@ const PALETTES = [
   { bg: "rgba(45,212,191,0.15)",  border: "rgba(45,212,191,0.3)",   text: "#2dd4bf" },
   { bg: "rgba(251,191,36,0.13)",  border: "rgba(251,191,36,0.28)",  text: "#fbbf24" },
   { bg: "rgba(251,113,133,0.15)", border: "rgba(251,113,133,0.3)",  text: "#fb7185" },
-  { bg: "rgba(167,139,250,0.15)", border: "rgba(167,139,250,0.3)",  text: "#c4b5fd" },
 ];
 
 function palette(name: string) {
@@ -87,13 +149,13 @@ function palette(name: string) {
   return PALETTES[Math.abs(h) % PALETTES.length]!;
 }
 
-function Avatar({ url, name, size = 52 }: { url?: string | null; name: string; size?: number }) {
+function Avatar({ url, name, size = 24 }: { url?: string | null; name: string; size?: number }) {
   const [failed, setFailed] = useState(false);
   const p = palette(name);
   if (!url || failed) {
     return (
-      <div className="shrink-0 flex items-center justify-center rounded-2xl font-light"
-        style={{ width: size, height: size, background: p.bg, border: `1px solid ${p.border}`, color: p.text, fontSize: size * 0.4 }}>
+      <div className="shrink-0 flex items-center justify-center rounded-full font-light"
+        style={{ width: size, height: size, background: p.bg, border: `1px solid ${p.border}`, color: p.text, fontSize: size * 0.42 }}>
         {name.trim().charAt(0).toUpperCase()}
       </div>
     );
@@ -101,244 +163,176 @@ function Avatar({ url, name, size = 52 }: { url?: string | null; name: string; s
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={url} alt="" width={size} height={size}
-      className="shrink-0 rounded-2xl object-cover"
+      className="shrink-0 rounded-full object-cover"
       style={{ width: size, height: size }}
       onError={() => setFailed(true)} />
   );
 }
 
-// ─── Reel thumbnail ───────────────────────────────────────────────────────────
+// ─── Reference chip ──────────────────────────────────────────────────────────
 
-function ReelThumb({ reel }: { reel: ScrapedReel }) {
-  const [failed, setFailed] = useState(false);
-
-  return (
-    <a
-      href={reel.permalink ?? "#"}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group relative rounded-xl overflow-hidden bg-muted block"
-      style={{ aspectRatio: "9/16" }}
-    >
-      {reel.thumbnail_url && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={reel.thumbnail_url} alt="" loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          onError={() => setFailed(true)} />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Play size={16} className="text-white/10" />
-        </div>
-      )}
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)" }} />
-      {/* Stats */}
-      <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1.5">
-        {reel.views_count != null && (
-          <span className="flex items-center gap-0.5 text-[9px] text-white/70">
-            <Play size={7} className="shrink-0" />{fmt(reel.views_count)}
-          </span>
-        )}
-        {reel.likes_count != null && (
-          <span className="flex items-center gap-0.5 text-[9px] text-white/70">
-            <Heart size={7} className="shrink-0" />{fmt(reel.likes_count)}
-          </span>
-        )}
-      </div>
-    </a>
-  );
-}
-
-// ─── Reference Card ───────────────────────────────────────────────────────────
-
-function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete, reelsOpen, onReelsToggle }: {
+function ReferenceChip({
+  reference, active, reelsCount, onClick, onScrape, onDelete, workspaceId,
+}: {
   reference: Reference;
+  active: boolean;
+  reelsCount: number;
+  onClick: () => void;
+  onScrape: () => Promise<void>;
+  onDelete: () => Promise<void>;
   workspaceId: string;
-  onDelete: (id: string) => void;
-  onScrapeComplete: (id: string, data: Partial<Reference>) => void;
-  reelsOpen: boolean;
-  onReelsToggle: (open: boolean) => void;
 }) {
-  const [scraping, setScraping]         = useState(false);
-  const [deleting, setDeleting]         = useState(false);
-  const [confirmDel, setConfirmDel]     = useState(false);
+  void workspaceId;
+  const [scraping, setScraping] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
 
-  const name = reference.brand_name ?? "Sin nombre";
-  const profile = reference.scraped_data;
-  const reels = reference.scraped_reels ?? [];
-  const handle = extractHandle(reference.brand_url);
-  const igUrl = toIgUrl(reference.brand_url);
-  const hasData = !!profile;
-  const hasReels = reels.length > 0;
+  const name = reference.scraped_data?.ig_username
+    ? `@${reference.scraped_data.ig_username}`
+    : extractHandle(reference.brand_url) ?? reference.brand_name ?? "Sin nombre";
 
-  async function handleScrape() {
+  async function handleScrape(e: React.MouseEvent) {
+    e.stopPropagation();
     setScraping(true);
-    try {
-      const res = await fetch(`/api/v1/references/${reference.id}/scrape?workspace_id=${workspaceId}`, { method: "POST" });
-      const json = await res.json() as { data?: { scraped_data: ScrapedProfile; scraped_reels: ScrapedReel[] } };
-      if (res.ok && json.data) {
-        onScrapeComplete(reference.id, {
-          scraped_data: json.data.scraped_data,
-          scraped_reels: json.data.scraped_reels,
-          last_scraped_at: new Date().toISOString(),
-        });
-        onReelsToggle(true);
-      }
-    } finally {
-      setScraping(false);
-    }
+    try { await onScrape(); } finally { setScraping(false); }
   }
 
-  async function handleDelete() {
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation();
     if (!confirmDel) { setConfirmDel(true); return; }
     setDeleting(true);
-    await fetch(`/api/v1/references/${reference.id}?workspace_id=${workspaceId}`, { method: "DELETE" });
-    onDelete(reference.id);
+    try { await onDelete(); } finally { setDeleting(false); }
   }
+
+  const hasReels = reelsCount > 0;
 
   return (
     <div
-      className="glass-card rounded-2xl overflow-hidden"
+      onClick={onClick}
       onMouseLeave={() => setConfirmDel(false)}
+      className={`group inline-flex items-center gap-2 pl-1 pr-2 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer border ${
+        active
+          ? "bg-violet-500/15 border-violet-400/35 text-violet-100"
+          : hasReels
+          ? "bg-white/[0.05] border-white/[0.08] text-white/60 hover:bg-white/[0.08]"
+          : "bg-white/[0.02] border-white/[0.06] text-white/35 hover:text-white/60"
+      }`}
     >
-      {/* ── Header: avatar + info ── */}
-      <div className="p-4 flex gap-3.5">
-        <Avatar
-          url={profile?.ig_profile_pic_url}
-          name={name}
-          size={52}
-        />
+      <Avatar url={reference.scraped_data?.ig_profile_pic_url} name={name} size={20} />
+      <span className="truncate max-w-[140px]">{name}</span>
+      <span className={`text-[10px] ${active ? "text-violet-200/70" : "text-white/25"}`}>
+        · {reelsCount}
+      </span>
+      {!hasReels && reference.brand_url && (
+        <button
+          onClick={handleScrape}
+          disabled={scraping}
+          title="Escanear perfil y reels"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-violet-500/15 border border-violet-400/30 text-violet-300 hover:bg-violet-500/25 transition-all disabled:opacity-40"
+        >
+          {scraping ? <Loader2 size={9} className="animate-spin" /> : <RefreshCw size={9} />}
+          {scraping ? "Escaneando" : "Escanear"}
+        </button>
+      )}
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        title={confirmDel ? "Click de nuevo para confirmar" : "Eliminar referencia"}
+        className={`h-5 w-5 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${
+          confirmDel ? "bg-rose-500/25 text-rose-300 opacity-100" : "hover:bg-white/[0.08] text-white/25 hover:text-white/60"
+        }`}
+      >
+        {deleting ? <Loader2 size={8} className="animate-spin" /> : <X size={9} />}
+      </button>
+    </div>
+  );
+}
 
-        <div className="flex-1 min-w-0 space-y-1.5">
-          {/* Name row */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-[15px] text-white/80 font-light leading-tight truncate">
-                  {profile?.ig_full_name ?? name}
-                </p>
-                {profile?.ig_is_verified && (
-                  <CheckCircle2 size={12} className="text-sky-400 shrink-0" />
-                )}
-              </div>
-              {handle && (
-                <p className="text-[11px] text-white/25 mt-0.5">{handle}</p>
-              )}
-            </div>
+// ─── Hook card ────────────────────────────────────────────────────────────────
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 shrink-0">
-              {igUrl && (
-                <a href={igUrl} target="_blank" rel="noopener noreferrer"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center transition-all hover:bg-white/[0.07] border border-white/[0.08]">
-                  <ExternalLink size={11} className="text-white/30" />
-                </a>
-              )}
-              <button onClick={handleDelete} disabled={deleting}
-                className={`h-7 rounded-lg px-2 flex items-center gap-1 text-[10px] transition-all cursor-pointer disabled:opacity-30 border ${
-                  confirmDel
-                    ? "bg-rose-400/15 border-rose-400/30 text-rose-400"
-                    : "border-white/[0.08] text-white/20"
-                }`}>
-                {deleting ? <Loader2 size={9} className="animate-spin" /> : <X size={9} />}
-                {confirmDel && <span>Confirmar</span>}
-              </button>
-            </div>
-          </div>
+function HookCard({ hook }: { hook: Hook }) {
+  const [copied, setCopied] = useState(false);
+  const meta = PATTERN_META[hook.pattern];
+  const PatternIcon = meta.icon;
 
-          {/* Followers + posts */}
-          {profile && (
-            <div className="flex items-center gap-3">
-              {profile.ig_follower_count != null && (
-                <span className="flex items-center gap-1 text-[11px] text-white/40">
-                  <Users size={10} className="text-white/20" />
-                  {fmt(profile.ig_follower_count)} seguidores
-                </span>
-              )}
-              {profile.ig_post_count != null && (
-                <span className="text-[11px] text-white/25">
-                  {profile.ig_post_count} posts
-                </span>
-              )}
-              {profile.ig_business_category && (
-                <span className="text-[10px] text-white/20 truncate">
-                  {profile.ig_business_category}
-                </span>
-              )}
-            </div>
-          )}
+  function handleCopy() {
+    const textToCopy = hook.translation ?? hook.text;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
 
-          {/* Bio */}
-          {profile?.ig_bio && (
-            <p className="text-[11px] text-white/35 font-light leading-relaxed line-clamp-2">
-              {profile.ig_bio}
-            </p>
-          )}
-        </div>
-      </div>
+  const tierLabel = hook.performanceTier === "top" ? "🔥" : hook.performanceTier === "mid" ? "·" : "";
+  const showTranslation = !!hook.translation && hook.language !== "es";
 
-      {/* ── "Por qué me inspira" note ── */}
-      {reference.what_they_like && (
-        <div className="px-4 pb-3">
-          <div className="rounded-xl px-3 py-2.5"
-            style={{ background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.15)" }}>
-            <p className="text-[10px] text-violet-400/50 uppercase tracking-wider mb-1">Por qué inspira</p>
-            <p className="text-[12px] text-white/50 font-light leading-relaxed italic">
-              "{reference.what_they_like}"
-            </p>
+  return (
+    <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+      {showTranslation ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[15px] font-light leading-snug text-white/85 line-clamp-4">
+            &ldquo;{hook.translation}&rdquo;
+          </p>
+          <div className="flex items-start gap-1.5 text-[11px] text-white/30 italic">
+            <Languages size={10} className="mt-0.5 shrink-0" />
+            <span className="line-clamp-2">&ldquo;{hook.text}&rdquo; <span className="uppercase not-italic text-white/20">· {hook.language}</span></span>
           </div>
         </div>
+      ) : (
+        <p className="text-[15px] font-light leading-snug text-white/85 line-clamp-4">
+          &ldquo;{hook.text}&rdquo;
+        </p>
       )}
 
-      {/* ── Footer: scrape button + reels toggle ── */}
-      <div className="px-4 pb-4 flex items-center gap-2">
-        {/* Scrape / Re-scrape */}
-        {reference.brand_url ? (
-          <button onClick={handleScrape} disabled={scraping}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer disabled:opacity-40 bg-white/[0.04] border border-white/[0.08] text-white/40">
-            {scraping
-              ? <><Loader2 size={10} className="animate-spin" /> Scrapeando…</>
-              : <><RefreshCw size={10} />{hasData ? "Re-scrapear" : "Ver perfil y reels"}</>
-            }
-          </button>
-        ) : null}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+          style={{ color: meta.color, background: meta.bg, border: `1px solid ${meta.border}` }}
+        >
+          <PatternIcon size={10} />
+          {meta.label}
+        </span>
+        <span className="text-[10px] text-white/25">·</span>
+        <span className="text-[10px] text-white/50 truncate max-w-[180px]">
+          {hook.referenceHandle ?? hook.referenceName}
+        </span>
+        {tierLabel && <span className="text-[10px]">{tierLabel}</span>}
+      </div>
 
-        {/* Toggle reels */}
-        {hasReels && (
-          <button onClick={() => onReelsToggle(!reelsOpen)}
-            className={`flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer ml-auto border border-white/[0.08] text-white/40 ${reelsOpen ? "bg-white/[0.07]" : "bg-white/[0.03]"}`}>
-            <Play size={9} />
-            {reels.length} reels
-            {reelsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-          </button>
+      <div className="flex items-center gap-3 text-[10px] text-white/35">
+        <span className="flex items-center gap-1">
+          <Eye size={10} /> {fmt(hook.views)}
+        </span>
+        <span className="flex items-center gap-1">
+          <Heart size={10} /> {fmt(hook.likes)}
+        </span>
+        {hook.engagementRate > 0 && (
+          <span className="flex items-center gap-1">
+            <Sparkles size={10} /> {hook.engagementRate.toFixed(1)}%
+          </span>
         )}
       </div>
 
-      {/* ── Reels grid (collapsible) ── */}
-      {hasReels && reelsOpen && (
-        <div className="px-4 pb-4">
-          <div className="grid grid-cols-4 gap-2">
-            {reels.slice(0, 8).map((reel, i) => (
-              <ReelThumb key={reel.short_code ?? i} reel={reel} />
-            ))}
-          </div>
-          {reels.length > 8 && (
-            <p className="text-[10px] text-white/20 text-center mt-2">
-              +{reels.length - 8} reels más
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* No URL hint */}
-      {!reference.brand_url && !hasData && (
-        <div className="px-4 pb-4">
-          <p className="text-[10px] text-white/20 font-light">
-            Agregá una URL de Instagram para ver el perfil y reels
-          </p>
-        </div>
-      )}
+      <div className="flex items-center gap-2 mt-auto pt-1">
+        <button
+          onClick={handleCopy}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium transition-all cursor-pointer bg-white/[0.05] border border-white/[0.1] text-white/70 hover:bg-white/[0.08] hover:text-white"
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          {copied ? "Copiado" : "Copiar hook"}
+        </button>
+        {hook.permalink && (
+          <a
+            href={hook.permalink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center h-[32px] w-[32px] rounded-lg transition-all cursor-pointer bg-white/[0.04] border border-white/[0.08] text-white/40 hover:text-white"
+            title="Ver reel original"
+          >
+            <ExternalLink size={12} />
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -396,97 +390,239 @@ function AddModal({ onClose, onSave, workspaceId }: {
             <Sparkles size={14} className="text-violet-400" />
             <p className="text-[14px] text-white/80 font-light">Agregar referencia</p>
           </div>
-          <button onClick={onClose}
-            className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/[0.07] transition-all cursor-pointer border border-white/[0.1]">
-            <X size={12} className="text-white/40" />
+          <button onClick={onClose} className="h-7 w-7 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-all">
+            <X size={13} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="text-[10px] text-white/30 uppercase tracking-wider">Nombre *</label>
-            <input style={inputStyle} placeholder="ej: Gary Vee, Alex Hormozi…"
-              value={brandName} onChange={(e) => setBrandName(e.target.value)} autoFocus />
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Nombre</label>
+            <input type="text" value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Nombre de la marca / creador" style={inputStyle} autoFocus />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] text-white/30 uppercase tracking-wider">Instagram (opcional)</label>
-            <input style={inputStyle} placeholder="@handle o https://instagram.com/…"
-              value={brandUrl} onChange={(e) => setBrandUrl(e.target.value)} />
-            <p className="text-[10px] text-white/20 px-1">Con el handle podés scrapear el perfil y reels</p>
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">URL de Instagram</label>
+            <input type="text" value={brandUrl} onChange={(e) => setBrandUrl(e.target.value)} placeholder="@usuario o https://instagram.com/usuario" style={inputStyle} />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] text-white/30 uppercase tracking-wider">¿Por qué te inspira?</label>
-            <textarea style={{ ...inputStyle, resize: "none", minHeight: 80 }}
-              placeholder="Su estilo, cómo comunica, qué te copa de su contenido…"
-              value={whatTheyLike} onChange={(e) => setWhatTheyLike(e.target.value)} />
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Por qué te inspira <span className="text-white/20 normal-case">(opcional)</span></label>
+            <textarea value={whatTheyLike} onChange={(e) => setWhatTheyLike(e.target.value)} placeholder="Sus hooks, su formato, su estética…" rows={3} style={{ ...inputStyle, resize: "vertical" as const, minHeight: 80 }} />
           </div>
-          {error && <p className="text-[11px] text-rose-400">{error}</p>}
-          <button type="submit" disabled={saving || !brandName.trim()}
-            className="w-full h-10 rounded-xl text-[13px] font-medium transition-all cursor-pointer disabled:opacity-40"
-            style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.35)", color: "#c4b5fd" }}>
-            {saving
-              ? <span className="flex items-center justify-center gap-2"><Loader2 size={12} className="animate-spin" /> Guardando…</span>
-              : "Guardar referencia"}
-          </button>
+
+          {error && (
+            <p className="text-[11px] text-rose-400 flex items-center gap-1.5">
+              <AlertTriangle size={11} /> {error}
+            </p>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 h-10 rounded-xl text-[12px] font-medium transition-all cursor-pointer bg-white/[0.04] border border-white/[0.08] text-white/50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving || !brandName.trim()}
+              className="flex-1 h-10 rounded-xl text-[12px] font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-40"
+              style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.4)", color: "#c4b5fd" }}>
+              {saving ? <><Loader2 size={11} className="animate-spin" /> Guardando…</> : <><Plus size={11} /> Agregar</>}
+            </button>
+          </div>
         </form>
       </div>
     </div>
   );
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="py-20 flex flex-col items-center gap-5">
-      <div className="h-16 w-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}>
-        <BookMarked size={24} className="text-violet-400/50" />
-      </div>
-      <div className="text-center space-y-1">
-        <p className="text-white/40 font-light text-[15px]">Sin referencias todavía</p>
-        <p className="text-white/20 text-[12px] font-light max-w-xs">
-          Agregá las marcas y creadores que te inspiran — con su Instagram podés ver su perfil y reels recientes
-        </p>
-      </div>
-      <button onClick={onAdd}
-        className="flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer"
-        style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#c4b5fd" }}>
-        <Plus size={13} /> Agregar primera referencia
-      </button>
-    </div>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main export ──────────────────────────────────────────────────────────────
 
 export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId: string | null; initialReferences?: Reference[] }) {
   const [references, setReferences] = useState<Reference[]>(initialReferences ?? []);
-  const [loading, setLoading]       = useState(false);
-  const [showModal, setShowModal]   = useState(false);
-  const [openReelsId, setOpenReelsId] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [patternFilter, setPatternFilter] = useState<HookPattern | "all">("all");
+  const [referenceFilter, setReferenceFilter] = useState<string | "all">("all");
+  const [tierFilter, setTierFilter] = useState<"top" | "mid" | "all">("all");
+  const [classifications, setClassifications] = useState<Map<string, ClassificationResponse>>(new Map());
+  const [classifying, setClassifying] = useState(false);
 
   function handleSave(ref: Reference) {
     setReferences((prev) => [...prev, ref]);
   }
 
-  function handleDelete(id: string) {
+  async function handleDeleteRef(id: string) {
+    await fetch(`/api/v1/references/${id}?workspace_id=${workspaceId}`, { method: "DELETE" });
     setReferences((prev) => prev.filter((r) => r.id !== id));
+    if (referenceFilter === id) setReferenceFilter("all");
   }
 
-  function handleScrapeComplete(id: string, data: Partial<Reference>) {
-    setReferences((prev) => prev.map((r) => r.id === id ? { ...r, ...data } : r));
+  async function handleScrapeRef(id: string) {
+    const res = await fetch(`/api/v1/references/${id}/scrape?workspace_id=${workspaceId}`, { method: "POST" });
+    const json = await res.json() as { data?: { scraped_data: ScrapedProfile; scraped_reels: ScrapedReel[] } };
+    if (res.ok && json.data) {
+      setReferences((prev) => prev.map((r) => r.id === id ? {
+        ...r,
+        scraped_data: json.data!.scraped_data,
+        scraped_reels: json.data!.scraped_reels,
+        last_scraped_at: new Date().toISOString(),
+      } : r));
+    }
   }
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-pulse">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-40 rounded-2xl bg-white/[0.03]" />
-        ))}
-      </div>
-    );
-  }
+  // Extract all raw hooks (heuristic classified, AI overrides on load)
+  const rawHooks = useMemo<Hook[]>(() => {
+    const allHooks: Hook[] = [];
+    for (const ref of references) {
+      const reels = ref.scraped_reels ?? [];
+      if (reels.length === 0) continue;
+
+      const sortedByViews = [...reels]
+        .filter((r) => (r.views_count ?? 0) > 0)
+        .sort((a, b) => (b.views_count ?? 0) - (a.views_count ?? 0));
+      const topThreshold = sortedByViews[Math.floor(sortedByViews.length * 0.25)]?.views_count ?? 0;
+      const lowThreshold = sortedByViews[Math.floor(sortedByViews.length * 0.75)]?.views_count ?? 0;
+
+      const refName = ref.brand_name ?? ref.scraped_data?.ig_username ?? "Sin nombre";
+      const refHandle = ref.scraped_data?.ig_username
+        ? `@${ref.scraped_data.ig_username}`
+        : extractHandle(ref.brand_url);
+
+      for (const reel of reels) {
+        if (!reel.caption) continue;
+        const hookText = extractHook(reel.caption);
+        if (!hookText || hookText.length < 8) continue;
+
+        const views = reel.views_count ?? 0;
+        const likes = reel.likes_count ?? 0;
+        const comments = reel.comments_count ?? 0;
+        const engRate = views > 0 ? ((likes + comments) / views) * 100 : 0;
+
+        const tier: Hook["performanceTier"] =
+          topThreshold > 0 && views >= topThreshold ? "top"
+          : lowThreshold > 0 && views <= lowThreshold ? "low"
+          : "mid";
+
+        const shortCode = reel.short_code ?? `anon-${ref.id}-${Math.random().toString(36).slice(2)}`;
+        allHooks.push({
+          id: `${ref.id}-${shortCode}`,
+          shortCode,
+          text: hookText,
+          fullCaption: reel.caption,
+          pattern: classifyHookHeuristic(hookText),
+          referenceId: ref.id,
+          referenceName: refName,
+          referenceHandle: refHandle,
+          views, likes, comments,
+          permalink: reel.permalink,
+          thumbnailUrl: reel.thumbnail_url,
+          engagementRate: engRate,
+          performanceTier: tier,
+          language: "es",
+          translation: null,
+          classifiedByAI: false,
+        });
+      }
+    }
+
+    return allHooks.sort((a, b) => {
+      const tierRank = { top: 0, mid: 1, low: 2 };
+      if (tierRank[a.performanceTier] !== tierRank[b.performanceTier]) {
+        return tierRank[a.performanceTier] - tierRank[b.performanceTier];
+      }
+      return b.views - a.views;
+    });
+  }, [references]);
+
+  // Fetch AI classifications
+  useEffect(() => {
+    if (!workspaceId || rawHooks.length === 0) return;
+    const byRef = new Map<string, { reel_short_code: string; text: string }[]>();
+    for (const h of rawHooks) {
+      if (!h.shortCode.startsWith("anon-")) {
+        const list = byRef.get(h.referenceId) ?? [];
+        list.push({ reel_short_code: h.shortCode, text: h.text });
+        byRef.set(h.referenceId, list);
+      }
+    }
+    if (byRef.size === 0) return;
+
+    let cancelled = false;
+    setClassifying(true);
+
+    async function classifyAll() {
+      const all = new Map<string, ClassificationResponse>();
+      for (const [referenceId, hooks] of byRef) {
+        try {
+          const res = await fetch("/api/v1/hooks/classify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ workspace_id: workspaceId, reference_id: referenceId, hooks }),
+          });
+          if (!res.ok) continue;
+          const json = (await res.json()) as { data?: { classifications?: ClassificationResponse[] } };
+          const classifications = json.data?.classifications ?? [];
+          for (const c of classifications) all.set(c.reel_short_code, c);
+        } catch (err) {
+          console.error("[hooks/classify]", err);
+        }
+      }
+      if (!cancelled) {
+        setClassifications(all);
+        setClassifying(false);
+      }
+    }
+    classifyAll();
+    return () => { cancelled = true; };
+  }, [rawHooks, workspaceId]);
+
+  // Merge AI classifications
+  const hooks = useMemo<Hook[]>(() => {
+    return rawHooks.map((h) => {
+      const cls = classifications.get(h.shortCode);
+      if (!cls) return h;
+      return {
+        ...h,
+        pattern: cls.pattern,
+        language: cls.language,
+        translation: cls.translation,
+        classifiedByAI: true,
+      };
+    });
+  }, [rawHooks, classifications]);
+
+  // Reel count per reference
+  const reelsByRef = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of references) {
+      m.set(r.id, (r.scraped_reels ?? []).length);
+    }
+    return m;
+  }, [references]);
+
+  // Filter hooks
+  const filtered = useMemo(() => {
+    let result = hooks;
+    if (patternFilter !== "all") result = result.filter((h) => h.pattern === patternFilter);
+    if (referenceFilter !== "all") result = result.filter((h) => h.referenceId === referenceFilter);
+    if (tierFilter === "top") result = result.filter((h) => h.performanceTier === "top");
+    else if (tierFilter === "mid") result = result.filter((h) => h.performanceTier === "mid" || h.performanceTier === "top");
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((h) =>
+        h.text.toLowerCase().includes(q) ||
+        (h.translation ?? "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [hooks, patternFilter, referenceFilter, tierFilter, searchQuery]);
+
+  const patternCounts = useMemo(() => {
+    const counts: Record<HookPattern, number> = {
+      pregunta: 0, lista: 0, contraste: 0, cta: 0, historia: 0, shock: 0, afirmacion: 0,
+    };
+    for (const h of hooks) counts[h.pattern]++;
+    return counts;
+  }, [hooks]);
+
+  const totalHooks = hooks.length;
 
   return (
     <>
@@ -495,42 +631,189 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
       )}
 
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-[13px] text-white/50 font-light">Marcas y creadores que te inspiran</p>
-            {references.length > 0 && (
-              <p className="text-[11px] text-white/20 mt-0.5">
-                {references.length} referencia{references.length !== 1 ? "s" : ""}
-              </p>
-            )}
+            <p className="text-[13px] text-white/60 font-light flex items-center gap-2">
+              Referencias
+              {classifying && (
+                <span className="flex items-center gap-1 text-[10px] text-violet-300/70">
+                  <Loader2 size={10} className="animate-spin" />
+                  clasificando con IA…
+                </span>
+              )}
+            </p>
+            <p className="text-[11px] text-white/25 mt-0.5">
+              {references.length} referencia{references.length !== 1 ? "s" : ""}
+              {totalHooks > 0 && ` · ${totalHooks} hook${totalHooks !== 1 ? "s" : ""}`}
+            </p>
           </div>
-          {references.length > 0 && (
-            <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer bg-white/[0.05] border border-white/[0.1] text-white/50">
-              <Plus size={13} /> Agregar
-            </button>
-          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer"
+            style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#c4b5fd" }}
+          >
+            <Plus size={13} /> Agregar
+          </button>
         </div>
 
-        {references.length === 0 ? (
-          <EmptyState onAdd={() => setShowModal(true)} />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* ── Empty state (no references at all) ── */}
+        {references.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="h-12 w-12 rounded-full flex items-center justify-center mb-4 bg-white/[0.04]">
+              <BookMarked className="h-5 w-5 text-white/30" />
+            </div>
+            <p className="text-[14px] text-white/60 font-light">Sin referencias todavía</p>
+            <p className="text-[12px] text-white/30 mt-1.5 max-w-sm font-light">
+              Agregá marcas o creadores que te inspiren — Moka va a extraer y clasificar sus hooks automáticamente.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="mt-5 flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer"
+              style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#c4b5fd" }}
+            >
+              <Plus size={13} /> Agregar primera referencia
+            </button>
+          </div>
+        )}
+
+        {/* ── Reference chips (when there are references) ── */}
+        {references.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setReferenceFilter("all")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer border ${
+                referenceFilter === "all"
+                  ? "bg-white/[0.1] border-white/[0.15] text-white"
+                  : "bg-white/[0.04] border-transparent text-white/40 hover:text-white/70"
+              }`}
+            >
+              Todas · {totalHooks}
+            </button>
             {references.map((ref) => (
-              <div key={ref.id} className={openReelsId === ref.id ? "lg:col-span-2" : ""}>
-                <ReferenceCard
-                  reference={ref}
-                  workspaceId={workspaceId!}
-                  onDelete={handleDelete}
-                  onScrapeComplete={handleScrapeComplete}
-                  reelsOpen={openReelsId === ref.id}
-                  onReelsToggle={(open) => setOpenReelsId(open ? ref.id : null)}
-                />
-              </div>
+              <ReferenceChip
+                key={ref.id}
+                reference={ref}
+                active={referenceFilter === ref.id}
+                reelsCount={reelsByRef.get(ref.id) ?? 0}
+                onClick={() => setReferenceFilter(referenceFilter === ref.id ? "all" : ref.id)}
+                onScrape={() => handleScrapeRef(ref.id)}
+                onDelete={() => handleDeleteRef(ref.id)}
+                workspaceId={workspaceId ?? ""}
+              />
             ))}
           </div>
+        )}
+
+        {/* ── Hook filters + hook grid (only if any hooks exist) ── */}
+        {references.length > 0 && totalHooks === 0 && (
+          <div className="py-16 text-center rounded-xl border border-dashed border-white/[0.08]">
+            <p className="text-[13px] text-white/40 font-light">
+              Ninguna referencia tiene reels escaneados todavía.
+            </p>
+            <p className="text-[11px] text-white/25 mt-1.5 font-light">
+              Clickeá <span className="text-violet-300">Escanear</span> en cada chip para traer sus hooks.
+            </p>
+          </div>
+        )}
+
+        {totalHooks > 0 && (
+          <>
+            {/* Filter row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Search */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] min-w-[200px]">
+                <Search size={12} className="text-white/30" />
+                <input
+                  type="text"
+                  placeholder="Buscar en hooks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent outline-none text-[11px] text-white/80 placeholder:text-white/25"
+                />
+              </div>
+
+              <div className="h-4 w-px bg-white/[0.08] mx-1" />
+
+              {/* Pattern chips */}
+              <button
+                onClick={() => setPatternFilter("all")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                  patternFilter === "all"
+                    ? "bg-white/[0.1] text-white border border-white/[0.15]"
+                    : "bg-white/[0.04] text-white/40 border border-transparent hover:text-white/70"
+                }`}
+              >
+                <Type size={11} />
+                Todos
+              </button>
+              {(Object.keys(PATTERN_META) as HookPattern[]).map((p) => {
+                const meta = PATTERN_META[p];
+                const count = patternCounts[p];
+                const active = patternFilter === p;
+                const Icon = meta.icon;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPatternFilter(active ? "all" : p)}
+                    disabled={count === 0}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                      count === 0 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                    }`}
+                    style={
+                      active
+                        ? { color: meta.color, background: meta.bg, border: `1px solid ${meta.border}` }
+                        : { color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.04)", border: "1px solid transparent" }
+                    }
+                  >
+                    <Icon size={11} />
+                    {meta.label} · {count}
+                  </button>
+                );
+              })}
+
+              <div className="h-4 w-px bg-white/[0.08] mx-1" />
+
+              {/* Tier */}
+              {([
+                { key: "all", label: "Todos" },
+                { key: "mid", label: "Mid+Top" },
+                { key: "top", label: "🔥 Top" },
+              ] as { key: "all" | "mid" | "top"; label: string }[]).map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setTierFilter(t.key)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                    tierFilter === t.key
+                      ? "bg-white/[0.1] text-white border border-white/[0.15]"
+                      : "bg-white/[0.04] text-white/40 border border-transparent hover:text-white/70"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Hook grid */}
+            {filtered.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-[13px] text-white/30 font-light">
+                  No hay hooks que coincidan con los filtros
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((hook) => (
+                  <HookCard key={hook.id} hook={hook} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
   );
 }
+
+// ─── Scraped profile/reel data type export (kept for API compat) ──────────────
+export type { Reference, ScrapedProfile, ScrapedReel };
