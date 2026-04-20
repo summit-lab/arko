@@ -87,11 +87,6 @@ async function getDashboardData(range: DateRange) {
   const monthTo = nextDay(monthWin.to);
   const monthStart = monthWin.from;
 
-  // Conversations chart window — last 14 days, independent of the dashboard date filter.
-  const conversations14dFrom = new Date(Date.now() - 13 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-
   const [
     insightsCurrent,
     insightsPrevious,
@@ -104,8 +99,10 @@ async function getDashboardData(range: DateRange) {
     goalsResult,
     salesCurrent,
     salesPrevious,
-    conversations14d,
-    adsMessaging14d,
+    conversationsCurrent,
+    conversationsPrev,
+    adsMessagingCurrent,
+    adsMessagingPrev,
   ] = await Promise.all([
     // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
     // — the date range predicate already bounds the result (Fix 3.6).
@@ -220,24 +217,40 @@ async function getDashboardData(range: DateRange) {
       .gte("sale_date", prev.from)
       .lte("sale_date", prev.to),
 
-    // Query 12: Estimated "new interactions" — last 14 days.
-    // Formula: daily `replies` (story replies) + FLOOR(`comments`/2) + ads_msg.
-    // Comments are halved because IG counts brand replies too; this approximates
-    // user-initiated conversations.
+    // Query 12: current period insights for interactions chart.
     supabase
       .from("ig_account_insights")
       .select("metric_date, replies, comments")
       .eq("workspace_id", workspaceId)
-      .gte("metric_date", conversations14dFrom)
+      .gte("metric_date", range.from)
+      .lte("metric_date", range.to)
       .order("metric_date", { ascending: true }),
 
-    // Query 13: Daily messaging conversations from Click-to-Message ads.
-    // Populated by sync-instagram after edge function redeploy (until then 0).
+    // Query 13: previous period insights (for delta).
+    supabase
+      .from("ig_account_insights")
+      .select("replies, comments")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", prev.from)
+      .lte("metric_date", prev.to),
+
+    // Query 14: current period ads messaging. The sync-instagram edge function
+    // already filters ad_metrics_daily rows by ownership (isOwnAd), so every
+    // row in this table belongs to the workspace's own IG/page.
     supabase
       .from("ad_metrics_daily")
       .select("metric_date, messaging_conversations")
       .eq("workspace_id", workspaceId)
-      .gte("metric_date", conversations14dFrom),
+      .gte("metric_date", range.from)
+      .lte("metric_date", range.to),
+
+    // Query 15: previous period ads messaging (for delta).
+    supabase
+      .from("ad_metrics_daily")
+      .select("messaging_conversations")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", prev.from)
+      .lte("metric_date", prev.to),
   ]);
 
   // ─── Log query errors ───
@@ -251,8 +264,10 @@ async function getDashboardData(range: DateRange) {
   if (reelsMonth.error) console.error('[dashboard] reelsMonth error:', reelsMonth.error);
   if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
   if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
-  if (conversations14d.error) console.error('[dashboard] conversations14d error:', conversations14d.error);
-  if (adsMessaging14d.error) console.error('[dashboard] adsMessaging14d error:', adsMessaging14d.error);
+  if (conversationsCurrent.error) console.error('[dashboard] conversationsCurrent error:', conversationsCurrent.error);
+  if (conversationsPrev.error) console.error('[dashboard] conversationsPrev error:', conversationsPrev.error);
+  if (adsMessagingCurrent.error) console.error('[dashboard] adsMessagingCurrent error:', adsMessagingCurrent.error);
+  if (adsMessagingPrev.error) console.error('[dashboard] adsMessagingPrev error:', adsMessagingPrev.error);
 
   // ─── Process insights data ───
   // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
@@ -547,38 +562,52 @@ async function getDashboardData(range: DateRange) {
     engRate: engRateMonth,
   };
 
-  // ─── Interacciones nuevas estimadas — last 14 days ───
-  // Formula: replies (story replies) + FLOOR(comments / 2) + ads_messaging.
-  // Account-level daily rows from ig_account_insights + ad_metrics_daily sum per day.
-  const interactionsRaw = (conversations14d.data ?? []) as Array<{
+  // ─── Interacciones nuevas estimadas — respects dashboard date filter ───
+  // Formula: (replies + FLOOR(comments/2) + ads_messaging) * 1.05 organic uplift.
+  // Current + previous period for WoW-style delta.
+  const ORGANIC_UPLIFT = 1.05;
+  const estimateInteractions = (replies: number, comments: number, adsMsg: number) =>
+    Math.round((replies + Math.floor(comments / 2) + adsMsg) * ORGANIC_UPLIFT);
+
+  const interactionsCurrentRaw = (conversationsCurrent.data ?? []) as Array<{
     metric_date: string;
     replies: number | null;
     comments: number | null;
   }>;
-  const adsMsgRows = (adsMessaging14d.data ?? []) as Array<{
+  const adsMsgCurrentRows = (adsMessagingCurrent.data ?? []) as Array<{
     metric_date: string;
     messaging_conversations: number | null;
   }>;
-  const adsMsgByDate = new Map<string, number>();
-  for (const r of adsMsgRows) {
-    adsMsgByDate.set(
+  const adsMsgCurrentByDate = new Map<string, number>();
+  for (const r of adsMsgCurrentRows) {
+    adsMsgCurrentByDate.set(
       r.metric_date,
-      (adsMsgByDate.get(r.metric_date) ?? 0) + (r.messaging_conversations ?? 0)
+      (adsMsgCurrentByDate.get(r.metric_date) ?? 0) + (r.messaging_conversations ?? 0)
     );
   }
-  // 5% uplift: average organic reach that talks to the brand without an
-  // attributable source (cold DMs, saved posts re-engaging later, etc).
-  const ORGANIC_UPLIFT = 1.05;
-  const conversationsData = interactionsRaw.map((r) => {
-    const base =
-      (r.replies ?? 0) +
-      Math.floor((r.comments ?? 0) / 2) +
-      (adsMsgByDate.get(r.metric_date) ?? 0);
-    return {
-      date: r.metric_date,
-      interactions: Math.round(base * ORGANIC_UPLIFT),
-    };
-  });
+  const conversationsData = interactionsCurrentRaw.map((r) => ({
+    date: r.metric_date,
+    interactions: estimateInteractions(
+      r.replies ?? 0,
+      r.comments ?? 0,
+      adsMsgCurrentByDate.get(r.metric_date) ?? 0
+    ),
+  }));
+
+  // Previous period total for delta
+  const interactionsPrevRaw = (conversationsPrev.data ?? []) as Array<{
+    replies: number | null;
+    comments: number | null;
+  }>;
+  const adsMsgPrevTotal = (adsMessagingPrev.data ?? []).reduce(
+    (s, r) => s + ((r as { messaging_conversations: number | null }).messaging_conversations ?? 0),
+    0
+  );
+  const prevBase = interactionsPrevRaw.reduce(
+    (s, r) => s + (r.replies ?? 0) + Math.floor((r.comments ?? 0) / 2),
+    0
+  );
+  const conversationsPrevTotal = Math.round((prevBase + adsMsgPrevTotal) * ORGANIC_UPLIFT);
 
   return {
     kpis,
@@ -591,6 +620,7 @@ async function getDashboardData(range: DateRange) {
     goals,
     metasActuals,
     conversationsData,
+    conversationsPrevTotal,
   };
 }
 
@@ -619,6 +649,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const salesChartData = data?.salesChartData ?? [];
   const calendarReels = data?.calendarReels ?? [];
   const conversationsData = data?.conversationsData ?? [];
+  const conversationsPrevTotal = data?.conversationsPrevTotal ?? 0;
 
   return (
     <div className="px-8 py-10">
@@ -749,7 +780,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           {/* IG DM Conversations (last 14d) — renders its own empty-state and
               deep-links to /settings/integrations when the webhook isn't active yet. */}
           <div className="animate-slide-up stagger-3">
-            <ConversationsChart data={conversationsData} />
+            <ConversationsChart data={conversationsData} previousTotal={conversationsPrevTotal} />
           </div>
 
           {/* Metas del Mes — Donuts */}
