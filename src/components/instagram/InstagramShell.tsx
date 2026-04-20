@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { ReelsSummary } from "./ReelsGrid";
-import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked, Sparkles } from "lucide-react";
+import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked } from "lucide-react";
 
 // Skeleton for lazy-loaded tabs
 const TabSkeleton = () => (
@@ -23,7 +23,6 @@ const PublicacionesGrid = dynamic(() => import("./PublicacionesGrid").then(m => 
 const IGMetricsClient = dynamic(() => import("./IGMetricsClient").then(m => ({ default: m.IGMetricsClient })), { ssr: false, loading: TabSkeleton });
 const CompetitorTab = dynamic(() => import("./CompetitorTab").then(m => ({ default: m.CompetitorTab })), { ssr: false, loading: TabSkeleton });
 const ReferencesTab = dynamic(() => import("./ReferencesTab").then(m => ({ default: m.ReferencesTab })), { ssr: false, loading: TabSkeleton });
-const HookLibraryTab = dynamic(() => import("./HookLibraryTab").then(m => ({ default: m.HookLibraryTab })), { ssr: false, loading: TabSkeleton });
 
 // Lazy-load heavy dashboard (charts) — only when user visits the tab
 const IGDashboard = dynamic(
@@ -44,7 +43,7 @@ const IGDashboard = dynamic(
 
 // ─── Types ───
 
-export type TabKey = "dashboard" | "reels" | "historias" | "publicaciones" | "competencia" | "referencias" | "biblioteca" | "metrics";
+export type TabKey = "dashboard" | "reels" | "historias" | "publicaciones" | "competencia" | "referencias" | "metrics";
 
 interface ReelCard {
   id: string;
@@ -186,7 +185,6 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "publicaciones", label: "Publicaciones", icon: Grid2X2 },
   { key: "competencia",   label: "Competencia",   icon: Swords },
   { key: "referencias",   label: "Referencias",   icon: BookMarked },
-  { key: "biblioteca",    label: "Biblioteca",    icon: Sparkles },
   { key: "metrics",       label: "Demografía",    icon: BarChart3 },
 ];
 
@@ -310,10 +308,6 @@ export function InstagramShell({
 
       {activeTab === "referencias" && (
         <ReferencesTab workspaceId={workspaceId ?? null} initialReferences={initialReferences} />
-      )}
-
-      {activeTab === "biblioteca" && (
-        <HookLibraryTab references={initialReferences ?? []} workspaceId={workspaceId ?? null} />
       )}
 
       {activeTab === "metrics" && (
