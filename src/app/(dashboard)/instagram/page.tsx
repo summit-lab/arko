@@ -329,9 +329,27 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       initialCompetitors = competitorsResult.data;
     }
 
-    // ── Process references ──
+    // ── Process references + attach AI analyses ──
     if (referencesResult?.data) {
-      initialReferences = referencesResult.data;
+      const refs = referencesResult.data;
+      const refIds = refs.map((r) => r.id);
+      let analysesByRef = new Map<string, unknown[]>();
+      if (refIds.length > 0) {
+        const { data: analyses } = await supabase
+          .from("reference_reel_analysis")
+          .select("reference_id, reel_short_code, hook_text, hook_type, narrative_structure, content_type, cta_text, cta_type, topic_cluster, style_notes, strengths, weaknesses, ai_summary, model_used, analyzed_at")
+          .in("reference_id", refIds);
+        analysesByRef = (analyses ?? []).reduce((acc, a) => {
+          const list = acc.get(a.reference_id) ?? [];
+          list.push(a);
+          acc.set(a.reference_id, list);
+          return acc;
+        }, new Map<string, unknown[]>());
+      }
+      initialReferences = refs.map((r) => ({
+        ...r,
+        reference_reel_analysis: analysesByRef.get(r.id) ?? [],
+      }));
     }
   }
 

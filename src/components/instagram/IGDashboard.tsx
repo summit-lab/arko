@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -11,6 +12,36 @@ import {
 import Image from "next/image";
 import { CountUp } from "@/components/ui/CountUp";
 import { useChartTheme } from "@/hooks/useChartTheme";
+
+// Thumbnail with onError fallback — Meta CDN URLs expire after hours/days,
+// so broken-image alt text was leaking into the UI as visible caption text.
+// When the Image fails to load, swap to the same placeholder used when
+// thumbnail_url is null.
+function ReelThumb({ src, idx }: { src: string | null; idx: number }) {
+  const [errored, setErrored] = useState(false);
+  const showImage = src && !errored;
+  return (
+    <div className="relative w-[100px] h-[140px] rounded-lg overflow-hidden mb-2 transition-transform duration-200 group-hover:scale-[1.03] bg-white/[0.04] border border-white/[0.06]">
+      {showImage ? (
+        <Image
+          src={src}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="100px"
+          onError={() => setErrored(true)}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <Play className="h-5 w-5 text-white/15" />
+        </div>
+      )}
+      <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white bg-black/60 backdrop-blur-sm">
+        #{idx + 1}
+      </div>
+    </div>
+  );
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -516,25 +547,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 href={`/instagram/${reel.id}`}
                 className="flex-shrink-0 group cursor-pointer"
               >
-                <div className="relative w-[100px] h-[140px] rounded-lg overflow-hidden mb-2 transition-transform duration-200 group-hover:scale-[1.03] bg-white/[0.04] border border-white/[0.06]">
-                  {reel.thumbnail_url ? (
-                    <Image
-                      src={reel.thumbnail_url}
-                      alt={reel.caption?.slice(0, 30) || `Reel ${idx + 1}`}
-                      fill
-                      className="object-cover"
-                      sizes="100px"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <Play className="h-5 w-5 text-white/15" />
-                    </div>
-                  )}
-                  {/* Rank badge */}
-                  <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white bg-black/60 backdrop-blur-sm">
-                    #{idx + 1}
-                  </div>
-                </div>
+                <ReelThumb src={reel.thumbnail_url} idx={idx} />
                 <p className="text-[11px] font-light text-white/50 text-center">{fmt(reel.views_total)}</p>
               </a>
             ))}

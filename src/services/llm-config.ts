@@ -64,6 +64,13 @@ const LLM_CONFIG = {
     maxTokens: 8192,
   },
 
+  /** Reference reel analysis — Gemini analiza reels de referencias inspiradoras (caption-only) */
+  'reference-analysis': {
+    provider: 'google' as LLMProvider,
+    model: 'gemini-2.5-flash',
+    maxTokens: 1024,
+  },
+
   /** Reel auto-title — genera título corto (≤60 chars) a partir de la transcripción */
   'reel-auto-title': {
     provider: 'anthropic' as LLMProvider,
