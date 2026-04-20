@@ -67,14 +67,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
   return (
     <div className="relative w-full">
       {/* Main image */}
-      <div
-        className="relative aspect-square overflow-hidden rounded-2xl"
-        style={{
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.03)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-        }}
-      >
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-xl">
         {images[current] ? (
           <Image
             src={images[current]!}
@@ -92,10 +85,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
 
         {/* Slide counter */}
         {totalSlides > 1 && (
-          <div
-            className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-medium text-white/80"
-            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
-          >
+          <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-medium text-white bg-black/60 backdrop-blur-sm">
             {current + 1} / {totalSlides}
           </div>
         )}
@@ -106,8 +96,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
             {canPrev && (
               <button
                 onClick={() => setCurrent(current - 1)}
-                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-white/20"
-                style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center cursor-pointer transition-all bg-black/50 backdrop-blur-sm hover:bg-black/70"
               >
                 <ChevronLeft className="h-4 w-4 text-white" />
               </button>
@@ -115,8 +104,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
             {canNext && (
               <button
                 onClick={() => setCurrent(current + 1)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-white/20"
-                style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center cursor-pointer transition-all bg-black/50 backdrop-blur-sm hover:bg-black/70"
               >
                 <ChevronRight className="h-4 w-4 text-white" />
               </button>
@@ -127,15 +115,14 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
 
       {/* Thumbnail strip */}
       {totalSlides > 1 && (
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
           {images.map((url, i) => (
             <button
               key={i}
               onClick={() => setCurrent(i)}
-              className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden cursor-pointer transition-all ${
+              className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden cursor-pointer transition-all border border-white/[0.08] ${
                 i === current ? "ring-2 ring-indigo-400 opacity-100" : "opacity-40 hover:opacity-70"
               }`}
-              style={{ border: "1px solid rgba(255,255,255,0.08)" }}
             >
               {url ? (
                 <Image src={url} alt={`Thumb ${i + 1}`} fill className="object-cover" sizes="56px" />
@@ -178,8 +165,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
               href={post.permalink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/60 transition-all cursor-pointer hover:text-white hover:bg-white/[0.06]"
-              style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/60 transition-all cursor-pointer hover:text-white hover:bg-white/[0.06] border border-white/[0.08]"
             >
               <ExternalLink className="h-3 w-3" />
               Abrir en Instagram
@@ -191,15 +177,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
       {/* Right — Content + Metrics */}
       <div className="flex flex-col gap-5">
         {/* Caption + Meta */}
-        <div
-          className="rounded-2xl p-5"
-          style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-            backdropFilter: "blur(20px)",
-          }}
-        >
+        <div className="glass-panel rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <span
               className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
@@ -214,11 +192,11 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
             </span>
           </div>
 
-          <p className="text-base leading-relaxed text-zinc-100 whitespace-pre-wrap">
+          <p className="text-base leading-relaxed text-white/90 whitespace-pre-wrap">
             {post.caption || "Sin descripción"}
           </p>
 
-          <p className="mt-3 text-xs text-zinc-400">
+          <p className="mt-3 text-xs text-white/40">
             {post.published_at
               ? new Date(post.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
               : "—"}
@@ -233,15 +211,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
             { label: "Comentarios", value: post.comments, icon: MessageCircle, color: "text-emerald-400" },
             { label: "Compartidos", value: post.shares, icon: Share2, color: "text-blue-400" },
           ].map((kpi) => (
-            <div
-              key={kpi.label}
-              className="rounded-xl p-4"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-              }}
-            >
+            <div key={kpi.label} className="glass-panel rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <kpi.icon className={`h-3.5 w-3.5 ${kpi.color} opacity-60`} strokeWidth={1.8} />
                 <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">{kpi.label}</span>
@@ -255,15 +225,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
         </div>
 
         {/* Engagement Overview */}
-        <div
-          className="rounded-xl p-5"
-          style={{
-            background: "rgba(255,255,255,0.025)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)",
-            backdropFilter: "blur(20px)",
-          }}
-        >
+        <div className="glass-section rounded-xl p-5">
           <p className="text-[11px] font-medium text-white/40 uppercase tracking-[0.1em] mb-4">Resumen</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -282,9 +244,9 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
 
           {/* Interaction breakdown bar */}
           {totalInteractions > 0 && (
-            <div className="mt-5 pt-4 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <div className="mt-5 pt-4 border-t border-white/[0.06]">
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Distribución de interacciones</p>
-              <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <div className="flex h-2.5 overflow-hidden rounded-full bg-white/[0.05]">
                 {[
                   { value: post.likes, color: "bg-rose-400/80" },
                   { value: post.saves ?? 0, color: "bg-amber-400/80" },

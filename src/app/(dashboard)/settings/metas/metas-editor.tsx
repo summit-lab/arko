@@ -89,8 +89,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
           {configuredMetrics.map((metric) => (
             <div
               key={metric}
-              className="flex items-center justify-between px-4 py-3 rounded-lg"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="flex items-center justify-between px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06]"
             >
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] text-white/70 font-light">{metricLabels[metric] ?? metric}</p>
@@ -104,7 +103,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
                     onChange={(e) => setEditValue(e.target.value)}
                     step={METRIC_STEP[metric] ?? 1}
                     min={0}
-                    className="w-28 px-2 py-1 rounded-md text-[13px] text-white font-light bg-white/[0.06] border border-white/[0.1] outline-none focus:border-white/20"
+                    className="w-28 px-2 py-1 rounded-md text-[13px] text-white font-light bg-white/[0.06] border border-white/[0.1] outline-none focus:border-ring"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSaveEdit(metric);
@@ -150,8 +149,8 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
         {/* Add new goal */}
         {adding ? (
           <div
-            className="flex items-center gap-3 px-4 py-3 rounded-lg mt-2"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(122,134,224,0.2)" }}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg mt-2 bg-white/[0.03]"
+            style={{ border: "1px solid rgba(122,134,224,0.2)" }}
           >
             <select
               value={newMetric}
@@ -170,7 +169,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
               placeholder="Objetivo"
               step={newMetric ? (METRIC_STEP[newMetric] ?? 1) : 1}
               min={0}
-              className="w-28 px-2 py-1.5 rounded-md text-[13px] text-white font-light bg-white/[0.06] border border-white/[0.1] outline-none focus:border-white/20"
+              className="w-28 px-2 py-1.5 rounded-md text-[13px] text-white font-light bg-white/[0.06] border border-white/[0.1] outline-none focus:border-ring"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAdd();
                 if (e.key === "Escape") { setAdding(false); setNewMetric(""); setNewValue(""); }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
 
 const manropeBold = localFont({
   src: "../../public/fonts/manrope.bold.otf",
@@ -15,7 +16,7 @@ const manropeLight = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Arko | AI Marketing Director",
+  title: "Moka | AI Marketing Director",
   description: "AI-powered Marketing Director for high-earning content creators.",
 };
 
@@ -25,9 +26,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark">
-      <body suppressHydrationWarning className={`${manropeLight.className} ${manropeLight.variable} ${manropeBold.variable} antialiased bg-black text-white`}>
-        {children}
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme on load. Light is the default — add `.dark` only if explicitly stored. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('arko-theme');if(t==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body suppressHydrationWarning className={`${manropeLight.className} ${manropeLight.variable} ${manropeBold.variable} antialiased`}>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

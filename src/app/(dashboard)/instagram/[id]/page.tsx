@@ -47,7 +47,7 @@ function pctOf(part: number, total: number): string {
 }
 
 function compareToBenchmark(value: number, benchmark: number | null): { label: string; color: string; barClass: string } {
-  if (benchmark == null || benchmark <= 0) return { label: "Sin benchmark", color: "text-zinc-500", barClass: "bg-zinc-600/60" };
+  if (benchmark == null || benchmark <= 0) return { label: "Sin benchmark", color: "text-muted-foreground", barClass: "bg-white/[0.1]" };
   const ratio = value / benchmark;
   if (ratio >= 2) return { label: `${ratio.toFixed(1)}x más alto`, color: "text-emerald-400", barClass: "bg-gradient-to-r from-emerald-500 to-green-300" };
   if (ratio >= 1.15) return { label: `${((ratio - 1) * 100).toFixed(0)}% más alto`, color: "text-emerald-400", barClass: "bg-gradient-to-r from-emerald-500 to-lime-300" };
@@ -436,9 +436,16 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               avg_reach_per_view: null,
               reels_in_window: 0,
             };
+        // Benchmark is computed from org-only views (see reel-benchmarks.service.ts),
+        // so numerator must also be org-only to avoid inflating the multiplier on promoted reels.
         const performerMultiple = benchmarkSnapshot.avg_views != null && benchmarkSnapshot.avg_views > 0
-          ? (viewsOrg + viewsPaid) / benchmarkSnapshot.avg_views
+          ? viewsOrg / benchmarkSnapshot.avg_views
           : 0;
+
+        const likesTotal = m?.likes_total || 0;
+        const savesTotal = m?.saves_total || 0;
+        const commentsTotal = m?.comments_total || 0;
+        const sharesTotal = m?.shares_total || 0;
 
         reel = {
           ...DEMO_REEL,
@@ -455,10 +462,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           views_org: viewsOrg,
           views_paid: viewsPaid,
           views_total: viewsOrg + viewsPaid,
-          likes: m?.likes_total || 0,
-          saves: m?.saves_total || 0,
-          comments: m?.comments_total || 0,
-          shares: m?.shares_total || 0,
+          likes: likesTotal,
+          saves: savesTotal,
+          comments: commentsTotal,
+          shares: sharesTotal,
           follows: m?.follows_generated ?? null,
           impressions_org: impressionsOrg,
           impressions_paid: impressionsPaid,
@@ -467,7 +474,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           reach_paid: reachPaid,
           reach_total: reachOrg + reachPaid,
           profile_visits: m?.profile_visits ?? null,
-          total_interactions: m?.total_interactions || 0,
+          total_interactions: m?.total_interactions ?? (likesTotal + commentsTotal + savesTotal + sharesTotal),
           avg_watch_time_seconds: m?.avg_watch_time_sec ?? null,
           completion_rate: m?.completion_rate ?? null,
           total_watch_time_seconds: m?.avg_watch_time_sec != null
@@ -497,7 +504,9 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
     }));
     return raw.map((d, i) => ({
       date: d.date,
-      views: i === 0 ? 0 : Math.max(0, d.cumulative - raw[i - 1].cumulative),
+      // First snapshot: take its cumulative value as the day's delta (the initial burst).
+      // Matches the convention used in dayRadarData below.
+      views: i === 0 ? d.cumulative : Math.max(0, d.cumulative - raw[i - 1].cumulative),
       cumulative: d.cumulative,
     }));
   })();
@@ -643,8 +652,9 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   sortedDaily.forEach((d, i) => {
     const cumulative = (d.views_org || 0) + (d.views_paid || 0);
     const prev = sortedDaily[i - 1];
-    const prevCumulative = prev ? ((prev.views_org || 0) + (prev.views_paid || 0)) : cumulative;
-    const delta = i === 0 ? 0 : Math.max(0, cumulative - prevCumulative);
+    // First snapshot: take its cumulative value as the day's delta (the initial burst).
+    // Subsequent snapshots: delta = current lifetime - previous lifetime.
+    const delta = i === 0 ? cumulative : Math.max(0, cumulative - (prev ? (prev.views_org || 0) + (prev.views_paid || 0) : 0));
     const [year, month, day] = d.metric_date.split("-").map(Number);
     const date = new Date(Date.UTC(year, month - 1, day));
     dowViews[date.getUTCDay()] += delta;
@@ -680,7 +690,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                   x{reel.performer_multiple.toFixed(1)}
                 </div>
               ) : <div />}
-              <div className="flex items-center gap-1 rounded bg-black/70 px-2 py-1 text-xs text-white backdrop-blur-sm">
+              <div
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs backdrop-blur-sm"
+                style={{ background: "rgba(0,0,0,0.7)", color: "#ffffff" }}
+              >
                 <Clock className="h-3 w-3" />
                 {durationStr}
               </div>
@@ -690,7 +703,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             <div className="mt-3 flex justify-center">
               <a href={reel.permalink} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/50 transition-all cursor-pointer hover:text-white/80 hover:bg-white/[0.06]"
-                style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                style={{ border: "1px solid var(--border)" }}>
                 <ExternalLink className="h-3 w-3" />
                 Abrir en Instagram
               </a>
@@ -714,7 +727,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                 </span>
               )}
             </div>
-            <ReelAutoTitle reelId={reel.id} autoTitle={reel.auto_title} />
+            <ReelAutoTitle reelId={reel.id} autoTitle={reel.auto_title} workspaceId={workspaceId ?? null} />
             {reel.caption && (
               <p className="text-[12px] leading-relaxed text-white/40">{reel.caption}</p>
             )}
@@ -768,7 +781,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         {[
           { label: "Vistas",         value: formatNumber(reel.views_total),              sub: `Org: ${formatNumber(reel.views_org)}` },
           { label: "Alcance",        value: formatNumber(reel.reach_total),               sub: hasPaidSignals ? `Pago: ${formatNumber(reel.reach_paid)}` : "alcance total" },
-          { label: "Interacciones",  value: `${engagementRate.toFixed(1)}%`,              sub: "int / vistas" },
+          { label: "Engagement",     value: `${engagementRate.toFixed(1)}%`,              sub: "int / vistas" },
           { label: "T. de Vista",    value: formatTime(reel.avg_watch_time_seconds),      sub: watchPct != null ? `${watchPct}% del reel` : "promedio" },
           { label: "Retención",      value: formatOptionalPercent(retentionRate),         sub: "estimada" },
           { label: "Rendimiento",    value: reel.performer_multiple >= 0.01 ? `${reel.performer_multiple.toFixed(1)}x` : "—", sub: "vs benchmark 90d" },
@@ -811,7 +824,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                         <span className="font-light text-white/60">{row.label}</span>
                         <span className="font-light text-white">{row.value.toFixed(1)}%</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-2 overflow-hidden rounded-full bg-white/[0.05]">
                         <div className="h-full rounded-full" style={{ width: `${row.value}%`, background: `linear-gradient(90deg, ${PALETTE[0]}, ${PALETTE[1]})` }} />
                       </div>
                       <p className="text-[11px] text-white/25">{row.detail}</p>
@@ -819,7 +832,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-white/10 p-4 text-[12px] text-white/30" style={{ background: "rgba(255,255,255,0.02)" }}>
+                <div className="rounded-xl border border-dashed border-white/[0.1] p-4 text-[12px] text-white/30 bg-white/[0.02]">
                   {retentionMissingMessage}
                 </div>
               )}
@@ -831,7 +844,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                   { label: "Duración",      value: durationStr,                                    sub: effectiveDuration ? "Apify / DB" : "No disponible" },
                   { label: "Abandono",      value: formatTime(avgDropoffSeconds),                  sub: "promedio" },
                 ].map((kpi) => (
-                  <div key={kpi.label} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div key={kpi.label} className="rounded-lg p-3 bg-white/[0.03] border border-white/[0.06]">
                     <p className="text-[10px] text-white/30 mb-0.5">{kpi.label}</p>
                     <p className="text-[13px] font-light text-white">{kpi.value}</p>
                     <p className="text-[9px] text-white/20 mt-0.5">{kpi.sub}</p>
@@ -843,8 +856,13 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      {/* ── Section 4: Breakdowns ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      {/* ── Section 4: Breakdowns ──
+         Hybrid layout:
+         • xl (3 cols): CSS Grid with items-stretch → short cards extend their bg to match the tallest.
+         • md (2 cols): CSS Columns (masonry) → 3 uneven cards pack into 2 cols without leaving an
+                        empty slot in a new row.
+         • sm (1 col):  Cards stacked naturally. */}
+      <div className="columns-1 md:columns-2 xl:columns-[unset] xl:grid xl:grid-cols-3 gap-5 xl:items-stretch [&>*]:mb-5 xl:[&>*]:mb-0 [&>*]:break-inside-avoid [&>*:last-child]:mb-0">
         {/* Interacciones vs Benchmark */}
         {hasInteractionBenchmark && (
           <div className="glass-panel rounded-xl p-5">
@@ -862,7 +880,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                       <span className="font-light text-white/60">{metric.label}</span>
                       <span className="font-light text-white">{formatNumber(metric.count)}</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/[0.05]">
                       <div className="h-full rounded-full" style={{ width: `${width}%`, background: PALETTE[i % 4] }} />
                     </div>
                     <div className="flex items-center justify-between text-[11px]">
@@ -891,7 +909,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                       <span className="font-light text-white/60">{metric.label}</span>
                       <span className="font-light text-white">{ratio.toFixed(2)}%</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/[0.05]">
                       <div className="h-full rounded-full" style={{ width: `${clampPercentage(ratio)}%`, background: PALETTE[i % 4] }} />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-white/25">
@@ -941,7 +959,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                         <span className="font-light text-white/60">{metric.label}</span>
                         <span className="font-light text-white">{formatNumber(metric.total)}</span>
                       </div>
-                      <div className="flex h-2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="flex h-2 overflow-hidden rounded-full bg-white/[0.05]">
                         <div style={{ width: `${metric.total > 0 ? (metric.segments[0].value / metric.total) * 100 : 0}%`, background: PALETTE[2] }} className="h-full" />
                         {metric.segments[1] && (
                           <div style={{ width: `${metric.total > 0 ? (metric.segments[1].value / metric.total) * 100 : 0}%`, background: PALETTE[1] }} className="h-full" />
@@ -973,7 +991,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                     { label: "Duración",   value: durationStr,                               sub: effectiveDuration ? "Apify / DB" : "No disponible" },
                     { label: "Abandono",   value: formatTime(avgDropoffSeconds),              sub: "promedio" },
                   ].map((kpi) => (
-                    <div key={kpi.label} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div key={kpi.label} className="rounded-lg p-3 bg-white/[0.03] border border-white/[0.06]">
                       <p className="text-[10px] text-white/30 mb-0.5">{kpi.label}</p>
                       <p className="text-[13px] font-light text-white">{kpi.value}</p>
                       <p className="text-[9px] text-white/20 mt-0.5">{kpi.sub}</p>
@@ -988,7 +1006,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
       {/* ── Section 5: Sales (conditional) ── */}
       {reel.sales_amount != null && reel.sales_amount > 0 && (
-        <div className="rounded-xl p-5 backdrop-blur-xl" style={{ background: "rgba(75,206,175,0.04)", border: "1px solid rgba(75,206,175,0.12)", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+        <div className="rounded-xl p-5 backdrop-blur-xl shadow-lg shadow-foreground/5 dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)]" style={{ background: "rgba(75,206,175,0.04)", border: "1px solid rgba(75,206,175,0.12)" }}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" style={{ color: PALETTE[2] }} />

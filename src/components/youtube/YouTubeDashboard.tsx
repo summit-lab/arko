@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { CountUp } from "@/components/ui/CountUp";
+import { useChartTheme, type ChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,9 @@ interface DailyMetric {
   view_count: number;
   like_count: number;
   comment_count: number;
+  delta_views?: number;
+  delta_likes?: number;
+  delta_comments?: number;
 }
 
 // ─── Chart metric config ──────────────────────────────────────────────────────
@@ -109,104 +113,79 @@ function fmtDateShort(iso: string): string {
 
 // ─── Chart Tooltip ─────────────────────────────────────────────────────────────
 
+function tooltipStyle(ct: ChartTheme, maxWidth?: number) {
+  return {
+    background: ct.tooltipBg,
+    border: `1px solid ${ct.tooltipBorder}`,
+    boxShadow: ct.tooltipShadow,
+    backdropFilter: "blur(24px)",
+    ...(maxWidth ? { maxWidth } : {}),
+  } as const;
+}
+
 function ChartTooltip({
-  active, payload, label, unit,
+  active, payload, label, unit, ct,
 }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; color: string; dataKey: string }>;
   label?: string;
   unit?: string;
+  ct: ChartTheme;
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="rounded-xl px-4 py-3 text-xs space-y-1.5"
-      style={{
-        background: "rgba(0,0,0,0.9)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
-        backdropFilter: "blur(24px)",
-      }}
-    >
-      <p className="text-white/40 text-[11px] mb-2">{label}</p>
+    <div className="rounded-xl px-4 py-3 text-xs space-y-1.5" style={tooltipStyle(ct)}>
+      <p className="text-[11px] mb-2" style={{ color: ct.tooltipMuted }}>{label}</p>
       {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="text-white/50 capitalize">{p.name}:</span>
-          <span className="text-white font-medium">{fmt(p.value)}{unit ?? ""}</span>
+          <span className="capitalize" style={{ color: ct.tooltipMuted }}>{p.name}:</span>
+          <span className="font-medium" style={{ color: ct.tooltipText }}>{fmt(p.value)}{unit ?? ""}</span>
         </div>
       ))}
     </div>
   );
 }
 
-// ─── Video Bar Tooltip ────────────────────────────────────────────────────────
-
-const DARK_TT_STYLE = {
-  background: "rgba(0,0,0,0.92)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  boxShadow: "0 12px 48px rgba(0,0,0,0.7)",
-  backdropFilter: "blur(24px)",
-  maxWidth: 220,
-} as const;
-
 function VideoBarTooltip({
-  active, payload, color = "#818cf8", suffix = "",
+  active, payload, color = "#818cf8", suffix = "", ct,
 }: {
   active?: boolean;
   payload?: Array<{ value: number; payload: { fullTitle: string; date: string } }>;
   color?: string;
   suffix?: string;
+  ct: ChartTheme;
 }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (
-    <div className="rounded-xl px-4 py-3 text-xs" style={DARK_TT_STYLE}>
-      <p className="text-white/35 text-[10px] mb-1">{item.payload.date}</p>
-      <p className="text-white/80 text-[11px] mb-2 leading-snug">{item.payload.fullTitle}</p>
+    <div className="rounded-xl px-4 py-3 text-xs" style={tooltipStyle(ct, 220)}>
+      <p className="text-[10px] mb-1" style={{ color: ct.tooltipMuted }}>{item.payload.date}</p>
+      <p className="text-[11px] mb-2 leading-snug" style={{ color: ct.tooltipText }}>{item.payload.fullTitle}</p>
       <p style={{ color }} className="font-medium">{fmt(item.value)}{suffix}</p>
     </div>
   );
 }
 
-function TimelineTooltip({
-  active, payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ value: number; payload: { date: string; fullTitle: string; isThis: boolean } }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const item = payload[0];
-  return (
-    <div className="rounded-xl px-4 py-3 text-xs" style={DARK_TT_STYLE}>
-      <p className="text-white/35 text-[10px] mb-1">{item.payload.date}</p>
-      {item.payload.isThis && (
-        <p className="text-[10px] font-medium mb-1.5" style={{ color: "#818cf8" }}>← Este video</p>
-      )}
-      <p className="text-white/75 text-[11px] mb-2 leading-snug">{item.payload.fullTitle}</p>
-      <p style={{ color: "#818cf8" }} className="font-medium">{fmt(item.value)} views</p>
-    </div>
-  );
-}
-
 function ScatterTooltip({
-  active, payload,
+  active, payload, ct,
 }: {
   active?: boolean;
   payload?: Array<{ payload: { title: string; duration: number; views: number } }>;
+  ct: ChartTheme;
 }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-xl px-4 py-3 text-xs" style={DARK_TT_STYLE}>
-      <p className="text-white/75 text-[11px] mb-3 leading-snug">{d.title}</p>
+    <div className="rounded-xl px-4 py-3 text-xs" style={tooltipStyle(ct, 220)}>
+      <p className="text-[11px] mb-3 leading-snug" style={{ color: ct.tooltipText }}>{d.title}</p>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className="text-white/35 text-[10px]">Duración:</span>
+          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>Duración:</span>
           <span className="text-cyan-400 font-medium">{d.duration} min</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-white/35 text-[10px]">Views:</span>
+          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>Views:</span>
           <span className="text-violet-400 font-medium">{fmt(d.views)}</span>
         </div>
       </div>
@@ -215,16 +194,17 @@ function ScatterTooltip({
 }
 
 function DailyMetricTooltip({
-  active, payload,
+  active, payload, ct,
 }: {
   active?: boolean;
   payload?: Array<{ value: number; payload: { date: string } }>;
+  ct: ChartTheme;
 }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (
-    <div className="rounded-xl px-4 py-3 text-xs" style={DARK_TT_STYLE}>
-      <p className="text-white/35 text-[10px] mb-1">{item.payload.date}</p>
+    <div className="rounded-xl px-4 py-3 text-xs" style={tooltipStyle(ct, 220)}>
+      <p className="text-[10px] mb-1" style={{ color: ct.tooltipMuted }}>{item.payload.date}</p>
       <p style={{ color: "#818cf8" }} className="font-medium">{fmt(item.value)} views</p>
     </div>
   );
@@ -238,7 +218,7 @@ function KpiCard({
   value,
   sub,
   trend,
-  color = "text-white/40",
+  color = "text-muted-foreground",
 }: {
   icon: React.ElementType;
   label: string;
@@ -251,7 +231,7 @@ function KpiCard({
     <div className="glass-card px-5 py-4">
       <div className="flex items-center justify-between mb-3">
         <p className="stat-label">{label}</p>
-        <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
+        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white/[0.06]">
           <Icon className={`h-4 w-4 ${color}`} />
         </div>
       </div>
@@ -262,7 +242,7 @@ function KpiCard({
           {trend.value}
         </div>
       )}
-      {sub && !trend && <p className="text-[11px] text-white/30 mt-1.5">{sub}</p>}
+      {sub && !trend && <p className="text-[11px] text-muted-foreground mt-1.5">{sub}</p>}
     </div>
   );
 }
@@ -275,6 +255,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
   onSync: () => void;
   syncing: boolean;
 }) {
+  const ct = useChartTheme();
   const [chartMetric, setChartMetric] = useState<ChartMetric>("views");
 
   // ── Aggregates ──
@@ -354,7 +335,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
       {/* ── Channel header ── */}
       <div className="glass-section p-6 flex items-center gap-5">
         {channel.thumbnail_url ? (
-          <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-white/10 shrink-0">
+          <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-border shrink-0">
             <Image src={channel.thumbnail_url} alt={channel.title ?? "Canal"} fill className="object-cover" sizes="64px" unoptimized />
           </div>
         ) : (
@@ -363,8 +344,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className="text-[20px] font-extralight text-white truncate tracking-[-0.02em]">{channel.title}</h2>
-          <p className="text-[13px] text-white/35 mt-0.5">
+          <h2 className="text-[20px] font-extralight text-foreground truncate tracking-[-0.02em]">{channel.title}</h2>
+          <p className="text-[13px] text-muted-foreground mt-0.5">
             {channel.custom_url && `${channel.custom_url} · `}
             {fmt(channel.subscriber_count)} suscriptores · {channel.video_count} videos
           </p>
@@ -372,21 +353,28 @@ function CanalTab({ channel, videos, onSync, syncing }: {
         <button
           onClick={onSync}
           disabled={syncing}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-foreground/70 bg-white/[0.06] border border-white/[0.1]"
         >
           <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
           {syncing ? "Sincronizando…" : "Sincronizar"}
         </button>
       </div>
 
-      {/* ── KPI cards — period ── */}
+      {/* ── Lifetime-metrics notice ── */}
+      <div
+        className="rounded-xl px-4 py-3 text-[12px] text-muted-foreground border border-white/[0.06] bg-white/[0.03]"
+        title="Métrica acumulada desde publicación"
+      >
+        Los totales del canal muestran views acumuladas desde la publicación de cada video. Para ver la evolución día a día, abrí un video específico.
+      </div>
+
+      {/* ── KPI cards — lifetime totals of videos in window ── */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <KpiCard icon={Eye}           label="Views período"  value={fmt(totalViews)}    sub={`Prom: ${fmt(avgViews)}/video`} />
-        <KpiCard icon={Users}         label="Suscriptores"  value={fmt(channel.subscriber_count)} />
-        <KpiCard icon={ThumbsUp}      label="Likes"         value={fmt(totalLikes)}    sub={totalViews > 0 ? `${((totalLikes    / totalViews) * 100).toFixed(2)}% de views` : undefined} />
-        <KpiCard icon={MessageSquare} label="Comentarios"   value={fmt(totalComments)} sub={totalViews > 0 ? `${((totalComments / totalViews) * 100).toFixed(2)}% de views` : undefined} />
-        <KpiCard icon={TrendingUp}    label="Engagement"    value={`${avgEngagement.toFixed(1)}%`} sub="(L+C) / Views" />
+        <KpiCard icon={Eye}           label="Views totales"        value={fmt(totalViews)}    sub={`Prom: ${fmt(avgViews)}/video · acumulado`} />
+        <KpiCard icon={Users}         label="Suscriptores"         value={fmt(channel.subscriber_count)} />
+        <KpiCard icon={ThumbsUp}      label="Likes"                value={fmt(totalLikes)}    sub={totalViews > 0 ? `${((totalLikes    / totalViews) * 100).toFixed(2)}% de views · acumulado` : "Métrica acumulada desde publicación"} />
+        <KpiCard icon={MessageSquare} label="Comentarios"          value={fmt(totalComments)} sub={totalViews > 0 ? `${((totalComments / totalViews) * 100).toFixed(2)}% de views · acumulado` : "Métrica acumulada desde publicación"} />
+        <KpiCard icon={TrendingUp}    label="Engagement promedio"  value={`${avgEngagement.toFixed(1)}%`} sub="(L+C) / Views · acumulado" />
       </div>
 
       {/* ── Channel analytics (chart + summary card) ── */}
@@ -404,11 +392,11 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                     key={m.key}
                     onClick={() => setChartMetric(m.key)}
                     className={`px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 cursor-pointer ${
-                      isActive ? "text-white" : "text-white/35 hover:text-white/55 hover:bg-white/[0.04]"
+                      isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-white/[0.04]"
                     }`}
                     style={isActive ? {
-                      background: "rgba(255,255,255,0.07)",
-                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: ct.mutedSurface,
+                      border: `1px solid ${ct.panelBorder}`,
                       borderBottom: `2px solid ${m.color}`,
                     } : { border: "1px solid transparent" }}
                   >
@@ -420,14 +408,14 @@ function CanalTab({ channel, videos, onSync, syncing }: {
 
             {/* Active metric total */}
             <div className="mb-4">
-              <p className="text-[32px] font-extralight text-white tracking-[-0.03em]" style={{ color: activeMeta.color }}>
+              <p className="text-[32px] font-extralight text-foreground tracking-[-0.03em]" style={{ color: activeMeta.color }}>
                 {fmt(metricTotals[chartMetric])}{activeMeta.unit}
               </p>
-              <p className="text-[12px] text-white/35 mt-0.5">
-                {chartMetric === "views"       && "Views totales en el período"}
-                {chartMetric === "watchtime"   && "Horas estimadas de reproducción"}
-                {chartMetric === "likes"       && "Likes totales en el período"}
-                {chartMetric === "comentarios" && "Comentarios totales en el período"}
+              <p className="text-[12px] text-muted-foreground mt-0.5">
+                {chartMetric === "views"       && "Views totales de cada video al día de hoy"}
+                {chartMetric === "watchtime"   && "Horas estimadas de reproducción (acumulado)"}
+                {chartMetric === "likes"       && "Likes totales de cada video al día de hoy"}
+                {chartMetric === "comentarios" && "Comentarios totales de cada video al día de hoy"}
               </p>
             </div>
 
@@ -443,21 +431,21 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                       </linearGradient>
                     ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
                   <XAxis
                     dataKey="date"
                     axisLine={false} tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                    tick={{ fill: ct.axisTick, fontSize: 11 }}
                     interval={Math.max(0, Math.floor(chartData.length / 6) - 1)}
                   />
                   <YAxis
                     axisLine={false} tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                    tick={{ fill: ct.axisTick, fontSize: 11 }}
                     tickFormatter={(v: number) => fmt(v)}
                   />
                   <Tooltip
-                    content={<ChartTooltip unit={activeMeta.unit} />}
-                    cursor={{ stroke: "rgba(255,255,255,0.07)", strokeWidth: 1 }}
+                    content={<ChartTooltip ct={ct} unit={activeMeta.unit} />}
+                    cursor={{ stroke: ct.cursorLine, strokeWidth: 1 }}
                   />
                   <Area
                     type="monotone"
@@ -473,29 +461,29 @@ function CanalTab({ channel, videos, onSync, syncing }: {
               </ResponsiveContainer>
             </div>
 
-            <p className="text-[10px] text-white/20 mt-3">
-              Datos por video · ordenados por fecha de publicación
+            <p className="text-[10px] text-muted-foreground mt-3">
+              Datos por video · métrica acumulada al día de hoy · ordenados por fecha de publicación
             </p>
           </div>
 
           {/* Right: channel summary card */}
           <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
-            <p className="text-[11px] text-white/35 font-medium uppercase tracking-[0.08em] mb-4">
+            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-[0.08em] mb-4">
               Canal analytics
             </p>
 
             {/* Subscribers */}
             <div className="mb-5">
-              <p className="text-[11px] text-white/30 mb-1.5">Suscriptores actuales</p>
-              <p className="text-[36px] font-extralight text-white tracking-[-0.03em] leading-none">
+              <p className="text-[11px] text-muted-foreground mb-1.5">Suscriptores actuales</p>
+              <p className="text-[36px] font-extralight text-foreground tracking-[-0.03em] leading-none">
                 {fmt(channel.subscriber_count)}
               </p>
             </div>
 
-            {/* Period summary */}
+            {/* Period summary — lifetime totals of videos published in window */}
             <div className="border-t border-white/[0.06] pt-4 mb-5">
-              <p className="text-[10px] text-white/25 uppercase tracking-[0.07em] mb-3">
-                Período actual · {videos.length} videos
+              <p className="text-[10px] text-muted-foreground uppercase tracking-[0.07em] mb-3">
+                Totales acumulados · {videos.length} videos del período
               </p>
               <div className="space-y-2.5">
                 {[
@@ -506,8 +494,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                   { label: "Engagement",  value: `${avgEngagement.toFixed(1)}%`, unit: "" },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between">
-                    <span className="text-[12px] text-white/40">{row.label}</span>
-                    <span className="text-[12px] font-light text-white">
+                    <span className="text-[12px] text-muted-foreground">{row.label}</span>
+                    <span className="text-[12px] font-light text-foreground">
                       {row.value}{row.unit}
                     </span>
                   </div>
@@ -518,8 +506,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
             {/* Top content */}
             {top3.length > 0 && (
               <div className="border-t border-white/[0.06] pt-4 flex-1">
-                <p className="text-[10px] text-white/25 uppercase tracking-[0.07em] mb-3">
-                  Top contenido · período
+                <p className="text-[10px] text-muted-foreground uppercase tracking-[0.07em] mb-3">
+                  Top contenido · views acumuladas
                 </p>
                 <div className="space-y-3">
                   {top3.map((v, i) => (
@@ -531,25 +519,25 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                       className="flex items-center gap-2.5 group hover:bg-white/[0.03] rounded-lg p-1 -m-1 transition-colors"
                     >
                       {/* Rank */}
-                      <span className="text-[10px] text-white/20 w-3 shrink-0 text-center">{i + 1}</span>
+                      <span className="text-[10px] text-muted-foreground w-3 shrink-0 text-center">{i + 1}</span>
                       {/* Thumbnail */}
                       <div className="relative h-9 w-16 rounded overflow-hidden shrink-0 bg-white/[0.04]">
                         {v.thumbnail_url ? (
                           <Image src={v.thumbnail_url} alt="" fill className="object-cover" sizes="64px" unoptimized />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center">
-                            <Play className="h-3 w-3 text-white/20" />
+                            <Play className="h-3 w-3 text-muted-foreground" />
                           </div>
                         )}
                       </div>
                       {/* Title + views */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] text-white/60 group-hover:text-white/80 transition-colors line-clamp-2 leading-tight">
+                        <p className="text-[11px] text-foreground/70 group-hover:text-foreground transition-colors line-clamp-2 leading-tight">
                           {v.title ?? "Sin título"}
                         </p>
-                        <p className="text-[10px] text-white/30 mt-0.5">{fmt(v.view_count)} views</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{fmt(v.view_count)} views</p>
                       </div>
-                      <ExternalLink className="h-3 w-3 text-white/15 group-hover:text-white/40 transition-colors shrink-0" />
+                      <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground/60 transition-colors shrink-0" />
                     </a>
                   ))}
                 </div>
@@ -563,8 +551,11 @@ function CanalTab({ channel, videos, onSync, syncing }: {
       {videoBarData.length > 0 && (
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-5">
-            <p className="text-[13px] font-light text-white/50">Views por video</p>
-            <p className="text-[11px] text-white/25">{videoBarData.length} videos · cronológico</p>
+            <div>
+              <p className="text-[13px] font-light text-foreground/70">Views por video</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Views acumuladas al día de hoy · ordenado por fecha de publicación</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{videoBarData.length} videos</p>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart
@@ -577,12 +568,12 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                   <stop offset="100%" stopColor="#818cf8" stopOpacity={0.4} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
               <XAxis
                 dataKey="date"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                tick={{ fill: ct.axisTick, fontSize: 10 }}
                 angle={videoBarData.length > 12 ? -35 : 0}
                 textAnchor={videoBarData.length > 12 ? "end" : "middle"}
                 interval={videoBarData.length > 20 ? Math.floor(videoBarData.length / 12) : 0}
@@ -590,13 +581,13 @@ function CanalTab({ channel, videos, onSync, syncing }: {
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                tick={{ fill: ct.axisTick, fontSize: 11 }}
                 tickFormatter={(v: number) => fmt(v)}
                 width={48}
               />
               <Tooltip
-                content={<VideoBarTooltip />}
-                cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                content={<VideoBarTooltip ct={ct} />}
+                cursor={{ fill: ct.cursor }}
               />
               <Bar dataKey="views" fill="url(#ytBarGrad)" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -611,7 +602,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           {/* 1. Engagement donut */}
           {engData.length > 0 && (
             <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
-              <p className="text-[13px] font-light text-white/50 mb-4">Engagement desglosado</p>
+              <p className="text-[13px] font-light text-foreground/70 mb-4">Engagement desglosado</p>
               <div className="flex-1 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={160}>
                   <PieChart>
@@ -621,9 +612,9 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: "rgba(0,0,0,0.92)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", color: "white" }}
-                      itemStyle={{ color: "white" }}
-                      labelStyle={{ color: "rgba(255,255,255,0.4)" }}
+                      contentStyle={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, borderRadius: "12px", fontSize: "12px", color: ct.tooltipText }}
+                      itemStyle={{ color: ct.tooltipText }}
+                      labelStyle={{ color: ct.tooltipMuted }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -633,9 +624,9 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                   <div key={d.name} className="flex items-center justify-between text-[12px]">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                      <span className="text-white/40">{d.name}</span>
+                      <span className="text-muted-foreground">{d.name}</span>
                     </div>
-                    <span className="text-white font-light">{fmt(d.value)}</span>
+                    <span className="text-foreground font-light">{fmt(d.value)}</span>
                   </div>
                 ))}
               </div>
@@ -646,8 +637,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           {engByVideo.length > 1 && (
             <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-[13px] font-light text-white/50">Engagement por video</p>
-                <p className="text-[10px] text-white/25">(L+C) / Views</p>
+                <p className="text-[13px] font-light text-foreground/70">Engagement por video</p>
+                <p className="text-[10px] text-muted-foreground">(L+C) / Views</p>
               </div>
               <div className="flex-1">
                 <ResponsiveContainer width="100%" height={200}>
@@ -661,24 +652,24 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                         <stop offset="100%" stopColor="#34d399" stopOpacity={0.35} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
                     <XAxis
                       dataKey="date"
                       axisLine={false} tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                      tick={{ fill: ct.axisTick, fontSize: 10 }}
                       angle={engByVideo.length > 10 ? -35 : 0}
                       textAnchor={engByVideo.length > 10 ? "end" : "middle"}
                       interval={engByVideo.length > 15 ? Math.floor(engByVideo.length / 8) : 0}
                     />
                     <YAxis
                       axisLine={false} tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                      tick={{ fill: ct.axisTick, fontSize: 10 }}
                       tickFormatter={(v: number) => `${v}%`}
                       width={36}
                     />
                     <Tooltip
-                      content={<VideoBarTooltip color="#34d399" suffix="%" />}
-                      cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                      content={<VideoBarTooltip ct={ct} color="#34d399" suffix="%" />}
+                      cursor={{ fill: ct.cursor }}
                     />
                     <Bar dataKey="engagement" fill="url(#ytEngGrad)" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -691,37 +682,37 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           {durationVsViews.length > 1 && (
             <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-[13px] font-light text-white/50">Duración vs. Views</p>
-                <p className="text-[10px] text-white/25">minutos · vistas</p>
+                <p className="text-[13px] font-light text-foreground/70">Duración vs. Views</p>
+                <p className="text-[10px] text-muted-foreground">minutos · vistas</p>
               </div>
               <div className="flex-1">
                 <ResponsiveContainer width="100%" height={200}>
                   <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                     <XAxis
                       type="number" dataKey="duration" name="Duración"
                       axisLine={false} tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                      tick={{ fill: ct.axisTick, fontSize: 10 }}
                       tickFormatter={(v: number) => `${v}m`}
-                      label={{ value: "min", position: "insideBottomRight", offset: -4, style: { fill: "rgba(255,255,255,0.2)", fontSize: 10 } }}
+                      label={{ value: "min", position: "insideBottomRight", offset: -4, style: { fill: ct.axisTickMuted, fontSize: 10 } }}
                     />
                     <YAxis
                       type="number" dataKey="views" name="Views"
                       axisLine={false} tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                      tick={{ fill: ct.axisTick, fontSize: 10 }}
                       tickFormatter={(v: number) => fmt(v)}
                       width={44}
                     />
                     <ZAxis range={[40, 40]} />
                     <Tooltip
-                      content={<ScatterTooltip />}
-                      cursor={{ strokeDasharray: "3 3", stroke: "rgba(255,255,255,0.15)" }}
+                      content={<ScatterTooltip ct={ct} />}
+                      cursor={{ strokeDasharray: "3 3", stroke: ct.cursorLine }}
                     />
                     <Scatter data={durationVsViews} fill="#22d3ee" opacity={0.7} />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-[10px] text-white/20 mt-2 text-center">
+              <p className="text-[10px] text-muted-foreground mt-2 text-center">
                 Cada punto es un video
               </p>
             </div>
@@ -733,9 +724,9 @@ function CanalTab({ channel, videos, onSync, syncing }: {
       {/* ── Empty state ── */}
       {videos.length === 0 && (
         <div className="glass-card p-12 text-center">
-          <Video className="h-10 w-10 text-white/15 mx-auto mb-3" />
-          <p className="text-white/35 text-sm">No hay videos en este período.</p>
-          <p className="text-white/20 text-xs mt-1">Cambiá el filtro de fechas o sincronizá tu canal.</p>
+          <Video className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground text-sm">No hay videos en este período.</p>
+          <p className="text-muted-foreground text-xs mt-1">Cambiá el filtro de fechas o sincronizá tu canal.</p>
         </div>
       )}
     </div>
@@ -763,6 +754,7 @@ function VideoAnalyticsView({
   workspaceId: string;
   onBack: () => void;
 }) {
+  const ct = useChartTheme();
   const [tab, setTab]               = useState<VidDetailTab>("overview");
   const [chartMetric, setChartMetric] = useState<"views" | "watchtime" | "likes" | "comentarios">("views");
   const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
@@ -812,9 +804,11 @@ function VideoAnalyticsView({
   const compMeta = compMetaMap[chartMetric];
 
   // ── Daily views chart data ──
+  // Prefer delta_views (daily delta computed server-side from lifetime totals).
+  // Fall back to lifetime view_count only if the API didn't provide deltas.
   const dailyChartData = dailyMetrics.map((d) => ({
     date: new Date(d.metric_date).toLocaleDateString("es", { day: "numeric", month: "short" }),
-    views: d.view_count,
+    views: d.delta_views ?? d.view_count,
   }));
 
   // ── Funnel width (logarithmic) ──
@@ -835,7 +829,7 @@ function VideoAnalyticsView({
       {/* ── Back button ── */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-[13px] text-white/40 hover:text-white/70 transition-colors cursor-pointer"
+        className="flex items-center gap-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
         <ChevronRight className="h-4 w-4 rotate-180" />
         Volver a videos
@@ -848,28 +842,28 @@ function VideoAnalyticsView({
             <Image src={video.thumbnail_url} alt="" fill className="object-cover" sizes="170px" unoptimized />
           ) : (
             <div className="h-full w-full flex items-center justify-center">
-              <Play className="h-6 w-6 text-white/20" />
+              <Play className="h-6 w-6 text-muted-foreground" />
             </div>
           )}
           {video.duration_seconds && (
-            <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white/80 px-1.5 py-0.5 rounded">
+            <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] px-1.5 py-0.5 rounded" style={{ color: "rgba(255,255,255,0.8)" }}>
               {fmtDuration(video.duration_seconds)}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-[18px] font-extralight text-white tracking-[-0.02em] leading-snug mb-2">
+          <h3 className="text-[18px] font-extralight text-foreground tracking-[-0.02em] leading-snug mb-2">
             {video.title ?? "Sin título"}
           </h3>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-white/35">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
             {video.published_at && (
               <span>Publicado {new Date(video.published_at).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}</span>
             )}
             {video.duration_seconds && <span>{fmtDuration(video.duration_seconds)}</span>}
           </div>
           <div className="flex items-center gap-3 mt-3">
-            <span className="text-[24px] font-extralight text-white">{fmt(video.view_count)}</span>
-            <span className="text-[12px] text-white/35">views</span>
+            <span className="text-[24px] font-extralight text-foreground">{fmt(video.view_count)}</span>
+            <span className="text-[12px] text-muted-foreground">views</span>
             <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/20">
               #{viewsRank} en el período
             </span>
@@ -887,7 +881,7 @@ function VideoAnalyticsView({
       </div>
 
       {/* ── Tab bar (underline style, like YT Studio) ── */}
-      <div className="flex items-end border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+      <div className="flex items-end border-b border-white/[0.06]">
         {VID_DETAIL_TABS.map((t) => {
           const isActive = tab === t.key;
           return (
@@ -896,8 +890,8 @@ function VideoAnalyticsView({
               onClick={() => setTab(t.key)}
               className={`px-5 py-3 text-[13px] font-medium transition-all cursor-pointer border-b-2 -mb-px ${
                 isActive
-                  ? "text-white border-white/60"
-                  : "text-white/35 border-transparent hover:text-white/55 hover:border-white/20"
+                  ? "text-foreground border-foreground/60 dark:border-white/60"
+                  : "text-muted-foreground border-transparent hover:text-foreground/80 hover:border-foreground/20 dark:hover:border-white/20"
               }`}
             >
               {t.label}
@@ -944,7 +938,7 @@ function VideoAnalyticsView({
                 <p className="stat-label mb-3">{card.label}</p>
                 <p className="stat-number">{card.value}</p>
                 <p className={`text-[11px] mt-1.5 ${
-                  card.ok === null ? "text-white/30" : card.ok ? "text-emerald-400" : "text-rose-400"
+                  card.ok === null ? "text-muted-foreground" : card.ok ? "text-emerald-400" : "text-rose-400"
                 }`}>
                   {card.sub}
                 </p>
@@ -955,18 +949,18 @@ function VideoAnalyticsView({
           {/* Metric switcher + comparison horizontal bar chart */}
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-5">
-              <p className="text-[13px] font-light text-white/50">Este video vs. top del período</p>
+              <p className="text-[13px] font-light text-foreground/70">Este video vs. top del período</p>
               <div className="flex items-center gap-1">
                 {(["views", "watchtime", "likes", "comentarios"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setChartMetric(m)}
                     className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
-                      chartMetric === m ? "text-white" : "text-white/30 hover:text-white/50 hover:bg-white/[0.04]"
+                      chartMetric === m ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-white/[0.04]"
                     }`}
                     style={chartMetric === m ? {
-                      background: "rgba(255,255,255,0.07)",
-                      border: `1px solid rgba(255,255,255,0.12)`,
+                      background: ct.mutedSurface,
+                      border: `1px solid ${ct.panelBorder}`,
                       borderBottom: `2px solid ${compMeta.color}`,
                     } : { border: "1px solid transparent" }}
                   >
@@ -977,28 +971,28 @@ function VideoAnalyticsView({
             </div>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={compData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} tickFormatter={(v: number) => fmt(v)} />
-                <YAxis type="category" dataKey="title" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} width={150} />
+                <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: ct.axisTick, fontSize: 10 }} tickFormatter={(v: number) => fmt(v)} />
+                <YAxis type="category" dataKey="title" axisLine={false} tickLine={false} tick={{ fill: ct.axisTick, fontSize: 10 }} width={150} />
                 <Tooltip
-                  contentStyle={{ background: "rgba(0,0,0,0.92)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", color: "white" }}
-                  itemStyle={{ color: "white" }}
-                  labelStyle={{ color: "rgba(255,255,255,0.4)" }}
-                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                  contentStyle={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, borderRadius: "12px", fontSize: "12px", color: ct.tooltipText }}
+                  itemStyle={{ color: ct.tooltipText }}
+                  labelStyle={{ color: ct.tooltipMuted }}
+                  cursor={{ fill: ct.cursor }}
                 />
                 <Bar dataKey={chartMetric} name={compMeta.label} radius={[0, 4, 4, 0]}>
                   {compData.map((entry, i) => (
-                    <Cell key={i} fill={entry.isThis ? compMeta.color : "rgba(255,255,255,0.08)"} opacity={entry.isThis ? 0.9 : 1} />
+                    <Cell key={i} fill={entry.isThis ? compMeta.color : ct.mutedSurface} opacity={entry.isThis ? 0.9 : 1} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-[10px] text-white/20 mt-2 text-center">Barra resaltada = este video</p>
+            <p className="text-[10px] text-muted-foreground mt-2 text-center">Barra resaltada = este video</p>
           </div>
 
           {/* Performance vs channel avg */}
           <div className="glass-card p-6">
-            <p className="text-[13px] font-light text-white/50 mb-5">Rendimiento vs. promedio del canal</p>
+            <p className="text-[13px] font-light text-foreground/70 mb-5">Rendimiento vs. promedio del canal</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               {[
                 { label: "Views",        thisVal: video.view_count, avg: avgViews,       fmtFn: (v: number) => fmt(Math.round(v)) },
@@ -1010,13 +1004,13 @@ function VideoAnalyticsView({
                 const positive = row.thisVal >= row.avg;
                 return (
                   <div key={row.label} className="text-center">
-                    <p className="text-[10px] text-white/25 uppercase tracking-wider mb-2">{row.label}</p>
-                    <p className="text-[22px] font-extralight text-white">{row.fmtFn(row.thisVal)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{row.label}</p>
+                    <p className="text-[22px] font-extralight text-foreground">{row.fmtFn(row.thisVal)}</p>
                     <div className={`flex items-center justify-center gap-1 mt-1 text-[11px] ${positive ? "text-emerald-400" : "text-rose-400"}`}>
                       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                       {Math.abs(delta).toFixed(0)}% vs avg
                     </div>
-                    <p className="text-[10px] text-white/20 mt-0.5">avg: {row.fmtFn(row.avg)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">avg: {row.fmtFn(row.avg)}</p>
                   </div>
                 );
               })}
@@ -1028,8 +1022,8 @@ function VideoAnalyticsView({
             <div className="glass-card p-6">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <p className="text-[13px] font-light text-white/50">Evolución de views</p>
-                  <p className="text-[11px] text-white/25 mt-0.5">
+                  <p className="text-[13px] font-light text-foreground/70">Evolución de views</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
                     {dailyChartData.length} días de datos · desde publicación
                   </p>
                 </div>
@@ -1045,24 +1039,24 @@ function VideoAnalyticsView({
                       <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
                   <XAxis
                     dataKey="date"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                    tick={{ fill: ct.axisTick, fontSize: 11 }}
                     interval={Math.max(0, Math.floor(dailyChartData.length / 6) - 1)}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                    tick={{ fill: ct.axisTick, fontSize: 11 }}
                     tickFormatter={(v: number) => fmt(v)}
                     width={48}
                   />
                   <Tooltip
-                    content={<DailyMetricTooltip />}
-                    cursor={{ stroke: "rgba(255,255,255,0.07)", strokeWidth: 1 }}
+                    content={<DailyMetricTooltip ct={ct} />}
+                    cursor={{ stroke: ct.cursorLine, strokeWidth: 1 }}
                   />
                   <Line
                     type="monotone"
@@ -1086,7 +1080,7 @@ function VideoAnalyticsView({
 
           {/* Clean stacked funnel */}
           <div className="glass-card p-6">
-            <p className="text-[13px] font-light text-white/50 mb-6">Conversión de audiencia</p>
+            <p className="text-[13px] font-light text-foreground/70 mb-6">Conversión de audiencia</p>
             <div>
               {[
                 {
@@ -1123,7 +1117,7 @@ function VideoAnalyticsView({
                   {step.connector && (
                     <div className="flex items-center gap-3 py-3 pl-1">
                       <div className="h-5 w-px bg-white/[0.07] ml-4 shrink-0" />
-                      <span className="text-[11px] text-white/30">{step.connector}</span>
+                      <span className="text-[11px] text-muted-foreground">{step.connector}</span>
                     </div>
                   )}
 
@@ -1133,13 +1127,13 @@ function VideoAnalyticsView({
                     style={{ border: `1px solid ${step.color}22`, background: `${step.color}0a` }}
                   >
                     <div className="flex items-center justify-between px-5 py-4">
-                      <span className="text-[13px] font-light text-white/50">{step.label}</span>
+                      <span className="text-[13px] font-light text-foreground/70">{step.label}</span>
                       <span className="text-[26px] font-extralight" style={{ color: step.color }}>
                         {step.display}
                       </span>
                     </div>
                     {/* Thin progress bar */}
-                    <div className="h-[3px] w-full" style={{ background: "rgba(255,255,255,0.04)" }}>
+                    <div className="h-[3px] w-full bg-white/[0.04]">
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${step.barPct}%`, background: step.color, opacity: 0.55 }}
@@ -1159,8 +1153,8 @@ function VideoAnalyticsView({
               { label: "Engagement total", value: `${eng.toFixed(2)}%`,         avg: avgEng,         positive: eng >= avgEng },
             ].map((card) => (
               <div key={card.label} className="glass-card px-5 py-5 text-center">
-                <p className="text-[10px] text-white/25 uppercase tracking-wider mb-2">{card.label}</p>
-                <p className="text-[26px] font-extralight text-white">{card.value}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{card.label}</p>
+                <p className="text-[26px] font-extralight text-foreground">{card.value}</p>
                 <div className={`flex items-center justify-center gap-1 mt-2 text-[11px] ${card.positive ? "text-emerald-400" : "text-rose-400"}`}>
                   {card.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                   vs {card.avg.toFixed(2)}% promedio
@@ -1178,11 +1172,11 @@ function VideoAnalyticsView({
 
           {/* Big engagement number */}
           <div className="glass-card p-8 text-center">
-            <p className="text-[11px] text-white/35 uppercase tracking-[0.1em] mb-3">Engagement rate</p>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-[0.1em] mb-3">Engagement rate</p>
             <p className="text-[64px] font-extralight tracking-[-0.03em]" style={{ color: eng >= avgEng ? "#34d399" : "#818cf8" }}>
               {eng.toFixed(2)}%
             </p>
-            <p className="text-[13px] text-white/35 mt-2">(Likes + Comentarios) / Views</p>
+            <p className="text-[13px] text-muted-foreground mt-2">(Likes + Comentarios) / Views</p>
             <div className={`inline-flex items-center gap-1.5 mt-3 text-[12px] ${eng >= avgEng ? "text-emerald-400" : "text-rose-400"}`}>
               {eng >= avgEng ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
               {Math.abs(eng - avgEng).toFixed(2)}pp vs promedio del canal ({avgEng.toFixed(2)}%)
@@ -1193,7 +1187,7 @@ function VideoAnalyticsView({
             {/* Donut */}
             {engDonut.length > 0 && (
               <div className="col-span-12 lg:col-span-5 glass-card p-6 flex flex-col">
-                <p className="text-[13px] font-light text-white/50 mb-4">Desglose de interacciones</p>
+                <p className="text-[13px] font-light text-foreground/70 mb-4">Desglose de interacciones</p>
                 <div className="flex-1 flex items-center justify-center">
                   <ResponsiveContainer width="100%" height={160}>
                     <PieChart>
@@ -1201,9 +1195,9 @@ function VideoAnalyticsView({
                         {engDonut.map((entry, idx) => <Cell key={idx} fill={entry.color} opacity={0.85} />)}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ background: "rgba(0,0,0,0.92)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", color: "white" }}
-                        itemStyle={{ color: "white" }}
-                        labelStyle={{ color: "rgba(255,255,255,0.4)" }}
+                        contentStyle={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, borderRadius: "12px", fontSize: "12px", color: ct.tooltipText }}
+                        itemStyle={{ color: ct.tooltipText }}
+                        labelStyle={{ color: ct.tooltipMuted }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -1213,9 +1207,9 @@ function VideoAnalyticsView({
                     <div key={d.name} className="flex items-center justify-between text-[12px]">
                       <div className="flex items-center gap-2">
                         <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                        <span className="text-white/40">{d.name}</span>
+                        <span className="text-muted-foreground">{d.name}</span>
                       </div>
-                      <span className="text-white font-light">{fmt(d.value)}</span>
+                      <span className="text-foreground font-light">{fmt(d.value)}</span>
                     </div>
                   ))}
                 </div>
@@ -1224,7 +1218,7 @@ function VideoAnalyticsView({
 
             {/* Progress bars vs channel avg */}
             <div className="col-span-12 lg:col-span-7 glass-card p-6">
-              <p className="text-[13px] font-light text-white/50 mb-5">Métricas vs. promedio del canal</p>
+              <p className="text-[13px] font-light text-foreground/70 mb-5">Métricas vs. promedio del canal</p>
               <div className="space-y-6">
                 {[
                   { label: "Like rate",    count: video.like_count,    rate: likeRate,    avg: avgLikeRate,    color: "#818cf8" },
@@ -1233,10 +1227,10 @@ function VideoAnalyticsView({
                 ].map((row) => (
                   <div key={row.label}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[12px] text-white/50">{row.label}</span>
+                      <span className="text-[12px] text-foreground/70">{row.label}</span>
                       <div className="flex items-center gap-3">
-                        {row.count !== null && <span className="text-[11px] text-white/30">{fmt(row.count)}</span>}
-                        <span className="text-[13px] font-light text-white">{row.rate.toFixed(2)}%</span>
+                        {row.count !== null && <span className="text-[11px] text-muted-foreground">{fmt(row.count)}</span>}
+                        <span className="text-[13px] font-light text-foreground">{row.rate.toFixed(2)}%</span>
                       </div>
                     </div>
                     <div className="relative h-1.5 rounded-full bg-white/[0.06] overflow-visible">
@@ -1245,11 +1239,11 @@ function VideoAnalyticsView({
                         style={{ width: `${Math.min(100, row.rate * 8)}%`, background: row.color, opacity: 0.75 }}
                       />
                       <div
-                        className="absolute -top-0.5 h-2.5 w-0.5 rounded-full bg-white/35"
+                        className="absolute -top-0.5 h-2.5 w-0.5 rounded-full bg-foreground/40 dark:bg-white/35"
                         style={{ left: `${Math.min(100, row.avg * 8)}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-white/25 mt-1.5">
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
                       Promedio canal: {row.avg.toFixed(2)}%
                       {row.rate >= row.avg
                         ? <span className="text-emerald-400 ml-2">▲ {(row.rate - row.avg).toFixed(2)}pp por encima</span>
@@ -1265,14 +1259,14 @@ function VideoAnalyticsView({
           {/* Rank badges */}
           <div className="grid grid-cols-2 gap-4">
             <div className="glass-card p-5 text-center">
-              <p className="text-[10px] text-white/25 uppercase tracking-wider mb-2">Ranking por views</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Ranking por views</p>
               <p className="text-[36px] font-extralight text-violet-400">#{viewsRank}</p>
-              <p className="text-[11px] text-white/30 mt-1">de {allVideos.length} videos en el período</p>
+              <p className="text-[11px] text-muted-foreground mt-1">de {allVideos.length} videos en el período</p>
             </div>
             <div className="glass-card p-5 text-center">
-              <p className="text-[10px] text-white/25 uppercase tracking-wider mb-2">Ranking por engagement</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Ranking por engagement</p>
               <p className="text-[36px] font-extralight text-cyan-400">#{engRank}</p>
-              <p className="text-[11px] text-white/30 mt-1">de {peers.length} videos con views</p>
+              <p className="text-[11px] text-muted-foreground mt-1">de {peers.length} videos con views</p>
             </div>
           </div>
 
@@ -1298,7 +1292,10 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
     switch (sortBy) {
       case "views":      return b.view_count  - a.view_count;
       case "likes":      return b.like_count  - a.like_count;
-      case "engagement": return (b.likes_per_view ?? 0) - (a.likes_per_view ?? 0);
+      case "engagement": {
+        const eng = (v: YTVideo) => (v.likes_per_view ?? 0) + (v.comments_per_view ?? 0);
+        return eng(b) - eng(a);
+      }
       default:           return new Date(b.published_at ?? 0).getTime() - new Date(a.published_at ?? 0).getTime();
     }
   });
@@ -1322,9 +1319,9 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
             { label: "Comentarios",    value: fmt(totalComments),        icon: MessageSquare },
           ].map((s) => (
             <div key={s.label} className="glass-card p-4 text-center">
-              <s.icon className="h-3.5 w-3.5 text-white/25 mx-auto mb-2" />
-              <p className="text-[18px] font-light text-white">{s.value}</p>
-              <p className="text-[10px] text-white/25 mt-0.5">{s.label}</p>
+              <s.icon className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-2" />
+              <p className="text-[18px] font-light text-foreground">{s.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -1332,15 +1329,14 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
 
       {/* Table */}
       <div className="glass-panel rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05]">
-          <h3 className="text-[14px] font-light text-white/50">
-            Videos <span className="text-white/25 ml-1 text-[12px]">{videos.length}</span>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h3 className="text-[14px] font-light text-foreground/70">
+            Videos <span className="text-muted-foreground ml-1 text-[12px]">{videos.length}</span>
           </h3>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-[11px] text-white/45 outline-none cursor-pointer"
-            style={{ colorScheme: "dark" }}
+            className="bg-popover text-popover-foreground border border-border rounded-lg px-3 py-1.5 text-[11px] outline-none cursor-pointer"
           >
             <option value="recent">Más recientes</option>
             <option value="views">Más views</option>
@@ -1350,7 +1346,7 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
         </div>
 
         {/* Column headers */}
-        <div className="grid grid-cols-12 gap-2 text-[10px] text-white/25 uppercase tracking-[0.1em] font-medium px-6 py-3 border-b border-white/[0.04]">
+        <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground uppercase tracking-[0.1em] font-medium px-6 py-3 border-b border-border">
           <div className="col-span-6">Video</div>
           <div className="col-span-2 text-right">Views</div>
           <div className="col-span-1 text-right">Likes</div>
@@ -1360,11 +1356,11 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
         </div>
 
         {sorted.length === 0 ? (
-          <div className="text-center py-12 text-white/25 text-[13px]">
+          <div className="text-center py-12 text-muted-foreground text-[13px]">
             No hay videos sincronizados. Click en Sincronizar para traer tus videos.
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.03]">
+          <div className="divide-y divide-border">
             {sorted.map((video) => {
               const eng   = video.view_count > 0 ? ((video.like_count + video.comment_count) / video.view_count * 100) : 0;
               const isTop = avgViews > 0 && video.view_count >= avgViews * 2.5;
@@ -1373,7 +1369,7 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
                 <div
                   key={video.id}
                   onClick={() => setSelectedVideo(video)}
-                  className="grid grid-cols-12 gap-2 items-center py-3.5 px-6 hover:bg-white/[0.025] transition-colors cursor-pointer group"
+                  className="grid grid-cols-12 gap-2 items-center py-3.5 px-6 hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
                   {/* Thumbnail + title */}
                   <div className="col-span-6 flex items-center gap-3 min-w-0">
@@ -1382,39 +1378,39 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
                         <Image src={video.thumbnail_url} alt="" fill className="object-cover" sizes="92px" unoptimized />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center">
-                          <Play className="h-4 w-4 text-white/20" />
+                          <Play className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
                       {isTop && (
                         <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-400 border border-black animate-pulse" />
                       )}
                       {video.duration_seconds && (
-                        <div className="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] text-white/70 px-1 rounded">
+                        <div className="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] px-1 rounded" style={{ color: "rgba(255,255,255,0.7)" }}>
                           {fmtDuration(video.duration_seconds)}
                         </div>
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[13px] text-white/80 group-hover:text-white transition-colors line-clamp-2 leading-snug">
+                      <p className="text-[13px] text-foreground/80 group-hover:text-foreground transition-colors line-clamp-2 leading-snug">
                         {video.title || "Sin título"}
                       </p>
-                      <p className="text-[10px] text-white/25 mt-1">{timeAgo(video.published_at)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{timeAgo(video.published_at)}</p>
                     </div>
                   </div>
 
-                  <div className="col-span-2 text-right text-[13px] font-light text-white/75">{fmt(video.view_count)}</div>
-                  <div className="col-span-1 text-right text-[12px] text-white/40">{fmt(video.like_count)}</div>
-                  <div className="col-span-1 text-right text-[12px] text-white/40">{fmt(video.comment_count)}</div>
+                  <div className="col-span-2 text-right text-[13px] font-light text-foreground/80">{fmt(video.view_count)}</div>
+                  <div className="col-span-1 text-right text-[12px] text-muted-foreground">{fmt(video.like_count)}</div>
+                  <div className="col-span-1 text-right text-[12px] text-muted-foreground">{fmt(video.comment_count)}</div>
                   <div className="col-span-1 text-center">
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
                       eng >= 8 ? "text-emerald-400 bg-emerald-400/10"
                         : eng >= 4 ? "text-blue-400 bg-blue-400/10"
-                        : "text-white/35 bg-white/[0.04]"
+                        : "text-muted-foreground bg-muted"
                     }`}>
                       {eng.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="col-span-1 text-center text-[11px] text-white/30">
+                  <div className="col-span-1 text-center text-[11px] text-muted-foreground">
                     {fmtDuration(video.duration_seconds)}
                   </div>
                 </div>
@@ -1435,6 +1431,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
 ];
 
 export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashboardProps) {
+  const ct = useChartTheme();
   const [activeTab, setActiveTab] = useState<TabKey>("canal");
   const [syncing, setSyncing]     = useState(false);
 
@@ -1458,8 +1455,7 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
     <div className="space-y-6">
       {/* Tabs */}
       <div
-        className="inline-flex items-center gap-1 p-1 rounded-full"
-        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+        className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
       >
         {TABS.map((tab) => {
           const active = activeTab === tab.key;
@@ -1468,14 +1464,14 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer ${
-                active ? "text-white" : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+                active ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-white/[0.04]"
               }`}
               style={active ? {
-                background: "rgba(255,255,255,0.1)",
+                background: ct.panelBorder,
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
-                border: "1px solid rgba(255,255,255,0.22)",
-                boxShadow: "0 1px 16px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.2)",
+                border: `1px solid ${ct.panelBorder}`,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
               } : undefined}
             >
               <tab.icon size={13} strokeWidth={active ? 2.2 : 1.6} />

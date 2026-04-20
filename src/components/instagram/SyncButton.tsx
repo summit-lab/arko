@@ -31,7 +31,11 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
 
       if (!quickRes.ok || quickJson.data?.status === "error") {
         setPhase("error");
-        setErrorMsg(quickJson.data?.error || quickJson.message || "Error en sync rápido");
+        if (quickJson.error === "TOKEN_EXPIRED") {
+          setErrorMsg("Conexión con Meta expirada. Reconectá tu cuenta.");
+        } else {
+          setErrorMsg(quickJson.message || quickJson.data?.error || "Error en sync rápido");
+        }
         return;
       }
 
@@ -72,8 +76,7 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
       <button
         onClick={handleSync}
         disabled={isLoading}
-        className="flex items-center gap-1.5 text-[13px] font-medium text-white/70 hover:text-white px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-        style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.05)" }}
+        className="flex items-center gap-1.5 text-[13px] font-medium text-white/70 hover:text-white px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed bg-transparent border border-white/[0.06]"
       >
         <Icon size={14} strokeWidth={2} className={isLoading ? "animate-spin" : ""} />
         {label}

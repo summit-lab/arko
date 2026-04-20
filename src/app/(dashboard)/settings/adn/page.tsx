@@ -5,7 +5,7 @@ import { getAdnData, getAdnProgress } from "@/services/adn-progress.service";
 import { AdnEditor } from "@/components/settings/AdnEditor";
 
 export const metadata = {
-  title: "ADN de Marca | Arko",
+  title: "ADN de Marca | Moka",
 };
 
 export default async function AdnSettingsPage() {
@@ -27,7 +27,7 @@ export default async function AdnSettingsPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="page-title">ADN de Marca</h1>
-          <p className="text-zinc-400 mt-1 text-sm">
+          <p className="text-muted-foreground mt-1 text-sm">
             Tu perfil de comunicación y estrategia. Editá cada sección directamente.
           </p>
         </div>

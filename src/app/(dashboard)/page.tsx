@@ -1,9 +1,10 @@
-import { Eye, Heart, Bookmark, MessageSquare, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, DollarSign, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ContentCalendar } from "@/components/dashboard/ContentCalendar";
 import { MetasDonut } from "@/components/dashboard/MetasDonut";
+import { ConversationsChart } from "@/components/dashboard/ConversationsChart";
 import { CountUp } from "@/components/ui/CountUp";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
@@ -27,34 +28,40 @@ function pctChange(current: number, previous: number): { text: string; up: boole
   };
 }
 
-const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
-  US: { name: "Estados Unidos", flag: "🇺🇸" },
-  ES: { name: "España", flag: "🇪🇸" },
-  MX: { name: "México", flag: "🇲🇽" },
-  AR: { name: "Argentina", flag: "🇦🇷" },
-  CO: { name: "Colombia", flag: "🇨🇴" },
-  CL: { name: "Chile", flag: "🇨🇱" },
-  UY: { name: "Uruguay", flag: "🇺🇾" },
-  PE: { name: "Perú", flag: "🇵🇪" },
-  BR: { name: "Brasil", flag: "🇧🇷" },
-  EC: { name: "Ecuador", flag: "🇪🇨" },
-  VE: { name: "Venezuela", flag: "🇻🇪" },
-  BO: { name: "Bolivia", flag: "🇧🇴" },
-  PY: { name: "Paraguay", flag: "🇵🇾" },
-  CR: { name: "Costa Rica", flag: "🇨🇷" },
-  PA: { name: "Panamá", flag: "🇵🇦" },
-  DO: { name: "Rep. Dominicana", flag: "🇩🇴" },
-  GT: { name: "Guatemala", flag: "🇬🇹" },
-  HN: { name: "Honduras", flag: "🇭🇳" },
-  SV: { name: "El Salvador", flag: "🇸🇻" },
-  NI: { name: "Nicaragua", flag: "🇳🇮" },
-  GB: { name: "Reino Unido", flag: "🇬🇧" },
-  DE: { name: "Alemania", flag: "🇩🇪" },
-  FR: { name: "Francia", flag: "🇫🇷" },
-  IT: { name: "Italia", flag: "🇮🇹" },
-  PT: { name: "Portugal", flag: "🇵🇹" },
-  CA: { name: "Canadá", flag: "🇨🇦" },
-};
+/**
+ * Filter helper — Meta returns sparse/zero rows for some accounts+days.
+ * We treat a day as having "signal" when at least reach or impressions is > 0.
+ * Applied to BOTH current and previous period to keep deltas unbiased (Fix 3.4).
+ */
+const hasSignal = (d: { reach?: number | null; impressions?: number | null }) =>
+  (d.reach ?? 0) > 0 || (d.impressions ?? 0) > 0;
+
+/**
+ * Interaction fallback — Meta sometimes returns null for total_interactions.
+ * In that case we reconstruct it from component metrics so engagement-rate
+ * derivation is robust on partial-sync workspaces (Fix 3.9).
+ * Only affects engagement-rate computation, not the component KPIs.
+ */
+function interactionsOf(r: {
+  total_interactions?: number | null;
+  likes?: number | null;
+  comments?: number | null;
+  saves?: number | null;
+  shares?: number | null;
+}): number {
+  return (
+    r.total_interactions ??
+    ((r.likes ?? 0) + (r.comments ?? 0) + (r.saves ?? 0) + (r.shares ?? 0))
+  );
+}
+
+/** Current calendar month window {from: YYYY-MM-01, to: todayISO} — for "Metas del Mes" actuals (Fix 3.3) */
+function getCurrentMonthWindow(): { from: string; to: string } {
+  const d = new Date();
+  const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  const to = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { from, to };
+}
 
 // ─── Data Fetching ───
 
@@ -62,55 +69,68 @@ async function getDashboardData(range: DateRange) {
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) return null;
 
-  const periodDays = range.days;
   const supabase = await createClient();
   const today = nextDay(range.to); // exclusive upper bound for .lt()
   const thirtyDaysAgo = range.from;
   const prev = previousPeriod(range);
   const sixtyDaysAgo = prev.from;
-  // Keep 90d window for reels (need content calendar and top content regardless of filter)
+  // Keep 90d window for reels (need content calendar + top sales regardless of filter)
   const ninetyDaysAgo = toISOStart(new Date(new Date().getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
-  const sevenDaysAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const periodAgo = range.from;
 
-  // Current month start for goals period
-  const nowDate = new Date();
-  const monthStart = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-01`;
+  // Period reels range (ISO bounds for reels.published_at timestamptz) — Fix 3.1/3.2
+  const periodReelsFromISO = toISOStart(range.from);
+  const periodReelsToISO = toISOStart(nextDay(range.to));
+
+  // Current calendar month window (for Metas del Mes donuts) — Fix 3.3
+  const monthWin = getCurrentMonthWindow();
+  const monthTo = nextDay(monthWin.to);
+  const monthStart = monthWin.from;
+
+  // Conversations chart window — last 14 days, independent of the dashboard date filter.
+  const conversations14dFrom = new Date(Date.now() - 13 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
 
   const [
     insightsCurrent,
     insightsPrevious,
-    insightsWeek,
+    insightsPeriodFollows,
     insightsMonthly,
-    reelsData,
-    demographics,
+    insightsMonthGoals,
+    reels90d,
+    reelsPeriod,
+    reelsMonth,
     goalsResult,
+    salesCurrent,
+    salesPrevious,
+    conversations14d,
   ] = await Promise.all([
-    // Query 1: Last 30 days insights
+    // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
+    // — the date range predicate already bounds the result (Fix 3.6).
     supabase
       .from("ig_account_insights")
       .select("reach, impressions, total_interactions, likes, comments, shares, saves, follower_count, follows_count")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", thirtyDaysAgo)
       .lt("metric_date", today)
-      .order("metric_date", { ascending: false })
-      .limit(30),
+      .order("metric_date", { ascending: false }),
 
-    // Query 2: Previous period insights (for % change)
+    // Query 2: Previous period insights (for % change). Added ORDER BY, dropped .limit (Fix 3.5).
     supabase
       .from("ig_account_insights")
-      .select("reach, likes, comments, shares, saves")
+      .select("reach, impressions, total_interactions, likes, comments, shares, saves")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", sixtyDaysAgo)
       .lt("metric_date", thirtyDaysAgo)
-      .limit(periodDays),
+      .order("metric_date", { ascending: true }),
 
-    // Query 3: Follower growth last 7 days (via followers_total diff or follower_count sum)
+    // Query 3: Follower growth over SELECTED period (was hardcoded 7d) — Fix 3.2
     supabase
       .from("ig_account_insights")
       .select("metric_date, follower_count, followers_total")
       .eq("workspace_id", workspaceId)
-      .gte("metric_date", sevenDaysAgo)
+      .gte("metric_date", range.from)
       .lt("metric_date", today)
       .order("metric_date", { ascending: true }),
 
@@ -121,10 +141,18 @@ async function getDashboardData(range: DateRange) {
       .eq("workspace_id", workspaceId)
       .gte("metric_date", periodAgo)
       .lt("metric_date", today)
-      .order("metric_date", { ascending: true })
-      .limit(periodDays),
+      .order("metric_date", { ascending: true }),
 
-    // Query 5: Reels with metrics (last 90 days, for top content + growth chart)
+    // Query 5: Current-month insights (for Metas del Mes donuts) — Fix 3.3
+    supabase
+      .from("ig_account_insights")
+      .select("metric_date, reach, impressions, total_interactions, likes, comments, saves, shares, follower_count, followers_total")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", monthStart)
+      .lt("metric_date", monthTo)
+      .order("metric_date", { ascending: true }),
+
+    // Query 6: Reels last 90 days — for calendar + top sales panels (unchanged window)
     supabase
       .from("reels")
       .select(`
@@ -137,37 +165,91 @@ async function getDashboardData(range: DateRange) {
       .order("published_at", { ascending: false })
       .limit(200),
 
-    // Query 6: Demographics (latest)
+    // Query 7: Reels in SELECTED period — for "Vistas Totales" KPI + "Mejor Reel" (Fix 3.1/3.2)
     supabase
-      .from("ig_account_demographics")
-      .select("audience_country")
+      .from("reels")
+      .select(`
+        id, caption, permalink, published_at, has_ads, reel_type,
+        reel_metrics (views_org, likes_total, comments_total, shares_total, saves_total),
+        reel_metrics_paid (views_paid)
+      `)
       .eq("workspace_id", workspaceId)
-      .order("snapshot_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .gte("published_at", periodReelsFromISO)
+      .lt("published_at", periodReelsToISO)
+      .order("published_at", { ascending: false })
+      .limit(500),
 
-    // Query 7: Workspace goals for current month
+    // Query 8: Reels published in CURRENT CALENDAR MONTH — for Metas del Mes "views" donut (C6).
+    // Matches the basis used by the "Vistas Totales" Dashboard KPI (sum of reel views_org + views_paid)
+    // so the donut reconciles with the header number when both are shown.
+    supabase
+      .from("reels")
+      .select(`
+        id, published_at,
+        reel_metrics (views_org),
+        reel_metrics_paid (views_paid)
+      `)
+      .eq("workspace_id", workspaceId)
+      .gte("published_at", `${monthStart}T00:00:00.000Z`)
+      .lt("published_at", `${monthTo}T00:00:00.000Z`)
+      .limit(500),
+
+    // Query 9: Workspace goals for current month
     supabase
       .from("workspace_goals")
       .select("metric, target_value")
       .eq("workspace_id", workspaceId)
       .eq("period_start", monthStart),
+
+    // Query 10: Sales — current selected period (for "Ventas cobradas" KPI + source breakdown)
+    supabase
+      .from("sales")
+      .select("amount_collected, source_type, payment_status")
+      .eq("workspace_id", workspaceId)
+      .neq("payment_status", "cancelled")
+      .gte("sale_date", range.from)
+      .lte("sale_date", range.to),
+
+    // Query 11: Sales — previous period (for KPI delta)
+    supabase
+      .from("sales")
+      .select("amount_collected")
+      .eq("workspace_id", workspaceId)
+      .neq("payment_status", "cancelled")
+      .gte("sale_date", prev.from)
+      .lte("sale_date", prev.to),
+
+    // Query 12: New IG conversations — last 14 days for the ConversationsChart card.
+    // Independent of `range` because the chart is tuned for a 14-day window and
+    // computes its own WoW delta internally.
+    supabase
+      .from("ig_daily_conversations")
+      .select("date, new_conversations")
+      .eq("workspace_id", workspaceId)
+      .gte("date", conversations14dFrom)
+      .order("date", { ascending: true }),
   ]);
 
   // ─── Log query errors ───
   if (insightsCurrent.error) console.error('[dashboard] insightsCurrent error:', insightsCurrent.error);
   if (insightsPrevious.error) console.error('[dashboard] insightsPrevious error:', insightsPrevious.error);
-  if (insightsWeek.error) console.error('[dashboard] insightsWeek error:', insightsWeek.error);
+  if (insightsPeriodFollows.error) console.error('[dashboard] insightsPeriodFollows error:', insightsPeriodFollows.error);
   if (insightsMonthly.error) console.error('[dashboard] insightsMonthly error:', insightsMonthly.error);
-  if (reelsData.error) console.error('[dashboard] reelsData error:', reelsData.error);
-  if (demographics.error) console.error('[dashboard] demographics error:', demographics.error);
+  if (insightsMonthGoals.error) console.error('[dashboard] insightsMonthGoals error:', insightsMonthGoals.error);
+  if (reels90d.error) console.error('[dashboard] reels90d error:', reels90d.error);
+  if (reelsPeriod.error) console.error('[dashboard] reelsPeriod error:', reelsPeriod.error);
+  if (reelsMonth.error) console.error('[dashboard] reelsMonth error:', reelsMonth.error);
+  if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
+  if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
+  // Swallow "undefined_table" (42P01) — conversations migration may not be applied yet.
+  if (conversations14d.error && conversations14d.error.code !== '42P01') {
+    console.error('[dashboard] conversations14d error:', conversations14d.error);
+  }
 
   // ─── Process insights data ───
-
-  const current30d = (insightsCurrent.data ?? []).filter(
-    (d) => (d.reach ?? 0) > 0 || (d.impressions ?? 0) > 0
-  );
-  const previous30d = insightsPrevious.data ?? [];
+  // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
+  const current30d = (insightsCurrent.data ?? []).filter(hasSignal);
+  const previous30d = (insightsPrevious.data ?? []).filter(hasSignal);
 
   const sumCurrent = {
     reach: current30d.reduce((s, r) => s + (r.reach || 0), 0),
@@ -175,7 +257,8 @@ async function getDashboardData(range: DateRange) {
     comments: current30d.reduce((s, r) => s + (r.comments || 0), 0),
     saves: current30d.reduce((s, r) => s + (r.saves || 0), 0),
     shares: current30d.reduce((s, r) => s + (r.shares || 0), 0),
-    interactions: current30d.reduce((s, r) => s + (r.total_interactions || 0), 0),
+    // Use interactionsOf() fallback so rows with null total_interactions still contribute (Fix 3.9)
+    interactions: current30d.reduce((s, r) => s + interactionsOf(r), 0),
   };
 
   const sumPrevious = {
@@ -184,20 +267,21 @@ async function getDashboardData(range: DateRange) {
     comments: previous30d.reduce((s, r) => s + (r.comments || 0), 0),
     saves: previous30d.reduce((s, r) => s + (r.saves || 0), 0),
     shares: previous30d.reduce((s, r) => s + (r.shares || 0), 0),
+    interactions: previous30d.reduce((s, r) => s + interactionsOf(r), 0),
   };
 
-  // Follower growth last 7 days: prefer followers_total diff, fallback to follower_count sum
-  const weekFollowerRows = insightsWeek.data ?? [];
-  const withFt = weekFollowerRows.filter((r) => (r.followers_total || 0) > 0);
+  // Follower growth over SELECTED period: prefer followers_total diff, fallback to follower_count sum (Fix 3.2)
+  const periodFollowerRows = insightsPeriodFollows.data ?? [];
+  const withFt = periodFollowerRows.filter((r) => (r.followers_total || 0) > 0);
   const firstFt = withFt[0]?.followers_total ?? 0;
   const lastFt = withFt[withFt.length - 1]?.followers_total ?? 0;
-  const newFollowsWeek = lastFt > firstFt
+  const newFollowsWindow = lastFt > firstFt
     ? lastFt - firstFt
-    : weekFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+    : periodFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
 
-  // ─── Process reels for views KPI + top content ───
+  // ─── Process 90d reels (calendar + top sales) ───
 
-  const reels = (reelsData.data ?? []).map((r) => {
+  const reels = (reels90d.data ?? []).map((r) => {
     const metrics = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
     const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
     const viewsOrg = metrics?.views_org || 0;
@@ -220,14 +304,41 @@ async function getDashboardData(range: DateRange) {
     };
   });
 
-  const totalViews = reels.reduce((s, r) => s + r.views_total, 0);
+  // ─── Process period-scoped reels (KPI + mejor reel) — Fix 3.1/3.2 ───
+
+  const reelsInPeriod = (reelsPeriod.data ?? []).map((r) => {
+    const metrics = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
+    const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
+    const viewsOrg = metrics?.views_org || 0;
+    const viewsPaid = paid?.views_paid || 0;
+    return {
+      id: r.id,
+      caption: r.caption,
+      published_at: r.published_at,
+      has_ads: r.has_ads,
+      reel_type: r.reel_type,
+      views_total: viewsOrg + viewsPaid,
+      likes: metrics?.likes_total || 0,
+      saves: metrics?.saves_total || 0,
+      comments: metrics?.comments_total || 0,
+      shares: metrics?.shares_total || 0,
+    };
+  });
+
+  // Views KPI scoped to selected period (Fix 3.1)
+  const totalViewsPeriod = reelsInPeriod.reduce((s, r) => s + r.views_total, 0);
+
+  // Sales total from 90d window (Top Ventas panel)
   const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
-  // Views for previous period — reels published between 60 and 30 days ago don't exist in our query.
-  // Use reach as proxy for "Total Views" KPI change since we have insights for both periods.
-  const viewsChange = pctChange(sumCurrent.reach, sumPrevious.reach);
+  // C5: No previous-period reels query exists, so we can't compute a views delta honestly.
+  // The KPI value is sum(reel.views_total) for the current period, but we have no equivalent
+  // aggregate for the previous period. Previously this was computed from reach (an account-level
+  // metric, not comparable to reel views), which produced a misleading "+X%" badge.
+  // Setting to null hides the badge instead of showing a lie — the KPI renderer guards on this.
+  const viewsChange = null as { text: string; up: boolean } | null;
 
-  // Top 4 reels by views
+  // Top 4 reels by views (from 90d window, panel labeled "Últimos 90 días")
   const topContent = [...reels]
     .sort((a, b) => b.views_total - a.views_total)
     .slice(0, 4)
@@ -245,20 +356,20 @@ async function getDashboardData(range: DateRange) {
       };
     });
 
-  // Best reel
-  const bestReelViews = reels.length > 0 ? Math.max(...reels.map((r) => r.views_total)) : 0;
+  // Best reel — now scoped to SELECTED period (Fix 3.2)
+  const bestReelViews = reelsInPeriod.length > 0
+    ? Math.max(...reelsInPeriod.map((r) => r.views_total))
+    : 0;
 
-  // Engagement rate 30d
-  const engRate30d = sumCurrent.reach > 0
+  // Engagement rate over current period (uses interactionsOf() fallback) — Fix 3.9
+  const engRatePeriod = sumCurrent.reach > 0
     ? (sumCurrent.interactions / sumCurrent.reach) * 100
     : 0;
 
   // ─── Daily chart data from ig_account_insights ───
   // Filter out days with zero metrics (incomplete sync data from current day)
 
-  const dailyInsights = (insightsMonthly.data ?? []).filter(
-    (d) => (d.impressions ?? 0) > 0 || (d.reach ?? 0) > 0
-  );
+  const dailyInsights = (insightsMonthly.data ?? []).filter(hasSignal);
 
   const growthData = dailyInsights.map((row) => {
     const d = new Date(row.metric_date);
@@ -279,30 +390,64 @@ async function getDashboardData(range: DateRange) {
     };
   });
 
-  // ─── Countries ───
+  // ─── Metas del Mes actuals — scoped to CURRENT CALENDAR MONTH (Fix 3.3) ───
 
-  const countryRaw: Record<string, number> = demographics.data?.audience_country ?? {};
-  const countryTotal = Object.values(countryRaw).reduce((s, v) => s + v, 0);
-  const countries = Object.entries(countryRaw)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([code, count]) => {
-      const info = COUNTRY_MAP[code] || { name: code, flag: "🌍" };
-      return {
-        country: info.name,
-        flag: info.flag,
-        pct: countryTotal > 0 ? Math.round((count / countryTotal) * 100) : 0,
-      };
-    });
+  const monthRows = (insightsMonthGoals.data ?? []).filter(hasSignal);
+
+  // C6: monthSumViews now aggregates from reels (views_org + views_paid) for reels
+  // published during the current calendar month — matching the basis of the "Vistas Totales"
+  // Dashboard KPI so the Metas del Mes donut reconciles with the header number.
+  // Previously this summed ig_account_insights.impressions (account-level impressions, a
+  // different universe than reel video plays) while labeled "Views" in the UI — misleading.
+  // monthSumReach / monthSumInteractions stay on ig_account_insights (account-level, correct
+  // basis for engagement-rate derivation).
+  const monthSumViews = (reelsMonth.data ?? []).reduce((s, r) => {
+    const metrics = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
+    const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
+    return s + (metrics?.views_org ?? 0) + (paid?.views_paid ?? 0);
+  }, 0);
+  const monthSumReach = monthRows.reduce((s, r) => s + (r.reach || 0), 0);
+  const monthSumInteractions = monthRows.reduce((s, r) => s + interactionsOf(r), 0);
+
+  // Followers gained this month: followers_total diff (preferred), fallback to follower_count sum
+  const monthWithFt = monthRows.filter((r) => (r.followers_total || 0) > 0);
+  const monthFirstFt = monthWithFt[0]?.followers_total ?? 0;
+  const monthLastFt = monthWithFt[monthWithFt.length - 1]?.followers_total ?? 0;
+  const followersGainedMonth = monthLastFt > monthFirstFt
+    ? monthLastFt - monthFirstFt
+    : monthRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+
+  const engRateMonth = monthSumReach > 0
+    ? (monthSumInteractions / monthSumReach) * 100
+    : 0;
+
+  // ─── Sales (current selected period) — "Ventas cobradas" KPI + source donut ───
+  // Currency treated as implicit USD (no currency column in schema).
+
+  const salesCurrentRows = (salesCurrent.data ?? []) as Array<{
+    amount_collected: number | null;
+    source_type: string | null;
+    payment_status: string | null;
+  }>;
+  const salesPreviousRows = (salesPrevious.data ?? []) as Array<{
+    amount_collected: number | null;
+  }>;
+
+  const totalSalesCollected = salesCurrentRows.reduce((s, r) => s + (r.amount_collected ?? 0), 0);
+  const totalSalesCollectedPrev = salesPreviousRows.reduce((s, r) => s + (r.amount_collected ?? 0), 0);
+  const salesChange = pctChange(totalSalesCollected, totalSalesCollectedPrev);
 
   // ─── KPIs ───
 
   const kpis = [
     {
       label: "Vistas Totales",
-      value: totalViews > 0 ? formatCompact(totalViews) : "—",
-      change: viewsChange.text,
-      up: viewsChange.up,
+      // Scoped to selected period (Fix 3.1)
+      value: totalViewsPeriod > 0 ? formatCompact(totalViewsPeriod) : "—",
+      // C5: viewsChange is null — no honest previous-period comparison available.
+      // Using "—" + up:true so the renderer falls through to the "sin datos previos" branch.
+      change: viewsChange?.text ?? "—",
+      up: viewsChange?.up ?? true,
       icon: "eye" as const,
       color: "text-white/60",
     },
@@ -327,15 +472,25 @@ async function getDashboardData(range: DateRange) {
       icon: "message" as const,
       color: "text-white/60",
     },
+    {
+      label: "Ventas cobradas",
+      value: totalSalesCollected > 0 ? `$${formatCompact(totalSalesCollected)}` : "—",
+      ...salesChange,
+      icon: "dollar" as const,
+      color: "text-white/60",
+    },
   ];
 
   // ─── Quick Stats ───
 
+  const periodSubLabel = `últimos ${range.days} días`;
+
   const quickStats = [
-    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: `últimos ${range.days} días` },
-    { label: "Tasa de Engagement", value: engRate30d > 0 ? `${engRate30d.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
+    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: periodSubLabel },
+    { label: "Tasa de Engagement", value: engRatePeriod > 0 ? `${engRatePeriod.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
     { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
-    { label: "Nuevos Follows", value: newFollowsWeek > 0 ? formatCompact(newFollowsWeek) : "—", sub: "últimos 7 días" },
+    // Sub-label now matches the selected period (Fix 3.2)
+    { label: "Nuevos Follows", value: newFollowsWindow > 0 ? formatCompact(newFollowsWindow) : "—", sub: periodSubLabel },
     ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
   ];
 
@@ -377,14 +532,44 @@ async function getDashboardData(range: DateRange) {
     reach: goalsMap.get("reach") ?? null,
   };
 
-  // Raw numeric values for donut calculation
+  // Raw numeric values for donut calculation — CURRENT MONTH window (Fix 3.3)
   const metasActuals = {
-    views: totalViews,
-    followers: newFollowsWeek,
-    engRate: engRate30d,
+    views: monthSumViews,
+    followers: followersGainedMonth,
+    engRate: engRateMonth,
   };
 
-  return { kpis, topContent, quickStats, countries, growthData, engagementData, salesChartData, calendarReels, goals, metasActuals };
+  // ─── Conversations (IG DMs) — last 14 days ───
+  // If the workspace has never had a DM event, we may aggregate by meta_connection_id
+  // so the same date can appear twice. Collapse by `date` to match the
+  // ConversationsChart contract (one row per date).
+  const conversationsRaw = (conversations14d.data ?? []) as Array<{
+    date: string;
+    new_conversations: number | null;
+  }>;
+  const conversationsMap = new Map<string, number>();
+  for (const row of conversationsRaw) {
+    conversationsMap.set(
+      row.date,
+      (conversationsMap.get(row.date) ?? 0) + (row.new_conversations ?? 0)
+    );
+  }
+  const conversationsData = Array.from(conversationsMap.entries()).map(
+    ([date, new_conversations]) => ({ date, new_conversations })
+  );
+
+  return {
+    kpis,
+    topContent,
+    quickStats,
+    growthData,
+    engagementData,
+    salesChartData,
+    calendarReels,
+    goals,
+    metasActuals,
+    conversationsData,
+  };
 }
 
 // ─── Icon mapping (can't pass components as serialized data) ───
@@ -394,6 +579,7 @@ const ICON_MAP = {
   bookmark: Bookmark,
   heart: Heart,
   message: MessageSquare,
+  dollar: DollarSign,
 } as const;
 
 // ─── Page ───
@@ -403,15 +589,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const dateRange = parseDateParams(params, "30d");
   const data = await getDashboardData(dateRange);
 
-  const hasData = data !== null;
   const kpis = data?.kpis ?? [];
   const topContent = data?.topContent ?? [];
   const quickStats = data?.quickStats ?? [];
-  // countries removed (Top Países panel eliminado)
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
   const salesChartData = data?.salesChartData ?? [];
   const calendarReels = data?.calendarReels ?? [];
+  const conversationsData = data?.conversationsData ?? [];
 
   return (
     <div className="px-8 py-10">
@@ -434,14 +619,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         <div className="flex-1 min-w-0 space-y-6">
 
           {/* Hero KPIs */}
-          <div className="grid grid-cols-4 gap-5">
+          <div className="grid grid-cols-5 gap-5">
             {kpis.map((m, i) => {
               const IconComp = ICON_MAP[m.icon];
               return (
                 <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
                   <div className="flex items-center justify-between mb-4 relative z-10">
                     <p className="stat-label">{m.label}</p>
-                    <div className={`h-9 w-9 rounded-full flex items-center justify-center ${m.color}`} style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <div className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color}`}>
                       <IconComp className="h-[18px] w-[18px]" />
                     </div>
                   </div>
@@ -466,8 +651,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             })}
           </div>
 
-          {/* Charts Row — Recharts */}
-          <div className="animate-slide-up stagger-5">
+          {/* Main charts — Recharts */}
+          <div className="animate-slide-up stagger-4">
             <DashboardCharts growthData={growthData} engagementData={engagementData} salesData={salesChartData} />
           </div>
 
@@ -539,6 +724,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             </div>
           </div>
 
+          {/* IG DM Conversations (last 14d) — renders its own empty-state and
+              deep-links to /settings/integrations when the webhook isn't active yet. */}
+          <div className="animate-slide-up stagger-3">
+            <ConversationsChart data={conversationsData} />
+          </div>
+
           {/* Metas del Mes — Donuts */}
           <MetasDonut
             views={data?.metasActuals?.views ?? 0}
@@ -568,7 +759,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                         <span className="text-[10px] text-white/50 flex-1 truncate font-light">{d.caption}</span>
                         <span className="text-[11px] text-emerald-300 font-light shrink-0">${formatCompact(d.amount)}</span>
                       </div>
-                      <div className="h-[3px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-[3px] w-full rounded-full overflow-hidden ml-5 bg-white/[0.05]">
                         <div className="h-full rounded-full bg-emerald-400/60" style={{ width: `${Math.round((d.amount / maxAmount) * 88)}%` }} />
                       </div>
                     </div>

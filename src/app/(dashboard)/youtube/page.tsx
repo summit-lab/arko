@@ -62,7 +62,7 @@ export default async function YouTubePage({ searchParams }: { searchParams: Prom
         yt_video_metrics (view_count, like_count, comment_count, likes_per_view, comments_per_view)
       `)
       .eq("workspace_id", workspaceId)
-      .gte("duration_seconds", 240)
+      .gte("duration_seconds", 65)
       .gte("published_at", periodStartIso)
       .order("published_at", { ascending: false })
       .limit(100),

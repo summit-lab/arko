@@ -87,12 +87,12 @@ export function AdnCompetitorModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-foreground/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-[640px] max-h-[85vh] flex flex-col rounded-xl border border-white/[0.08] bg-[#0a0a0a] shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <div className="relative w-full max-w-[640px] max-h-[85vh] flex flex-col rounded-xl border border-border bg-popover text-popover-foreground shadow-[0_24px_80px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ export function AdnCompetitorModal({
                     value={entry.name}
                     onChange={(e) => updateEntry(i, "name", e.target.value)}
                     placeholder="Ej: Juan Pérez"
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-white/15 focus:outline-none focus:border-white/[0.18] transition-colors"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground focus:outline-none focus:border-ring transition-colors"
                   />
                 </div>
                 <div>
@@ -159,7 +159,7 @@ export function AdnCompetitorModal({
                     value={entry.ig_url}
                     onChange={(e) => updateEntry(i, "ig_url", e.target.value)}
                     placeholder="@usuario o URL"
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-white/15 focus:outline-none focus:border-white/[0.18] transition-colors"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground focus:outline-none focus:border-ring transition-colors"
                   />
                 </div>
               </div>
@@ -183,7 +183,7 @@ export function AdnCompetitorModal({
                   }}
                   rows={1}
                   placeholder="Qué te llama la atención de su marca, posicionamiento, identidad..."
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-white/[0.18] transition-colors overflow-hidden"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ring transition-colors overflow-hidden"
                 />
               </div>
 
@@ -206,7 +206,7 @@ export function AdnCompetitorModal({
                   }}
                   rows={1}
                   placeholder="Qué tipo de contenido hacen que te gusta, formatos, estilo..."
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-white/15 resize-none focus:outline-none focus:border-white/[0.18] transition-colors overflow-hidden"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ring transition-colors overflow-hidden"
                 />
               </div>
             </div>
@@ -232,14 +232,14 @@ export function AdnCompetitorModal({
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-[12px] text-white/40 hover:text-white/60 hover:bg-white/[0.04] transition-all cursor-pointer"
+              className="px-4 py-2 rounded-lg text-[12px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-all cursor-pointer"
             >
               Cancelar
             </button>
             <button
               onClick={handleSave}
               disabled={validCount === 0 || saving}
-              className="px-5 py-2 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/20 text-[12px] font-medium text-violet-300 hover:text-violet-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              className="px-5 py-2 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/20 text-[12px] font-medium text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
             >
               {saving ? "Guardando..." : "Guardar competidores"}
             </button>

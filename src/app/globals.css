@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
 
 @font-face {
   font-family: "Manrope Bold";
@@ -80,7 +81,7 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
+  --border: oklch(0.35 0.04 50 / 0.22);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.809 0.105 251.813);
@@ -403,6 +404,248 @@
   -webkit-text-fill-color: rgba(255, 255, 255, 0.8) !important;
   caret-color: rgba(255, 255, 255, 0.8);
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LIGHT MODE — Clean & Minimal
+   Sin glassmorphism: surfaces sólidas, texto oscuro, sin blur
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Base ── */
+html:not(.dark) body {
+  background: #fbfbfd;
+  color: #111111;
+  background-image: none;
+}
+/* Light-mode ambient — very subtle violet/indigo radial to avoid a flat white sea */
+html:not(.dark) body::before {
+  display: block;
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(122,134,224,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(175,110,199,0.04) 0%, transparent 60%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Layout divider lines (sidebar ↔ header crossing) ── */
+.divider-vertical {
+  background: linear-gradient(to bottom, rgba(255,255,255,0) 0px, rgba(255,255,255,0.2) 80px, rgba(255,255,255,0.03) 400px, rgba(255,255,255,0) 100%);
+}
+.divider-horizontal {
+  background: linear-gradient(to right, rgba(255,255,255,0) 0px, rgba(255,255,255,0.2) 260px, rgba(255,255,255,0.03) 800px, rgba(255,255,255,0) 100%);
+}
+.divider-glow {
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+}
+html:not(.dark) .divider-vertical {
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0.18) 80px, rgba(0,0,0,0.04) 400px, rgba(0,0,0,0) 100%);
+}
+html:not(.dark) .divider-horizontal {
+  background: linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,0.18) 260px, rgba(0,0,0,0.04) 800px, rgba(0,0,0,0) 100%);
+}
+html:not(.dark) .divider-glow {
+  background: radial-gradient(circle, rgba(0,0,0,0.15) 0%, transparent 70%);
+}
+
+/* ── Header ── */
+html:not(.dark) header {
+  background: #fbfbfd !important;
+  border-bottom: none !important;
+}
+html:not(.dark) header > div {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 1px 2px rgba(0,0,0,0.04),
+    0 4px 12px rgba(0,0,0,0.05) !important;
+}
+
+/* ── Glass surfaces → cards blancas sobre bg #fbfbfd, con top-edge highlight + soft shadow ── */
+html:not(.dark) .glass-card,
+html:not(.dark) .glass-panel,
+html:not(.dark) .glass-section,
+html:not(.dark) .card-dark,
+html:not(.dark) .card-dark-lg {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  border-top: 1px solid rgba(255,255,255,0.6) !important;
+  /* Top-edge highlight (white) + soft drop shadow (black) = tarjeta elevada */
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 1px 2px rgba(0,0,0,0.04),
+    0 4px 12px rgba(0,0,0,0.05) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html:not(.dark) .glass-card::before,
+html:not(.dark) .glass-card::after { display: none !important; }
+html:not(.dark) .glass-card:hover,
+html:not(.dark) .glass-panel:hover {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.16) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    0 2px 4px rgba(0,0,0,0.06),
+    0 8px 24px rgba(0,0,0,0.08) !important;
+  transform: translateY(-1px);
+}
+
+/* ── Typography classes ── */
+html:not(.dark) .stat-number, html:not(.dark) .stat-number-xl, html:not(.dark) .stat-number-hero { color: #111111 !important; }
+html:not(.dark) .stat-label { color: rgba(17,17,17,0.72) !important; }
+html:not(.dark) .page-title { color: #111111 !important; }
+html:not(.dark) .page-title::after {
+  background: linear-gradient(90deg, #111111 0%, rgba(0,0,0,0.08) 100%);
+}
+html:not(.dark) .pill-badge { background: rgba(0,0,0,0.07); color: rgba(17,17,17,0.80) !important; }
+
+/* ── Tailwind grey classes override ── */
+html:not(.dark) .text-gray-300,
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-gray-500,
+html:not(.dark) .text-zinc-400,
+html:not(.dark) .text-zinc-500,
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-neutral-400,
+html:not(.dark) .text-neutral-500 { color: rgba(17,17,17,0.72) !important; }
+
+/* ── .on-image / .on-color utilities — opt-out of light-mode text overrides for content
+     sitting on top of images or saturated color surfaces (buttons, pills, badges).
+     Only specific classes get preserved; non-listed Tailwind utilities keep their defaults
+     (so text-zinc-200, text-amber-300, etc. stay their default colors on dark pills). ── */
+html:not(.dark) .on-image .text-white         { color: #ffffff !important; }
+html:not(.dark) .on-image .text-white\/90     { color: rgba(255,255,255,0.90) !important; }
+html:not(.dark) .on-image .text-white\/80     { color: rgba(255,255,255,0.80) !important; }
+html:not(.dark) .on-image .text-white\/75     { color: rgba(255,255,255,0.75) !important; }
+html:not(.dark) .on-image .text-white\/70     { color: rgba(255,255,255,0.70) !important; }
+html:not(.dark) .on-image .text-white\/65     { color: rgba(255,255,255,0.65) !important; }
+html:not(.dark) .on-image .text-white\/60     { color: rgba(255,255,255,0.60) !important; }
+html:not(.dark) .on-image .text-white\/50     { color: rgba(255,255,255,0.50) !important; }
+html:not(.dark) .on-image .text-white\/40     { color: rgba(255,255,255,0.40) !important; }
+html:not(.dark) .on-image .text-white\/35     { color: rgba(255,255,255,0.35) !important; }
+html:not(.dark) .on-image .text-white\/30     { color: rgba(255,255,255,0.30) !important; }
+/* Accent colors on dark overlays keep their neon look in light mode */
+html:not(.dark) .on-image .text-emerald-300   { color: #6ee7b7 !important; }
+html:not(.dark) .on-image .text-emerald-400   { color: #34d399 !important; }
+html:not(.dark) .on-image .text-emerald-500   { color: #10b981 !important; }
+html:not(.dark) .on-image .text-amber-300     { color: #fcd34d !important; }
+html:not(.dark) .on-image .text-amber-400     { color: #fbbf24 !important; }
+html:not(.dark) .on-image .text-blue-300      { color: #93c5fd !important; }
+html:not(.dark) .on-image .text-blue-400      { color: #60a5fa !important; }
+html:not(.dark) .on-image .text-purple-300    { color: #d8b4fe !important; }
+html:not(.dark) .on-image .text-purple-400    { color: #c084fc !important; }
+html:not(.dark) .on-image .text-violet-300    { color: #c4b5fd !important; }
+html:not(.dark) .on-image .text-violet-400    { color: #a78bfa !important; }
+html:not(.dark) .on-image .text-red-300       { color: #fca5a5 !important; }
+html:not(.dark) .on-image .text-rose-300      { color: #fda4af !important; }
+html:not(.dark) .on-image .text-cyan-300      { color: #67e8f9 !important; }
+html:not(.dark) .on-image .text-green-300     { color: #86efac !important; }
+
+/* Same overrides for .on-color (saturated button/pill backgrounds) */
+html:not(.dark) .on-color .text-white         { color: #ffffff !important; }
+html:not(.dark) .on-color .text-white\/90     { color: rgba(255,255,255,0.90) !important; }
+html:not(.dark) .on-color .text-white\/80     { color: rgba(255,255,255,0.80) !important; }
+html:not(.dark) .on-color .text-white\/70     { color: rgba(255,255,255,0.70) !important; }
+html:not(.dark) .on-color .text-white\/60     { color: rgba(255,255,255,0.60) !important; }
+html:not(.dark) .on-color .text-white\/50     { color: rgba(255,255,255,0.50) !important; }
+html:not(.dark) .on-color .text-white\/40     { color: rgba(255,255,255,0.40) !important; }
+html:not(.dark) .on-color .text-emerald-300   { color: #6ee7b7 !important; }
+html:not(.dark) .on-color .text-amber-300     { color: #fcd34d !important; }
+html:not(.dark) .on-color .text-blue-300      { color: #93c5fd !important; }
+html:not(.dark) .on-color .text-violet-300    { color: #c4b5fd !important; }
+
+/* ── text-white/* → texto oscuro — negro con opacidad mínima para jerarquía ── */
+html:not(.dark) .text-white    { color: #111111 !important; }
+html:not(.dark) .text-white\/10 { color: rgba(17,17,17,0.38) !important; }
+html:not(.dark) .text-white\/12 { color: rgba(17,17,17,0.42) !important; }
+html:not(.dark) .text-white\/15 { color: rgba(17,17,17,0.48) !important; }
+html:not(.dark) .text-white\/20 { color: rgba(17,17,17,0.56) !important; }
+html:not(.dark) .text-white\/25 { color: rgba(17,17,17,0.64) !important; }
+html:not(.dark) .text-white\/30 { color: rgba(17,17,17,0.72) !important; }
+html:not(.dark) .text-white\/35 { color: rgba(17,17,17,0.77) !important; }
+html:not(.dark) .text-white\/40 { color: rgba(17,17,17,0.82) !important; }
+html:not(.dark) .text-white\/45 { color: rgba(17,17,17,0.85) !important; }
+html:not(.dark) .text-white\/50 { color: rgba(17,17,17,0.87) !important; }
+html:not(.dark) .text-white\/55 { color: rgba(17,17,17,0.89) !important; }
+html:not(.dark) .text-white\/60 { color: rgba(17,17,17,0.91) !important; }
+html:not(.dark) .text-white\/65 { color: rgba(17,17,17,0.93) !important; }
+html:not(.dark) .text-white\/70 { color: rgba(17,17,17,0.94) !important; }
+html:not(.dark) .text-white\/75 { color: rgba(17,17,17,0.95) !important; }
+html:not(.dark) .text-white\/80 { color: rgba(17,17,17,0.96) !important; }
+html:not(.dark) .text-white\/85 { color: rgba(17,17,17,0.97) !important; }
+html:not(.dark) .text-white\/90 { color: #111111 !important; }
+
+/* ── bg-white/X → fondos sutiles oscuros ── */
+html:not(.dark) .bg-white\/\[0\.01\]  { background-color: rgba(0,0,0,0.01)  !important; }
+html:not(.dark) .bg-white\/\[0\.02\]  { background-color: rgba(0,0,0,0.02)  !important; }
+html:not(.dark) .bg-white\/\[0\.03\]  { background-color: rgba(0,0,0,0.025) !important; }
+html:not(.dark) .bg-white\/\[0\.04\]  { background-color: rgba(0,0,0,0.03)  !important; }
+html:not(.dark) .bg-white\/\[0\.05\]  { background-color: rgba(0,0,0,0.035) !important; }
+html:not(.dark) .bg-white\/\[0\.06\]  { background-color: rgba(0,0,0,0.05)  !important; }
+html:not(.dark) .bg-white\/\[0\.07\]  { background-color: rgba(0,0,0,0.055) !important; }
+html:not(.dark) .bg-white\/\[0\.08\]  { background-color: rgba(0,0,0,0.06)  !important; }
+html:not(.dark) .bg-white\/\[0\.1\]   { background-color: rgba(0,0,0,0.07)  !important; }
+html:not(.dark) .bg-white\/\[0\.15\]  { background-color: rgba(0,0,0,0.08)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.03\]:hover  { background-color: rgba(0,0,0,0.025) !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.04\]:hover  { background-color: rgba(0,0,0,0.03)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.05\]:hover  { background-color: rgba(0,0,0,0.035) !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.06\]:hover  { background-color: rgba(0,0,0,0.05)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.08\]:hover  { background-color: rgba(0,0,0,0.06)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.1\]:hover   { background-color: rgba(0,0,0,0.07)  !important; }
+html:not(.dark) .hover\:bg-white\/\[0\.15\]:hover  { background-color: rgba(0,0,0,0.08)  !important; }
+
+/* ── border-white/X → sutil marrón ── */
+html:not(.dark) .border-white\/\[0\.06\],
+html:not(.dark) .border-white\/\[0\.07\],
+html:not(.dark) .border-white\/\[0\.08\],
+html:not(.dark) .border-white\/\[0\.1\]  { border-color: rgba(0,0,0,0.10) !important; }
+
+/* ── Accent greens: neon in dark is invisible on light bg → swap to darker emerald ── */
+/* emerald-400 (#34d399) → emerald-700 (#047857) for light-mode text + solid fills */
+html:not(.dark) .text-emerald-400       { color: #047857 !important; }
+html:not(.dark) .text-emerald-300       { color: #047857 !important; }
+html:not(.dark) .text-emerald-500       { color: #047857 !important; }
+html:not(.dark) .text-emerald-600       { color: #065f46 !important; }
+html:not(.dark) .text-teal-400          { color: #0f766e !important; }
+html:not(.dark) .text-teal-300          { color: #0f766e !important; }
+html:not(.dark) .text-green-400         { color: #15803d !important; }
+html:not(.dark) .text-green-300         { color: #15803d !important; }
+html:not(.dark) .text-lime-400          { color: #4d7c0f !important; }
+
+/* Semi-transparent emerald backgrounds — darker tint */
+html:not(.dark) .bg-emerald-400\/10     { background-color: rgba(4,120,87,0.10) !important; }
+html:not(.dark) .bg-emerald-500\/10     { background-color: rgba(4,120,87,0.10) !important; }
+html:not(.dark) .bg-emerald-500\/15     { background-color: rgba(4,120,87,0.14) !important; }
+html:not(.dark) .bg-emerald-500\/20     { background-color: rgba(4,120,87,0.18) !important; }
+html:not(.dark) .bg-emerald-400\/20     { background-color: rgba(4,120,87,0.18) !important; }
+html:not(.dark) .bg-teal-400\/10        { background-color: rgba(15,118,110,0.10) !important; }
+html:not(.dark) .bg-teal-500\/10        { background-color: rgba(15,118,110,0.10) !important; }
+
+/* Borders */
+html:not(.dark) .border-emerald-400\/20 { border-color: rgba(4,120,87,0.25) !important; }
+html:not(.dark) .border-emerald-500\/20 { border-color: rgba(4,120,87,0.25) !important; }
+html:not(.dark) .border-emerald-500\/40 { border-color: rgba(4,120,87,0.45) !important; }
+html:not(.dark) .border-emerald-600\/40 { border-color: rgba(6,95,70,0.50) !important; }
+html:not(.dark) .border-teal-400\/20    { border-color: rgba(15,118,110,0.25) !important; }
+html:not(.dark) .border-teal-500\/20    { border-color: rgba(15,118,110,0.25) !important; }
+
+/* ── Scrollbar ── */
+html:not(.dark) *::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14); }
+html:not(.dark) *::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.26); }
+html:not(.dark) * { scrollbar-color: rgba(0,0,0,0.14) transparent; }
+
+/* ── Autofill ── */
+html:not(.dark) .autofill-dark:-webkit-autofill,
+html:not(.dark) .autofill-dark:-webkit-autofill:hover,
+html:not(.dark) .autofill-dark:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: rgba(0,0,0,0.8) !important;
+  caret-color: rgba(0,0,0,0.8);
 }
 
 @keyframes fadeIn {

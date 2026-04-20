@@ -12,6 +12,7 @@ import {
   CartesianGrid, Tooltip, PieChart, Pie, Cell,
   RadialBarChart, RadialBar,
 } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -108,19 +109,8 @@ function dropPct(a: number, b: number): number {
 
 // ─── Glass tokens ─────────────────────────────────────────────────────────────
 
-const glassCard = {
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-  backdropFilter: "blur(20px)",
-} as const;
-
-const glassSection = {
-  background: "rgba(255,255,255,0.025)",
-  border: "1px solid rgba(255,255,255,0.06)",
-  boxShadow: "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)",
-  backdropFilter: "blur(20px)",
-} as const;
+const glassCardClass = "glass-card";
+const glassSectionClass = "glass-section";
 
 // ─── Tooltips ─────────────────────────────────────────────────────────────────
 
@@ -133,10 +123,7 @@ function PieTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] pointer-events-none"
-      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
-    >
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-2.5 py-1.5 text-[11px] pointer-events-none backdrop-blur-xl shadow-xl">
       {payload.map((e) => (
         <p key={e.name} style={{ color: e.payload.color }}>
           {e.name}: {fmt(e.value)}
@@ -155,6 +142,7 @@ function StoriesSidebar({
   sequences: StorySequence[];
   totalFollowers: number;
 }) {
+  const chart = useChartTheme();
   // Only count real sequences for stats
   const realSeqs = sequences.filter((s) => !s._demo);
   const allSeqs = realSeqs.length > 0 ? realSeqs : sequences;
@@ -206,7 +194,13 @@ function StoriesSidebar({
   // Top 5 by impressions
   const top5 = [...allSeqs].sort((a, b) => b.total_impressions - a.total_impressions).slice(0, 5);
   const maxImp = top5[0]?.total_impressions || 1;
-  const barColors = ["#7A86E0", "#AF6EC7", "#4BCEAF", "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
+  const barColors = [
+    "#7A86E0",
+    "#AF6EC7",
+    "#4BCEAF",
+    chart.isDark ? "rgba(255,255,255,0.25)" : "rgba(17,17,17,0.32)",
+    chart.isDark ? "rgba(255,255,255,0.15)" : "rgba(17,17,17,0.22)",
+  ];
 
   // Follower reach radial
   const followerReachCapped = Math.min(followerReach ?? 0, 100);
@@ -282,7 +276,7 @@ function StoriesSidebar({
               </div>
               <span className="text-[13px] font-light text-white">{avgReplyRate.toFixed(2)}%</span>
             </div>
-            <div className="h-[3px] w-full rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div className="h-[3px] w-full rounded-full" style={{ background: chart.trackFill }}>
               <div
                 className="h-full rounded-full"
                 style={{ width: `${Math.min(avgReplyRate * 20, 100)}%`, background: "#4BCEAF" }}
@@ -300,7 +294,7 @@ function StoriesSidebar({
                 </div>
                 <span className="text-[13px] font-light text-white">{avgCompletion.toFixed(1)}%</span>
               </div>
-              <div className="h-[3px] w-full rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <div className="h-[3px] w-full rounded-full" style={{ background: chart.trackFill }}>
                 <div
                   className="h-full rounded-full"
                   style={{ width: `${Math.min(avgCompletion, 100)}%`, background: "#7A86E0" }}
@@ -321,7 +315,7 @@ function StoriesSidebar({
                   -{avgDropOff.toFixed(1)}%
                 </span>
               </div>
-              <div className="h-[3px] w-full rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <div className="h-[3px] w-full rounded-full" style={{ background: chart.trackFill }}>
                 <div
                   className="h-full rounded-full"
                   style={{ width: `${Math.min(avgDropOff, 100)}%`, background: "#f472b6" }}
@@ -351,7 +345,7 @@ function StoriesSidebar({
                   startAngle={90} endAngle={-270}
                   data={radialData}
                 >
-                  <RadialBar dataKey="value" background={{ fill: "rgba(255,255,255,0.04)" }} fill="#AF6EC7" cornerRadius={6} />
+                  <RadialBar dataKey="value" background={{ fill: chart.trackFill }} fill="#AF6EC7" cornerRadius={6} />
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -371,7 +365,7 @@ function StoriesSidebar({
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-white/10" />
+                <div className="h-1.5 w-1.5 rounded-full bg-white/[0.1]" />
                 <span className="text-[10px] text-white/30">
                   {fmt(totalFollowers)} seguidores
                 </span>
@@ -399,18 +393,17 @@ function StoriesSidebar({
                     <stop offset="100%" stopColor="#7A86E0" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                 <XAxis dataKey="idx" hide />
                 <Tooltip
-                  cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1 }}
+                  cursor={{ stroke: chart.cursorLine, strokeWidth: 1 }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const d = payload[0]?.payload as { date: string; views: number };
                     return (
-                      <div className="rounded-lg border border-white/10 px-3 py-2 text-[11px]"
-                        style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)" }}>
-                        <p className="text-white/50 mb-0.5">{d.date}</p>
-                        <p className="text-white font-medium">{fmt(d.views)} views</p>
+                      <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] backdrop-blur-xl shadow-xl">
+                        <p className="text-muted-foreground mb-0.5">{d.date}</p>
+                        <p className="text-popover-foreground font-medium">{fmt(d.views)} views</p>
                       </div>
                     );
                   }}
@@ -442,7 +435,7 @@ function StoriesSidebar({
                     </span>
                     <span className="text-[11px] text-white font-light shrink-0">{fmt(s.total_impressions)}</span>
                   </div>
-                  <div className="h-[3px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <div className="h-[3px] w-full rounded-full overflow-hidden ml-5" style={{ background: chart.trackFill }}>
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColors[i] }} />
                   </div>
                 </div>
@@ -466,13 +459,12 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
   return (
     <div
       onClick={onClick}
-      className="group rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl"
-      style={glassCard}
+      className={`${glassCardClass} group rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl`}
     >
       {/* Thumbnail */}
       <div
-        className="relative w-full overflow-hidden"
-        style={{ aspectRatio: "9/16", maxHeight: 240, background: "rgba(255,255,255,0.03)" }}
+        className="relative w-full overflow-hidden bg-white/[0.03]"
+        style={{ aspectRatio: "9/16", maxHeight: 240 }}
       >
         {thumb ? (
           <Image
@@ -493,8 +485,8 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
 
         {/* Slide count */}
         <div
-          className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-white"
-          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }}
+          className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", color: "#ffffff" }}
         >
           <ImageIcon className="h-2.5 w-2.5" />
           {seq.slides.length}
@@ -502,16 +494,16 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
 
         {/* Demo badge */}
         {seq._demo && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-semibold text-amber-400"
-            style={{ background: "rgba(251,191,36,0.12)", backdropFilter: "blur(8px)" }}>
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-semibold"
+            style={{ background: "rgba(251,191,36,0.20)", backdropFilter: "blur(8px)", color: "#fbbf24" }}>
             Ejemplo
           </div>
         )}
 
         {/* Active badge (only real) */}
         {!seq._demo && isActive && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-semibold text-emerald-400"
-            style={{ background: "rgba(16,185,129,0.15)", backdropFilter: "blur(8px)" }}>
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-semibold"
+            style={{ background: "rgba(16,185,129,0.20)", backdropFilter: "blur(8px)", color: "#34d399" }}>
             Activa
           </div>
         )}
@@ -522,8 +514,8 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
 
         {/* Views on image */}
         <div className="absolute bottom-2 left-3 flex items-center gap-1">
-          <Eye className="h-3 w-3 text-white/70" />
-          <span className="text-[12px] font-light text-white">{fmt(seq.total_impressions)}</span>
+          <Eye className="h-3 w-3" style={{ color: "rgba(255,255,255,0.70)" }} />
+          <span className="text-[12px] font-light" style={{ color: "#ffffff" }}>{fmt(seq.total_impressions)}</span>
         </div>
       </div>
 
@@ -562,6 +554,7 @@ function SequenceDetail({
   onBack: () => void;
   onNavigate: (id: string) => void;
 }) {
+  const chart = useChartTheme();
   const slides = seq.slides;
   const firstViews = slides[0]?.impressions ?? 0;
   const lastViews = slides[slides.length - 1]?.impressions ?? firstViews;
@@ -594,8 +587,7 @@ function SequenceDetail({
             <button
               onClick={() => hasPrev && onNavigate(sequences[currentIdx - 1].id)}
               disabled={!hasPrev}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white transition-colors disabled:opacity-25 cursor-pointer disabled:cursor-default"
-              style={glassCard}
+              className={`${glassCardClass} flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white transition-colors disabled:opacity-25 cursor-pointer disabled:cursor-default`}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               Anterior
@@ -604,8 +596,7 @@ function SequenceDetail({
             <button
               onClick={() => hasNext && onNavigate(sequences[currentIdx + 1].id)}
               disabled={!hasNext}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white transition-colors disabled:opacity-25 cursor-pointer disabled:cursor-default"
-              style={glassCard}
+              className={`${glassCardClass} flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white transition-colors disabled:opacity-25 cursor-pointer disabled:cursor-default`}
             >
               Siguiente
               <ChevronRight className="h-3.5 w-3.5" />
@@ -636,21 +627,19 @@ function SequenceDetail({
       </div>
 
       {/* ── 1. Sequence Flow (FIRST) ── */}
-      <div className="rounded-2xl p-6" style={glassSection}>
+      <div className={`${glassSectionClass} rounded-2xl p-6`}>
         <div className="flex items-center justify-between mb-6">
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/40">
             Flujo de secuencia
           </p>
           {slides.length > 3 && (
             <div className="flex items-center gap-1">
               <button onClick={() => scrollBy(-1)}
-                className="h-7 w-7 rounded-full flex items-center justify-center cursor-pointer transition-colors hover:bg-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.04)" }}>
+                className="h-7 w-7 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-white/[0.04] hover:bg-white/[0.08]">
                 <ChevronLeft className="h-3.5 w-3.5 text-white/50" />
               </button>
               <button onClick={() => scrollBy(1)}
-                className="h-7 w-7 rounded-full flex items-center justify-center cursor-pointer transition-colors hover:bg-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.04)" }}>
+                className="h-7 w-7 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-white/[0.04] hover:bg-white/[0.08]">
                 <ChevronRight className="h-3.5 w-3.5 text-white/50" />
               </button>
             </div>
@@ -660,7 +649,7 @@ function SequenceDetail({
         <div
           ref={setScrollRef}
           className="overflow-x-auto pb-4 text-center"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}
+          style={{ scrollbarWidth: "thin", scrollbarColor: `${chart.trackBorder} transparent` }}
         >
           <div className="inline-flex items-start min-w-max">
             {slides.map((slide, i) => {
@@ -675,7 +664,7 @@ function SequenceDetail({
                     <div className="flex flex-col items-center justify-center shrink-0" style={{ width: 64, marginBottom: 60 }}>
                       {/* Line with arrow */}
                       <div className="relative w-full flex items-center">
-                        <div className="flex-1 h-[1px]" style={{ background: "rgba(255,255,255,0.1)" }} />
+                        <div className="flex-1 h-[1px]" style={{ background: chart.panelBorder }} />
                         <ArrowRight className="h-3 w-3 text-white/20 shrink-0" />
                       </div>
                       {/* Drop badge */}
@@ -692,12 +681,10 @@ function SequenceDetail({
                   <div className="flex flex-col items-center shrink-0" style={{ width: 176 }}>
                     {/* Image */}
                     <div
-                      className="relative w-full rounded-2xl overflow-hidden"
+                      className="relative w-full rounded-2xl overflow-hidden bg-white/[0.04] border border-white/[0.08]"
                       style={{
                         height: 280,
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.09)",
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                        boxShadow: chart.isDark ? "0 8px 32px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.08)",
                       }}
                     >
                       {thumb ? (
@@ -717,8 +704,8 @@ function SequenceDetail({
 
                       {/* Slide number pill */}
                       <div
-                        className="absolute top-3 left-3 h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-                        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+                        className="absolute top-3 left-3 h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center text-[9px] font-bold"
+                        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", color: "#ffffff" }}
                       >
                         {i + 1}
                       </div>
@@ -731,8 +718,8 @@ function SequenceDetail({
 
                       {/* Views over image */}
                       <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5">
-                        <Eye className="h-3 w-3 text-white/70" />
-                        <span className="text-[13px] font-medium text-white">{fmt(slide.impressions)}</span>
+                        <Eye className="h-3 w-3" style={{ color: "rgba(255,255,255,0.70)" }} />
+                        <span className="text-[13px] font-medium" style={{ color: "#ffffff" }}>{fmt(slide.impressions)}</span>
                       </div>
                     </div>
 
@@ -786,8 +773,8 @@ function SequenceDetail({
           { label: "Slides", value: slides.length.toString() },
           { label: "Respuestas", value: fmt(seq.total_replies) },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-xl p-4" style={glassCard}>
-            <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <div key={kpi.label} className={`${glassCardClass} rounded-xl p-4`}>
+            <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1.5 text-white/40">
               {kpi.label}
             </p>
             <p className="text-[28px] font-light tracking-[-0.02em] text-white">{kpi.value}</p>
@@ -797,10 +784,10 @@ function SequenceDetail({
 
       {/* ── 3. Drop-off Curve ── */}
       {slides.length > 1 && (
-        <div className="rounded-xl p-5" style={glassSection}>
+        <div className={`${glassSectionClass} rounded-xl p-5`}>
           <div className="flex items-center gap-2 mb-4">
             <TrendingDown className="h-3.5 w-3.5 text-rose-400/60" />
-            <p className="text-[11px] font-medium uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/40">
               Curva de abandono
             </p>
             <div className="ml-auto flex items-center gap-1.5">
@@ -817,22 +804,22 @@ function SequenceDetail({
                     <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
-                  label={{ value: "Slide", position: "insideBottomRight", offset: -5, fill: "rgba(255,255,255,0.2)", fontSize: 10 }} />
+                  tick={{ fill: chart.axisTick, fontSize: 11 }}
+                  label={{ value: "Slide", position: "insideBottomRight", offset: -5, fill: chart.axisTickMuted, fontSize: 10 }} />
                 <YAxis axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                  tick={{ fill: chart.axisTick, fontSize: 11 }}
                   tickFormatter={(v: number) => fmt(v)} width={50} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className="rounded-xl px-3 py-2" style={{ ...glassCard, boxShadow: "0 12px 48px rgba(0,0,0,0.6)" }}>
-                        <p className="text-[10px] uppercase tracking-[0.06em] mb-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      <div className="rounded-xl px-3 py-2 bg-popover text-popover-foreground border border-border backdrop-blur-xl shadow-xl">
+                        <p className="text-[10px] uppercase tracking-[0.06em] mb-0.5 text-muted-foreground">
                           Slide {label}
                         </p>
-                        <p className="text-[15px] font-light text-white">{fmt(payload[0].value as number)} views</p>
+                        <p className="text-[15px] font-light text-popover-foreground">{fmt(payload[0].value as number)} views</p>
                       </div>
                     );
                   }}
@@ -849,8 +836,8 @@ function SequenceDetail({
 
       {/* ── 4. Slide stats table ── */}
       {slides.length > 1 && (
-        <div className="rounded-xl p-5" style={glassSection}>
-          <p className="text-[11px] font-medium uppercase tracking-[0.1em] mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
+        <div className={`${glassSectionClass} rounded-xl p-5`}>
+          <p className="text-[11px] font-medium uppercase tracking-[0.1em] mb-4 text-white/40">
             Detalle por slide
           </p>
           <div className="space-y-1">
@@ -867,7 +854,7 @@ function SequenceDetail({
                   style={{ gridTemplateColumns: "1.5rem 1fr 1fr 1fr 1fr 1fr" }}>
                   <span className="text-[12px] text-white/40 font-light">{i + 1}</span>
                   <span className="text-[12px] text-white font-light">{fmt(slide.impressions)}</span>
-                  <span className="text-[12px] font-light" style={{ color: drop !== null ? "#f472b6" : "rgba(255,255,255,0.25)" }}>
+                  <span className={`text-[12px] font-light ${drop !== null ? "" : "text-white/25"}`} style={drop !== null ? { color: "#f472b6" } : undefined}>
                     {drop !== null ? `-${drop.toFixed(1)}%` : "—"}
                   </span>
                   <span className="text-[12px] text-white/40 font-light">{fmt(slide.taps_forward)}</span>
@@ -888,7 +875,7 @@ function SequenceDetail({
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(255,255,255,0.04)" }}>
+      <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4 bg-white/[0.04]">
         <BookImage className="h-6 w-6 text-white/20" />
       </div>
       <h3 className="text-[15px] font-light text-white/50">Sin historias guardadas</h3>
@@ -932,8 +919,7 @@ export function StoriesGrid({ sequences, totalFollowers = 0 }: StoriesGridProps)
       <div className="flex-1 min-w-0 space-y-3">
         {hasActiveWithNoMetrics && (
           <div
-            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[12px] text-white/50"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[12px] text-white/50 bg-white/[0.03] border border-white/[0.06]"
           >
             <Clock className="h-3.5 w-3.5 text-amber-400/60 shrink-0" />
             <span>Las métricas de historias recientes pueden tardar unos minutos en estar disponibles. Sincronizá de nuevo en un rato.</span>

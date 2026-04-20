@@ -84,7 +84,7 @@ function CircularProgress({ pct, color, size = 100 }: { pct: number; color: stri
     <svg width={size} height={size} className="transform -rotate-90">
       <circle
         cx={size / 2} cy={size / 2} r={radius}
-        fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth}
+        fill="none" stroke="var(--border)" strokeWidth={strokeWidth}
       />
       <circle
         cx={size / 2} cy={size / 2} r={radius}
@@ -184,7 +184,7 @@ function GoalCard({
             const val = Number(e.target.value);
             if (val !== goal.target_value && val > 0) onUpdate(goal.metric, val);
           }}
-          className="w-24 bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1 text-[12px] text-white/70 outline-none focus:border-white/20 transition-colors"
+          className="w-24 bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1 text-[12px] text-white/70 outline-none focus:border-white/[0.1] transition-colors"
         />
         {cfg.unit && <span className="text-[10px] text-white/20">{cfg.unit}</span>}
       </div>
@@ -287,11 +287,11 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
             <select
               value={selectedMetric}
               onChange={(e) => setSelectedMetric(e.target.value)}
-              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-white outline-none focus:border-white/20 transition-colors cursor-pointer"
+              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-white outline-none focus:border-white/[0.1] transition-colors cursor-pointer"
             >
-              <option value="" className="bg-zinc-900">Seleccionar métrica...</option>
+              <option value="" className="bg-popover text-popover-foreground">Seleccionar métrica...</option>
               {availableMetrics.map((m) => (
-                <option key={m.value} value={m.value} className="bg-zinc-900">
+                <option key={m.value} value={m.value} className="bg-popover text-popover-foreground">
                   {m.label}
                 </option>
               ))}
@@ -301,7 +301,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
               value={targetValue}
               onChange={(e) => setTargetValue(e.target.value)}
               placeholder="Valor objetivo"
-              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-white/[0.1] transition-colors"
             />
             <div className="flex gap-2">
               <button
@@ -338,10 +338,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
         </div>
       ) : !showForm ? (
         <div className="glass-section p-12 rounded-xl flex flex-col items-center justify-center text-center">
-          <div
-            className="flex h-14 w-14 items-center justify-center rounded-full mb-4"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full mb-4 bg-white/[0.04] border border-white/[0.06]">
             <TrendingUp className="h-6 w-6 text-white/20" />
           </div>
           <p className="text-[15px] text-white/40 font-light">No tenés metas configuradas</p>

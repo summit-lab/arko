@@ -95,23 +95,22 @@ export async function Header() {
               boxShadow: "0 0 12px rgba(99,102,241,0.3)",
             }}
           >
-            <svg width="16" height="14" viewBox="0 0 607.13 523.93" xmlns="http://www.w3.org/2000/svg" aria-label="Arko">
+            <svg width="16" height="14" viewBox="0 0 607.13 523.93" xmlns="http://www.w3.org/2000/svg" aria-label="Moka">
               <path fill="#fff" d="M412.55,17.53c-4.06-10.56-14.2-17.53-25.51-17.53h-185.69l-.23.57,79.73,207.46s0,.05.02.09c.66,3.31,4.16,22.81-8.98,40.42-12.23,16.41-30.03,19.33-33.45,19.83h-121.46c-11.31,0-21.46,6.97-25.51,17.53L0,523.93h204.93l77.56-201.82c3.56-7.38,11.97-22.46,28.68-35.1,1.71-1.33,3.54-2.61,5.44-3.84,16-10.42,31.4-13.64,40.08-14.78h152.26L412.55,17.53Z"/>
               <path fill="#fff" d="M607.13,523.93h-204.93l-23.47-61.08c-18.53-49.04,6.47-104.64,55.35-123.28,48.72-18.58,104.22,5.99,123.21,54.68l49.84,129.68Z"/>
             </svg>
           </div>
           <div className="hidden md:flex flex-col justify-center">
             <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-medium text-white tracking-tight leading-none group-hover:text-white/80 transition-colors">
+              <span className="text-[13px] font-medium text-foreground tracking-tight leading-none group-hover:text-foreground/80 transition-colors">
                 {displayName}
               </span>
               <span
-                className="text-[8px] font-semibold px-1.5 py-[2px] rounded-full leading-none"
-                style={{
-                  background: isAdmin ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)",
-                  color: isAdmin ? "#a5b4fc" : "rgba(255,255,255,0.35)",
-                  border: isAdmin ? "1px solid rgba(99,102,241,0.2)" : "1px solid rgba(255,255,255,0.06)",
-                }}
+                className={`text-[8px] font-semibold px-1.5 py-[2px] rounded-full leading-none border ${
+                  isAdmin
+                    ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/20 dark:text-indigo-300"
+                    : "bg-accent text-muted-foreground border-border"
+                }`}
               >
                 {isAdmin ? "ADMIN" : "PRO"}
               </span>
@@ -128,12 +127,12 @@ export async function Header() {
             { icon: TrendingUp, label: "Eng. Rate", value: headerEngRate, color: "text-emerald-400" },
           ].map((stat, i) => (
             <div key={stat.label} className="flex items-center">
-              {i > 0 && <div className="w-[1px] h-5 mr-5" style={{ background: "rgba(255,255,255,0.06)" }} />}
+              {i > 0 && <div className="w-[1px] h-5 mr-5 bg-border" />}
               <div className="flex items-center gap-2.5">
                 <stat.icon className={`h-4 w-4 ${stat.color} opacity-60`} strokeWidth={1.8} />
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-white/20 font-medium uppercase tracking-[0.1em] leading-none">{stat.label}</span>
-                  <span className="text-[15px] font-light text-white leading-none mt-1 tracking-[-0.01em]">{stat.value}</span>
+                  <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-[0.1em] leading-none">{stat.label}</span>
+                  <span className="text-[15px] font-light text-foreground leading-none mt-1 tracking-[-0.01em]">{stat.value}</span>
                 </div>
               </div>
             </div>

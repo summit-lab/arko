@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   AreaChart, Area, XAxis, CartesianGrid,
 } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -79,15 +80,6 @@ function fmtDateShort(date: string): string {
   return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
 }
 
-// ─── Glass tokens ─────────────────────────────────────────────────────────────
-
-const glassCard = {
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-  backdropFilter: "blur(20px)",
-} as const;
-
 // ─── Sort dropdown ────────────────────────────────────────────────────────────
 
 type SortKey = "published_at" | "likes" | "comments" | "saves" | "shares";
@@ -107,13 +99,13 @@ function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] cursor-pointer"
+        className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/[0.1] hover:bg-white/[0.08] cursor-pointer"
       >
         <span>{selected?.label}</span>
         <ChevronDown size={11} className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-white/10 bg-black/40 shadow-2xl backdrop-blur-2xl">
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-2xl">
           {SORT_OPTIONS.map((o) => (
             <button
               key={o.value}
@@ -137,8 +129,7 @@ function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey
 function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { color: string } }> }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] pointer-events-none"
-      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-2.5 py-1.5 text-[11px] pointer-events-none backdrop-blur-xl shadow-xl">
       {payload.map((e) => (
         <p key={e.name} style={{ color: e.payload.color }}>{e.name}: {fmt(e.value)}</p>
       ))}
@@ -149,6 +140,7 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ n
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: PostsSummary }) {
+  const chart = useChartTheme();
   const totalEngagement = summary.totalLikes + summary.totalSaves + summary.totalComments;
 
   // Distribución donut
@@ -179,7 +171,13 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
   // Top 5 by likes
   const top5 = [...posts].sort((a, b) => b.likes - a.likes).slice(0, 5);
   const maxLikes = top5[0]?.likes || 1;
-  const barColors = [PALETTE.indigo, PALETTE.purple, PALETTE.teal, "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
+  const barColors = [
+    PALETTE.indigo,
+    PALETTE.purple,
+    PALETTE.teal,
+    chart.isDark ? "rgba(255,255,255,0.25)" : "rgba(17,17,17,0.32)",
+    chart.isDark ? "rgba(255,255,255,0.15)" : "rgba(17,17,17,0.22)",
+  ];
 
   return (
     <div className="w-[360px] shrink-0 space-y-3 pb-6 sticky top-6 self-start">
@@ -193,7 +191,7 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
         {/* Type breakdown — text only, no chart */}
         <div className="flex items-center gap-3 mb-4">
           {distData.map((d) => (
-            <div key={d.name} className="flex-1 rounded-lg px-3 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div key={d.name} className="flex-1 rounded-lg px-3 py-2.5 bg-white/[0.03] border border-white/[0.06]">
               <div className="flex items-center gap-1.5 mb-1">
                 <div className="h-1.5 w-1.5 rounded-full" style={{ background: d.color }} />
                 <span className="text-[9px] text-white/35 uppercase tracking-wider">{d.name}</span>
@@ -281,19 +279,18 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
                     <stop offset="100%" stopColor={PALETTE.indigo} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                 <XAxis dataKey="idx" hide />
                 <Tooltip
-                  cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1 }}
+                  cursor={{ stroke: chart.cursorLine, strokeWidth: 1 }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const d = payload[0]?.payload as { caption: string; date: string; likes: number };
                     return (
-                      <div className="rounded-lg border border-white/10 px-3 py-2 text-[11px]"
-                        style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", maxWidth: 180 }}>
-                        <p className="text-white/50 mb-1 leading-snug">{d.caption}</p>
-                        <p className="text-white font-medium">{fmt(d.likes)} likes</p>
-                        <p className="text-white/30 text-[10px]">{d.date}</p>
+                      <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] backdrop-blur-xl shadow-xl" style={{ maxWidth: 180 }}>
+                        <p className="text-muted-foreground mb-1 leading-snug">{d.caption}</p>
+                        <p className="text-popover-foreground font-medium">{fmt(d.likes)} likes</p>
+                        <p className="text-muted-foreground text-[10px]">{d.date}</p>
                       </div>
                     );
                   }}
@@ -322,7 +319,7 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
                     <span className="text-[10px] text-white/50 flex-1 truncate font-light">{label}</span>
                     <span className="text-[11px] text-white font-light shrink-0">{fmt(p.likes)}</span>
                   </div>
-                  <div className="h-[3px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <div className="h-[3px] w-full rounded-full overflow-hidden ml-5 bg-white/[0.05]">
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColors[i] }} />
                   </div>
                 </div>
@@ -345,8 +342,7 @@ function PostCard({ post }: { post: Post }) {
       href={post.permalink ?? "#"}
       target={post.permalink ? "_blank" : undefined}
       rel="noopener noreferrer"
-      className="group block rounded-xl overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:shadow-xl cursor-pointer"
-      style={glassCard}
+      className="glass-card group block rounded-xl overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:shadow-xl cursor-pointer"
       onClick={!post.permalink ? (e) => e.preventDefault() : undefined}
     >
       {/* Thumbnail */}
@@ -360,7 +356,7 @@ function PostCard({ post }: { post: Post }) {
             sizes="200px"
           />
         ) : (
-          <div className="flex items-center justify-center h-full" style={{ background: "rgba(255,255,255,0.03)" }}>
+          <div className="flex items-center justify-center h-full bg-white/[0.03]">
             <Grid2X2 className="h-8 w-8 text-white/10" />
           </div>
         )}
@@ -374,13 +370,13 @@ function PostCard({ post }: { post: Post }) {
             ? <Images className="h-2.5 w-2.5" style={{ color: PALETTE.indigo }} />
             : <Grid2X2 className="h-2.5 w-2.5" style={{ color: PALETTE.purple }} />
           }
-          <span className="text-white/70">{isCarrusel ? "Carrusel" : "Post"}</span>
+          <span style={{ color: "rgba(255,255,255,0.80)" }}>{isCarrusel ? "Carrusel" : "Post"}</span>
         </div>
 
         {/* Time badge */}
         {post.published_at && (
-          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[9px] text-white/50"
-            style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[9px]"
+            style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.80)" }}>
             {timeAgo(post.published_at)}
           </div>
         )}
@@ -392,7 +388,7 @@ function PostCard({ post }: { post: Post }) {
         {/* External link hint */}
         {post.permalink && (
           <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <ExternalLink className="h-3 w-3 text-white/50" />
+            <ExternalLink className="h-3 w-3" style={{ color: "rgba(255,255,255,0.70)" }} />
           </div>
         )}
       </div>
@@ -454,7 +450,7 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
   if (posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(255,255,255,0.04)" }}>
+        <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4 bg-white/[0.04]">
           <Grid2X2 className="h-6 w-6 text-white/20" />
         </div>
         <h3 className="text-[15px] font-light text-white/50">Sin publicaciones en el período</h3>
@@ -472,10 +468,7 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
         {/* Filters row */}
         <div className="flex items-center gap-3 flex-wrap">
           {/* Type pills */}
-          <div
-            className="flex items-center gap-1 p-1 rounded-lg"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/[0.06]">
             {([
               { key: "all"      as const, label: "Todos"     },
               { key: "post"     as const, label: "Posts"     },

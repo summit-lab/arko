@@ -102,7 +102,8 @@ export function ReelAISection({
   return (
     <>
       {/* Análisis Profundo — Gemini (Capa 2) */}
-      <div className="glass-panel rounded-3xl border border-violet-500/10 bg-black/35 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      {/* outline is used instead of border because globals.css forces a brown border on .glass-panel in light mode (!important) — outline bypasses it. */}
+      <div className="glass-panel rounded-3xl border border-violet-500/10 p-6 outline outline-1 -outline-offset-1 outline-violet-500/30 dark:outline-none">
         <GeminiAnalysis
           reelId={reelId}
           workspaceId={workspaceId}

@@ -42,10 +42,10 @@ export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
         <Youtube className="h-10 w-10 text-red-500/70" />
       </div>
 
-      <h2 className="text-[22px] font-extralight text-white tracking-[-0.02em] mb-2">
+      <h2 className="text-[22px] font-extralight text-foreground tracking-[-0.02em] mb-2">
         Conectá tu canal de YouTube
       </h2>
-      <p className="text-[14px] text-white/35 max-w-md mb-8">
+      <p className="text-[14px] text-muted-foreground max-w-md mb-8">
         Vinculá tu cuenta de Google para acceder a las métricas completas de YouTube Studio:
         retención, CTR, watch time, traffic sources y más.
       </p>
@@ -72,7 +72,7 @@ export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
         <p className="mt-4 text-[12px] text-red-400/70">{error}</p>
       )}
 
-      <p className="mt-6 text-[11px] text-white/20 max-w-sm">
+      <p className="mt-6 text-[11px] text-muted-foreground max-w-sm">
         Necesitás una cuenta de Google con un canal de YouTube. Solo pedimos permisos de lectura.
       </p>
     </div>

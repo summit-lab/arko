@@ -5,34 +5,36 @@ import { useState, useEffect } from "react";
 interface ReelAutoTitleProps {
   reelId: string;
   autoTitle: string | null;
+  workspaceId: string | null;
 }
 
-export function ReelAutoTitle({ reelId, autoTitle }: ReelAutoTitleProps) {
+export function ReelAutoTitle({ reelId, autoTitle, workspaceId }: ReelAutoTitleProps) {
   const [title, setTitle] = useState<string | null>(autoTitle);
-  const [generating, setGenerating] = useState(!autoTitle);
+  const [generating, setGenerating] = useState(!autoTitle && !!workspaceId);
 
   useEffect(() => {
-    if (autoTitle) return;
+    if (autoTitle || !workspaceId) return;
 
-    fetch(`/api/v1/reels/${reelId}/generate-title`, { method: "POST" })
+    const url = `/api/v1/reels/${reelId}/generate-title?workspace_id=${workspaceId}`;
+    fetch(url, { method: "POST" })
       .then((r) => r.json())
       .then((data: { data?: { auto_title?: string } }) => {
         if (data?.data?.auto_title) setTitle(data.data.auto_title);
       })
       .catch(() => {})
       .finally(() => setGenerating(false));
-  }, [reelId, autoTitle]);
+  }, [reelId, autoTitle, workspaceId]);
 
   if (generating) {
     return (
-      <p className="text-[18px] font-medium mb-2 leading-snug text-white/30 italic">
+      <p className="text-[18px] font-medium mb-2 leading-snug text-muted-foreground italic">
         Generando título…
       </p>
     );
   }
 
   return (
-    <p className="text-[18px] font-medium text-white mb-2 leading-snug">
+    <p className="text-[18px] font-medium text-foreground mb-2 leading-snug">
       {title ?? "—"}
     </p>
   );

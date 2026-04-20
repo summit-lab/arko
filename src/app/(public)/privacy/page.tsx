@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Arko",
-  description: "Privacy Policy for Arko, the AI Marketing Director platform.",
+  title: "Privacy Policy — Moka",
+  description: "Privacy Policy for Moka, the AI Marketing Director platform.",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -43,7 +43,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="mt-4 text-sm text-white/40">
-            Last updated: March 27, 2026
+            Last updated: April 20, 2026
           </p>
         </div>
 
@@ -51,20 +51,20 @@ export default function PrivacyPolicyPage() {
 
         <Section title="1. Introduction">
           <p>
-            Arko (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is a SaaS analytics platform developed
+            Moka (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is a SaaS analytics platform developed
             by Summit Lab that provides AI-powered marketing intelligence for
             content creators and personal brands. This Privacy Policy describes
             how we collect, use, store, and protect your information when you use
             our platform at www.usearko.io (the &quot;Service&quot;).
           </p>
           <p>
-            By using Arko, you consent to the data practices described in this
+            By using Moka, you consent to the data practices described in this
             policy. If you do not agree, please do not use the Service.
           </p>
         </Section>
 
         <Section title="2. Information We Collect">
-          <p><strong className="text-white/80">Account Information:</strong> When you register or are invited to Arko, we collect your email address, name, and authentication credentials managed through Supabase Auth.</p>
+          <p><strong className="text-white/80">Account Information:</strong> When you register or are invited to Moka, we collect your email address, name, and authentication credentials managed through Supabase Auth.</p>
           <p><strong className="text-white/80">Instagram Data:</strong> When you connect your Instagram Business Account via Meta OAuth, we access and store:</p>
           <ul className="list-disc space-y-1 pl-6">
             <li>Profile information (username, name, follower count, following count, media count, biography, profile picture URL)</li>
@@ -103,9 +103,37 @@ export default function PrivacyPolicyPage() {
             <li>Use your data for advertising purposes</li>
             <li>Post content on your behalf</li>
             <li>Modify, create, or delete your ads, posts, or any content</li>
-            <li>Access your direct messages</li>
+            <li>Read, display, or store the content of your direct messages</li>
             <li>Store your Meta/Facebook login credentials</li>
           </ul>
+        </Section>
+
+        <Section title="3.1 Instagram Direct Message tracking (optional)">
+          <p>
+            When you enable <strong className="text-white/80">DM tracking</strong> in{" "}
+            <em>Settings → Integrations</em>, Moka receives a notification from Instagram each time your business account gets a direct message. We use this data for one purpose only: to show you how many new conversations you receive per day on your dashboard.
+          </p>
+          <p><strong className="text-white/80">What we store:</strong></p>
+          <ul className="list-disc space-y-1 pl-6">
+            <li>Message timestamp</li>
+            <li>Opaque thread ID (provided by Meta)</li>
+            <li>Opaque sender ID (provided by Meta)</li>
+            <li>Event type (message or reaction)</li>
+          </ul>
+          <p><strong className="text-white/80">What we do NOT store:</strong></p>
+          <ul className="list-disc space-y-1 pl-6">
+            <li>The message text</li>
+            <li>Images, videos, audio, or attachments</li>
+            <li>The sender&apos;s name, username, email, or phone</li>
+            <li>Any preview of the message content</li>
+          </ul>
+          <p>
+            Moka has no inbox. You cannot read or reply to messages from Moka. We do not sell this data, share it with third parties, or send it to AI models.
+          </p>
+          <p><strong className="text-white/80">Retention:</strong> Raw events are kept for 90 days and then automatically deleted. Daily aggregates (date + count) are kept while your workspace is active.</p>
+          <p><strong className="text-white/80">How to delete DM data:</strong> go to <em>Settings → Integrations</em> and click <strong className="text-white/80">Delete DM data</strong>, or turn off the DM tracking toggle (this unsubscribes the webhook and purges stored data). You can also revoke access from{" "}
+            <a href="https://www.facebook.com/settings?tab=business_tools" className="text-violet-400 underline underline-offset-4" target="_blank" rel="noopener noreferrer">Facebook Settings → Business Integrations</a>, or request full account deletion by emailing <a href="mailto:support@usearko.io" className="text-violet-400 underline underline-offset-4">support@usearko.io</a>. Moka also honors Meta&apos;s Data Deletion Callback: if you request deletion from Meta&apos;s dashboard, your DM data is purged automatically.
+          </p>
         </Section>
 
         <Section title="4. Data Storage and Security">
@@ -135,6 +163,8 @@ export default function PrivacyPolicyPage() {
             <li><strong className="text-white/80">Account data:</strong> Retained until account deletion is requested</li>
             <li><strong className="text-white/80">Instagram/Ads metrics:</strong> Retained for historical trend analysis as long as the account is active</li>
             <li><strong className="text-white/80">OAuth tokens:</strong> Retained until the user disconnects their Meta account or the token expires (typically 60 days, after which re-authentication is required)</li>
+            <li><strong className="text-white/80">Instagram DM events (raw):</strong> 90 days, then automatically deleted</li>
+            <li><strong className="text-white/80">Instagram DM aggregates (daily counts):</strong> Retained while your workspace is active</li>
             <li><strong className="text-white/80">AI conversation history:</strong> Retained within the workspace for reference</li>
           </ul>
         </Section>
@@ -145,13 +175,13 @@ export default function PrivacyPolicyPage() {
             <li><strong className="text-white/80">Disconnect:</strong> You can disconnect your Meta account at any time from your dashboard settings. This immediately nullifies all stored tokens.</li>
             <li><strong className="text-white/80">Data Access:</strong> You can request a copy of all data we store about you by contacting us.</li>
             <li><strong className="text-white/80">Data Deletion:</strong> You can request complete deletion of your account and all associated data. See our <a href="/data-deletion" className="text-violet-400 underline underline-offset-4">Data Deletion Policy</a>.</li>
-            <li><strong className="text-white/80">Revoke Meta Permissions:</strong> You can revoke Arko&apos;s access to your Meta data at any time through your <a href="https://www.facebook.com/settings?tab=business_tools" className="text-violet-400 underline underline-offset-4" target="_blank" rel="noopener noreferrer">Facebook Settings &gt; Business Integrations</a>.</li>
+            <li><strong className="text-white/80">Revoke Meta Permissions:</strong> You can revoke Moka&apos;s access to your Meta data at any time through your <a href="https://www.facebook.com/settings?tab=business_tools" className="text-violet-400 underline underline-offset-4" target="_blank" rel="noopener noreferrer">Facebook Settings &gt; Business Integrations</a>.</li>
           </ul>
         </Section>
 
         <Section title="8. Children's Privacy">
           <p>
-            Arko is not intended for use by individuals under the age of 18. We
+            Moka is not intended for use by individuals under the age of 18. We
             do not knowingly collect personal information from children. If we
             become aware that we have collected data from a child under 18, we
             will delete that information immediately.
@@ -187,11 +217,11 @@ export default function PrivacyPolicyPage() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/[0.06] px-8 py-10 text-center">
         <p className="text-xs text-white/30">
-          &copy; {new Date().getFullYear()} Arko by Summit Lab. All rights reserved.
+          &copy; {new Date().getFullYear()} Moka by Summit Lab. All rights reserved.
         </p>
         <div className="mt-3 flex justify-center gap-6 text-xs text-white/40">
           <a href="/landing-arko" className="hover:text-white/70 transition-colors">
-            About Arko
+            About Moka
           </a>
           <a href="/data-deletion" className="hover:text-white/70 transition-colors">
             Data Deletion

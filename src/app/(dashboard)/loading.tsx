@@ -77,20 +77,6 @@ export default function DashboardLoading() {
             </div>
           </div>
 
-          {/* Top Países */}
-          <div className="glass-panel rounded-xl p-6">
-            <div className="h-3 w-24 rounded bg-white/[0.06] mb-5" />
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="h-4 w-4 rounded bg-white/[0.04]" />
-                  <div className="h-3 w-16 rounded bg-white/[0.04]" />
-                  <div className="flex-1 h-1 rounded-full bg-white/[0.04]" />
-                  <div className="h-3 w-6 rounded bg-white/[0.04]" />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

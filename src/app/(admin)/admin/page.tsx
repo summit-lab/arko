@@ -38,8 +38,7 @@ export default async function AdminDashboardPage() {
             <div className="flex items-center justify-between mb-4 relative z-10">
               <p className="stat-label">{s.label}</p>
               <div
-                className={`h-9 w-9 rounded-full flex items-center justify-center ${s.color}`}
-                style={{ background: "rgba(255,255,255,0.06)" }}
+                className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${s.color}`}
               >
                 <s.icon className="h-[18px] w-[18px]" />
               </div>
