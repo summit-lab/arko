@@ -777,8 +777,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             </div>
           </div>
 
-          {/* IG DM Conversations (last 14d) — renders its own empty-state and
-              deep-links to /settings/integrations when the webhook isn't active yet. */}
+          {/* Interacciones nuevas — estimated from replies + comments/2 + ads_msg + 5% uplift */}
           <div className="animate-slide-up stagger-3">
             <ConversationsChart data={conversationsData} previousTotal={conversationsPrevTotal} />
           </div>
