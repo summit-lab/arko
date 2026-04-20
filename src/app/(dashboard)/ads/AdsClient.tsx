@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import {
   DollarSign, MousePointerClick, Eye, TrendingUp, BarChart3,
@@ -27,6 +28,7 @@ interface AdRow {
   clicks: number;
   video_plays: number;
   ctr: number;
+  thumbnail_url?: string | null;
 }
 
 interface Campaign {
@@ -337,7 +339,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
     <div className="p-8 space-y-6">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between relative" style={{ zIndex: 100 }}>
+      <div className="flex items-center justify-between relative">
         <div>
           <h1 className="page-title">Ads Intelligence</h1>
           <p className="text-white/30 mt-1 text-[13px] font-light">Análisis de Meta Ads: data cuantitativa y cualitativa.</p>
@@ -631,9 +633,20 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                   <div key={ad.ad_id} className="p-5 space-y-4">
                     <div className="h-32 rounded-xl flex items-center justify-center relative overflow-hidden"
                       style={{ background: `${cc}08`, border: `1px solid ${cc}18` }}>
-                      <Play size={18} style={{ color: `${cc}30` }} />
+                      {ad.thumbnail_url ? (
+                        <Image
+                          src={ad.thumbnail_url}
+                          alt={ad.ad_name}
+                          fill
+                          className="object-cover"
+                          sizes="200px"
+                          unoptimized
+                        />
+                      ) : (
+                        <Play size={18} style={{ color: `${cc}30` }} />
+                      )}
                       {isBest && (
-                        <div className="absolute top-2 right-2">
+                        <div className="absolute top-2 right-2 z-10">
                           <span className="text-[9px] px-2 py-0.5 rounded-full font-medium"
                             style={{ color: "#fbbf24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }}>Top</span>
                         </div>

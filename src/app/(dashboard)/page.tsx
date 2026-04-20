@@ -103,6 +103,7 @@ async function getDashboardData(range: DateRange) {
     conversationsPrev,
     adsMessagingCurrent,
     adsMessagingPrev,
+    storiesForCalendar,
   ] = await Promise.all([
     // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
     // — the date range predicate already bounds the result (Fix 3.6).
@@ -251,6 +252,15 @@ async function getDashboardData(range: DateRange) {
       .eq("workspace_id", workspaceId)
       .gte("metric_date", prev.from)
       .lte("metric_date", prev.to),
+
+    // Query 16: story sequences last 90 days — for calendar
+    supabase
+      .from("ig_story_sequences")
+      .select("id, published_at, total_impressions, total_reach, total_replies")
+      .eq("workspace_id", workspaceId)
+      .gte("published_at", ninetyDaysAgo)
+      .order("published_at", { ascending: false })
+      .limit(200),
   ]);
 
   // ─── Log query errors ───
@@ -268,6 +278,7 @@ async function getDashboardData(range: DateRange) {
   if (conversationsPrev.error) console.error('[dashboard] conversationsPrev error:', conversationsPrev.error);
   if (adsMessagingCurrent.error) console.error('[dashboard] adsMessagingCurrent error:', adsMessagingCurrent.error);
   if (adsMessagingPrev.error) console.error('[dashboard] adsMessagingPrev error:', adsMessagingPrev.error);
+  if (storiesForCalendar.error) console.error('[dashboard] storiesForCalendar error:', storiesForCalendar.error);
 
   // ─── Process insights data ───
   // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
@@ -314,6 +325,7 @@ async function getDashboardData(range: DateRange) {
       caption: r.caption,
       permalink: r.permalink,
       published_at: r.published_at,
+      media_type: (r as { media_type?: string }).media_type,
       reel_type: r.reel_type,
       has_ads: r.has_ads,
       views_org: viewsOrg,
@@ -522,18 +534,65 @@ async function getDashboardData(range: DateRange) {
     ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
   ];
 
-  // Calendar reels (all, for this month) — include KPIs for display
-  const calendarReels = reels.map((r) => ({
-    id: r.id,
-    published_at: r.published_at,
-    caption: r.caption,
-    has_ads: r.has_ads,
-    reel_type: r.reel_type,
-    views_total: r.views_total,
-    likes: r.likes,
-    saves: r.saves,
-    comments: r.comments,
+  // Calendar content (reels/posts/carousels + stories) — for the monthly calendar.
+  // `reels` table actually holds all IG media types (VIDEO/IMAGE/CAROUSEL_ALBUM),
+  // and we type them here so the calendar can filter by "reels"/"posts".
+  type CalendarItemType = "reel" | "post" | "historia";
+  type CalendarItem = {
+    id: string;
+    type: CalendarItemType;
+    published_at: string;
+    caption: string | null;
+    has_ads: boolean;
+    reel_type?: string;
+    views_total: number;
+    likes: number;
+    saves: number;
+    comments: number;
+  };
+
+  const reelsAndPostsForCalendar: CalendarItem[] = reels.map((r) => {
+    const mt = (r as { media_type?: string }).media_type;
+    const type: CalendarItemType =
+      mt === "IMAGE" || mt === "CAROUSEL_ALBUM" ? "post" : "reel";
+    return {
+      id: r.id,
+      type,
+      published_at: r.published_at,
+      caption: r.caption,
+      has_ads: r.has_ads,
+      reel_type: r.reel_type,
+      views_total: r.views_total,
+      likes: r.likes,
+      saves: r.saves,
+      comments: r.comments,
+    };
+  });
+
+  const storiesForCalendarItems: CalendarItem[] = (
+    (storiesForCalendar.data ?? []) as Array<{
+      id: string;
+      published_at: string;
+      total_impressions: number | null;
+      total_reach: number | null;
+      total_replies: number | null;
+    }>
+  ).map((s) => ({
+    id: s.id,
+    type: "historia",
+    published_at: s.published_at,
+    caption: null,
+    has_ads: false,
+    views_total: s.total_impressions ?? 0,
+    likes: 0,
+    saves: 0,
+    comments: s.total_replies ?? 0,
   }));
+
+  const calendarContent: CalendarItem[] = [
+    ...reelsAndPostsForCalendar,
+    ...storiesForCalendarItems,
+  ];
 
   // Top reels por ventas (para gráfico)
   const salesChartData = [...reels]
@@ -574,7 +633,14 @@ async function getDashboardData(range: DateRange) {
   const estimateInteractions = (replies: number, comments: number, adsMsg: number) =>
     Math.round((replies + Math.floor(comments / 2) + adsMsg) * ORGANIC_UPLIFT);
 
-  const interactionsCurrentRaw = (conversationsCurrent.data ?? []) as Array<{
+  // Exclude today — IG insights have ~24h delay and today always reads as 0,
+  // which dragged the chart line down to the baseline on the last point.
+  const todayIso = new Date().toISOString().split("T")[0];
+
+  const interactionsCurrentRaw = (conversationsCurrent.data ?? [])
+    .filter((r): r is { metric_date: string; replies: number | null; comments: number | null } =>
+      (r as { metric_date: string }).metric_date !== todayIso
+    ) as Array<{
     metric_date: string;
     replies: number | null;
     comments: number | null;
@@ -585,6 +651,7 @@ async function getDashboardData(range: DateRange) {
   }>;
   const adsMsgCurrentByDate = new Map<string, number>();
   for (const r of adsMsgCurrentRows) {
+    if (r.metric_date === todayIso) continue;
     adsMsgCurrentByDate.set(
       r.metric_date,
       (adsMsgCurrentByDate.get(r.metric_date) ?? 0) + (r.messaging_conversations ?? 0)
@@ -621,7 +688,7 @@ async function getDashboardData(range: DateRange) {
     growthData,
     engagementData,
     salesChartData,
-    calendarReels,
+    calendarContent,
     goals,
     metasActuals,
     conversationsData,
@@ -652,14 +719,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
   const salesChartData = data?.salesChartData ?? [];
-  const calendarReels = data?.calendarReels ?? [];
+  const calendarContent = data?.calendarContent ?? [];
   const conversationsData = data?.conversationsData ?? [];
   const conversationsPrevTotal = data?.conversationsPrevTotal ?? 0;
 
   return (
     <div className="px-8 py-10">
       {/* Header */}
-      <div className="animate-slide-up mb-10 flex items-start justify-between relative" style={{ zIndex: 100 }}>
+      <div className="animate-slide-up mb-10 flex items-start justify-between relative">
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
@@ -830,7 +897,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
       {/* ── Calendario full-width ── */}
       <div className="mt-6 animate-slide-up stagger-6">
-        <ContentCalendar reels={calendarReels} />
+        <ContentCalendar items={calendarContent} />
       </div>
     </div>
   );

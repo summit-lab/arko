@@ -97,7 +97,7 @@ export default async function YouTubePage({ searchParams }: { searchParams: Prom
   return (
     <div className="px-8 py-10 space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between relative" style={{ zIndex: 100 }}>
+      <div className="flex items-center justify-between relative">
         <div>
           <h1 className="page-title tracking-[-0.04em]">YT Intelligence</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">

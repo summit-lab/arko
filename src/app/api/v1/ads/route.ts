@@ -49,10 +49,10 @@ interface CampaignAgg {
   video_plays: number;
   ctr: number;
   cpm: number;
-  ads: { ad_id: string; ad_name: string; adset_id: string; spend: number; impressions: number; clicks: number; video_plays: number; ctr: number }[];
+  ads: { ad_id: string; ad_name: string; adset_id: string; spend: number; impressions: number; clicks: number; video_plays: number; ctr: number; thumbnail_url: string | null }[];
 }
 
-function aggregateDailyRows(rows: DailyRow[], adNamesFallback: Map<string, string>) {
+function aggregateDailyRows(rows: DailyRow[], adNamesFallback: Map<string, string>, adThumbnails: Map<string, string | null>) {
   const campaignMap = new Map<string, CampaignAgg>();
   // First aggregate per-ad totals
   const adTotals = new Map<string, { ad_id: string; ad_name: string; campaign_id: string; adset_id: string; spend: number; impressions: number; reach: number; clicks: number; video_plays: number }>();
@@ -110,6 +110,7 @@ function aggregateDailyRows(rows: DailyRow[], adNamesFallback: Map<string, strin
       clicks: ad.clicks,
       video_plays: ad.video_plays,
       ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
+      thumbnail_url: adThumbnails.get(ad.ad_id) ?? null,
     });
   }
 
@@ -183,10 +184,10 @@ export async function GET(request: Request) {
         .gte('metric_date', prev.from)
         .lt('metric_date', nextDay(prev.to)),
 
-      // Fallback for ad names when ad_metrics_daily.ad_name is null
+      // Ad name fallback + reel thumbnail (via reel mapping) per ad_id
       supabase
         .from('ad_mappings')
-        .select('ad_id, ad_name')
+        .select('ad_id, ad_name, reel_id, reels!inner(thumbnail_url)')
         .eq('workspace_id', auth.workspaceId),
 
       supabase
@@ -210,10 +211,19 @@ export async function GET(request: Request) {
     const connection = connResult.data;
     const lastSync = syncResult.data;
 
-    // Build ad name lookup
+    // Build ad name + thumbnail lookup
     const adNames = new Map<string, string>();
-    for (const row of (namesResult.data ?? []) as { ad_id: string; ad_name: string }[]) {
-      adNames.set(row.ad_id, row.ad_name);
+    const adThumbnails = new Map<string, string | null>();
+    type MappingRow = {
+      ad_id: string;
+      ad_name: string | null;
+      reel_id: string | null;
+      reels: { thumbnail_url: string | null } | { thumbnail_url: string | null }[] | null;
+    };
+    for (const row of (namesResult.data ?? []) as MappingRow[]) {
+      if (row.ad_name) adNames.set(row.ad_id, row.ad_name);
+      const reel = Array.isArray(row.reels) ? row.reels[0] : row.reels;
+      if (reel?.thumbnail_url) adThumbnails.set(row.ad_id, reel.thumbnail_url);
     }
 
     const hasDailyData = currentDaily.length > 0;
@@ -225,8 +235,8 @@ export async function GET(request: Request) {
 
     if (hasDailyData) {
       // Use daily data
-      const current = aggregateDailyRows(currentDaily, adNames);
-      const previous = aggregateDailyRows(prevDaily, adNames);
+      const current = aggregateDailyRows(currentDaily, adNames, adThumbnails);
+      const previous = aggregateDailyRows(prevDaily, adNames, adThumbnails);
       overview = current.overview;
       campaigns = current.campaigns;
       trends = computeTrends(current.overview, previous.overview);
@@ -289,6 +299,7 @@ export async function GET(request: Request) {
           clicks: ad.clicks ?? 0,
           video_plays: ad.video_plays ?? 0,
           ctr: (ad.impressions ?? 0) > 0 ? ((ad.clicks ?? 0) / (ad.impressions ?? 0)) * 100 : 0,
+          thumbnail_url: adThumbnails.get(ad.ad_id) ?? null,
         });
       }
 
