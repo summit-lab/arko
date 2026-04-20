@@ -136,21 +136,21 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
         required
         placeholder="Título del contenido..."
         autoFocus
-        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-white/[0.2]"
+        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-foreground placeholder:text-white/20 focus:outline-none focus:border-white/[0.2]"
       />
 
       <textarea
         name="description"
         placeholder="Notas o descripción (opcional)..."
         rows={2}
-        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-white/[0.2] resize-none"
+        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-foreground placeholder:text-white/20 focus:outline-none focus:border-white/[0.2] resize-none"
       />
 
       <div className="grid grid-cols-2 gap-2">
         <select
           name="platform"
           defaultValue="instagram"
-          className="bg-[#0d0d1a] border border-white/[0.08] rounded-lg px-2 py-2 text-[12px] text-white/60 focus:outline-none focus:border-white/[0.2]"
+          className="bg-background border border-white/[0.08] rounded-lg px-2 py-2 text-[12px] text-foreground/60 focus:outline-none focus:border-white/[0.2]"
         >
           <option value="instagram">Instagram</option>
           <option value="youtube">YouTube</option>
@@ -161,7 +161,7 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
         <select
           name="content_type"
           defaultValue=""
-          className="bg-[#0d0d1a] border border-white/[0.08] rounded-lg px-2 py-2 text-[12px] text-white/60 focus:outline-none focus:border-white/[0.2]"
+          className="bg-background border border-white/[0.08] rounded-lg px-2 py-2 text-[12px] text-foreground/60 focus:outline-none focus:border-white/[0.2]"
         >
           <option value="">Tipo...</option>
           <option value="reel">Reel</option>

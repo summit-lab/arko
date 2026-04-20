@@ -218,9 +218,9 @@ export function AdnChat({
               <div className="flex justify-start">
                 <div className="glass-card px-4 py-3 flex items-center gap-2">
                   <div className="flex gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: "0ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: "150ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: "300ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-foreground/25 animate-pulse" style={{ animationDelay: "0ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-foreground/25 animate-pulse" style={{ animationDelay: "150ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-foreground/25 animate-pulse" style={{ animationDelay: "300ms" }} />
                   </div>
                   <span className="text-[11px] text-white/25 font-light">Moka está pensando...</span>
                 </div>
@@ -250,7 +250,7 @@ export function AdnChat({
           <div className="max-w-[85%] mx-auto">
             <form
               onSubmit={handleSubmit}
-              className="relative rounded-xl border border-white/[0.1] bg-white/[0.04] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 focus-within:border-white/[0.16] focus-within:bg-white/[0.06]"
+              className="relative rounded-xl border border-white/[0.1] bg-white/[0.04] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 focus-within:border-ring focus-within:bg-white/[0.06]"
             >
               <textarea
                 ref={textareaRef}
@@ -260,7 +260,7 @@ export function AdnChat({
                 placeholder={isComplete ? "Pedile a Moka que modifique algo..." : "Escribí tu respuesta..."}
                 disabled={isLoading}
                 rows={1}
-                className="w-full bg-transparent text-[14px] text-white/85 placeholder:text-white/20 font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
+                className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
               />
               <button
                 type="submit"

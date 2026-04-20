@@ -5,6 +5,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface ReelPoint {
   id: string;
@@ -37,23 +38,23 @@ function ScatterTooltip({ active, payload }: {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-lg border border-white/[0.08] px-3 py-2 text-[11px] pointer-events-none"
-      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", maxWidth: 220 }}>
-      <p className="text-white/40 text-[10px] mb-1">{fmtDate(d.date)}</p>
-      <p className="text-white font-medium">{fmt(d.views)} views</p>
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] pointer-events-none backdrop-blur-xl shadow-xl" style={{ maxWidth: 220 }}>
+      <p className="text-muted-foreground text-[10px] mb-1">{fmtDate(d.date)}</p>
+      <p className="text-popover-foreground font-medium">{fmt(d.views)} views</p>
       {d.multiple != null && (
-        <p className="text-amber-300 text-[10px]">×{d.multiple.toFixed(1)} vs promedio</p>
+        <p className="text-amber-400 text-[10px]">×{d.multiple.toFixed(1)} vs promedio</p>
       )}
-      <p className="text-white/40 mt-1 leading-snug">
+      <p className="text-muted-foreground mt-1 leading-snug">
         {d.caption ? (d.caption.length > 50 ? d.caption.slice(0, 50) + "…" : d.caption) : "Sin caption"}
       </p>
-      <p className="text-indigo-300/60 text-[10px] mt-1">Click para ver el reel →</p>
+      <p className="text-indigo-400 text-[10px] mt-1">Click para ver el reel →</p>
     </div>
   );
 }
 
 export function ReelsScatterPlot({ reels, avgViews }: Props) {
   const router = useRouter();
+  const chart = useChartTheme();
 
   if (reels.length < 3) return null;
 
@@ -89,7 +90,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
       <div style={{ height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
             <XAxis
               dataKey="date"
               type="number"
@@ -98,7 +99,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
               tickFormatter={(v: number) => fmtDate(v)}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+              tick={{ fill: chart.axisTick, fontSize: 10 }}
               scale="time"
             />
             <YAxis
@@ -106,7 +107,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
               type="number"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+              tick={{ fill: chart.axisTick, fontSize: 10 }}
               tickFormatter={(v: number) => fmt(v)}
               width={42}
             />
@@ -116,7 +117,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
               strokeDasharray="6 3"
               strokeWidth={1.5}
             />
-            <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "rgba(255,255,255,0.1)" }} />
+            <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: "3 3", stroke: chart.grid }} />
             <Scatter
               data={data}
               onClick={(d) => router.push(`/instagram/${(d as unknown as { id: string }).id}`)}
@@ -141,7 +142,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
                       cx={cx} cy={cy} r={r}
                       fill={color}
                       fillOpacity={0.85}
-                      stroke={isOutlier ? color : "rgba(255,255,255,0.2)"}
+                      stroke={isOutlier ? color : chart.benchmarkDotStroke}
                       strokeWidth={isOutlier ? 1.5 : 0.5}
                     />
                     {views > 0 && false && <title>{fmt(views)}</title>}

@@ -38,7 +38,7 @@ export default async function MetasSettingsPage() {
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="page-title">Metas</h1>
-        <p className="text-zinc-400 mt-1 text-sm">
+        <p className="text-muted-foreground mt-1 text-sm">
           Objetivos mensuales de contenido y crecimiento — {monthLabel}
         </p>
       </div>

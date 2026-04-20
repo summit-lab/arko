@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ interface DonutProps {
 }
 
 function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
+  const chart = useChartTheme();
   const clamped = Math.min(Math.max(pct, 0), 100);
   const data = [
     { value: clamped },
@@ -44,7 +46,7 @@ function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
               strokeWidth={0}
             >
               <Cell fill={color} opacity={0.85} />
-              <Cell fill="rgba(255,255,255,0.05)" />
+              <Cell fill={chart.trackFill} />
             </Pie>
           </PieChart>
         </ResponsiveContainer>

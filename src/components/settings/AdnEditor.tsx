@@ -50,7 +50,7 @@ function EditableField({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={4}
-            className="w-full rounded-lg bg-white/[0.05] border border-white/[0.12] px-3 py-2.5 text-sm text-white/80 placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-all resize-none"
+            className="w-full rounded-lg bg-white/[0.05] border border-white/[0.12] px-3 py-2.5 text-sm text-white/80 placeholder:text-muted-foreground focus:outline-none focus:border-ring transition-all resize-none"
             placeholder={placeholder}
           />
         ) : (
@@ -59,7 +59,7 @@ function EditableField({
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            className="w-full rounded-lg bg-white/[0.05] border border-white/[0.12] px-3 py-2 text-sm text-white/80 placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-all"
+            className="w-full rounded-lg bg-white/[0.05] border border-white/[0.12] px-3 py-2 text-sm text-white/80 placeholder:text-muted-foreground focus:outline-none focus:border-ring transition-all"
             placeholder={placeholder}
           />
         )}
@@ -191,7 +191,7 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
       <Section title="Estrategia de Plataformas" complete={adnData.strategies.length > 0}>
         {adnData.strategies.length > 0 ? (
           adnData.strategies.map((s, i) => (
-            <div key={i} className="rounded-lg p-4 space-y-2" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div key={i} className="rounded-lg p-4 space-y-2 bg-white/[0.025] border border-white/[0.06]">
               <p className="text-[11px] text-white/40 uppercase tracking-wider font-medium">{s.platform}</p>
               {s.current_strategy && (
                 <p className="text-[13px] text-white/60 font-light leading-relaxed">{s.current_strategy}</p>
@@ -294,7 +294,7 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
         {adnData.competitors.length > 0 ? (
           <div className="space-y-3">
             {adnData.competitors.map((c, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-lg p-3" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div key={i} className="flex items-start gap-3 rounded-lg p-3 bg-white/[0.025] border border-white/[0.06]">
                 <div className="h-8 w-8 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0 text-[12px] text-white/40 font-light">
                   {i + 1}
                 </div>
@@ -322,7 +322,7 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
         {adnData.references.length > 0 ? (
           <div className="space-y-3">
             {adnData.references.map((r, i) => (
-              <div key={i} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div key={i} className="rounded-lg p-3 bg-white/[0.025] border border-white/[0.06]">
                 <p className="text-[13px] text-white/70 font-light">{r.brand_name || "—"}</p>
                 {r.brand_url && <p className="text-[11px] text-white/30 font-light">{r.brand_url}</p>}
                 {r.what_they_like && <p className="text-[12px] text-white/40 font-light mt-1">{r.what_they_like}</p>}

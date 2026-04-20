@@ -17,6 +17,7 @@ import {
 import { ReelsScatterPlot } from "./ReelsScatterPlot";
 import { ReelsHeatmap } from "./ReelsHeatmap";
 import { ReelDayRadar } from "./ReelDayRadar";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -124,20 +125,20 @@ function Select({
     <div ref={ref} className={`relative ${className}`}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] cursor-pointer"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/80 transition-colors hover:border-white/[0.1] hover:bg-white/[0.08] cursor-pointer"
       >
         <span>{selected?.label}</span>
-        <ChevronDown size={12} strokeWidth={2.5} className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} strokeWidth={2.5} className={`text-white/50 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-white/10 bg-black/40 shadow-2xl shadow-black/50 backdrop-blur-2xl">
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-2xl">
           {options.map((o) => (
             <button
               key={o.value}
               onClick={() => { onChange(o.value); setOpen(false); }}
               className={`flex w-full items-center justify-between gap-6 px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.08] cursor-pointer ${
-                o.value === value ? "text-white" : "text-zinc-400 hover:text-zinc-200"
+                o.value === value ? "text-white" : "text-white/50 hover:text-white/80"
               }`}
             >
               <span>{o.label}</span>
@@ -157,8 +158,7 @@ const PAGE_SIZE = 18;
 function SidebarPieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { color: string } }> }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] pointer-events-none"
-      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-2.5 py-1.5 text-[11px] pointer-events-none backdrop-blur-xl shadow-xl">
       {payload.map((e) => (
         <p key={e.name} style={{ color: e.payload.color }}>{e.name}: {fmt(e.value)}</p>
       ))}
@@ -168,21 +168,8 @@ function SidebarPieTooltip({ active, payload }: { active?: boolean; payload?: Ar
 
 // ─── Liquid glass active style (shared across filter pills + action buttons) ──
 
-const LIQUID_GLASS = {
-  background: "rgba(255,255,255,0.1)",
-  backdropFilter: "blur(20px)",
-  WebkitBackdropFilter: "blur(20px)",
-  border: "1px solid rgba(255,255,255,0.22)",
-  boxShadow: "0 1px 16px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.2)",
-} as const;
-
-const LIQUID_GLASS_BUTTON = {
-  background: "rgba(255,255,255,0.08)",
-  backdropFilter: "blur(20px)",
-  WebkitBackdropFilter: "blur(20px)",
-  border: "1px solid rgba(255,255,255,0.18)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 4px rgba(0,0,0,0.2)",
-} as const;
+const LIQUID_GLASS_CLASS = "bg-white/[0.1] border border-white/[0.1]";
+const LIQUID_GLASS_BUTTON_CLASS = "bg-white/[0.08] border border-white/[0.1]";
 
 // ─── ReelActions (Ver en IG) ─────────────────────────────────────────────────
 
@@ -194,8 +181,7 @@ function ReelActions({ permalink }: { permalink?: string | null }) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="flex items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-semibold text-white transition-all cursor-pointer hover:brightness-125"
-      style={LIQUID_GLASS_BUTTON}
+      className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-semibold text-white transition-all cursor-pointer hover:brightness-125 ${LIQUID_GLASS_BUTTON_CLASS}`}
     >
       <ExternalLink size={10} strokeWidth={2} />
       Ver en IG
@@ -206,6 +192,7 @@ function ReelActions({ permalink }: { permalink?: string | null }) {
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[] }) {
+  const chart = useChartTheme();
   const engagementRate = summary.totalViews > 0
     ? ((summary.totalLikes + summary.totalSaves + summary.totalComments) / summary.totalViews * 100).toFixed(1)
     : "0";
@@ -237,7 +224,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
   ].filter((d) => d.value > 0);
 
   // Top 5 bar colors — neon palette
-  const barColors = ["#7A86E0", "#AF6EC7", "#4BCEAF", "rgba(255,255,255,0.25)", "rgba(255,255,255,0.15)"];
+  const barColors = ["#7A86E0", "#AF6EC7", "#4BCEAF", chart.benchmarkDotStroke, chart.benchmarkDot];
 
   return (
     <div className="w-[340px] shrink-0 space-y-3 pb-6 sticky top-6 self-start">
@@ -309,19 +296,18 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                       </feMerge>
                     </filter>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                   <XAxis dataKey="idx" hide />
                   <Tooltip
-                    cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1 }}
+                    cursor={{ stroke: chart.cursorLine, strokeWidth: 1 }}
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
                       const d = payload[0]?.payload as { caption: string; date: string; views: number };
                       return (
-                        <div className="rounded-lg border border-white/10 px-3 py-2 text-[11px]"
-                          style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)", maxWidth: 180 }}>
-                          <p className="text-white/50 mb-1 leading-snug">{d.caption}</p>
-                          <p className="text-white font-medium">{fmt(d.views)} views</p>
-                          <p className="text-white/30 text-[10px]">{d.date}</p>
+                        <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] backdrop-blur-xl shadow-xl" style={{ maxWidth: 180 }}>
+                          <p className="text-muted-foreground mb-1 leading-snug">{d.caption}</p>
+                          <p className="text-popover-foreground font-medium">{fmt(d.views)} views</p>
+                          <p className="text-muted-foreground text-[10px]">{d.date}</p>
                         </div>
                       );
                     }}
@@ -426,7 +412,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                       <span className="text-[10px] text-white/50 flex-1 truncate font-light">{label}</span>
                       <span className="text-[12px] text-emerald-300 font-light shrink-0">${fmt(r.sales_amount ?? 0)}</span>
                     </div>
-                    <div className="h-[4px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="h-[4px] w-full rounded-full overflow-hidden ml-5 bg-white/[0.05]">
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: salesColors[i] }} />
                     </div>
                   </div>
@@ -454,7 +440,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                     <span className="text-[10px] text-white/50 flex-1 truncate font-light">{label}</span>
                     <span className="text-[12px] text-white/80 font-light shrink-0">{fmt(r.views_total)}</span>
                   </div>
-                  <div className="h-[4px] w-full rounded-full overflow-hidden ml-5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <div className="h-[4px] w-full rounded-full overflow-hidden ml-5 bg-white/[0.05]">
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColors[i] }} />
                   </div>
                 </div>
@@ -474,8 +460,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
             { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#4BCEAF" },
             { icon: Share2,        value: reels.reduce((s, r) => s + r.shares, 0), label: "Compartidos",  color: "#7A86E0" },
           ].map(({ icon: Icon, value, label, color }) => (
-            <div key={label} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div key={label} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 bg-white/[0.03] border border-white/[0.06]">
               <Icon size={14} strokeWidth={1.5} style={{ color }} />
               <div>
                 <p className="text-[15px] font-light text-white leading-none">{fmt(value)}</p>
@@ -570,24 +555,21 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
       {/* Filters bar — full width, above grid+sidebar */}
       <div className="flex flex-wrap items-center gap-2 mb-5">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-zinc-500 whitespace-nowrap">Ordenar por</span>
+            <span className="text-[11px] text-white/40 whitespace-nowrap">Ordenar por</span>
             <Select value={sortKey} onChange={(v) => setSortKey(v as SortKey)} options={SORT_OPTIONS} className="w-36" />
           </div>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-zinc-200 text-[11px] font-medium rounded-lg px-3 py-1.5 hover:bg-white/[0.08] hover:border-white/20 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 bg-white/[0.06] border border-white/[0.1] text-white/80 text-[11px] font-medium rounded-lg px-3 py-1.5 hover:bg-white/[0.08] hover:border-white/[0.1] transition-colors cursor-pointer"
           >
             <ArrowUpDown size={12} strokeWidth={2.5} />
             {sortDir === "desc" ? "Mayor → Menor" : "Menor → Mayor"}
           </button>
 
-          <div className="h-4 w-px bg-white/10" />
+          <div className="h-4 w-px bg-white/[0.1]" />
 
           {/* Type filter — pill container */}
-          <div
-            className="inline-flex items-center gap-1 p-1 rounded-full"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
+          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
             {([
               { key: "normal", label: "Reel", icon: null },
               { key: "trial", label: "Trial reel", icon: AlertTriangle },
@@ -596,12 +578,11 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
               <button
                 key={opt.key}
                 onClick={() => setTypeFilter(opt.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer border ${
                   typeFilter === opt.key
-                    ? "text-white"
-                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+                    ? `text-white ${LIQUID_GLASS_CLASS}`
+                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-transparent"
                 }`}
-                style={typeFilter === opt.key ? LIQUID_GLASS : undefined}
               >
                 {opt.icon && <opt.icon size={11} strokeWidth={2} className="text-amber-400" />}
                 {opt.label}
@@ -609,13 +590,10 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             ))}
           </div>
 
-          <div className="h-4 w-px bg-white/10" />
+          <div className="h-4 w-px bg-white/[0.1]" />
 
           {/* Dist filter — pill container */}
-          <div
-            className="inline-flex items-center gap-1 p-1 rounded-full"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
+          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
             {([
               { key: "all", label: "Todos", icon: null },
               { key: "organic", label: "Orgánico", icon: null, dot: true },
@@ -624,12 +602,11 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
               <button
                 key={opt.key}
                 onClick={() => setDistFilter(opt.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer border ${
                   distFilter === opt.key
-                    ? "text-white"
-                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+                    ? `text-white ${LIQUID_GLASS_CLASS}`
+                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-transparent"
                 }`}
-                style={distFilter === opt.key ? LIQUID_GLASS : undefined}
               >
                 {opt.dot && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
                 {opt.icon && <opt.icon size={11} strokeWidth={2} className="text-purple-400" />}
@@ -638,7 +615,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             ))}
           </div>
 
-          <span className="ml-auto text-[11px] text-zinc-600">
+          <span className="ml-auto text-[11px] text-white/30">
             {Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length}
           </span>
         </div>
@@ -650,25 +627,26 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
         {/* Portrait grid */}
         <div className="grid grid-cols-2 gap-3 @[640px]:grid-cols-3 @[900px]:grid-cols-4">
           {filtered.length === 0 && (
-            <div className="col-span-full py-16 text-center text-zinc-500 text-sm">
+            <div className="col-span-full py-16 text-center text-white/40 text-sm">
               No hay reels que coincidan con los filtros.
             </div>
           )}
           {filtered.slice(0, page * PAGE_SIZE).map((reel) => {
             const multiple = reel.performer_multiple || 0;
             const isPromoted = reel.has_ads || reel.views_paid > 0;
-            const pillStyle =
+            // Inline styles so colors survive any light-mode CSS overrides (pill sits on a dark thumbnail).
+            const pillInline: { background: string; borderColor: string; color: string } =
               multiple >= 8
-                ? "bg-black/80 backdrop-blur-sm border border-amber-400/60 text-amber-300"
+                ? { background: "rgba(0,0,0,0.80)", borderColor: "rgba(251,191,36,0.60)", color: "#fcd34d" }
                 : multiple >= 5
-                ? "bg-black/80 backdrop-blur-sm border border-emerald-400/60 text-emerald-300"
+                ? { background: "rgba(0,0,0,0.80)", borderColor: "rgba(52,211,153,0.60)", color: "#6ee7b7" }
                 : multiple >= 3
-                ? "bg-black/80 backdrop-blur-sm border border-blue-400/60 text-blue-300"
+                ? { background: "rgba(0,0,0,0.80)", borderColor: "rgba(96,165,250,0.60)", color: "#93c5fd" }
                 : multiple >= 1
-                ? "bg-black/80 backdrop-blur-sm border border-emerald-500/40 text-emerald-300"
+                ? { background: "rgba(0,0,0,0.80)", borderColor: "rgba(16,185,129,0.40)", color: "#6ee7b7" }
                 : multiple >= 0.5
-                ? "bg-black/80 backdrop-blur-sm border border-zinc-400/40 text-zinc-200"
-                : "bg-black/80 backdrop-blur-sm border border-red-500/40 text-red-300";
+                ? { background: "rgba(0,0,0,0.80)", borderColor: "rgba(161,161,170,0.40)", color: "#e4e4e7" }
+                : { background: "rgba(0,0,0,0.80)", borderColor: "rgba(239,68,68,0.40)", color: "#fca5a5" };
             const glowColor =
               multiple >= 8 ? "rgba(251,191,36,0.10)"
               : multiple >= 5 ? "rgba(52,211,153,0.10)"
@@ -684,25 +662,18 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             return (
               <div
                 key={reel.id}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(0,0,0,0.7)] hover:border-white/[0.14]"
+                className="glass-card group relative flex flex-col overflow-hidden rounded-xl transition-all duration-300 hover:-translate-y-1.5"
                 style={{
-                  background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0.04) 100%)",
-                  backdropFilter: "blur(12px)",
-                  boxShadow: `0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.4), 0 0 20px ${glowColor}`,
+                  boxShadow: `0 0 20px ${glowColor}`,
                 }}
               >
-                {/* Glass shimmer */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] z-10"
-                  style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 30%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.2) 70%, transparent 100%)" }} />
-                <div className="pointer-events-none absolute inset-0 z-10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06) 0%, transparent 60%)" }} />
 
                 {/* ── Thumbnail — navigate on click ── */}
                 <Link
                   href={`/instagram/${reel.id}`}
                   prefetch
                   onMouseEnter={() => router.prefetch(`/instagram/${reel.id}`)}
-                  className="relative w-full overflow-hidden bg-zinc-900 block"
+                  className="relative w-full overflow-hidden bg-muted block"
                   style={{ aspectRatio: "4/5" }}
                 >
                   {reel.thumbnail_url ? (
@@ -721,41 +692,59 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   )}
                   {/* Gradient overlay bottom */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                  {/* Badges top-left */}
+                  {/* Badges top-left — inline styles only, to survive light-mode overrides */}
                   <div className="absolute top-2 left-2 flex flex-wrap gap-1 z-20">
                     {multiple > 0 && (
-                      <span className={`rounded-md px-2.5 py-1.5 text-[13px] font-bold leading-none ${pillStyle}`}>
+                      <span
+                        className="rounded-md border backdrop-blur-sm px-2.5 py-1.5 text-[13px] font-bold leading-none"
+                        style={pillInline}
+                      >
                         ×{multiple.toFixed(1)}
                       </span>
                     )}
                     {reel.sales_amount != null && reel.sales_amount > 0 && (
-                      <span className="flex items-center gap-1 rounded-md border border-emerald-400/60 bg-black/80 backdrop-blur-sm px-2.5 py-1.5 text-[13px] font-bold leading-none text-emerald-300">
+                      <span
+                        className="flex items-center gap-1 rounded-md border backdrop-blur-sm px-2.5 py-1.5 text-[13px] font-bold leading-none"
+                        style={{ background: "rgba(0,0,0,0.80)", borderColor: "rgba(52,211,153,0.60)", color: "#6ee7b7" }}
+                      >
                         <DollarSign size={11} strokeWidth={2.5} />
                         {fmt(reel.sales_amount)}
                       </span>
                     )}
                     {reel.reel_type === "trial_likely" && (
-                      <span className="flex items-center gap-1 rounded-md border border-amber-500/50 bg-black/70 backdrop-blur-sm px-2 py-1 text-[11px] font-semibold leading-none text-amber-300">
+                      <span
+                        className="flex items-center gap-1 rounded-md border backdrop-blur-sm px-2 py-1 text-[11px] font-semibold leading-none"
+                        style={{ background: "rgba(0,0,0,0.70)", borderColor: "rgba(245,158,11,0.50)", color: "#fcd34d" }}
+                      >
                         <AlertTriangle size={10} strokeWidth={2} />Trial
                       </span>
                     )}
                     {isPromoted && (
-                      <span className="flex items-center gap-1 rounded-md border border-purple-500/50 bg-black/70 backdrop-blur-sm px-2 py-1 text-[11px] font-semibold leading-none text-purple-300">
+                      <span
+                        className="flex items-center gap-1 rounded-md border backdrop-blur-sm px-2 py-1 text-[11px] font-semibold leading-none"
+                        style={{ background: "rgba(0,0,0,0.70)", borderColor: "rgba(168,85,247,0.50)", color: "#d8b4fe" }}
+                      >
                         <Megaphone size={10} strokeWidth={2} />Ads
                       </span>
                     )}
                   </div>
                   {/* Arrow top-right */}
                   <div className="absolute top-2 right-2 z-20">
-                    <ArrowUpRight size={14} className="text-white/30 group-hover:text-white/70 transition-colors" />
+                    <ArrowUpRight size={14} style={{ color: "rgba(255,255,255,0.6)" }} className="group-hover:opacity-100 transition-opacity" />
                   </div>
-                  {/* Duration + date bottom */}
+                  {/* Duration + date bottom — over image, must stay white in both themes */}
                   <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between z-20">
-                    <div className="flex items-center gap-0.5 rounded bg-black/70 px-1.5 py-0.5 text-[9px] text-white/60 backdrop-blur-sm">
+                    <div
+                      className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] backdrop-blur-sm"
+                      style={{ background: "rgba(0,0,0,0.7)", color: "rgba(255,255,255,0.75)" }}
+                    >
                       <Clock size={8} className="mr-0.5" />
                       {durationStr}
                     </div>
-                    <span className="text-[9px] text-white/40 font-light">
+                    <span
+                      className="text-[9px] font-light rounded px-1.5 py-0.5 backdrop-blur-sm"
+                      style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.75)" }}
+                    >
                       {reel.published_at ? timeAgo(reel.published_at) : "--"}
                     </span>
                   </div>
@@ -787,7 +776,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
 
                   {/* Row 2: Distribution bar + label */}
                   <div>
-                    <div className="h-[3px] w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
                       {isPromoted ? (
                         <div className="flex h-full w-full">
                           <div className="h-full bg-violet-500/70" style={{ width: `${Math.round((reel.views_org / (reel.views_total || 1)) * 100)}%` }} />
@@ -805,7 +794,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   </div>
 
                   {/* Row 3: Title — auto_title when available, else caption */}
-                  <p className="text-[10px] text-zinc-400 font-light leading-snug line-clamp-2 min-h-[2.5em]">{displayTitle}</p>
+                  <p className="text-[10px] text-white/50 font-light leading-snug line-clamp-2 min-h-[2.5em]">{displayTitle}</p>
 
                   {/* Row 4: Action buttons */}
                   <div className="pt-1 border-t border-white/[0.05]">
@@ -830,10 +819,10 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
           <div className="mt-6 flex justify-center">
             <button
               onClick={() => setPage((p) => p + 1)}
-              className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-5 py-2 text-[13px] font-medium text-zinc-300 transition-all hover:border-white/20 hover:bg-white/[0.08] hover:text-white cursor-pointer"
+              className="flex items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.06] px-5 py-2 text-[13px] font-medium text-white/70 transition-all hover:border-white/[0.1] hover:bg-white/[0.08] hover:text-white cursor-pointer"
             >
               Mostrar más
-              <span className="text-zinc-500 text-[11px]">
+              <span className="text-white/40 text-[11px]">
                 ({Math.min(PAGE_SIZE, filtered.length - page * PAGE_SIZE)} más)
               </span>
             </button>

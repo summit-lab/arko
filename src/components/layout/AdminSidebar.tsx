@@ -46,18 +46,15 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside
-      className="w-[220px] h-screen fixed left-0 top-0 z-40 flex flex-col"
-      style={{ background: "rgba(0, 0, 0, 0.6)", borderRight: "1px solid rgba(255,255,255,0.06)" }}
-    >
+    <aside className="w-[220px] h-screen fixed left-0 top-0 z-40 flex flex-col bg-sidebar border-r border-sidebar-border">
       {/* ── Logo ── */}
       <div className="flex items-center gap-2.5 px-5 pt-6 pb-5 shrink-0">
-        <Shield size={20} className="text-amber-400/80" />
+        <Shield size={20} className="text-amber-500 dark:text-amber-400/80" />
         <div className="leading-none">
-          <p className="text-[18px] font-medium tracking-tight text-white leading-none">
+          <p className="text-[18px] font-medium tracking-tight text-sidebar-foreground leading-none">
             Admin
           </p>
-          <p className="text-[10px] mt-1 text-white/30 font-medium tracking-wider uppercase">
+          <p className="text-[10px] mt-1 text-muted-foreground font-medium tracking-wider uppercase">
             Panel
           </p>
         </div>
@@ -75,8 +72,8 @@ export function AdminSidebar() {
               onClick={(e) => handleNav(item.href, e)}
               className={`group relative flex items-center gap-3 px-3 h-[40px] rounded-lg transition-all duration-200 overflow-hidden ${
                 isActive
-                  ? "bg-white/[0.06]"
-                  : "hover:bg-white/[0.03]"
+                  ? "bg-sidebar-accent"
+                  : "hover:bg-sidebar-accent/60"
               }`}
             >
               {isActive && (
@@ -92,14 +89,13 @@ export function AdminSidebar() {
               <item.icon
                 size={18}
                 strokeWidth={isActive ? 2 : 1.5}
-                className="transition-colors relative z-10 shrink-0"
-                style={{ color: isActive ? "#fbbf24" : "rgba(255, 255, 255, 0.4)" }}
+                className={`transition-colors relative z-10 shrink-0 ${isActive ? "text-amber-500 dark:text-amber-400" : "text-muted-foreground"}`}
               />
               <span
                 className={`text-[13px] transition-colors relative z-10 ${
                   isActive
-                    ? "font-medium text-white tracking-wide"
-                    : "font-light text-white/40 group-hover:text-white/65 tracking-wide"
+                    ? "font-medium text-sidebar-foreground tracking-wide"
+                    : "font-light text-muted-foreground group-hover:text-sidebar-foreground tracking-wide"
                 }`}
               >
                 {item.name}
@@ -110,14 +106,14 @@ export function AdminSidebar() {
       </nav>
 
       {/* ── Bottom ── */}
-      <div className="px-3 py-6 border-t border-white/[0.06]">
+      <div className="px-3 py-6 border-t border-sidebar-border">
         <Link
           href="/"
           onClick={(e) => handleNav("/", e)}
-          className="group flex items-center gap-2.5 px-3 h-[36px] rounded-lg transition-all duration-200 hover:bg-white/[0.03]"
+          className="group flex items-center gap-2.5 px-3 h-[36px] rounded-lg transition-all duration-200 hover:bg-sidebar-accent/60"
         >
-          <ArrowLeft size={16} strokeWidth={1.5} className="text-white/40 group-hover:text-white/70" />
-          <span className="text-[13px] tracking-wide font-light text-white/40 group-hover:text-white/70">
+          <ArrowLeft size={16} strokeWidth={1.5} className="text-muted-foreground group-hover:text-sidebar-foreground" />
+          <span className="text-[13px] tracking-wide font-light text-muted-foreground group-hover:text-sidebar-foreground">
             Volver a Moka
           </span>
         </Link>

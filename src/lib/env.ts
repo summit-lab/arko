@@ -33,6 +33,12 @@ const envSchema = z.object({
   META_APP_SECRET: z.string().optional(),
   META_TOKENS_ENCRYPTION_KEY: z.string().optional(),
 
+  // ─── Instagram Webhooks (opcional — solo si activás DM tracking) ───
+  // IG_APP_SECRET aliases META_APP_SECRET (Meta uses a single app secret for
+  // OAuth + webhook signature). Kept as a distinct key per Sprint B spec.
+  IG_APP_SECRET: z.string().optional(),
+  IG_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+
   // ─── Google OAuth (YouTube) ───
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -61,6 +67,8 @@ function parseEnv() {
     META_APP_ID: process.env.META_APP_ID,
     META_APP_SECRET: process.env.META_APP_SECRET,
     META_TOKENS_ENCRYPTION_KEY: process.env.META_TOKENS_ENCRYPTION_KEY,
+    IG_APP_SECRET: process.env.IG_APP_SECRET,
+    IG_WEBHOOK_VERIFY_TOKEN: process.env.IG_WEBHOOK_VERIFY_TOKEN,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_TOKENS_ENCRYPTION_KEY: process.env.GOOGLE_TOKENS_ENCRYPTION_KEY,

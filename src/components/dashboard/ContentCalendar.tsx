@@ -69,14 +69,22 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
   // Filter content by type
+  // NOTE: "posts" and "historias" are disabled in the UI (coming soon).
+  // Defensive: if somehow set programmatically, treat them as "all" so the
+  // calendar never renders empty by accident.
   const filteredReels = reels.filter((r) => {
-    if (filter === "historias") return false;
-    if (filter === "posts") return false;
     if (filter === "reels") return true;
+    // "all", "posts", "historias" → show everything (only reels exist today)
     return true;
   });
 
-  // Map days → content items
+  // Map days → content items.
+  // NOTE: we deliberately use LOCAL Date methods (getFullYear/getMonth/getDate),
+  // NOT their UTC counterparts. `published_at` is a timestamptz from Postgres
+  // (e.g. 2026-04-06T01:00:00Z). A UTC-3 user posted it at 22:00 on Apr 5 local
+  // time and expects to see it on the Apr 5 cell — which is exactly what the
+  // local getters return. Do NOT switch to getUTC* here or the calendar will
+  // drift by one day for non-UTC viewers.
   const dayMap = new Map<number, CalendarReel[]>();
   filteredReels.forEach((r) => {
     const d = new Date(r.published_at);
@@ -93,6 +101,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
+  // Also uses local-timezone getters — see note above on dayMap.
   const totalThisMonth = filteredReels.filter((r) => {
     const d = new Date(r.published_at);
     return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
@@ -100,11 +109,11 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
 
   const selectedItems = selectedDay ? (dayMap.get(selectedDay) ?? []) : [];
 
-  const FILTERS: { key: ContentFilter; label: string; dot?: string }[] = [
+  const FILTERS: { key: ContentFilter; label: string; dot?: string; disabled?: boolean }[] = [
     { key: "all", label: "Todo" },
     { key: "reels", label: "Reels", dot: "bg-emerald-400" },
-    { key: "posts", label: "Posts", dot: "bg-violet-400" },
-    { key: "historias", label: "Historias", dot: "bg-blue-400" },
+    { key: "posts", label: "Posts", dot: "bg-violet-400", disabled: true },
+    { key: "historias", label: "Historias", dot: "bg-blue-400", disabled: true },
   ];
 
   return (
@@ -119,16 +128,27 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
         </div>
 
         {/* Content type filter */}
-        <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          {FILTERS.map(({ key, label, dot }) => (
+        <div className="flex items-center gap-1 rounded-lg p-1 bg-white/[0.04] border border-white/[0.06]">
+          {FILTERS.map(({ key, label, dot, disabled }) => (
             <button
               key={key}
-              onClick={() => { setFilter(key); setSelectedDay(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
-                filter === key ? "bg-white/[0.08] text-white" : "text-white/30 hover:text-white/55"
+              onClick={() => {
+                if (disabled) return;
+                setFilter(key);
+                setSelectedDay(null);
+              }}
+              disabled={disabled}
+              title={disabled ? "Próximamente" : undefined}
+              aria-disabled={disabled}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                disabled
+                  ? "text-white/15 cursor-not-allowed opacity-50"
+                  : filter === key
+                  ? "bg-white/[0.08] text-white cursor-pointer"
+                  : "text-white/30 hover:text-white/55 cursor-pointer"
               }`}
             >
-              {dot && filter === key && <div className={`h-1.5 w-1.5 rounded-full ${dot}`} />}
+              {dot && filter === key && !disabled && <div className={`h-1.5 w-1.5 rounded-full ${dot}`} />}
               {label}
             </button>
           ))}
@@ -140,7 +160,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
         <button
           onClick={prevMonth}
           className="h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/[0.06]"
-          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ border: "1px solid var(--border)" }}
         >
           <ChevronLeft className="h-3.5 w-3.5 text-white/50" />
         </button>
@@ -150,7 +170,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
         <button
           onClick={nextMonth}
           className="h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/[0.06]"
-          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ border: "1px solid var(--border)" }}
         >
           <ChevronRight className="h-3.5 w-3.5 text-white/50" />
         </button>
@@ -190,7 +210,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
               } ${
                 isSelected ? "bg-white/[0.08] ring-1 ring-white/20" : hasContent ? "bg-white/[0.03]" : ""
               }`}
-              style={isToday && !hasContent ? { background: "rgba(255,255,255,0.05)" } : undefined}
+              style={isToday && !hasContent ? { background: "var(--muted)" } : undefined}
             >
               {/* Day number */}
               <span className={`text-[13px] leading-none mb-2 ${
@@ -218,7 +238,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
                     {best.caption?.slice(0, 55) || "Sin título"}
                   </p>
                   {/* Quick KPIs */}
-                  <div className="flex items-center gap-2 mt-auto pt-1.5 border-t border-white/[0.05]">
+                  <div className="flex items-center gap-2 mt-auto pt-1.5 border-t border-white/[0.06]">
                     <span className="flex items-center gap-0.5 text-[9px] text-white/40">
                       <Eye className="h-2.5 w-2.5" />
                       {fmt(best.views_total)}
@@ -243,10 +263,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
 
       {/* Day detail panel */}
       {selectedDay && selectedItems.length > 0 && (
-        <div
-          className="mt-4 rounded-xl p-4 space-y-3"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
+        <div className="mt-4 rounded-xl p-4 space-y-3 bg-white/[0.03] border border-white/[0.07]">
           <p className="text-[11px] text-white/40 font-medium uppercase tracking-[0.1em]">
             {selectedDay} de {MONTHS[viewMonth]} {viewYear} — {selectedItems.length} publicación{selectedItems.length !== 1 ? "es" : ""}
           </p>
@@ -255,11 +272,9 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
               <Link
                 key={item.id}
                 href={`/instagram/${item.id}`}
-                className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-white/[0.04] transition-all group"
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-white/[0.04] transition-all group bg-white/[0.02] border border-white/[0.06]"
               >
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(255,255,255,0.05)" }}>
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 bg-white/[0.05]">
                   <Play className="h-3.5 w-3.5 text-white/40" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -294,7 +309,7 @@ export function ContentCalendar({ reels }: ContentCalendarProps) {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-5 mt-5 pt-4 border-t border-white/[0.05] flex-wrap">
+      <div className="flex items-center gap-5 mt-5 pt-4 border-t border-white/[0.06] flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-emerald-400 opacity-80" />
           <span className="text-[10px] text-white/25 font-light">Reel orgánico</span>

@@ -236,13 +236,7 @@ export function InstagramShell({
   return (
     <>
       {/* ── Tabs (instant, client-side) ── */}
-      <div
-        className="inline-flex items-center gap-1 p-1 rounded-full"
-        style={{
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
+      <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
         {TABS.map((tab) => {
           const active = activeTab === tab.key;
           return (
@@ -251,16 +245,9 @@ export function InstagramShell({
               onClick={() => handleTabChange(tab.key)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-250 cursor-pointer ${
                 active
-                  ? "text-white"
-                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+                  ? "text-white bg-white/[0.1] border border-white/[0.1]"
+                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border border-transparent"
               }`}
-              style={active ? {
-                background: "rgba(255,255,255,0.1)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                border: "1px solid rgba(255,255,255,0.22)",
-                boxShadow: "0 1px 16px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.2)",
-              } : undefined}
             >
               <tab.icon size={14} strokeWidth={active ? 2.2 : 1.6} />
               {tab.label}
@@ -293,22 +280,31 @@ export function InstagramShell({
         <PublicacionesGrid posts={posts} summary={postsSummary} />
       )}
 
-      {activeTab === "competencia" && (
+      {activeTab === "competencia" && (() => {
+        // Filter out reels with 0 views (just-published, not synced yet) so the
+        // "Yo" averages use a symmetric denominator with the "Ellos" side (which
+        // also filters views > 0 in CompetitorTab.tsx ComparisonCharts). Without
+        // this filter, day-1 reels artificially depress the user's averages and
+        // make "Yo" always look worse than competitors.
+        const reelsWithViews = reels.filter((r) => (r.views_total ?? 0) > 0);
+        const n = reelsWithViews.length;
+        return (
         <CompetitorTab
           workspaceId={workspaceId ?? null}
           initialCompetitors={initialCompetitors}
           myStats={{
-            avgViews:    reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.views_total, 0) / reels.length) : 0,
+            avgViews:    n > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.views_total, 0) / n) : 0,
             followers:   totalFollowers,
-            avgLikes:    reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.likes,       0) / reels.length) : 0,
-            avgComments: reels.length > 0 ? Math.round(reels.reduce((s, r) => s + r.comments,    0) / reels.length) : 0,
+            avgLikes:    n > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.likes,       0) / n) : 0,
+            avgComments: n > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.comments,    0) / n) : 0,
           }}
           myReels={reels.map((r) => ({ published_at: r.published_at, views_total: r.views_total }))}
           myFollowerHistory={dailyInsights
             .filter((d) => d.followers_total > 0)
             .map((d) => ({ date: d.metric_date, followers: d.followers_total }))}
         />
-      )}
+        );
+      })()}
 
       {activeTab === "referencias" && (
         <ReferencesTab workspaceId={workspaceId ?? null} initialReferences={initialReferences} />

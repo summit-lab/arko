@@ -129,7 +129,11 @@ MÚSICA: ${reel.music_artist ? `${reel.music_artist}` : 'N/A'}`;
     }
   );
 
-  if (!genRes.ok) throw new Error(`Gemini text analysis failed: ${genRes.status}`);
+  if (!genRes.ok) {
+    const body = await genRes.text().catch(() => "");
+    console.error(`[gemini-text] ${genRes.status} response body:`, body);
+    throw new Error(`Gemini text analysis failed: ${genRes.status} — ${body.slice(0, 200)}`);
+  }
 
   const genData = await genRes.json() as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
@@ -308,23 +312,45 @@ function parseGeminiResponseRelaxed(text: string): {
       safeStr(audio?.tone) ? `Tono: ${audio!.tone}` : null,
       safeStr(audio?.energy_level) ? `Energía: ${audio!.energy_level}` : null,
       safeStr(audio?.music_style) ? `Música: ${audio!.music_style}` : null,
-    ].filter(Boolean);
+    ].filter((s): s is string => Boolean(s));
 
-    // Build enriched ai_summary with Arko's analysis
+    // Build enriched ai_summary as real Markdown so downstream UIs (CompetitorTab,
+    // CompetitorPanel) can render it with proper headings, bolds, lists.
     const whyItWorks = safeStr(insights?.why_it_works);
     const conceptQuality = safeStr(insights?.winning_concept);
     const ctaAnalysis = safeStr(narrative?.cta_analysis);
     const saveableOrShareable = safeStr(insights?.saveable_or_shareable);
+    const viralPotential = safeStr(insights?.viral_potential);
+    const viralReason = safeStr(insights?.viral_potential_reason);
+    const corePromise = safeStr(narrative?.core_promise);
 
-    const summaryParts = [
-      whyItWorks ? `Por qué funciona: ${whyItWorks}` : null,
-      conceptQuality ? `Concepto: ${conceptQuality}` : null,
-      safeStr(insights?.viral_potential) ? `Potencial viral: ${insights!.viral_potential}. ${safeStr(insights?.viral_potential_reason) ?? ''}` : null,
-      saveableOrShareable ? `Acción: ${saveableOrShareable}` : null,
-      ctaAnalysis ? `CTA: ${ctaAnalysis}` : null,
-      safeStr(narrative?.core_promise) ? `Promesa central: ${narrative!.core_promise}` : null,
-      replicable.length > 0 ? `Elementos replicables: ${replicable.join(', ')}` : null,
-    ].filter(Boolean);
+    const sections: string[] = [];
+    if (whyItWorks) sections.push(`### Por qué funciona\n\n${whyItWorks}`);
+    if (conceptQuality) sections.push(`### Concepto ganador\n\n${conceptQuality}`);
+    if (viralPotential) {
+      const line = viralReason
+        ? `**Potencial: ${viralPotential}.** ${viralReason}`
+        : `**Potencial: ${viralPotential}.**`;
+      sections.push(`### Potencial viral\n\n${line}`);
+    }
+    if (saveableOrShareable) sections.push(`### Acción\n\n${saveableOrShareable}`);
+    if (ctaAnalysis) sections.push(`### CTA\n\n${ctaAnalysis}`);
+    if (corePromise) sections.push(`### Promesa central\n\n${corePromise}`);
+    if (replicable.length > 0) {
+      const bullets = replicable.map((r) => `- ${r}`).join("\n");
+      sections.push(`### Elementos replicables\n\n${bullets}`);
+    }
+
+    // Strengths / weaknesses as markdown bullet lists (consumed separately).
+    const strengthsMd = strengths.length > 0
+      ? strengths.map((s) => `- ${s.replace(/\.$/, "")}`).join("\n")
+      : null;
+    const improvementsMd = improvements.length > 0
+      ? improvements.map((s) => `- ${s.replace(/\.$/, "")}`).join("\n")
+      : null;
+    const styleMd = styleComponents.length > 0
+      ? styleComponents.map((s) => `- ${s.replace(/\.$/, "")}`).join("\n")
+      : null;
 
     return {
       mapped: {
@@ -335,10 +361,10 @@ function parseGeminiResponseRelaxed(text: string): {
         cta_text: ctaText,
         cta_type: ctaType,
         topic_cluster: safeStr(narrative?.topic_cluster),
-        style_notes: styleComponents.length > 0 ? styleComponents.join('. ') : null,
-        strengths: strengths.length > 0 ? strengths.join('. ') : null,
-        weaknesses: improvements.length > 0 ? improvements.join('. ') : null,
-        ai_summary: summaryParts.length > 0 ? summaryParts.join(' | ') : null,
+        style_notes: styleMd,
+        strengths: strengthsMd,
+        weaknesses: improvementsMd,
+        ai_summary: sections.length > 0 ? sections.join("\n\n") : null,
       },
       transcript,
     };
@@ -379,7 +405,11 @@ async function analyzeReelWithGemini(reel: CompetitorReel): Promise<ReelAnalysis
     body: JSON.stringify({ file: { display_name: 'competitor-reel' } }),
     signal: AbortSignal.timeout(15_000),
   });
-  if (!initRes.ok) throw new Error(`Upload init failed: ${initRes.status}`);
+  if (!initRes.ok) {
+    const body = await initRes.text().catch(() => "");
+    console.error(`[gemini-upload-init] ${initRes.status} response body:`, body);
+    throw new Error(`Upload init failed: ${initRes.status} — ${body.slice(0, 200)}`);
+  }
 
   const uploadUrl = initRes.headers.get('x-goog-upload-url');
   if (!uploadUrl) throw new Error('No upload URL');
@@ -505,7 +535,11 @@ Devuelve UN OBJETO JSON puro (sin markdown, sin backticks):
     }
   );
 
-  if (!genRes.ok) throw new Error(`Gemini generate failed: ${genRes.status}`);
+  if (!genRes.ok) {
+    const body = await genRes.text().catch(() => "");
+    console.error(`[gemini-generate] ${genRes.status} response body:`, body);
+    throw new Error(`Gemini generate failed: ${genRes.status} — ${body.slice(0, 200)}`);
+  }
 
   const genData = await genRes.json() as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -12,6 +13,20 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+
+function useIsDark() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const update = () => setIsDark(root.classList.contains("dark"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  return isDark;
+}
 
 interface DailyData {
   date: string;
@@ -73,20 +88,13 @@ function CostTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload) return null;
   return (
-    <div
-      className="rounded-xl px-4 py-3 backdrop-blur-xl"
-      style={{
-        background: "rgba(0,0,0,0.85)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
-      }}
-    >
-      <p className="text-[11px] text-white/40 font-medium mb-2">{label}</p>
+    <div className="rounded-xl px-4 py-3 backdrop-blur-xl bg-popover text-popover-foreground border border-border shadow-lg">
+      <p className="text-[11px] text-muted-foreground font-medium mb-2">{label}</p>
       {payload.map((entry) => (
         <div key={entry.name} className="flex items-center gap-2">
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: entry.color }} />
-          <span className="text-[11px] text-white/60 font-light">{entry.name}</span>
-          <span className="text-[12px] text-white font-light ml-auto">${entry.value.toFixed(4)}</span>
+          <span className="text-[11px] text-muted-foreground font-light">{entry.name}</span>
+          <span className="text-[12px] text-foreground font-light ml-auto">${entry.value.toFixed(4)}</span>
         </div>
       ))}
     </div>
@@ -100,22 +108,20 @@ function FeatureTooltip({ active, payload }: {
   if (!active || !payload?.[0]) return null;
   const data = payload[0].payload;
   return (
-    <div
-      className="rounded-xl px-4 py-3 backdrop-blur-xl"
-      style={{
-        background: "rgba(0,0,0,0.85)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
-      }}
-    >
-      <p className="text-[12px] text-white/80 font-medium mb-1">{data.feature}</p>
-      <p className="text-[11px] text-emerald-400">${data.cost.toFixed(4)}</p>
-      <p className="text-[11px] text-white/40">{data.calls} operaciones</p>
+    <div className="rounded-xl px-4 py-3 backdrop-blur-xl bg-popover text-popover-foreground border border-border shadow-lg">
+      <p className="text-[12px] text-foreground font-medium mb-1">{data.feature}</p>
+      <p className="text-[11px] text-emerald-600 dark:text-emerald-400">${data.cost.toFixed(4)}</p>
+      <p className="text-[11px] text-muted-foreground">{data.calls} operaciones</p>
     </div>
   );
 }
 
 export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps) {
+  const isDark = useIsDark();
+  const axisColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(17,17,17,0.6)";
+  const axisColorStrong = isDark ? "rgba(255,255,255,0.5)" : "rgba(17,17,17,0.75)";
+  const gridColor = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.08)";
+
   // Transform feature data for display
   const chartFeatures = featureData
     .map((f) => ({
@@ -155,17 +161,17 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
                   <stop offset="100%" stopColor="#fb923c" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal vertical={false} />
               <XAxis
                 dataKey="date"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                tick={{ fill: axisColor, fontSize: 10 }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                tick={{ fill: axisColor, fontSize: 10 }}
                 tickFormatter={(v: number) => `$${v.toFixed(2)}`}
               />
               <Tooltip content={<CostTooltip />} />
@@ -215,7 +221,7 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
                 type="number"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                tick={{ fill: axisColor, fontSize: 10 }}
                 tickFormatter={(v: number) => `$${v.toFixed(3)}`}
               />
               <YAxis
@@ -223,7 +229,7 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
                 dataKey="feature"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 10 }}
+                tick={{ fill: axisColorStrong, fontSize: 10 }}
                 width={130}
               />
               <Tooltip content={<FeatureTooltip />} />

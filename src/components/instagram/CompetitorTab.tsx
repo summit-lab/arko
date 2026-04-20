@@ -8,6 +8,8 @@ import {
   ArrowUpDown, Calendar, Eye, BookMarked, X, Target, Sparkles,
   Layers, Shield, AlertTriangle, Palette, MousePointerClick,
 } from "lucide-react";
+import { useChartTheme } from "@/hooks/useChartTheme";
+import { AIMarkdown } from "@/components/ai/AIMarkdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +103,7 @@ const HOOK_TYPE_META: Record<string, { label: string; color: string; dot: string
   negativo:       { label: "Negativo",        color: "text-amber-400",   dot: "bg-amber-400",   hex: "#fbbf24" },
   promesa:        { label: "Promesa",         color: "text-teal-400",    dot: "bg-teal-400",    hex: "#2dd4bf" },
   curiosidad:     { label: "Curiosidad",      color: "text-sky-400",     dot: "bg-sky-400",     hex: "#38bdf8" },
-  desconocido:    { label: "Sin clasificar",  color: "text-white/30",    dot: "bg-white/20",    hex: "rgba(255,255,255,0.15)" },
+  desconocido:    { label: "Sin clasificar",  color: "text-muted-foreground",    dot: "bg-muted-foreground/40",    hex: "rgb(148,148,148)" },
 };
 
 const CHART_COLORS = { mine: "#7A86E0", competitor: "#AF6EC7" };
@@ -115,11 +117,10 @@ const SORT_OPTIONS: { key: SortKey; label: string; icon: React.ElementType }[] =
 // ─── Glass styles ─────────────────────────────────────────────────────────────
 
 const GLASS = {
-  background: "rgba(255,255,255,0.08)",
+  background: "color-mix(in srgb, var(--foreground) 8%, transparent)",
   backdropFilter: "blur(20px)",
   WebkitBackdropFilter: "blur(20px)",
-  border: "1px solid rgba(255,255,255,0.15)",
-  boxShadow: "0 1px 16px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.15)",
+  border: "1px solid var(--border)",
 } as React.CSSProperties;
 
 const GLASS_VIOLET = {
@@ -127,15 +128,13 @@ const GLASS_VIOLET = {
   backdropFilter: "blur(20px)",
   WebkitBackdropFilter: "blur(20px)",
   border: "1px solid rgba(139,92,246,0.35)",
-  boxShadow: "0 1px 16px rgba(139,92,246,0.1), inset 0 1px 0 rgba(255,255,255,0.12)",
 } as React.CSSProperties;
 
 const GLASS_SUBTLE = {
-  background: "rgba(255,255,255,0.04)",
+  background: "color-mix(in srgb, var(--foreground) 4%, transparent)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255,255,255,0.09)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+  border: "1px solid var(--border)",
 } as React.CSSProperties;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -191,7 +190,7 @@ function Thumbnail({ url, duration, showDuration = true }: {
 
   if (!url || failed) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+      <div className="absolute inset-0 flex items-center justify-center bg-muted">
         <Play size={20} className="text-white/10" />
       </div>
     );
@@ -283,19 +282,15 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex"
-        style={{ background: "rgba(12,12,20,0.98)", border: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}
+        className="relative w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex bg-popover text-popover-foreground border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Left: Thumbnail column ── */}
-        <div className="w-52 shrink-0 flex flex-col"
-          style={{ borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="w-52 shrink-0 flex flex-col border-r border-border">
           {/* Portrait thumbnail */}
           <div className="relative flex-1 min-h-0" style={{ aspectRatio: "9/16", maxHeight: "420px" }}>
             <Thumbnail url={reel.thumbnail_url} duration={reel.duration_seconds} />
@@ -310,8 +305,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                 { icon: MessageCircle, v: fmt(reel.comments_count), l: "Comments" },
                 { icon: Share2,        v: fmt(reel.shares_count),   l: "Shares" },
               ].map(({ icon: Icon, v, l }) => (
-                <div key={l} className="rounded-lg p-2 text-center"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div key={l} className="rounded-lg p-2 text-center bg-white/[0.04] border border-white/[0.06]">
                   <Icon size={11} className="text-white/25 mx-auto mb-0.5" />
                   <p className="text-[13px] font-light text-white/70">{v}</p>
                   <p className="text-[8px] text-white/20">{l}</p>
@@ -352,9 +346,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
         {/* ── Right: Analysis content ── */}
         <div className="flex-1 min-w-0 overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3.5"
-            style={{ background: "rgba(12,12,20,0.95)", backdropFilter: "blur(16px)",
-              borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 bg-popover text-popover-foreground border-b border-border backdrop-blur-md">
             <div>
               <p className="text-[10px] text-white/25 uppercase tracking-wider">{competitor.name}</p>
               <p className="text-[13px] text-white/70 font-light line-clamp-1 mt-0.5">
@@ -362,8 +354,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               </p>
             </div>
             <button onClick={onClose}
-              className="h-8 w-8 rounded-full flex items-center justify-center transition-all hover:bg-white/[0.08] cursor-pointer"
-              style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+              className="h-8 w-8 rounded-full flex items-center justify-center transition-all hover:bg-white/[0.08] cursor-pointer border border-white/[0.1]">
               <X size={14} className="text-white/40" />
             </button>
           </div>
@@ -394,9 +385,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                   <Sparkles size={11} className="text-violet-400" />
                   <p className="text-[10px] text-violet-300/60 uppercase tracking-wider font-medium">Análisis Moka</p>
                 </div>
-                <p className="text-[13px] text-white/60 font-light leading-relaxed">
-                  {analysis.ai_summary}
-                </p>
+                <AIMarkdown>{analysis.ai_summary}</AIMarkdown>
               </div>
             )}
 
@@ -405,11 +394,9 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Layers size={11} className="text-sky-400/70" />
-                  <p className="text-[10px] text-white/25 uppercase tracking-wider">Estructura narrativa</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estructura narrativa</p>
                 </div>
-                <p className="text-[12px] text-white/50 font-light leading-relaxed">
-                  {analysis.narrative_structure}
-                </p>
+                <AIMarkdown variant="compact">{analysis.narrative_structure}</AIMarkdown>
               </div>
             )}
 
@@ -423,9 +410,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                       <Shield size={11} className="text-teal-400" />
                       <p className="text-[9px] text-teal-400/70 uppercase tracking-wider">Fortalezas</p>
                     </div>
-                    <p className="text-[12px] text-white/55 font-light leading-relaxed">
-                      {analysis.strengths}
-                    </p>
+                    <AIMarkdown variant="compact">{analysis.strengths}</AIMarkdown>
                   </div>
                 )}
                 {analysis.weaknesses && (
@@ -435,9 +420,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                       <AlertTriangle size={11} className="text-rose-400" />
                       <p className="text-[9px] text-rose-400/70 uppercase tracking-wider">Oportunidades</p>
                     </div>
-                    <p className="text-[12px] text-white/55 font-light leading-relaxed">
-                      {analysis.weaknesses}
-                    </p>
+                    <AIMarkdown variant="compact">{analysis.weaknesses}</AIMarkdown>
                   </div>
                 )}
               </div>
@@ -452,9 +435,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                       <Palette size={11} className="text-white/25" />
                       <p className="text-[9px] text-white/20 uppercase tracking-wider">Estilo visual</p>
                     </div>
-                    <p className="text-[12px] text-white/45 font-light leading-relaxed">
-                      {analysis.style_notes}
-                    </p>
+                    <AIMarkdown variant="compact">{analysis.style_notes}</AIMarkdown>
                   </div>
                 )}
                 {analysis.cta_text && (
@@ -476,8 +457,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
 
             {/* Music */}
             {(reel.music_artist || reel.music_name) && (
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[12px]">🎵</span>
                 <p className="text-[11px] text-white/35 font-light truncate">
                   {reel.music_name}{reel.music_artist ? ` · ${reel.music_artist}` : ""}
@@ -510,11 +490,10 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
   void competitorId;
 
   return (
-    <div className="rounded-xl overflow-hidden flex flex-col"
-      style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
+    <div className="rounded-xl overflow-hidden flex flex-col bg-white/[0.03] border border-white/[0.07]">
 
       {/* Thumbnail — portrait 4:5, relative for next/image fill */}
-      <div className="relative overflow-hidden bg-zinc-900 shrink-0" style={{ aspectRatio: "4/5" }}>
+      <div className="relative overflow-hidden bg-muted shrink-0" style={{ aspectRatio: "4/5" }}>
         <Thumbnail url={reel.thumbnail_url} duration={reel.duration_seconds} />
 
         {/* Gradient overlay */}
@@ -551,8 +530,7 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
             { icon: MessageCircle, v: fmt(reel.comments_count), l: "Com." },
             { icon: Share2,        v: fmt(reel.shares_count),   l: "Comp." },
           ].map(({ icon: Icon, v, l }) => (
-            <div key={l} className="flex flex-col items-center py-1.5 rounded-lg"
-              style={{ background: "rgba(255,255,255,0.04)" }}>
+            <div key={l} className="flex flex-col items-center py-1.5 rounded-lg bg-white/[0.04]">
               <Icon size={10} className="text-white/25 mb-0.5" />
               <span className="text-[11px] font-medium text-white/70 leading-none">{v}</span>
               <span className="text-[8px] text-white/25 mt-0.5">{l}</span>
@@ -609,17 +587,11 @@ function CompetitorCard({ competitor, selected, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-xl p-3 transition-all cursor-pointer"
-      style={selected ? {
-        background: "rgba(255,255,255,0.09)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.2)",
-        boxShadow: "0 1px 16px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.15)",
-      } : {
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
+      className={`w-full text-left rounded-xl p-3 transition-all cursor-pointer border ${
+        selected
+          ? "bg-white/[0.1] border-white/[0.1]"
+          : "bg-white/[0.02] border-white/[0.06]"
+      }`}
     >
       <div className="flex items-center gap-2.5">
         <Avatar url={profile?.ig_profile_pic_url} name={competitor.name} size={36} />
@@ -659,6 +631,11 @@ function CompetitorCard({ competitor, selected, onClick }: {
 
 function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myStats: MyStats }) {
   const reels = competitor.competitor_reels;
+  // NOTE: these filters (views_count > 0, likes_count > 0, comments_count > 0)
+  // MUST stay in sync with the "Yo" side in InstagramShell.tsx (which filters
+  // views_total > 0 before averaging). Asymmetric denominators biased "Yo vs
+  // Ellos" against the user because day-1 reels diluted the user's averages
+  // while the competitor side was already filtered. Do not remove these filters.
   const theirAvgViews    = (() => { const w = reels.filter(r => (r.views_count ?? 0) > 0); return w.length > 0 ? Math.round(w.reduce((s,r) => s+(r.views_count??0),0)/w.length) : 0; })();
   const theirAvgLikes    = (() => { const w = reels.filter(r => (r.likes_count ?? 0) > 0); return w.length > 0 ? Math.round(w.reduce((s,r) => s+(r.likes_count??0),0)/w.length) : 0; })();
   const theirAvgComments = (() => { const w = reels.filter(r => (r.comments_count ?? 0) > 0); return w.length > 0 ? Math.round(w.reduce((s,r) => s+(r.comments_count??0),0)/w.length) : 0; })();
@@ -672,24 +649,19 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
   ];
 
   return (
-    <div className="rounded-xl p-3.5 space-y-3.5"
-      style={{
-        background: "linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.025) 100%)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
-      }}>
+    <div className="glass-card rounded-xl p-3.5 space-y-3.5">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
+        <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
           <BarChart3 size={9} /> Yo vs {competitor.name ?? "Competidor"}
         </p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.mine }} />
-            <span className="text-[9px] text-white/25">Yo</span>
+            <span className="text-[9px] text-muted-foreground">Yo</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.competitor }} />
-            <span className="text-[9px] text-white/25">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
+            <span className="text-[9px] text-muted-foreground">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
           </div>
         </div>
       </div>
@@ -711,7 +683,7 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[8px] text-white/15 w-4 text-right shrink-0">Yo</span>
-              <div className="flex-1 h-4 rounded-md overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <div className="flex-1 h-4 rounded-md overflow-hidden bg-white/[0.04]">
                 <div className="h-full rounded-md flex items-center px-2 transition-all"
                   style={{ width: `${Math.max(yoPct, 6)}%`, background: `${CHART_COLORS.mine}55` }}>
                   <span className="text-[9px] text-white/60 font-medium">{fmt(yo)}</span>
@@ -720,7 +692,7 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[8px] text-white/15 w-4 text-right shrink-0">Ell.</span>
-              <div className="flex-1 h-4 rounded-md overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <div className="flex-1 h-4 rounded-md overflow-hidden bg-white/[0.04]">
                 <div className="h-full rounded-md flex items-center px-2 transition-all"
                   style={{ width: `${Math.max(ellosPct, 6)}%`, background: `${CHART_COLORS.competitor}55` }}>
                   <span className="text-[9px] text-white/60 font-medium">{fmt(ellos)}</span>
@@ -737,6 +709,7 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
 // ─── Views Timeline chart ─────────────────────────────────────────────────────
 
 function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReels: MyReel[] }) {
+  const chart = useChartTheme();
   const W = 260; const H = 140; const PAD = { t: 10, r: 6, b: 22, l: 38 };
   const CW = W - PAD.l - PAD.r;
   const CH = H - PAD.t - PAD.b;
@@ -809,27 +782,22 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
   const tooltipWidth = 80;
 
   return (
-    <div className="rounded-xl p-3 space-y-2"
-      style={{
-        background: "linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.025) 100%)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
-      }}>
+    <div className="glass-card rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
+        <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
           <TrendingUp size={9} /> Views por reel · en el tiempo
         </p>
         <div className="flex items-center gap-3">
           {myPts.length > 0 && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.mine }} />
-              <span className="text-[9px] text-white/25">Yo</span>
+              <span className="text-[9px] text-muted-foreground">Yo</span>
             </div>
           )}
           {theirPts.length > 0 && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.competitor }} />
-              <span className="text-[9px] text-white/25">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
+              <span className="text-[9px] text-muted-foreground">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
             </div>
           )}
         </div>
@@ -841,12 +809,12 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
         {/* Grid lines */}
         {yTicks.map(({ y }, i) => (
           <line key={i} x1={PAD.l} x2={W - PAD.r} y1={y} y2={y}
-            stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            stroke={chart.grid} strokeWidth="1" />
         ))}
         {/* Y-axis labels */}
         {yTicks.map(({ v, y }, i) => (
           <text key={i} x={PAD.l - 4} y={y + 3} textAnchor="end"
-            fontSize="7" fill="rgba(255,255,255,0.2)" fontFamily="inherit">
+            fontSize="7" fill={chart.axisTickMuted} fontFamily="inherit">
             {fmtV(v)}
           </text>
         ))}
@@ -854,7 +822,7 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
         {xTickMs.map((ms, i) => (
           <text key={i} x={xScale(ms)} y={H - 2}
             textAnchor={i === 0 ? "start" : "end"}
-            fontSize="7" fill="rgba(255,255,255,0.2)" fontFamily="inherit">
+            fontSize="7" fill={chart.axisTickMuted} fontFamily="inherit">
             {fmtMs(ms)}
           </text>
         ))}
@@ -891,20 +859,20 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
             <g>
               {/* Vertical guideline */}
               <line x1={tx} x2={tx} y1={PAD.t} y2={PAD.t + CH}
-                stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3 2" />
+                stroke={chart.benchmarkDot} strokeWidth="1" strokeDasharray="3 2" />
               {/* Tooltip box */}
               <rect x={boxX} y={PAD.t - 2} width={tooltipWidth} height={boxH} rx="5"
-                fill="rgba(10,10,18,0.92)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
+                fill={chart.tooltipBg} stroke={chart.tooltipBorder} strokeWidth="0.5" />
               <text x={boxX + tooltipWidth / 2} y={PAD.t + 8} textAnchor="middle"
-                fontSize="7" fill="rgba(255,255,255,0.35)" fontFamily="inherit">
+                fontSize="7" fill={chart.tooltipTextMuted} fontFamily="inherit">
                 {tooltip.dateStr}
               </text>
               {rows.map((row, i) => (
                 <g key={i}>
                   <circle cx={boxX + 8} cy={PAD.t + 17 + i * 13} r="2.5" fill={row.color} />
                   <text x={boxX + 14} y={PAD.t + 20 + i * 13}
-                    fontSize="8" fill="rgba(255,255,255,0.6)" fontFamily="inherit">
-                    {row.label}: <tspan fontWeight="600" fill="rgba(255,255,255,0.85)">{row.val}</tspan>
+                    fontSize="8" fill={chart.tooltipText} fontFamily="inherit">
+                    {row.label}: <tspan fontWeight="600" fill={chart.tooltipText}>{row.val}</tspan>
                   </text>
                 </g>
               ))}
@@ -922,6 +890,7 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
 // scrapes build the trend. Shows an informational placeholder when <2 competitor points.
 
 function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competitor; myFollowerHistory: MyFollowerPoint[] }) {
+  const chart = useChartTheme();
   const W = 260; const H = 120; const PAD = { t: 10, r: 6, b: 22, l: 38 };
   const CW = W - PAD.l - PAD.r;
   const CH = H - PAD.t - PAD.b;
@@ -990,26 +959,21 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
   const noTheirHistory = theirPts.length < 2;
 
   return (
-    <div className="rounded-xl p-3 space-y-2"
-      style={{
-        background: "linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.025) 100%)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
-      }}>
+    <div className="glass-card rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
+        <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
           <Users size={9} /> Seguidores · crecimiento
         </p>
         <div className="flex items-center gap-3">
           {myPts.length > 0 && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.mine }} />
-              <span className="text-[9px] text-white/25">Yo</span>
+              <span className="text-[9px] text-muted-foreground">Yo</span>
             </div>
           )}
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.competitor }} />
-            <span className="text-[9px] text-white/25">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
+            <span className="text-[9px] text-muted-foreground">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
           </div>
         </div>
       </div>
@@ -1019,12 +983,12 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
         {/* Grid lines */}
         {yTicks.map(({ y }, i) => (
           <line key={i} x1={PAD.l} x2={W - PAD.r} y1={y} y2={y}
-            stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            stroke={chart.grid} strokeWidth="1" />
         ))}
         {/* Y-axis labels */}
         {yTicks.map(({ v, y }, i) => (
           <text key={i} x={PAD.l - 4} y={y + 3} textAnchor="end"
-            fontSize="7" fill="rgba(255,255,255,0.2)" fontFamily="inherit">
+            fontSize="7" fill={chart.axisTickMuted} fontFamily="inherit">
             {fmtV(v)}
           </text>
         ))}
@@ -1032,7 +996,7 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
         {xTickMs.map((ms, i) => (
           <text key={i} x={xScale(ms)} y={H - 2}
             textAnchor={i === 0 ? "start" : "end"}
-            fontSize="7" fill="rgba(255,255,255,0.2)" fontFamily="inherit">
+            fontSize="7" fill={chart.axisTickMuted} fontFamily="inherit">
             {fmtMs(ms)}
           </text>
         ))}
@@ -1085,19 +1049,19 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
           return (
             <g>
               <line x1={tx} x2={tx} y1={PAD.t} y2={PAD.t + CH}
-                stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3 2" />
+                stroke={chart.benchmarkDot} strokeWidth="1" strokeDasharray="3 2" />
               <rect x={boxX} y={PAD.t - 2} width={tooltipWidth} height={boxH} rx="5"
-                fill="rgba(10,10,18,0.92)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
+                fill={chart.tooltipBg} stroke={chart.tooltipBorder} strokeWidth="0.5" />
               <text x={boxX + tooltipWidth / 2} y={PAD.t + 8} textAnchor="middle"
-                fontSize="7" fill="rgba(255,255,255,0.35)" fontFamily="inherit">
+                fontSize="7" fill={chart.tooltipTextMuted} fontFamily="inherit">
                 {tooltip.dateStr}
               </text>
               {rows.map((row, i) => (
                 <g key={i}>
                   <circle cx={boxX + 8} cy={PAD.t + 17 + i * 13} r="2.5" fill={row.color} />
                   <text x={boxX + 14} y={PAD.t + 20 + i * 13}
-                    fontSize="8" fill="rgba(255,255,255,0.6)" fontFamily="inherit">
-                    {row.label}: <tspan fontWeight="600" fill="rgba(255,255,255,0.85)">{row.val}</tspan>
+                    fontSize="8" fill={chart.tooltipText} fontFamily="inherit">
+                    {row.label}: <tspan fontWeight="600" fill={chart.tooltipText}>{row.val}</tspan>
                   </text>
                 </g>
               ))}
@@ -1160,12 +1124,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
           { v: analyzed.length.toString(), l: "Analizados" },
           { v: fmt(reels.filter(r=>r.views_count).length > 0 ? Math.round(reels.filter(r=>r.views_count).reduce((s,r)=>s+(r.views_count??0),0)/reels.filter(r=>r.views_count).length) : 0), l: "Avg views" },
         ].map(({ v, l }) => (
-          <div key={l} className="rounded-xl p-2.5 text-center"
-            style={{
-              background: "linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%)",
-              border: "1px solid rgba(255,255,255,0.14)",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.3), inset 0 1.5px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.12)",
-            }}>
+          <div key={l} className="glass-card rounded-xl p-2.5 text-center">
             <p className="text-[15px] font-light text-white/80">{v}</p>
             <p className="text-[8px] text-white/25 mt-0.5">{l}</p>
           </div>
@@ -1174,14 +1133,9 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
 
       {/* Top reel */}
       {topReel && (
-        <div className="rounded-xl p-2.5 flex gap-2.5"
-          style={{
-            background: "linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 3px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15)",
-          }}>
+        <div className="glass-card rounded-xl p-2.5 flex gap-2.5">
           {topReel.thumbnail_url && (
-            <div className="shrink-0 w-10 h-12 rounded-lg overflow-hidden relative bg-black/30">
+            <div className="shrink-0 w-10 h-12 rounded-lg overflow-hidden relative bg-muted">
               <Thumbnail url={topReel.thumbnail_url} duration={null} showDuration={false} />
             </div>
           )}
@@ -1205,8 +1159,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
 
       {/* Hook types */}
       {hookCounts.filter(([k]) => k !== "desconocido").length > 0 && (
-        <div className="rounded-xl p-3 space-y-2.5"
-          style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="rounded-xl p-3 space-y-2.5 bg-white/[0.03] border border-white/[0.06]">
           <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
             <Zap size={9} /> Tipos de hook
           </p>
@@ -1229,15 +1182,13 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
 
       {/* Topics */}
       {topTopics.length > 0 && (
-        <div className="rounded-xl p-3 space-y-2"
-          style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="rounded-xl p-3 space-y-2 bg-white/[0.03] border border-white/[0.06]">
           <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
             <BookOpen size={9} /> Temas frecuentes
           </p>
           <div className="flex flex-wrap gap-1.5">
             {topTopics.map(([topic, count]) => (
-              <span key={topic} className="px-2 py-0.5 rounded-full text-[9px] text-white/40 font-light"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <span key={topic} className="px-2 py-0.5 rounded-full text-[9px] text-white/40 font-light bg-white/[0.05] border border-white/[0.08]">
                 {topic} <span className="text-white/20">·{count}</span>
               </span>
             ))}
@@ -1246,8 +1197,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
       )}
 
       {analyzed.length === 0 && (
-        <div className="rounded-xl p-4 text-center"
-          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="rounded-xl p-4 text-center bg-white/[0.02] border border-white/[0.06]">
           <Brain size={16} className="text-white/15 mx-auto mb-1.5" />
           <p className="text-[10px] text-white/20 font-light">Analizá los reels para ver patrones</p>
         </div>
@@ -1300,7 +1250,7 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
                 <div key={type} className="flex items-center gap-2.5">
                   <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${meta.dot}`} />
                   <p className={`text-[11px] w-[88px] shrink-0 font-light ${meta.color}`}>{meta.label}</p>
-                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/[0.06]">
                     <div className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, background: meta.hex, opacity: 0.8 }} />
                   </div>
@@ -1311,8 +1261,7 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
           </div>
         </div>
 
-        <div className="shrink-0 rounded-xl p-3 text-center min-w-[88px]"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="shrink-0 rounded-xl p-3 text-center min-w-[88px] bg-white/[0.04] border border-white/[0.07]">
           <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${topMeta.dot}`}
             style={{ boxShadow: `0 0 8px ${topMeta.hex}99` }} />
           <p className="text-[8px] text-white/25 uppercase tracking-wider mb-0.5">Hook top</p>
@@ -1344,17 +1293,14 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (k: SortK
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] text-white/50 hover:text-white/75 transition-all cursor-pointer"
-        style={GLASS}>
+        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] text-white/50 hover:text-white/75 transition-all cursor-pointer bg-white/[0.08] border border-white/[0.1]">
         <ArrowUpDown size={10} />
         <current.icon size={10} />
         {current.label}
         <ChevronDown size={10} />
       </button>
       {open && (
-        <div className="absolute right-0 top-9 rounded-xl py-1 z-20 min-w-[120px]"
-          style={{ background: "rgba(12,12,20,0.98)", backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+        <div className="absolute right-0 top-9 rounded-xl py-1 z-20 min-w-[120px] bg-popover text-popover-foreground border border-border shadow-xl backdrop-blur-xl">
           {SORT_OPTIONS.map((opt) => (
             <button key={opt.key} onClick={() => { onChange(opt.key); setOpen(false); }}
               className={`w-full text-left flex items-center gap-2 px-3 py-1.5 text-[11px] transition-colors cursor-pointer ${
@@ -1541,8 +1487,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
               <CompetitorCard key={c.id} competitor={c} selected={c.id === selectedId} onClick={() => setSelectedId(c.id)} />
             ))}
             <a href="/settings/adn"
-              className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[11px] text-white/20 hover:text-white/40 transition-colors"
-              style={{ border: "1px dashed rgba(255,255,255,0.07)" }}>
+              className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[11px] text-white/20 hover:text-white/40 transition-colors border border-dashed border-white/[0.08]">
               + Agregar competidor
             </a>
           </div>
@@ -1551,8 +1496,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
           {selected && (
             <div className="space-y-3 min-w-0">
               {/* Profile header */}
-              <div className="rounded-xl p-4"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.08]">
                 <div className="flex items-start gap-3">
                   <Avatar url={(selected.scraped_data as ScrapedData)?.ig_profile_pic_url} name={selected.name} size={48} />
                   <div className="flex-1 min-w-0">
@@ -1621,8 +1565,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
               {/* Responsive gallery grid */}
               {selected.competitor_reels.length === 0 ? (
-                <div className="py-12 text-center rounded-xl"
-                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="py-12 text-center rounded-xl bg-white/[0.02] border border-white/[0.06]">
                   <Play size={18} className="text-white/12 mx-auto mb-2" />
                   <p className="text-[12px] text-white/25 font-light">No hay reels scrapeados aún</p>
                   <p className="text-[10px] text-white/15 mt-1">Hacé click en "Scrape + Analizar"</p>

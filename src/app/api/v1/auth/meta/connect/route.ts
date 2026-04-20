@@ -39,6 +39,34 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify the user owns (or belongs to) this workspace. Without this check a
+    // logged-in user could pass another user's workspace_id and bind their own
+    // Meta OAuth to it — full account takeover of that workspace's IG data.
+    const { data: ownsWorkspace } = await supabase
+      .from('workspaces')
+      .select('id')
+      .eq('id', workspaceId)
+      .eq('owner_id', user.id)
+      .maybeSingle();
+
+    let allowed = !!ownsWorkspace;
+    if (!allowed) {
+      const { data: membership } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      allowed = !!membership;
+    }
+
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Forbidden', message: 'No tenés acceso a este workspace' },
+        { status: 403 }
+      );
+    }
+
     // Generate CSRF state token (contains workspace_id for callback)
     const csrfState = crypto.randomBytes(32).toString('hex');
     const statePayload = Buffer.from(

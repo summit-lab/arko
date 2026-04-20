@@ -10,6 +10,7 @@ import {
   Bookmark, Share2, UserPlus, BarChart3, Activity, Zap, MapPin,
 } from "lucide-react";
 import { CountUp } from "@/components/ui/CountUp";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,18 +78,11 @@ interface TooltipEntry {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="rounded-xl px-4 py-3 text-[12px] backdrop-blur-xl"
-      style={{
-        background: "rgba(10,10,20,0.55)",
-        border: "1px solid rgba(255,255,255,0.10)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
-      }}
-    >
-      {label && <p className="mb-2 text-white/40 text-[11px] font-medium uppercase tracking-[0.08em]">{label}</p>}
+    <div className="rounded-xl px-4 py-3 text-[12px] backdrop-blur-xl bg-popover text-popover-foreground border border-border shadow-xl">
+      {label && <p className="mb-2 text-muted-foreground text-[11px] font-medium uppercase tracking-[0.08em]">{label}</p>}
       {payload.map((e) => (
         <p key={e.name} className="font-light" style={{ color: e.color }}>
-          {e.name}: <span className="text-white">{e.value.toLocaleString("es-AR")}</span>
+          {e.name}: <span className="text-popover-foreground">{e.value.toLocaleString("es-AR")}</span>
         </p>
       ))}
     </div>
@@ -170,16 +164,17 @@ function processGenderAge(data: Record<string, number>) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
+  const chart = useChartTheme();
   if (dailyInsights.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <BarChart3 className="h-12 w-12 text-zinc-600 mb-4" />
-        <h3 className="text-lg font-semibold text-zinc-300">Sin datos de cuenta</h3>
-        <p className="mt-2 text-sm text-zinc-500 max-w-md">
+        <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold text-foreground">Sin datos de cuenta</h3>
+        <p className="mt-2 text-sm text-muted-foreground max-w-md">
           Sincroniza tu cuenta de Instagram para ver métricas de evolución, comunidad y demografía.
           Asegurate de tener los permisos{" "}
-          <code className="text-xs bg-white/5 px-1 py-0.5 rounded">instagram_basic</code> e{" "}
-          <code className="text-xs bg-white/5 px-1 py-0.5 rounded">instagram_manage_insights</code>.
+          <code className="text-xs bg-white/[0.06] px-1 py-0.5 rounded">instagram_basic</code> e{" "}
+          <code className="text-xs bg-white/[0.06] px-1 py-0.5 rounded">instagram_manage_insights</code>.
         </p>
       </div>
     );
@@ -323,10 +318,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
           <div key={k.label} className="glass-card px-6 py-5">
             <div className="flex items-center justify-between mb-3">
               <p className="stat-label">{k.label}</p>
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-              >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.05] border border-white/[0.08]">
                 <k.icon className="h-[14px] w-[14px] text-white/60" />
               </div>
             </div>
@@ -400,10 +392,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                   <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={xInterval} />
-              <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={48} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} interval={xInterval} />
+              <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={48} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
               <Area type="monotone" dataKey="impressions" name="Impresiones" stroke="#7A86E0" fill="url(#m-imp)" strokeWidth={2.5} dot={false} animationDuration={1200} animationEasing="ease-out" style={{ filter: "url(#m-glow-v)" }} activeDot={{ r: 5, fill: "#7A86E0", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#m-dot)" }} />
               <Area type="monotone" dataKey="reach" name="Alcance" stroke="#4BCEAF" fill="url(#m-reach)" strokeWidth={2.5} dot={false} animationDuration={1400} animationEasing="ease-out" style={{ filter: "url(#m-glow-c)" }} activeDot={{ r: 5, fill: "#4BCEAF", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#m-dot)" }} />
               <Area type="monotone" dataKey="profile_views" name="Visitas perfil" stroke="#4BCEAF" fill="url(#m-pv)" strokeWidth={2} dot={false} animationDuration={1600} animationEasing="ease-out" style={{ filter: "url(#m-glow-e)" }} activeDot={{ r: 4, fill: "#4BCEAF", stroke: "#6ee7b7", strokeWidth: 2, filter: "url(#m-dot)" }} />
@@ -434,10 +426,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
             <div className="h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={engagementData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={xInterval} />
-                  <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} interval={xInterval} />
+                  <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={40} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
                   <Bar dataKey="Me gusta" stackId="a" fill={ENGAGEMENT_COLORS.likes} radius={[0, 0, 0, 0]} animationDuration={900} />
                   <Bar dataKey="Guardados" stackId="a" fill={ENGAGEMENT_COLORS.saves} radius={[0, 0, 0, 0]} animationDuration={1000} />
                   <Bar dataKey="Comentarios" stackId="a" fill={ENGAGEMENT_COLORS.comments} radius={[0, 0, 0, 0]} animationDuration={1100} />
@@ -503,7 +495,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                       </div>
                       <span className="text-[13px] font-light text-white">{((e.value / totalEngPie) * 100).toFixed(0)}%</span>
                     </div>
-                    <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="h-1 rounded-full overflow-hidden bg-white/[0.05]">
                       <div
                         className="h-full rounded-full"
                         style={{ width: `${(e.value / totalEngPie) * 100}%`, backgroundColor: e.color, boxShadow: `0 0 8px ${e.color}` }}
@@ -565,10 +557,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                         <stop offset="100%" stopColor="#4BCEAF" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={Math.max(0, Math.floor(followerCurveData.length / 7) - 1)} />
-                    <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={45} domain={["dataMin - 10", "dataMax + 10"]} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(255,255,255,0.1)" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} interval={Math.max(0, Math.floor(followerCurveData.length / 7) - 1)} />
+                    <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={45} domain={["dataMin - 10", "dataMax + 10"]} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: chart.grid }} />
                     <Area type="monotone" dataKey="total" name="Seguidores" stroke="#4BCEAF" strokeWidth={2} fill="url(#followerGrad)" animationDuration={1200} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -587,10 +579,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
             <div className="h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={dayOfWeekData} margin={{ top: 8, right: 28, bottom: 8, left: 28 }}>
-                  <PolarGrid stroke="rgba(255,255,255,0.06)" />
+                  <PolarGrid stroke={chart.grid} />
                   <PolarAngleAxis
                     dataKey="day"
-                    tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12 }}
+                    tick={{ fill: chart.axisTick, fontSize: 12 }}
                   />
                   <Radar
                     name="Interacciones"
@@ -601,7 +593,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                     strokeWidth={2}
                     animationDuration={1200}
                   />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -673,7 +665,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                               </div>
                               <span className="text-[18px] font-light text-white">{g.pct}%</span>
                             </div>
-                            <div className="h-1 rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                            <div className="h-1 rounded-full bg-white/[0.05]">
                               <div
                                 className="h-full rounded-full"
                                 style={{
@@ -700,19 +692,19 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                       <ResponsiveContainer width="100%" height="100%">
                         {genderData.ageGenderBars.length > 0 ? (
                           <BarChart data={genderData.ageGenderBars} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                            <XAxis dataKey="range" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
-                            <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={35} />
-                            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                            <XAxis dataKey="range" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} />
+                            <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={35} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
                             <Bar dataKey="hombre" name="Hombre" fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
                             <Bar dataKey="mujer" name="Mujer" fill="#EB6991" radius={[4, 4, 0, 0]} animationDuration={1400} />
                           </BarChart>
                         ) : (
                           <BarChart data={genderData.ageBars} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                            <XAxis dataKey="range" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
-                            <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={35} />
-                            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                            <XAxis dataKey="range" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} />
+                            <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={35} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
                             <Bar dataKey="value" name="Seguidores" fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
                           </BarChart>
                         )}
@@ -746,10 +738,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                     <div className="h-[240px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart layout="vertical" data={countryData} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                          <XAxis type="number" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} />
-                          <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.5)" }} tickLine={false} axisLine={false} width={90} />
-                          <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
+                          <XAxis type="number" tick={{ fontSize: 10, fill: chart.axisTick }} tickLine={false} axisLine={false} />
+                          <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={90} />
+                          <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
                           <Bar dataKey="value" name="Seguidores" radius={[0, 5, 5, 0]} animationDuration={1200}>
                             {countryData.map((_, i) => (
                               <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -776,7 +768,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             </div>
                             <span className="text-[14px] font-light text-white">{count.toLocaleString("es-AR")}</span>
                           </div>
-                          <div className="h-1 rounded-full" style={{ background: "rgba(255,255,255,0.04)" }}>
+                          <div className="h-1 rounded-full bg-white/[0.04]">
                             <div
                               className="h-full rounded-full"
                               style={{

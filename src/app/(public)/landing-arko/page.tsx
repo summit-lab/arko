@@ -20,7 +20,7 @@ function GlassCard({ children, className = "" }: { children: React.ReactNode; cl
 function StatBlock({ value, label }: { value: string; label: string }) {
   return (
     <div className="text-center">
-      <p className="font-[family-name:var(--font-heading-local)] text-4xl md:text-5xl bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+      <p className="font-[family-name:var(--font-heading-local)] text-4xl md:text-5xl bg-gradient-to-b from-foreground to-foreground/60 bg-clip-text text-transparent">
         {value}
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">{label}</p>

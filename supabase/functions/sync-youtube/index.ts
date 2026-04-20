@@ -201,9 +201,10 @@ async function syncYouTube(
       }
 
       for (const v of vData.items || []) {
-        // Skip Shorts (videos under 65 seconds)
+        // Skip Shorts (videos under 65 seconds). Durations of 0 (live streams /
+        // premieres / parse failures) are kept — the UI can decide how to treat them.
         const durationSec = parseIsoDuration(v.contentDetails?.duration || "");
-        if (durationSec > 0 && durationSec < 240) continue;
+        if (durationSec > 0 && durationSec < 65) continue;
 
         const viewCount = parseInt(v.statistics?.viewCount || "0");
         const likeCount = parseInt(v.statistics?.likeCount || "0");

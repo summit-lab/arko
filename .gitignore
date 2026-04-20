@@ -49,3 +49,6 @@ supabase/.temp/
 # local dev
 certificates
 .vscode/
+
+# Claude Code settings (contiene tokens MCP)
+.claude/settings.json

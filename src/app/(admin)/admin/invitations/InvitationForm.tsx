@@ -53,7 +53,7 @@ export function InvitationForm() {
               required
               placeholder="cliente@ejemplo.com"
               autoComplete="off"
-              className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-white/20 outline-none focus:border-amber-400/30 transition-colors autofill-dark"
+              className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-muted-foreground outline-none focus:border-amber-400/30 transition-colors autofill-dark"
             />
           </div>
         </div>

@@ -166,42 +166,42 @@ export function ReelChatPanel({
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-white/[0.1] bg-black/80 px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl transition-all duration-300 hover:bg-white/[0.06] hover:border-white/[0.16] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)] cursor-pointer group"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-border bg-popover/90 px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.15)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.22)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-all duration-300 hover:bg-accent cursor-pointer group"
         >
-          <div className="h-7 w-7 rounded-lg bg-gradient-to-b from-white/[0.1] to-white/[0.03] border border-white/[0.08] flex items-center justify-center">
+          <div className="h-7 w-7 rounded-lg bg-accent border border-border flex items-center justify-center">
             <ArkoLogoSmall size={14} opacity={0.6} />
           </div>
-          <span className="text-[13px] font-light text-white/60 group-hover:text-white/80 transition-colors">
+          <span className="text-[13px] font-light text-popover-foreground/80 group-hover:text-popover-foreground transition-colors">
             Preguntale a Moka
           </span>
-          <MessageSquareText className="h-3.5 w-3.5 text-white/30 group-hover:text-white/50 transition-colors" />
+          <MessageSquareText className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
         </button>
       )}
 
       {/* Slide-in panel */}
       <div
-        className={`fixed top-0 right-0 z-50 flex flex-col w-[720px] max-w-[90vw] h-dvh border-l border-white/[0.08] bg-black/95 backdrop-blur-2xl shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={`fixed top-0 right-0 z-50 flex flex-col w-[720px] max-w-[90vw] h-dvh border-l border-border bg-popover backdrop-blur-2xl shadow-[-8px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Panel header */}
-        <div className="shrink-0 flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
-          <div className="h-7 w-7 rounded-lg bg-gradient-to-b from-white/[0.1] to-white/[0.03] border border-white/[0.08] flex items-center justify-center shrink-0">
+        <div className="shrink-0 flex items-center gap-3 border-b border-border px-4 py-3">
+          <div className="h-7 w-7 rounded-lg bg-accent border border-border flex items-center justify-center shrink-0">
             <ArkoLogoSmall size={12} opacity={0.6} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-medium text-white/70 truncate">
+            <p className="text-[12px] font-medium text-popover-foreground truncate">
               Moka AI — Reel
             </p>
-            <p className="text-[10px] text-white/30 font-light truncate">
+            <p className="text-[10px] text-muted-foreground font-light truncate">
               {captionPreview}
             </p>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="shrink-0 h-7 w-7 rounded-lg hover:bg-white/[0.06] flex items-center justify-center transition-colors cursor-pointer"
+            className="shrink-0 h-7 w-7 rounded-lg hover:bg-accent flex items-center justify-center transition-colors cursor-pointer"
           >
-            <X className="h-4 w-4 text-white/40 hover:text-white/70" />
+            <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
           </button>
         </div>
 
@@ -233,10 +233,10 @@ export function ReelChatPanel({
         </div>
 
         {/* Input */}
-        <div className="shrink-0 border-t border-white/[0.06] p-3">
+        <div className="shrink-0 border-t border-border p-3">
           <form
             onSubmit={handleSubmit}
-            className="relative rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-white/[0.14] focus-within:bg-white/[0.05]"
+            className="relative rounded-xl border border-border bg-muted backdrop-blur-xl transition-all duration-300 focus-within:border-ring focus-within:bg-accent"
           >
             <textarea
               ref={textareaRef}
@@ -246,12 +246,12 @@ export function ReelChatPanel({
               placeholder="Preguntale sobre este reel..."
               disabled={isLoading}
               rows={1}
-              className="w-full bg-transparent text-[13px] text-white/85 placeholder:text-white/20 font-light resize-none focus:outline-none leading-relaxed px-4 pt-3 pb-2.5 pr-12 disabled:opacity-40"
+              className="w-full bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground font-light resize-none focus:outline-none leading-relaxed px-4 pt-3 pb-2.5 pr-12 disabled:opacity-40"
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
-              className="absolute right-2 bottom-2 h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] disabled:opacity-20 disabled:hover:bg-white/[0.06] transition-all duration-200 flex items-center justify-center cursor-pointer"
+              className="absolute right-2 bottom-2 h-8 w-8 rounded-lg bg-accent hover:bg-accent/70 disabled:opacity-20 disabled:hover:bg-accent transition-all duration-200 flex items-center justify-center cursor-pointer"
             >
               <svg
                 width="14"
@@ -262,7 +262,7 @@ export function ReelChatPanel({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-white/60"
+                className="text-accent-foreground"
               >
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -297,17 +297,17 @@ function ReelChatEmpty({
       <div className="relative mb-5">
         <div
           className="absolute inset-0 blur-xl opacity-15 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(120,120,120,0.3) 0%, transparent 70%)" }}
         />
-        <div className="relative h-14 w-14 rounded-xl bg-gradient-to-b from-white/[0.08] to-white/[0.02] border border-white/[0.1] flex items-center justify-center backdrop-blur-sm">
+        <div className="relative h-14 w-14 rounded-xl bg-accent border border-border flex items-center justify-center backdrop-blur-sm">
           <ArkoLogoSmall size={24} opacity={0.5} />
         </div>
       </div>
 
-      <p className="text-[13px] font-light text-white/50 mb-1">
+      <p className="text-[13px] font-light text-foreground mb-1">
         Moka AI
       </p>
-      <p className="text-[11px] text-white/25 font-light text-center mb-6 max-w-[280px]">
+      <p className="text-[11px] text-muted-foreground font-light text-center mb-6 max-w-[280px]">
         Preguntame lo que quieras sobre este reel. Tengo todas las métricas y el contexto de tu cuenta.
       </p>
 
@@ -316,7 +316,7 @@ function ReelChatEmpty({
           <button
             key={suggestion}
             onClick={() => onSuggestionClick(suggestion)}
-            className="w-full text-left px-3.5 py-2.5 rounded-xl border border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all text-[11.5px] text-white/40 hover:text-white/60 font-light leading-relaxed cursor-pointer"
+            className="w-full text-left px-3.5 py-2.5 rounded-xl border border-border bg-card hover:bg-accent transition-all text-[11.5px] text-muted-foreground hover:text-foreground font-light leading-relaxed cursor-pointer"
           >
             {suggestion}
           </button>

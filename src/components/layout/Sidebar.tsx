@@ -12,8 +12,8 @@ import {
 import { logout } from "@/app/(auth)/actions";
 import { useTheme } from "./ThemeProvider";
 
-const BROWN = "#3A1F04";
-const BROWN_LIGHT = "rgba(58,31,4,0.65)";
+const BROWN = "#111111";
+const BROWN_LIGHT = "rgba(0,0,0,0.65)";
 
 const navItems = [
   { name: "Dashboard",  href: "/",          svg: "/svgs/dashboard_21.svg" },
@@ -25,9 +25,10 @@ const navItems = [
 ];
 
 const settingsNavItems = [
-  { name: "Branding",     href: "/settings",       svg: "/svgs/dashboard_21.svg" },
-  { name: "ADN de Marca", href: "/settings/adn", svg: "/svgs/arko-adn_1.svg" },
-  { name: "Metas",        href: "/settings/metas", svg: "/svgs/megaphone_9.svg" },
+  { name: "Branding",      href: "/settings",              svg: "/svgs/dashboard_21.svg" },
+  { name: "ADN de Marca",  href: "/settings/adn",          svg: "/svgs/arko-adn_1.svg" },
+  { name: "Metas",         href: "/settings/metas",        svg: "/svgs/megaphone_9.svg" },
+  { name: "Integraciones", href: "/settings/integrations", svg: "/svgs/instagram_5.svg" },
 ];
 
 interface SidebarProps {
@@ -71,8 +72,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
   function activeBarStyle() {
     return isLight
       ? {
-          background: `linear-gradient(to bottom, rgba(58,31,4,0.1) 0%, ${BROWN} 50%, rgba(58,31,4,0.1) 100%)`,
-          boxShadow: "0 0 8px rgba(58,31,4,0.35)",
+          background: `linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, ${BROWN} 50%, rgba(0,0,0,0.1) 100%)`,
+          boxShadow: "0 0 8px rgba(0,0,0,0.35)",
         }
       : {
           background: "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.1) 100%)",
@@ -82,8 +83,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
 
   function iconFilter(isActive: boolean) {
     if (isLight) {
-      // brightness(0)→black, sepia(1)→warm brown, saturate+brightness to reach #3A1F04
-      return { filter: "brightness(0) sepia(1) saturate(2) brightness(0.42)", opacity: isActive ? 1 : 0.60 };
+      // brightness(0)→black, full black icons in light mode
+      return { filter: "brightness(0)", opacity: isActive ? 1 : 0.55 };
     }
     return { filter: "brightness(0) invert(1)", opacity: isActive ? 1 : 0.4 };
   }
@@ -91,8 +92,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
   function navTextClass(isActive: boolean) {
     if (isLight) {
       return isActive
-        ? "font-medium tracking-wide"
-        : "font-light tracking-wide";
+        ? "font-bold text-[#111111] tracking-wide"
+        : "font-normal text-[#111111] tracking-wide";
     }
     return isActive
       ? "font-medium text-white tracking-wide"
@@ -104,7 +105,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
       className="w-[260px] h-screen fixed left-0 top-0 z-40 flex flex-col backdrop-blur-xl"
       style={
         isLight
-          ? { background: "#ffffff", borderRight: "1px solid #e5e5e7" }
+          ? { background: "#fbfbfd" }
           : { background: "rgba(0,0,0,0.4)", borderRight: "1px solid rgba(255,255,255,0.06)" }
       }
     >

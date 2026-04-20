@@ -92,6 +92,23 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ status: "error", error: "Failed to decrypt access token" }, 500);
     }
 
+    // ── Token validity pre-check ──
+    // Graph API returns code 190 / OAuthException on expired/revoked tokens. Doing anything
+    // else after that is wasted work (and silently rotting user data). Mark the connection as
+    // 'expired' so the UI can prompt a reconnect.
+    const tokenCheck = await fetchProfileFields(connection.ig_business_account_id, accessToken);
+    if (tokenCheck?.tokenExpired) {
+      await supabase
+        .from("meta_connections")
+        .update({ status: "expired", updated_at: new Date().toISOString() })
+        .eq("id", connection.id);
+      return jsonResponse({
+        status: "error",
+        error: "Meta access token expired or revoked. User must reconnect.",
+        code: "TOKEN_EXPIRED",
+      }, 401);
+    }
+
     // ── QUICK SYNC: Only latest media + insights, return fast ──
     if (steps === "quick") {
       return await handleQuickSync(supabase, workspace_id, connection.ig_business_account_id, accessToken);
@@ -108,6 +125,27 @@ Deno.serve(async (req: Request) => {
     let benchmarkResult: { snapshot_id: string; reels_in_window: number; window_start: string; window_end: string } | null = null;
     let accountResult: AccountSyncResult | null = null;
     let storiesResult: StoriesSyncResult | null = null;
+
+    // ── ADS-ONLY: Skip reels/account/stories, just refresh ad metrics ──
+    if (steps === "ads") {
+      if (!connection.ad_account_ids?.length) {
+        return jsonResponse({ status: "error", error: "No ad accounts linked to this workspace" }, 400);
+      }
+      const { data: adsJob } = await supabase
+        .from("sync_jobs")
+        .insert({ workspace_id, job_type: "ads_insights", status: "queued" })
+        .select("id")
+        .single();
+      if (!adsJob) {
+        return jsonResponse({ status: "error", error: "Failed to create ads sync job" }, 500);
+      }
+      adsResult = await syncAdsMetrics(supabase, workspace_id, adsJob.id, connection.ad_account_ids, accessToken);
+      return jsonResponse({
+        status: "completed",
+        duration_ms: Date.now() - t0,
+        ads: adsResult,
+      });
+    }
 
     // ── Step 1+2: Media + Ads ──
     if (steps === "all" || steps === "media") {
@@ -934,40 +972,36 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
         }
       }
 
-      // Sum all known deltas to compute the total at lastDeltaIdx
-      // currentFollowersTotal = total_at_lastDeltaIdx + deltas[lastDeltaIdx+1..today] + growth_in_gap
-      // Since gap days have no deltas reported, we can only compute:
-      //   total_at_day_after_lastDelta = currentFollowersTotal (approximate, gap growth unknown)
-      //   total_at_lastDeltaIdx = currentFollowersTotal - sum(deltas from firstDelta to lastDelta going forward)
-      // Instead: sum ALL known deltas, then lastDeltaTotal = currentTotal - sumOfAllDeltasAfterThatDay
-      // But we only have deltas up to lastDeltaIdx, so:
-      //   totalAtLastDelta = currentTotal - (growth in gap days without deltas)
-      // We don't know gap growth, so use sum of known deltas to back-compute:
+      // Sum known deltas AND count only the days that actually reported one.
+      // Meta often leaves interior days without follower_count (especially for
+      // small accounts), so `lastDeltaIdx + 1` overcounts the denominator and
+      // dilutes avgDailyGrowth → underestimates the gap growth → inflates
+      // historical totals.
       let sumAllDeltas = 0;
+      let numDeltaDays = 0;
       for (let i = 0; i <= lastDeltaIdx; i++) {
-        sumAllDeltas += (dayMap.get(sortedDates[i])?.follower_count ?? 0);
+        const d = dayMap.get(sortedDates[i])?.follower_count;
+        if (d != null) {
+          sumAllDeltas += d;
+          numDeltaDays++;
+        }
       }
 
-      // The total at the start of our known-delta window:
-      // totalBeforeFirstDelta + sumAllDeltas + gapGrowth = currentFollowersTotal
-      // We can compute totalAtLastDelta = totalBeforeFirstDelta + sumAllDeltas
-      //   where totalBeforeFirstDelta = currentFollowersTotal - sumAllDeltas - gapGrowth
-      // Since we don't know gapGrowth, estimate it proportionally:
-      //   avgDailyGrowth from known deltas = sumAllDeltas / numDeltaDays
-      //   gapGrowth ≈ avgDailyGrowth * numGapDays
-      const numDeltaDays = lastDeltaIdx + 1;
-      const numGapDays = sortedDates.length - 1 - lastDeltaIdx; // gap = days after lastDelta in our window
+      // Estimate the growth during the "gap" (days after lastDeltaIdx without a
+      // reported delta) proportionally to observed growth in the known window.
+      const numGapDays = sortedDates.length - 1 - lastDeltaIdx;
       const avgDailyGrowth = numDeltaDays > 0 ? sumAllDeltas / numDeltaDays : 0;
       const estimatedGapGrowth = Math.round(avgDailyGrowth * numGapDays);
 
-      // Now we can compute the total at lastDeltaIdx
-      const totalAtLastDelta = currentFollowersTotal - estimatedGapGrowth;
+      // Compute the total at lastDeltaIdx. Clamp to >= 0 to prevent absurd
+      // back-projection if a single spiky delta extrapolates wildly.
+      const totalAtLastDelta = Math.max(0, currentFollowersTotal - estimatedGapGrowth);
 
       // Walk backwards from totalAtLastDelta through days with real deltas
       followersTotalByDate.set(syncDate, currentFollowersTotal);
       let runningTotal = totalAtLastDelta;
       for (let i = lastDeltaIdx; i >= 0; i--) {
-        followersTotalByDate.set(sortedDates[i], runningTotal);
+        followersTotalByDate.set(sortedDates[i], Math.max(0, runningTotal));
         runningTotal -= (dayMap.get(sortedDates[i])?.follower_count ?? 0);
       }
 
@@ -980,7 +1014,7 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
           const dailyIncrement = (gapEndTotal - gapStartTotal) / numGapDays;
           for (let i = lastDeltaIdx + 1; i < sortedDates.length; i++) {
             const stepsFromStart = i - lastDeltaIdx;
-            followersTotalByDate.set(sortedDates[i], Math.round(gapStartTotal + dailyIncrement * stepsFromStart));
+            followersTotalByDate.set(sortedDates[i], Math.max(0, Math.round(gapStartTotal + dailyIncrement * stepsFromStart)));
           }
         }
       }
@@ -1227,7 +1261,7 @@ async function syncStories(supabase: any, workspaceId: string, syncJobId: string
         .single();
 
       if (seqError || !seqRow) {
-        result.errors.push(`Sequence upsert ${day}: ${seqError?.message ?? "no row"}`);
+        result.errors.push(`Sequence upsert ${firstSlide?.id ?? "unknown"}: ${seqError?.message ?? "no row"}`);
         continue;
       }
       result.sequencesUpserted++;
@@ -1384,7 +1418,7 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
 
   const { data, error } = await supabase
     .from("reels")
-    .select("id, reel_type, published_at, reel_metrics(views_org, likes_total, comments_total, shares_total, saves_total, follows_generated, reach_org, avg_watch_time_sec), reel_metrics_paid(views_paid, reach_paid)")
+    .select("id, reel_type, published_at, duration_seconds, reel_metrics(views_org, likes_total, comments_total, shares_total, saves_total, follows_generated, reach_org, avg_watch_time_sec), reel_metrics_paid(views_paid, reach_paid)")
     .eq("workspace_id", workspaceId)
     .eq("media_product_type", "REELS")
     .not("published_at", "is", null)
@@ -1399,17 +1433,23 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
       const organic = Array.isArray(reel.reel_metrics) ? reel.reel_metrics[0] : reel.reel_metrics;
       const paid = Array.isArray(reel.reel_metrics_paid) ? reel.reel_metrics_paid[0] : reel.reel_metrics_paid;
       const viewsTotal = organic?.views_org ?? 0;
+      const likes = organic?.likes_total ?? 0;
+      const comments = organic?.comments_total ?? 0;
+      const shares = organic?.shares_total ?? 0;
+      const saves = organic?.saves_total ?? 0;
       return {
         reelType: reel.reel_type,
         hasMetrics: organic != null || paid != null,
         viewsTotal,
         reachTotal: organic?.reach_org ?? 0,
-        likes: organic?.likes_total ?? 0,
-        comments: organic?.comments_total ?? 0,
-        shares: organic?.shares_total ?? 0,
-        saves: organic?.saves_total ?? 0,
+        likes,
+        comments,
+        shares,
+        saves,
         follows: organic?.follows_generated ?? 0,
         avgWatchTime: organic?.avg_watch_time_sec ?? null,
+        totalInteractions: likes + comments + shares + saves,
+        durationSeconds: reel.duration_seconds ?? null,
       };
     })
     .filter((r) => r.hasMetrics && r.reelType !== "trial_likely");
@@ -1417,10 +1457,15 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
   const avg = (vals: number[]) => vals.length === 0 ? 0 : vals.reduce((s, v) => s + v, 0) / vals.length;
   const withViews = eligible.filter((r) => r.viewsTotal > 0);
   const withWatchTime = eligible.filter((r) => r.avgWatchTime != null);
+  const withDuration = eligible.filter((r) => r.durationSeconds != null && r.durationSeconds > 0);
+  const withRetention = eligible.filter(
+    (r) => r.avgWatchTime != null && r.durationSeconds != null && r.durationSeconds > 0,
+  );
+  const withReach = eligible.filter((r) => r.reachTotal > 0);
 
-  const { data: inserted, error: insertError } = await supabase
+  const { data: upserted, error: upsertError } = await supabase
     .from("reel_benchmarks")
-    .insert({
+    .upsert({
       workspace_id: workspaceId,
       calculated_at: new Date().toISOString(),
       window_start: windowStart, window_end: windowEnd,
@@ -1438,14 +1483,23 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
       avg_shares_per_view: avg(withViews.map((r) => r.shares / r.viewsTotal)),
       avg_saves_per_view: avg(withViews.map((r) => r.saves / r.viewsTotal)),
       avg_follows_per_view: avg(withViews.map((r) => r.follows / r.viewsTotal)),
+      avg_engagement_rate: avg(withViews.map((r) => (r.totalInteractions / r.viewsTotal) * 100)),
+      avg_retention_rate: avg(
+        withRetention.map((r) =>
+          Math.min(100, ((r.avgWatchTime ?? 0) / (r.durationSeconds ?? 1)) * 100),
+        ),
+      ),
+      avg_duration_seconds: avg(withDuration.map((r) => r.durationSeconds ?? 0)),
+      avg_reach_per_view: avg(withViews.map((r) => r.reachTotal / r.viewsTotal)),
+      avg_saves_per_reach: avg(withReach.map((r) => r.saves / r.reachTotal)),
       exclude_trials: true, min_views_threshold: 0,
-    })
+    }, { onConflict: "workspace_id" })
     .select("id, reels_in_window, window_start, window_end")
     .single();
 
-  if (insertError || !inserted) throw new Error(`Benchmark insert failed: ${insertError?.message}`);
+  if (upsertError || !upserted) throw new Error(`Benchmark upsert failed: ${upsertError?.message}`);
 
-  return { snapshotId: inserted.id, reelsInWindow: inserted.reels_in_window, windowStart: inserted.window_start, windowEnd: inserted.window_end };
+  return { snapshotId: upserted.id, reelsInWindow: upserted.reels_in_window, windowStart: upserted.window_start, windowEnd: upserted.window_end };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1725,11 +1779,26 @@ function extractInstagramShortcode(url: string | null | undefined): string | nul
 
 // ── Account insights helpers ──
 
-async function fetchProfileFields(igAccountId: string, accessToken: string): Promise<{ followers_count: number; follows_count: number; media_count: number } | null> {
+/** True if the Graph API returned an OAuth/auth error (expired, invalid or revoked token). */
+// deno-lint-ignore no-explicit-any
+function isTokenExpiredError(graphError: any): boolean {
+  if (!graphError) return false;
+  const code = graphError.code;
+  const type = graphError.type;
+  if (code === 190) return true;
+  if (code === 102 || code === 104) return true;
+  if (type === "OAuthException") return true;
+  return false;
+}
+
+async function fetchProfileFields(igAccountId: string, accessToken: string): Promise<{ followers_count: number; follows_count: number; media_count: number; tokenExpired?: boolean } | null> {
   try {
     const res = await fetch(`${GRAPH_BASE}/${igAccountId}?fields=followers_count,follows_count,media_count&access_token=${accessToken}`);
     const data = await res.json();
-    if (data.error) return null;
+    if (data.error) {
+      if (isTokenExpiredError(data.error)) return { followers_count: 0, follows_count: 0, media_count: 0, tokenExpired: true };
+      return null;
+    }
     return { followers_count: data.followers_count ?? 0, follows_count: data.follows_count ?? 0, media_count: data.media_count ?? 0 };
   } catch { return null; }
 }

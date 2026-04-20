@@ -33,31 +33,18 @@ export function InstagramTabs() {
   }, [router, searchParams, current]);
 
   return (
-    <div
-      className={`inline-flex items-center gap-1 p-1 rounded-full transition-opacity duration-150 ${isPending ? "opacity-60" : "opacity-100"}`}
-      style={{
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <div className={`inline-flex items-center gap-1 p-1 rounded-full transition-opacity duration-150 bg-white/[0.04] border border-white/[0.06] ${isPending ? "opacity-60" : "opacity-100"}`}>
       {TABS.map((tab) => {
         const active = current === tab.key;
         return (
           <button
             key={tab.key}
             onClick={() => handleSelect(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-250 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-250 cursor-pointer border ${
               active
-                ? "text-white"
-                : "text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+                ? "text-white bg-white/[0.1] border-white/[0.1]"
+                : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-transparent"
             }`}
-            style={active ? {
-              background: "rgba(255,255,255,0.1)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.22)",
-              boxShadow: "0 1px 16px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.2)",
-            } : undefined}
           >
             <tab.icon
               size={14}

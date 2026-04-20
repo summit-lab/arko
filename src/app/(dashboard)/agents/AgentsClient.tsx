@@ -196,7 +196,7 @@ export default function ArkoAIClient({
           <div className="max-w-5xl mx-auto">
             <form
               onSubmit={handleSubmit}
-              className="relative rounded-xl border border-white/[0.1] bg-white/[0.04] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 focus-within:border-white/[0.16] focus-within:bg-white/[0.06]"
+              className="relative rounded-xl border border-border bg-card backdrop-blur-xl shadow-md transition-all duration-300 focus-within:border-ring focus-within:bg-accent"
             >
               <textarea
                 ref={textareaRef}
@@ -206,12 +206,12 @@ export default function ArkoAIClient({
                 placeholder="Preguntale a Moka..."
                 disabled={isLoading}
                 rows={1}
-                className="w-full bg-transparent text-[14px] text-white/85 placeholder:text-white/20 font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
+                className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="absolute right-2.5 bottom-2.5 h-9 w-9 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] disabled:opacity-20 disabled:hover:bg-white/[0.08] transition-all duration-200 flex items-center justify-center cursor-pointer"
+                className="absolute right-2.5 bottom-2.5 h-9 w-9 rounded-lg bg-accent hover:bg-accent/70 disabled:opacity-20 disabled:hover:bg-accent transition-all duration-200 flex items-center justify-center cursor-pointer"
               >
                 <svg
                   width="16"
@@ -222,14 +222,14 @@ export default function ArkoAIClient({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-white/70"
+                  className="text-accent-foreground"
                 >
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />
                 </svg>
               </button>
             </form>
-            <p className="text-[10px] text-white/15 mt-2 text-center font-light">
+            <p className="text-[10px] text-muted-foreground mt-2 text-center font-light">
               Shift + Enter para nueva línea
             </p>
           </div>
@@ -237,11 +237,11 @@ export default function ArkoAIClient({
       </div>
 
       {/* ── Session sidebar (right) ── */}
-      <aside className="w-60 shrink-0 border-l border-white/[0.06] bg-white/[0.01] flex flex-col">
+      <aside className="w-60 shrink-0 border-l border-border bg-card/40 flex flex-col">
         <div className="p-3">
           <button
             onClick={startNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[13px] font-light text-white/70 hover:text-white/90 transition-all cursor-pointer"
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent hover:bg-accent/70 border border-border text-[13px] font-light text-accent-foreground transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             Nueva conversación
@@ -258,30 +258,30 @@ export default function ArkoAIClient({
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectSession(session.id); }}
               className={`group w-full text-left px-3 py-2.5 rounded-lg transition-all flex items-start gap-2 cursor-pointer ${
                 activeSessionId === session.id
-                  ? "bg-white/[0.08] border border-white/[0.1]"
-                  : "hover:bg-white/[0.04] border border-transparent"
+                  ? "bg-accent border border-border"
+                  : "hover:bg-accent/50 border border-transparent"
               }`}
             >
-              <MessageSquare className="h-3.5 w-3.5 text-white/20 mt-0.5 shrink-0" />
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] text-white/60 font-light truncate">
+                <p className="text-[12px] text-foreground/85 font-light truncate">
                   {session.title}
                 </p>
-                <p className="text-[10px] text-white/20 font-light mt-0.5">
+                <p className="text-[10px] text-muted-foreground font-light mt-0.5">
                   {formatDate(session.updated_at)}
                 </p>
               </div>
               <button
                 onClick={(e) => deleteSession(session.id, e)}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-all shrink-0 cursor-pointer"
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-all shrink-0 cursor-pointer"
               >
-                <Trash2 className="h-3 w-3 text-white/30 hover:text-red-400" />
+                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-red-500" />
               </button>
             </div>
           ))}
 
           {sessions.length === 0 && (
-            <p className="text-[11px] text-white/15 text-center py-8 font-light">
+            <p className="text-[11px] text-muted-foreground text-center py-8 font-light">
               Sin conversaciones aún
             </p>
           )}
@@ -304,17 +304,17 @@ function EmptyState({
       <div className="relative mb-8">
         <div
           className="absolute inset-0 blur-2xl opacity-20 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(120,120,120,0.3) 0%, transparent 70%)" }}
         />
-        <div className="relative h-20 w-20 rounded-2xl bg-gradient-to-b from-white/[0.08] to-white/[0.02] border border-white/[0.1] flex items-center justify-center backdrop-blur-sm">
+        <div className="relative h-20 w-20 rounded-2xl bg-accent border border-border flex items-center justify-center backdrop-blur-sm">
           <ArkoLogoSmall size={36} opacity={0.5} />
         </div>
       </div>
 
-      <h2 className="text-[20px] font-light text-white/75 mb-2 tracking-wide">
+      <h2 className="text-[20px] font-light text-foreground mb-2 tracking-wide">
         Moka AI
       </h2>
-      <p className="text-[13px] text-white/30 font-light max-w-md text-center mb-10">
+      <p className="text-[13px] text-muted-foreground font-light max-w-md text-center mb-10">
         Tu consultor de marketing con acceso a toda la data de tu workspace.
       </p>
 
@@ -323,7 +323,7 @@ function EmptyState({
           <button
             key={suggestion}
             onClick={() => onSuggestionClick(suggestion)}
-            className="text-left p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all text-[12px] text-white/40 hover:text-white/60 font-light leading-relaxed cursor-pointer"
+            className="text-left p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-border transition-all text-[12px] text-muted-foreground hover:text-foreground font-light leading-relaxed cursor-pointer"
           >
             {suggestion}
           </button>
