@@ -177,19 +177,14 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   const totalLikes = sorted.reduce((s, d) => s + d.likes, 0);
   const totalComments = sorted.reduce((s, d) => s + d.comments, 0);
 
-  // Calculate daily follower change from followers_total diff when values differ day-to-day.
-  // Falls back to follower_count (Meta metric) when followers_total is the same across days.
-  const effectiveFollowerChange = sorted.map((d, i) => {
-    if (
-      d.followers_total > 0 &&
-      i > 0 &&
-      sorted[i - 1].followers_total > 0 &&
-      d.followers_total !== sorted[i - 1].followers_total
-    ) {
-      return d.followers_total - sorted[i - 1].followers_total;
-    }
-    return d.follower_count;
-  });
+  // Daily follower change = Meta's `follower_count` metric (API insight).
+  // We used to compute diffs from reconstructed `followers_total`, but that
+  // column is built by a fragile walk-back in sync-instagram and drifts when
+  // Meta's profile snapshot briefly disagrees with the sum of deltas. The
+  // resulting false dips (e.g. "-1579 in one day, +400 next day") are not
+  // real — Meta's own IG panel doesn't show them. `follower_count` is the
+  // same daily delta Meta surfaces natively, so it's the honest source.
+  const effectiveFollowerChange = sorted.map((d) => d.follower_count ?? 0);
 
   const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
   const followersGainedPeriod = effectiveFollowerChange.reduce((s, v) => s + v, 0);

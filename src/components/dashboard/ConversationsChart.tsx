@@ -10,6 +10,7 @@ interface DailyPoint {
 
 interface Props {
   data: DailyPoint[];
+  previousTotal?: number;
 }
 
 interface Delta {
@@ -18,20 +19,14 @@ interface Delta {
   neutral: boolean;
 }
 
-function computeWoWDelta(data: DailyPoint[]): Delta | null {
-  if (data.length < 14) return null;
-  const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
-  const last14 = sorted.slice(-14);
-  const prev7 = last14.slice(0, 7).reduce((s, p) => s + p.interactions, 0);
-  const curr7 = last14.slice(7).reduce((s, p) => s + p.interactions, 0);
-
-  if (prev7 === 0 && curr7 === 0) {
+function computeDelta(currentTotal: number, previousTotal: number): Delta | null {
+  if (previousTotal === 0 && currentTotal === 0) {
     return { label: "0%", positive: true, neutral: true };
   }
-  if (prev7 === 0) {
-    return { label: `+${curr7}`, positive: true, neutral: false };
+  if (previousTotal === 0) {
+    return { label: `+${currentTotal}`, positive: true, neutral: false };
   }
-  const pct = ((curr7 - prev7) / prev7) * 100;
+  const pct = ((currentTotal - previousTotal) / previousTotal) * 100;
   return {
     label: `${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%`,
     positive: pct >= 0,
@@ -59,43 +54,35 @@ function ChartTooltip({
   );
 }
 
-export function ConversationsChart({ data }: Props) {
+export function ConversationsChart({ data, previousTotal = 0 }: Props) {
   const chart = useChartTheme();
   const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
-  const last14 = sorted.slice(-14);
-  const delta = computeWoWDelta(sorted);
 
-  if (last14.length === 0) {
+  if (sorted.length === 0) {
     return (
       <div className="glass-panel rounded-xl p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-[15px] font-light tracking-wide text-white">
-            Interacciones nuevas
-          </h3>
-        </div>
-        <div className="flex h-[160px] flex-col items-center justify-center gap-2">
+        <h3 className="text-[15px] font-light tracking-wide text-white">
+          Interacciones nuevas
+        </h3>
+        <div className="flex h-[160px] items-center justify-center">
           <p className="text-[13px] font-light text-white/30">Sin datos todav&iacute;a</p>
         </div>
       </div>
     );
   }
 
-  const total14 = last14.reduce((s, p) => s + p.interactions, 0);
+  const total = sorted.reduce((s, p) => s + p.interactions, 0);
+  const delta = computeDelta(total, previousTotal);
 
   return (
     <div className="glass-panel rounded-xl p-6">
       <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h3 className="text-[15px] font-light tracking-wide text-white">
-            Interacciones nuevas
-          </h3>
-          <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-white/30">
-            hist. + comentarios/2 + ads msg + 5% org&aacute;nico · 14 d&iacute;as
-          </p>
-        </div>
+        <h3 className="text-[15px] font-light tracking-wide text-white">
+          Interacciones nuevas
+        </h3>
         <div className="flex items-baseline gap-3">
           <span className="text-[22px] font-light tracking-[-0.02em] text-white">
-            {total14.toLocaleString()}
+            {total.toLocaleString()}
           </span>
           {delta && (
             <span
@@ -114,7 +101,7 @@ export function ConversationsChart({ data }: Props) {
       </div>
       <div style={{ height: 160 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={last14} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+          <AreaChart data={sorted} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id="convoGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#7A86E0" stopOpacity={0.35} />

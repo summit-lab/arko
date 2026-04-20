@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
     // Validate connection
     const { data: connection, error: connError } = await supabase
       .from("meta_connections")
-      .select("id, status, ig_business_account_id, ig_username, ad_account_ids")
+      .select("id, status, ig_business_account_id, ig_username, ad_account_ids, page_id")
       .eq("workspace_id", workspace_id)
       .eq("status", "active")
       .single();
@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
       if (!adsJob) {
         return jsonResponse({ status: "error", error: "Failed to create ads sync job" }, 500);
       }
-      adsResult = await syncAdsMetrics(supabase, workspace_id, adsJob.id, connection.ad_account_ids, accessToken);
+      adsResult = await syncAdsMetrics(supabase, workspace_id, adsJob.id, connection.ad_account_ids, accessToken, connection.page_id, connection.ig_business_account_id);
       return jsonResponse({
         status: "completed",
         duration_ms: Date.now() - t0,
@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
           .select("id")
           .single();
         if (adsJob) {
-          adsResult = await syncAdsMetrics(supabase, workspace_id, adsJob.id, connection.ad_account_ids, accessToken);
+          adsResult = await syncAdsMetrics(supabase, workspace_id, adsJob.id, connection.ad_account_ids, accessToken, connection.page_id, connection.ig_business_account_id);
         }
       }
 
@@ -731,8 +731,32 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
 // ═══════════════════════════════════════════════════════════════
 
 // deno-lint-ignore no-explicit-any
-async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: string, adAccountIds: string[], accessToken: string): Promise<AdsSyncResult> {
+async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: string, adAccountIds: string[], accessToken: string, ownPageId: string | null, ownIgBusinessAccountId: string | null): Promise<AdsSyncResult> {
   const result: AdsSyncResult = { adsProcessed: 0, adsMapped: 0, adsUnmapped: 0, reelsUpdated: 0, totalVideoPlays: 0, totalVideoPlays30d: 0, totalVideoPlays90d: 0, errors: [], unmappedSamples: [] };
+
+  // Helper: determine if an ad promotes content owned by THIS workspace
+  // (vs a client/agency account the user also has admin access to).
+  // Match strategy (any one wins):
+  //   1. creative.object_story_id format is `pageId_postId` — if pageId == ownPageId, own
+  //   2. creative.source_instagram_media_id / effective_instagram_media_id — if we have
+  //      a reel with that IG media id in this workspace, own (handled via reelsByIgMediaId)
+  //   3. creative.instagram_actor_id == ownIgBusinessAccountId — own
+  // If none match → foreign ad (skip for this workspace).
+  function isOwnAd(ad: AdRecord, reelsByIgMediaId: Map<string, string>): boolean {
+    const c = ad.creative;
+    if (!c) return false;
+    if (ownPageId && c.object_story_id) {
+      const parts = c.object_story_id.split("_");
+      if (parts.length >= 2 && parts[0] === ownPageId) return true;
+    }
+    if (ownPageId && c.effective_object_story_id) {
+      const parts = c.effective_object_story_id.split("_");
+      if (parts.length >= 2 && parts[0] === ownPageId) return true;
+    }
+    if (c.source_instagram_media_id && reelsByIgMediaId.has(c.source_instagram_media_id)) return true;
+    if (c.effective_instagram_media_id && reelsByIgMediaId.has(c.effective_instagram_media_id)) return true;
+    return false;
+  }
 
   try {
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
@@ -752,7 +776,9 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
     }
 
     const paidByReel = new Map<string, { views_paid: number; impressions_paid: number; reach_paid: number; clicks: number; spend_cents: number; video_plays: number }>();
-    // Collect all ads info for daily metrics (ALL ads, not just mapped)
+    // Collect ONLY own ads info for daily metrics (ads promoting content of THIS workspace,
+    // filtered by isOwnAd). Foreign ads (from client/agency accounts) are skipped here
+    // so their daily rows don't pollute ad_metrics_daily.
     const allAdsLookup = new Map<string, { campaign_id: string; adset_id: string; ad_name: string; ad_account_id: string }>();
 
     for (const acctId of adAccountIds) {
@@ -763,9 +789,13 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
         const insightsMap = await fetchInsightsByAd(acctId, accessToken);
         const adsById = new Map<string, AdRecord>(ads.map((ad) => [ad.id, ad]));
 
-        // Register ALL ads for daily metrics lookup
+        // Register ONLY own ads for daily metrics lookup. Foreign ads
+        // (e.g. ads from a client's ad account the user has admin access to)
+        // are filtered out so they never reach ad_metrics_daily.
         for (const ad of ads) {
-          allAdsLookup.set(ad.id, { campaign_id: ad.campaign_id, adset_id: ad.adset_id, ad_name: ad.name, ad_account_id: acctId });
+          if (isOwnAd(ad, reelsByIgMediaId)) {
+            allAdsLookup.set(ad.id, { campaign_id: ad.campaign_id, adset_id: ad.adset_id, ad_name: ad.name, ad_account_id: acctId });
+          }
         }
 
         // Recover missing ads
@@ -856,7 +886,8 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
       }
     }
 
-    // ── Upsert daily ad metrics for ALL ads (not just mapped) ──
+    // ── Upsert daily ad metrics — ONLY for own ads (foreign ads were excluded
+    // from allAdsLookup by isOwnAd, so lookup misses == foreign ad == skip) ──
     for (const acctId of adAccountIds) {
       try {
         const dailyRows = await fetchDailyInsightsByAd(acctId, accessToken);
@@ -864,6 +895,7 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
         for (const row of dailyRows) {
           if (!row.date_start) continue;
           const lookup = allAdsLookup.get(row.ad_id);
+          if (!lookup) continue; // foreign ad — skip
           const outboundClicks = getActionMetricValue(row.outbound_clicks, "outbound_click");
           const inlineLinkClicks = parseInt(row.inline_link_clicks || "0") || 0;
           const clicks = outboundClicks || inlineLinkClicks || (parseInt(row.clicks || "0") || 0);
@@ -875,10 +907,10 @@ async function syncAdsMetrics(supabase: any, workspaceId: string, syncJobId: str
           batch.push({
             workspace_id: workspaceId,
             ad_id: row.ad_id,
-            campaign_id: lookup?.campaign_id ?? "unknown",
-            adset_id: lookup?.adset_id ?? "unknown",
+            campaign_id: lookup.campaign_id,
+            adset_id: lookup.adset_id,
             ad_account_id: acctId,
-            ad_name: lookup?.ad_name ?? null,
+            ad_name: lookup.ad_name,
             metric_date: row.date_start,
             impressions: parseInt(row.impressions || "0") || 0,
             reach: parseInt(row.reach || "0") || 0,
