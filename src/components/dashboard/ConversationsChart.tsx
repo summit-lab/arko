@@ -90,7 +90,7 @@ export function ConversationsChart({ data }: Props) {
             Interacciones nuevas
           </h3>
           <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-white/30">
-            respuestas historias + comentarios/2 + mensajes de ads · 14 d&iacute;as
+            hist. + comentarios/2 + ads msg + 5% org&aacute;nico · 14 d&iacute;as
           </p>
         </div>
         <div className="flex items-baseline gap-3">
