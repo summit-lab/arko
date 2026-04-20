@@ -179,10 +179,11 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
     const [metasRes, reelsRes, planRes, benchmarkRes] = await Promise.all([
       supabase
         .from("ig_account_insights")
-        .select("impressions, reach, likes, saves, total_interactions, followers_total")
+        .select("impressions, reach, likes, saves, total_interactions, followers_total, metric_date")
         .eq("workspace_id", workspaceId)
         .gte("metric_date", metasMonthStart)
-        .lte("metric_date", yesterday),
+        .lte("metric_date", yesterday)
+        .order("metric_date", { ascending: true }),
       supabase
         .from("reels")
         .select(`
@@ -219,7 +220,12 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
       const totalLikes = monthInsights.reduce((s, d) => s + (d.likes ?? 0), 0);
       const totalSaves = monthInsights.reduce((s, d) => s + (d.saves ?? 0), 0);
       const totalInteractions = monthInsights.reduce((s, d) => s + (d.total_interactions ?? 0), 0);
-      const latestFollowers = [...monthInsights].pop()?.followers_total ?? 0;
+      // Query is ordered by metric_date ASC — .at(-1) is the most recent snapshot.
+      // Treat null/0 as "missing" so downstream doesn't show "0 followers".
+      const latestRow = monthInsights.at(-1);
+      const latestFollowers = latestRow?.followers_total && latestRow.followers_total > 0
+        ? latestRow.followers_total
+        : 0;
 
       metasInsights = {
         totalViews,
@@ -311,7 +317,7 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         Tu perfil de marca todavía no tiene datos
       </p>
       <p className="text-[13px] text-white/30 font-light mb-6 max-w-md mx-auto">
-        Completá tu ADN de Comunicación para que Arko conozca tu negocio, audiencia, competencia y marca.
+        Completá tu ADN de Comunicación para que Moka conozca tu negocio, audiencia, competencia y marca.
       </p>
       <Link
         href="/onboarding/adn"

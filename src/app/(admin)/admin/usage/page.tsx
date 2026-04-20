@@ -60,7 +60,7 @@ interface TypeUsage {
 
 /** Human-readable feature labels */
 const FEATURE_LABELS: Record<string, string> = {
-  'ai-agents': 'Arko AI Chat',
+  'ai-agents': 'Moka AI Chat',
   'onboarding-adn': 'Onboarding ADN',
   'competitor-analysis': 'Análisis Competidores (IA)',
   'competitor-scraping': 'Scraping Competidores',
@@ -298,8 +298,7 @@ export default async function UsagePage({
             <div className="flex items-center justify-between mb-4 relative z-10">
               <p className="stat-label">{s.label}</p>
               <div
-                className={`h-9 w-9 rounded-full flex items-center justify-center ${s.color}`}
-                style={{ background: "rgba(255,255,255,0.06)" }}
+                className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${s.color}`}
               >
                 <s.icon className="h-[18px] w-[18px]" />
               </div>

@@ -120,7 +120,7 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
                 <span className={`text-[12px] font-light flex-1 text-left ${s.done ? "text-white/60" : "text-white/25"}`}>
                   {s.name}
                 </span>
-                <span className={`h-2 w-2 rounded-full shrink-0 ${s.done ? "bg-emerald-400" : "bg-white/10"}`} />
+                <span className={`h-2 w-2 rounded-full shrink-0 ${s.done ? "bg-emerald-400" : "bg-foreground/10"}`} />
                 {hasContent && (
                   <ChevronDown
                     size={14}

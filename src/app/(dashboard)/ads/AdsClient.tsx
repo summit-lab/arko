@@ -16,6 +16,7 @@ import {
 import { DateFilter } from "@/components/ui/DateFilter";
 import type { DateRange } from "@/types/date-filter";
 import { resolvePreset, dateRangeToParams } from "@/lib/date-utils";
+import { useChartTheme, type ChartTheme } from "@/hooks/useChartTheme";
 
 interface AdRow {
   ad_id: string;
@@ -103,14 +104,14 @@ function fmtDate(iso: string | null): string {
   return `hace ${Math.floor(hrs / 24)}d`;
 }
 
-function ctrColor(ctr: number) {
-  if (ctr >= 4.0) return "#34d399";
+function ctrColor(ctr: number, greenAccent: string) {
+  if (ctr >= 4.0) return greenAccent;
   if (ctr >= 2.5) return "#818cf8";
   return "#f59e0b";
 }
 
-function cpmColor(cpm: number) {
-  if (cpm <= 7)  return "#34d399";
+function cpmColor(cpm: number, greenAccent: string) {
+  if (cpm <= 7)  return greenAccent;
   if (cpm <= 10) return "#818cf8";
   return "#f472b6";
 }
@@ -131,10 +132,11 @@ function fmtChartDate(dateStr: string): string {
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 
-function ChartTooltip({ active, payload, label }: {
+function ChartTooltip({ active, payload, label, ct }: {
   active?: boolean;
   payload?: { color: string; name: string; value: number; dataKey: string }[];
   label?: string;
+  ct: ChartTheme;
 }) {
   if (!active || !payload?.length) return null;
   const fmtVal = (key: string, val: number) => {
@@ -144,13 +146,13 @@ function ChartTooltip({ active, payload, label }: {
   };
   return (
     <div className="rounded-xl px-4 py-3 backdrop-blur-xl"
-      style={{ background: "rgba(10,10,20,0.85)", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 12px 48px rgba(0,0,0,0.6)" }}>
-      <p className="text-[11px] text-white/40 mb-2">{label}</p>
+      style={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, boxShadow: ct.tooltipShadow }}>
+      <p className="text-[11px] mb-2" style={{ color: ct.tooltipMuted }}>{label}</p>
       {payload.map((e) => (
         <div key={e.dataKey} className="flex items-center gap-2 text-[11px]">
           <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: e.color }} />
-          <span className="text-white/50">{e.name}</span>
-          <span className="text-white/80 font-light ml-auto pl-4">{fmtVal(e.dataKey, e.value)}</span>
+          <span style={{ color: ct.tooltipMuted }}>{e.name}</span>
+          <span className="font-light ml-auto pl-4" style={{ color: ct.tooltipText }}>{fmtVal(e.dataKey, e.value)}</span>
         </div>
       ))}
     </div>
@@ -159,11 +161,11 @@ function ChartTooltip({ active, payload, label }: {
 
 // ─── Campaign expanded panel ──────────────────────────────────────────────────
 
-function CampaignDetail({ c }: { c: Campaign }) {
+function CampaignDetail({ c, ct }: { c: Campaign; ct: ChartTheme }) {
   const maxAdSpend = Math.max(...c.ads.map((a) => a.spend), 1);
 
   return (
-    <div className="px-5 pb-5 pt-1 border-t border-white/[0.04] space-y-5">
+    <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-5">
       <div className="grid grid-cols-12 gap-4">
 
         {/* Mini bar chart — clicks por ad */}
@@ -174,11 +176,11 @@ function CampaignDetail({ c }: { c: Campaign }) {
               <BarChart data={c.ads.map((a) => ({ name: a.ad_name.split(" – ")[1] ?? a.ad_name.slice(0, 12), clicks: a.clicks }))}
                 margin={{ top: 4, right: 0, left: -32, bottom: 0 }}>
                 <XAxis dataKey="name" axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 8 }} />
+                  tick={{ fill: ct.axisTickMuted, fontSize: 8 }} />
                 <YAxis axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 9 }}
+                  tick={{ fill: ct.axisTickMuted, fontSize: 9 }}
                   tickFormatter={(v: number) => fmt(v)} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                <Tooltip content={<ChartTooltip ct={ct} />} cursor={{ fill: ct.cursor }} />
                 <Bar dataKey="clicks" name="Clicks" fill="#818cf8" fillOpacity={0.7} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -192,14 +194,14 @@ function CampaignDetail({ c }: { c: Campaign }) {
             {[
               { label: "Impresiones", value: fmt(c.impressions), pct: 100,   color: "#818cf8" },
               { label: "Clicks",      value: fmt(c.clicks),      pct: (c.clicks / c.impressions) * 100, color: "#22d3ee" },
-              { label: "Video plays", value: fmt(c.video_plays), pct: (c.video_plays / c.impressions) * 100, color: "#34d399" },
+              { label: "Video plays", value: fmt(c.video_plays), pct: (c.video_plays / c.impressions) * 100, color: ct.greenAccent },
             ].map((step, i) => (
               <div key={step.label}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-white/35">{step.label}</span>
                   <span className="text-[11px] text-white/65 font-light">{step.value}</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                <div className="h-1.5 w-full rounded-full overflow-hidden bg-white/[0.05]">
                   <div className="h-full rounded-full" style={{ width: `${Math.min(step.pct, 100)}%`, background: step.color, opacity: 0.65 }} />
                 </div>
                 {i < 2 && (
@@ -220,13 +222,12 @@ function CampaignDetail({ c }: { c: Campaign }) {
           <p className="text-[10px] text-white/25 uppercase tracking-wider mb-3">Métricas clave</p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "CPM",          value: `$${c.cpm.toFixed(2)}`,          color: cpmColor(c.cpm) },
-              { label: "CTR",          value: `${c.ctr.toFixed(2)}%`,          color: ctrColor(c.ctr) },
-              { label: "Reach",        value: fmt(c.reach),                    color: "rgba(255,255,255,0.7)" },
+              { label: "CPM",          value: `$${c.cpm.toFixed(2)}`,          color: cpmColor(c.cpm, ct.greenAccent) },
+              { label: "CTR",          value: `${c.ctr.toFixed(2)}%`,          color: ctrColor(c.ctr, ct.greenAccent) },
+              { label: "Reach",        value: fmt(c.reach),                    color: ct.tooltipText },
               { label: "Video Plays",  value: fmt(c.video_plays),              color: "#22d3ee" },
             ].map((m) => (
-              <div key={m.label} className="rounded-lg px-3 py-2.5"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div key={m.label} className="rounded-lg px-3 py-2.5 bg-white/[0.03] border border-white/[0.06]">
                 <p className="text-[9px] text-white/25 uppercase tracking-wider mb-1">{m.label}</p>
                 <p className="text-[15px] font-light" style={{ color: m.color }}>{m.value}</p>
               </div>
@@ -240,22 +241,21 @@ function CampaignDetail({ c }: { c: Campaign }) {
         <p className="text-[10px] text-white/25 uppercase tracking-wider mb-3">Ads en esta campaña</p>
         <div className="space-y-2">
           {c.ads.map((ad) => (
-            <div key={ad.ad_id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
-              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div key={ad.ad_id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-border/40">
               <div className="h-7 w-7 rounded-md shrink-0 flex items-center justify-center"
                 style={{ background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.15)" }}>
                 <Play size={10} className="text-indigo-400/60" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] text-white/60 truncate">{ad.ad_name}</p>
-                <div className="h-1 w-full rounded-full mt-1.5 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                <div className="h-1 w-full rounded-full mt-1.5 overflow-hidden bg-white/[0.05]">
                   <div className="h-full rounded-full"
                     style={{ width: `${(ad.spend / maxAdSpend) * 100}%`, background: "linear-gradient(90deg,#818cf8,#22d3ee)", opacity: 0.5 }} />
                 </div>
               </div>
               <div className="flex items-center gap-4 shrink-0 text-[10px]">
                 <span className="text-white/30">${ad.spend.toFixed(0)}</span>
-                <span style={{ color: ctrColor(ad.ctr) }}>{ad.ctr.toFixed(1)}% CTR</span>
+                <span style={{ color: ctrColor(ad.ctr, ct.greenAccent) }}>{ad.ctr.toFixed(1)}% CTR</span>
                 <span className="text-white/30">{fmt(ad.clicks)} clicks</span>
                 <span className="text-white/25">{fmt(ad.video_plays)} plays</span>
               </div>
@@ -270,6 +270,7 @@ function CampaignDetail({ c }: { c: Campaign }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AdsClient({ workspaceId }: { workspaceId: string }) {
+  const ct = useChartTheme();
   const [dateRange, setDateRange]   = useState<DateRange>(() => resolvePreset("30d"));
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [syncing, setSyncing]       = useState(false);
@@ -302,7 +303,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
     setSyncing(true);
     setSyncMsg("Sincronizando datos de Meta Ads…");
     try {
-      const res = await fetch(`/api/v1/sync/instagram?steps=all&workspace_id=${workspaceId}`, { method: "POST" });
+      const res = await fetch(`/api/v1/sync/instagram?steps=ads&workspace_id=${workspaceId}`, { method: "POST" });
       if (res.ok) {
         setSyncMsg("Sincronización completada. Actualizando…");
         await fetchData();
@@ -322,11 +323,11 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
   // KPIs — real data with real trends
   const KPIS = [
     { label: "Spend Total",    value: `$${overview.totalSpend >= 1000 ? `${(overview.totalSpend / 1000).toFixed(1)}K` : overview.totalSpend.toFixed(0)}`, trend: trends.spend,      icon: DollarSign,       color: "#818cf8" },
-    { label: "Impresiones",    value: fmt(overview.totalImpressions), trend: trends.impressions,  icon: Eye,              color: "#34d399" },
+    { label: "Impresiones",    value: fmt(overview.totalImpressions), trend: trends.impressions,  icon: Eye,              color: ct.greenAccent },
     { label: "Clicks",         value: fmt(overview.totalClicks),      trend: trends.clicks,       icon: MousePointerClick, color: "#22d3ee" },
     { label: "CTR Promedio",   value: `${overview.avgCtr.toFixed(1)}%`, trend: trends.ctr,        icon: TrendingUp,       color: "#f472b6" },
     { label: "CPM Promedio",   value: `$${overview.avgCpm.toFixed(2)}`, trend: trends.cpm,        icon: BarChart3,        color: "#818cf8", invertTrend: true },
-    { label: "Video Plays",    value: fmt(overview.totalVideoPlays),  trend: trends.videoPlays,   icon: Video,            color: "#34d399" },
+    { label: "Video Plays",    value: fmt(overview.totalVideoPlays),  trend: trends.videoPlays,   icon: Video,            color: ct.greenAccent },
   ];
 
   // Chart data with formatted dates
@@ -344,8 +345,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
         <div className="flex items-center gap-3">
           <DateFilter mode="state" defaultPreset="30d" onChange={setDateRange} />
           <button onClick={handleSync} disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white/60 bg-white/[0.06] border border-white/[0.1]">
             <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
             {syncing ? "Sincronizando…" : "Sincronizar Ads"}
           </button>
@@ -367,7 +367,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
             </div>
           )}
 
-          <div className="h-3 w-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <div className="h-3 w-px bg-white/[0.08]" />
 
           <div className="flex items-center gap-2 text-[11px] text-white/30 font-light">
             {adsData?.lastSync?.status === "completed"
@@ -378,7 +378,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
 
           {syncMsg && (
             <>
-              <div className="h-3 w-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <div className="h-3 w-px bg-white/[0.08]" />
               <span className="text-[11px] text-violet-400/70 font-light animate-pulse">{syncMsg}</span>
             </>
           )}
@@ -416,12 +416,11 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                 </div>
                 {hasTrend ? (
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                    style={{ color: positive ? "#34d399" : "#f472b6", background: positive ? "rgba(52,211,153,0.1)" : "rgba(244,114,182,0.1)" }}>
+                    style={{ color: positive ? ct.greenAccent : "#f472b6", background: positive ? ct.greenAccentSoft : "rgba(244,114,182,0.1)" }}>
                     {k.trend > 0 ? "+" : ""}{k.trend}%
                   </span>
                 ) : (
-                  <span className="text-[9px] text-white/15 px-1.5 py-0.5 rounded-full"
-                    style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <span className="text-[9px] text-white/15 px-1.5 py-0.5 rounded-full border border-white/[0.07]">
                     {hasDailyData ? "=" : "—"}
                   </span>
                 )}
@@ -444,7 +443,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
           </div>
           <div className="flex items-center gap-4 text-[10px] text-white/25">
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#818cf8]" />Spend</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#34d399]" />Clicks</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: ct.greenAccent }} />Clicks</span>
             <span className="flex items-center gap-1.5"><span className="h-px w-4 bg-[#f472b6]" />CPM</span>
           </div>
         </div>
@@ -458,21 +457,21 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                     <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gClicks" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#34d399" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                    <stop offset="0%" stopColor={ct.greenAccent} stopOpacity={0.2} />
+                    <stop offset="100%" stopColor={ct.greenAccent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="dateLabel" axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.22)", fontSize: 10 }} />
+                  tick={{ fill: ct.axisTickMuted, fontSize: 10 }} />
                 <YAxis yAxisId="left" axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.18)", fontSize: 10 }}
+                  tick={{ fill: ct.axisTickMuted, fontSize: 10 }}
                   tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}`} />
                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.18)", fontSize: 10 }}
+                  tick={{ fill: ct.axisTickMuted, fontSize: 10 }}
                   tickFormatter={(v: number) => fmt(v)} />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(255,255,255,0.05)", strokeWidth: 1 }} />
+                <Tooltip content={<ChartTooltip ct={ct} />} cursor={{ stroke: ct.cursorLine, strokeWidth: 1 }} />
                 <Area yAxisId="left"  type="monotone" dataKey="spend"  name="Spend"  stroke="#818cf8" strokeWidth={2} fill="url(#gSpend)"  dot={false} />
-                <Area yAxisId="right" type="monotone" dataKey="clicks" name="Clicks" stroke="#34d399" strokeWidth={2} fill="url(#gClicks)" dot={false} />
+                <Area yAxisId="right" type="monotone" dataKey="clicks" name="Clicks" stroke={ct.greenAccent} strokeWidth={2} fill="url(#gClicks)" dot={false} />
                 <Line yAxisId="left"  type="monotone" dataKey="cpm"    name="CPM"    stroke="#f472b6" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
               </ComposedChart>
             </ResponsiveContainer>
@@ -489,12 +488,12 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
 
         {/* Campaigns table */}
         <div className="col-span-8 glass-panel rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/[0.04] flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between">
             <p className="text-[15px] text-white/70 font-extralight">Campañas</p>
             <span className="text-[10px] text-white/20">{campaigns.length} campañas</span>
           </div>
           {/* Header */}
-          <div className="grid grid-cols-12 gap-2 text-[9px] text-white/20 uppercase tracking-widest px-6 py-3 border-b border-white/[0.03]">
+          <div className="grid grid-cols-12 gap-2 text-[9px] text-white/20 uppercase tracking-widest px-6 py-3 border-b border-border/30">
             <div className="col-span-4">Campaña</div>
             <div className="col-span-1 text-right">Spend</div>
             <div className="col-span-2 text-right">Impresiones</div>
@@ -515,13 +514,10 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
             const isOpen = expandedId === c.campaign_id;
             const label  = campaignLabel(c, idx);
             return (
-              <div key={c.campaign_id} className="border-b border-white/[0.03] last:border-0">
+              <div key={c.campaign_id} className="border-b border-border/30 last:border-0">
                 <div
-                  className="grid grid-cols-12 gap-2 items-center px-6 py-4 cursor-pointer transition-colors"
-                  style={{ background: isOpen ? "rgba(255,255,255,0.02)" : undefined }}
+                  className={`grid grid-cols-12 gap-2 items-center px-6 py-4 cursor-pointer transition-colors ${isOpen ? "bg-white/[0.02]" : "hover:bg-white/[0.02]"}`}
                   onClick={() => setExpandedId(isOpen ? null : c.campaign_id)}
-                  onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.background = "rgba(255,255,255,0.012)"; }}
-                  onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.background = ""; }}
                 >
                   <div className="col-span-4 flex items-center gap-3">
                     <div className="h-8 w-8 rounded-lg shrink-0 flex items-center justify-center"
@@ -530,17 +526,17 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[12px] text-white/65 truncate font-light">{label}</p>
-                      <p className="text-[10px] text-white/22">{c.ad_count} ads · {c.adset_ids.length} ad sets</p>
+                      <p className="text-[10px] text-white/20">{c.ad_count} ads · {c.adset_ids.length} ad sets</p>
                     </div>
                   </div>
                   <div className="col-span-1 text-right text-[12px] text-white/60 font-light">${c.spend.toFixed(0)}</div>
                   <div className="col-span-2 text-right text-[11px] text-white/40">{fmt(c.impressions)}</div>
                   <div className="col-span-1 text-right text-[11px] text-white/40">{fmt(c.clicks)}</div>
                   <div className="col-span-1 text-right">
-                    <span className="text-[11px] font-light" style={{ color: ctrColor(c.ctr) }}>{c.ctr.toFixed(1)}%</span>
+                    <span className="text-[11px] font-light" style={{ color: ctrColor(c.ctr, ct.greenAccent) }}>{c.ctr.toFixed(1)}%</span>
                   </div>
                   <div className="col-span-1 text-right">
-                    <span className="text-[11px] font-light" style={{ color: cpmColor(c.cpm) }}>${c.cpm.toFixed(1)}</span>
+                    <span className="text-[11px] font-light" style={{ color: cpmColor(c.cpm, ct.greenAccent) }}>${c.cpm.toFixed(1)}</span>
                   </div>
                   <div className="col-span-1 text-right text-[11px] text-white/30">{fmt(c.video_plays)}</div>
                   <div className="col-span-1 flex justify-end">
@@ -549,7 +545,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                       : <ChevronDown size={13} className="text-white/15" />}
                   </div>
                 </div>
-                {isOpen && <CampaignDetail c={c} />}
+                {isOpen && <CampaignDetail c={c} ct={ct} />}
               </div>
             );
           })}
@@ -557,7 +553,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
 
         {/* Geo + CTR mini */}
         <div className="col-span-4 glass-panel rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/[0.04] flex items-center gap-2">
+          <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2">
             <Globe size={13} className="text-white/25" />
             <p className="text-[15px] text-white/70 font-extralight">CTR por campaña</p>
           </div>
@@ -571,13 +567,13 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                     data={campaigns.map((c, i) => ({ name: `C${i + 1}`, ctr: parseFloat(c.ctr.toFixed(1)) }))}
                     margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
                     <XAxis dataKey="name" axisLine={false} tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 9 }} />
+                      tick={{ fill: ct.axisTickMuted, fontSize: 9 }} />
                     <YAxis axisLine={false} tickLine={false}
-                      tick={{ fill: "rgba(255,255,255,0.15)", fontSize: 9 }} domain={[0, "auto"]} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                      tick={{ fill: ct.axisTickMuted, fontSize: 9 }} domain={[0, "auto"]} />
+                    <Tooltip content={<ChartTooltip ct={ct} />} cursor={{ fill: ct.cursor }} />
                     <Bar dataKey="ctr" name="CTR" radius={[4, 4, 0, 0]}>
                       {campaigns.map((c) => (
-                        <Cell key={c.campaign_id} fill={ctrColor(c.ctr)} fillOpacity={0.65} />
+                        <Cell key={c.campaign_id} fill={ctrColor(c.ctr, ct.greenAccent)} fillOpacity={0.65} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -589,18 +585,17 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
           </div>
 
           {/* Overview metrics mini */}
-          <div className="px-5 pb-5 border-t border-white/[0.04] pt-4">
+          <div className="px-5 pb-5 border-t border-border/40 pt-4">
             <p className="text-[10px] text-white/20 uppercase tracking-wider mb-3">Resumen del período</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: "Reach Total", value: fmt(overview.totalReach), color: "rgba(255,255,255,0.6)" },
+                { label: "Reach Total", value: fmt(overview.totalReach), color: ct.tooltipText },
                 { label: "Spend Total", value: `$${overview.totalSpend.toFixed(0)}`, color: "#818cf8" },
-                { label: "CTR Avg",     value: `${overview.avgCtr.toFixed(2)}%`, color: ctrColor(overview.avgCtr) },
-                { label: "CPM Avg",     value: `$${overview.avgCpm.toFixed(2)}`, color: cpmColor(overview.avgCpm) },
+                { label: "CTR Avg",     value: `${overview.avgCtr.toFixed(2)}%`, color: ctrColor(overview.avgCtr, ct.greenAccent) },
+                { label: "CPM Avg",     value: `$${overview.avgCpm.toFixed(2)}`, color: cpmColor(overview.avgCpm, ct.greenAccent) },
               ].map((m) => (
-                <div key={m.label} className="rounded-lg px-3 py-2"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <p className="text-[9px] text-white/22 uppercase tracking-wider mb-0.5">{m.label}</p>
+                <div key={m.label} className="rounded-lg px-3 py-2 bg-white/[0.03] border border-border/40">
+                  <p className="text-[9px] text-white/20 uppercase tracking-wider mb-0.5">{m.label}</p>
                   <p className="text-[13px] font-light" style={{ color: m.color }}>{m.value}</p>
                 </div>
               ))}
@@ -612,7 +607,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
       {/* ── Creative ranking ── */}
       {campaigns.length > 0 && (
         <div className="glass-panel rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/[0.04] flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between">
             <div>
               <p className="text-[15px] text-white/70 font-extralight">Ranking de creativos</p>
               <p className="text-[11px] text-white/25 font-light mt-0.5">Ordenados por CTR · todos los ads</p>
@@ -624,13 +619,13 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 divide-x divide-white/[0.04]">
+          <div className="grid grid-cols-3 divide-x divide-border/40">
             {campaigns
               .flatMap((c, ci) => c.ads.map((a) => ({ ...a, campaignLabel: campaignLabel(c, ci) })))
               .sort((a, b) => b.ctr - a.ctr)
               .slice(0, 6)
               .map((ad, idx) => {
-                const cc = ctrColor(ad.ctr);
+                const cc = ctrColor(ad.ctr, ct.greenAccent);
                 const isBest = idx === 0;
                 return (
                   <div key={ad.ad_id} className="p-5 space-y-4">
@@ -651,12 +646,11 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
                         { label: "CTR",    value: `${ad.ctr.toFixed(1)}%`,      color: cc },
-                        { label: "Clicks", value: fmt(ad.clicks),               color: "rgba(255,255,255,0.55)" },
+                        { label: "Clicks", value: fmt(ad.clicks),               color: ct.tooltipText },
                         { label: "Plays",  value: fmt(ad.video_plays),          color: "#22d3ee" },
                       ].map((m) => (
-                        <div key={m.label} className="rounded-lg p-2 text-center"
-                          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                          <p className="text-[9px] text-white/22 uppercase tracking-wider mb-0.5">{m.label}</p>
+                        <div key={m.label} className="rounded-lg p-2 text-center bg-white/[0.03] border border-border/40">
+                          <p className="text-[9px] text-white/20 uppercase tracking-wider mb-0.5">{m.label}</p>
                           <p className="text-[12px] font-light" style={{ color: m.color }}>{m.value}</p>
                         </div>
                       ))}
@@ -665,7 +659,7 @@ export default function AdsClient({ workspaceId }: { workspaceId: string }) {
                       <div className="flex justify-between text-[9px] text-white/20 mb-1">
                         <span>Spend</span><span>${ad.spend.toFixed(0)}</span>
                       </div>
-                      <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-1 w-full rounded-full overflow-hidden bg-white/[0.05]">
                         <div className="h-full rounded-full"
                           style={{ width: `${(ad.spend / Math.max(...campaigns.flatMap((c) => c.ads.map((a) => a.spend)), 1)) * 100}%`, background: cc, opacity: 0.45 }} />
                       </div>

@@ -10,8 +10,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface GrowthDataPoint {
   date: string;
@@ -47,37 +47,15 @@ function formatCompactValue(n: number): string {
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string }) {
   if (!active || !payload) return null;
   return (
-    <div
-      className="rounded-xl px-4 py-3 backdrop-blur-xl"
-      style={{
-        background: "rgba(10,10,20,0.55)",
-        border: "1px solid rgba(255,255,255,0.10)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
-      }}
-    >
-      <p className="text-[11px] text-white/40 font-medium mb-2">{label}</p>
+    <div className="rounded-xl px-4 py-3 bg-popover border border-border text-popover-foreground shadow-xl backdrop-blur-xl">
+      <p className="text-[11px] text-muted-foreground font-medium mb-2">{label}</p>
       {payload.map((entry) => (
         <div key={entry.name} className="flex items-center gap-2">
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: entry.color }} />
-          <span className="text-[11px] text-white/60 font-light">{entry.name}</span>
-          <span className="text-[12px] text-white font-light ml-auto">{formatCompactValue(entry.value)}</span>
+          <span className="text-[11px] text-muted-foreground font-light">{entry.name}</span>
+          <span className="text-[12px] text-popover-foreground font-light ml-auto">{formatCompactValue(entry.value)}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-function SalesTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: SalesDataPoint }> }) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="rounded-xl px-4 py-3 backdrop-blur-xl max-w-[220px]"
-      style={{ background: "rgba(10,10,20,0.9)", border: "1px solid rgba(52,211,153,0.2)", boxShadow: "0 12px 48px rgba(0,0,0,0.5)" }}>
-      <p className="text-[11px] text-white/40 mb-1 leading-snug">{d.caption}</p>
-      <p className="text-[15px] font-light text-emerald-300">${formatCompactValue(d.amount)}</p>
-      {d.views > 0 && (
-        <p className="text-[10px] text-white/30 mt-0.5">${(d.amount / d.views).toFixed(2)} por view</p>
-      )}
     </div>
   );
 }
@@ -85,6 +63,7 @@ function SalesTooltip({ active, payload }: { active?: boolean; payload?: Array<{
 export function DashboardCharts({ growthData = [], engagementData = [], salesData = [] }: DashboardChartsProps) {
   const hasGrowth = growthData.length > 0;
   const hasEngagement = engagementData.length > 0;
+  const chart = useChartTheme();
   void salesData; // passed but used in parent sidebar
 
   return (
@@ -120,7 +99,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                 </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.04)"
+                  stroke={chart.grid}
                   horizontal={true}
                   vertical={false}
                 />
@@ -128,13 +107,13 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                  tick={{ fill: chart.axisTick, fontSize: 10 }}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                  tick={{ fill: chart.axisTick, fontSize: 11 }}
                   tickFormatter={(v: number) => formatCompactValue(v)}
                 />
                 <Tooltip content={<CustomTooltip />} />
@@ -197,7 +176,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
               <BarChart data={engagementData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.04)"
+                  stroke={chart.grid}
                   horizontal={true}
                   vertical={false}
                 />
@@ -205,16 +184,16 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                  tick={{ fill: chart.axisTick, fontSize: 10 }}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                  tick={{ fill: chart.axisTick, fontSize: 11 }}
                   tickFormatter={(v: number) => formatCompactValue(v)}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.06)" }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: chart.cursorFill }} />
                 <Bar dataKey="likes" name="Me gusta" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
                 <Bar dataKey="saves" name="Guardados" fill="#AF6EC7" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
                 <Bar dataKey="comments" name="Comentarios" fill="#4BCEAF" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />

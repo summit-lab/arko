@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { CountUp } from "@/components/ui/CountUp";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -94,28 +95,21 @@ function DashChartTooltip({ active, payload, label }: { active?: boolean; payloa
   const impressions = payload.find((p) => p.dataKey === "impressions");
   const reach = payload.find((p) => p.dataKey === "reach");
   return (
-    <div
-      className="rounded-lg border border-white/[0.08] px-3.5 py-2.5"
-      style={{
-        background: "rgba(12,12,20,0.94)",
-        backdropFilter: "blur(20px)",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(129,140,248,0.06), inset 0 1px 0 rgba(255,255,255,0.05)",
-      }}
-    >
-      <p className="text-white/30 text-[9px] font-medium uppercase tracking-[0.1em] mb-1.5">{label}</p>
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3.5 py-2.5 backdrop-blur-xl shadow-xl">
+      <p className="text-muted-foreground text-[9px] font-medium uppercase tracking-[0.1em] mb-1.5">{label}</p>
       <div className="flex gap-5">
         {impressions && (
           <div>
-            <p className="text-[9px] text-white/35 uppercase tracking-[0.06em]">Impresiones</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.06em]">Impresiones</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-[18px] font-light tracking-[-0.02em] text-white">{fmt(impressions.value)}</span>
+              <span className="text-[18px] font-light tracking-[-0.02em] text-popover-foreground">{fmt(impressions.value)}</span>
               <ArrowUpRight className="h-3 w-3 text-emerald-400" />
             </div>
           </div>
         )}
         {reach && (
           <div>
-            <p className="text-[9px] text-white/35 uppercase tracking-[0.06em]">Alcance</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.06em]">Alcance</p>
             <div className="flex items-baseline gap-1">
               <span className="text-[18px] font-light tracking-[-0.02em] text-cyan-400">{fmt(reach.value)}</span>
               <ArrowUpRight className="h-3 w-3 text-emerald-400" />
@@ -130,14 +124,7 @@ function DashChartTooltip({ active, payload, label }: { active?: boolean; payloa
 function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { fill: string } }> }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="rounded-lg border border-white/[0.08] px-3 py-2"
-      style={{
-        background: "rgba(10,10,20,0.92)",
-        backdropFilter: "blur(20px)",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
-      }}
-    >
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 backdrop-blur-xl shadow-xl">
       {payload.map((entry) => (
         <p key={entry.name} className="text-[13px] font-light" style={{ color: entry.payload.fill }}>
           {entry.name}: {fmt(entry.value)}
@@ -147,7 +134,7 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ n
   );
 }
 
-function ChartCursor({ points, height }: { points?: Array<{ x: number; y: number }>; height?: number }) {
+function ChartCursor({ points, height, stroke }: { points?: Array<{ x: number; y: number }>; height?: number; stroke?: string }) {
   if (!points?.[0]) return null;
   return (
     <line
@@ -155,7 +142,7 @@ function ChartCursor({ points, height }: { points?: Array<{ x: number; y: number
       y1={0}
       x2={points[0].x}
       y2={height ?? 220}
-      stroke="rgba(129,140,248,0.3)"
+      stroke={stroke ?? "rgba(129,140,248,0.5)"}
       strokeWidth={1}
       strokeDasharray="4 3"
     />
@@ -165,12 +152,13 @@ function ChartCursor({ points, height }: { points?: Array<{ x: number; y: number
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays = 90, totalAdVideoPlays = 0 }: IGDashboardProps) {
+  const chart = useChartTheme();
   if (dailyInsights.length === 0 && reels.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <Eye className="h-12 w-12 text-zinc-600 mb-4" />
-        <h3 className="text-lg font-light text-zinc-300">Sin datos disponibles</h3>
-        <p className="mt-2 text-sm text-zinc-500 max-w-md">
+        <Eye className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-light text-foreground">Sin datos disponibles</h3>
+        <p className="mt-2 text-sm text-muted-foreground max-w-md">
           Sincroniza tu cuenta de Instagram para ver el dashboard completo.
         </p>
       </div>
@@ -307,16 +295,16 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                     </feMerge>
                   </filter>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.25)" }}
+                  tick={{ fontSize: 10, fill: chart.axisTickSubtle }}
                   tickLine={false}
                   axisLine={false}
                   interval={Math.max(0, Math.floor(chartData.length / 6) - 1)}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.25)" }}
+                  tick={{ fontSize: 10, fill: chart.axisTickSubtle }}
                   tickLine={false}
                   axisLine={false}
                   width={42}
@@ -324,7 +312,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 />
                 <Tooltip
                   content={<DashChartTooltip />}
-                  cursor={<ChartCursor />}
+                  cursor={<ChartCursor stroke={chart.isDark ? "rgba(129,140,248,0.5)" : "rgba(122,134,224,0.55)"} />}
                 />
                 <Area
                   type="monotone"
@@ -359,8 +347,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           <div className="glass-card p-6 flex-1">
             <div className="flex items-center justify-between mb-3">
               <p className="stat-label">Conversión de perfil</p>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50"
-                style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 bg-white/[0.06]">
                 <TrendingUp className="h-[16px] w-[16px]" />
               </div>
             </div>
@@ -379,8 +366,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           <div className="glass-card p-6 flex-1">
             <div className="flex items-center justify-between mb-3">
               <p className="stat-label">Crecimiento de perfil</p>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50"
-                style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 bg-white/[0.06]">
                 <Users className="h-[16px] w-[16px]" />
               </div>
             </div>
@@ -408,25 +394,25 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
               <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="followersGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                    <stop offset="0%" stopColor={chart.greenAccent} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={chart.greenAccent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" tick={false} axisLine={false} tickLine={false} height={0} />
                 <YAxis hide />
                 <Tooltip
-                  contentStyle={{ background: "rgba(10,10,15,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }}
-                  labelStyle={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}
+                  contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8, fontSize: 12, color: chart.tooltipText }}
+                  labelStyle={{ color: chart.tooltipTextMuted, fontSize: 10 }}
                   formatter={(value) => [`+${fmt(Number(value))}`, "Nuevos"]}
                 />
                 <Area
                   type="monotone"
                   dataKey="newFollowers"
-                  stroke="#34d399"
+                  stroke={chart.greenAccent}
                   fill="url(#followersGrad)"
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 3, fill: "#34d399", stroke: "#34d399" }}
+                  activeDot={{ r: 3, fill: chart.greenAccent, stroke: chart.greenAccent }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -478,8 +464,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           {bestReel ? (
             <div className="flex gap-4">
               {/* Thumbnail */}
-              <div className="relative w-[90px] h-[160px] rounded-lg overflow-hidden flex-shrink-0"
-                style={{ background: "rgba(255,255,255,0.04)" }}>
+              <div className="relative w-[90px] h-[160px] rounded-lg overflow-hidden flex-shrink-0 bg-white/[0.04]">
                 {bestReel.thumbnail_url ? (
                   <Image
                     src={bestReel.thumbnail_url}
@@ -536,8 +521,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 href={`/instagram/${reel.id}`}
                 className="flex-shrink-0 group cursor-pointer"
               >
-                <div className="relative w-[100px] h-[140px] rounded-lg overflow-hidden mb-2 transition-transform duration-200 group-hover:scale-[1.03]"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="relative w-[100px] h-[140px] rounded-lg overflow-hidden mb-2 transition-transform duration-200 group-hover:scale-[1.03] bg-white/[0.04] border border-white/[0.06]">
                   {reel.thumbnail_url ? (
                     <Image
                       src={reel.thumbnail_url}
@@ -552,8 +536,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                     </div>
                   )}
                   {/* Rank badge */}
-                  <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold"
-                    style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+                  <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white bg-black/60 backdrop-blur-sm">
                     #{idx + 1}
                   </div>
                 </div>

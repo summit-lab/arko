@@ -110,7 +110,7 @@ export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
 
   return (
     <div className="space-y-3">
-      <label className="block text-[10px] text-zinc-500 uppercase tracking-wider">
+      <label className="block text-[10px] text-muted-foreground uppercase tracking-wider">
         Logo del workspace
       </label>
 

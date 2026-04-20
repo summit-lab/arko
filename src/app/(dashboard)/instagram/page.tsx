@@ -235,12 +235,16 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         total_exits: seq.total_exits,
         archived: seq.archived,
         slides: Array.isArray(seq.ig_story_slides)
-          ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index).map((slide) => ({
-              ...slide,
-              // CDN-first fallback: use original URL if available, else archived storage URL
-              thumbnail_url: slide.thumbnail_url || (slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null),
-              media_url: slide.media_url || (slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null),
-            }))
+          ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index).map((slide) => {
+              // Storage-first: IG CDN signed URLs expire in hours/days, but the DB string stays truthy
+              // forever, so always prefer the archived storage URL when available.
+              const archivedUrl = slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null;
+              return {
+                ...slide,
+                thumbnail_url: archivedUrl || slide.thumbnail_url,
+                media_url: archivedUrl || slide.media_url,
+              };
+            })
           : [],
       }));
     }

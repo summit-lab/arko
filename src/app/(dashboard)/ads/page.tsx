@@ -7,7 +7,7 @@ export default async function AdsPage() {
   if (!workspaceId) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[60vh]">
-        <p className="text-white/30 text-[13px] font-light">No se encontró workspace.</p>
+        <p className="text-muted-foreground text-[13px] font-light">No se encontró workspace.</p>
       </div>
     );
   }

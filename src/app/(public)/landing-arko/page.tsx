@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Arko — AI Marketing Director",
+  title: "Moka — AI Marketing Director",
   description:
     "AI-powered marketing intelligence for high-earning content creators and personal brands.",
   robots: "noindex, nofollow",
@@ -20,7 +20,7 @@ function GlassCard({ children, className = "" }: { children: React.ReactNode; cl
 function StatBlock({ value, label }: { value: string; label: string }) {
   return (
     <div className="text-center">
-      <p className="font-[family-name:var(--font-heading-local)] text-4xl md:text-5xl bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+      <p className="font-[family-name:var(--font-heading-local)] text-4xl md:text-5xl bg-gradient-to-b from-foreground to-foreground/60 bg-clip-text text-transparent">
         {value}
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">{label}</p>
@@ -70,7 +70,7 @@ export default function LandingArkoPage() {
           </span>
         </h1>
         <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-white/50 md:text-xl">
-          Arko is the AI Marketing Director that unifies your Instagram, YouTube,
+          Moka is the AI Marketing Director that unifies your Instagram, YouTube,
           and Meta Ads data into one intelligent dashboard &mdash; so every decision
           is backed by real performance data.
         </p>
@@ -223,7 +223,7 @@ export default function LandingArkoPage() {
             </div>
             <h3 className="font-[family-name:var(--font-heading-local)] text-base">We sync your data</h3>
             <p className="mt-2 text-sm leading-relaxed text-white/40">
-              Arko automatically pulls your metrics, media, and campaign data.
+              Moka automatically pulls your metrics, media, and campaign data.
               Everything stays encrypted and isolated in your private workspace.
             </p>
           </div>
@@ -270,7 +270,7 @@ export default function LandingArkoPage() {
           <GlassCard>
             <h3 className="font-[family-name:var(--font-heading-local)] text-base text-emerald-400">Read-Only Access</h3>
             <p className="mt-2 text-sm leading-relaxed text-white/45">
-              Arko only reads your data &mdash; we never post, modify, or delete
+              Moka only reads your data &mdash; we never post, modify, or delete
               anything on your accounts. All API access is strictly read-only.
             </p>
           </GlassCard>

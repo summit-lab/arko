@@ -56,7 +56,7 @@ export function InviteRegisterForm({ email, token }: Props) {
             type="text"
             required
             placeholder="Tu nombre"
-            className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+            className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-muted-foreground outline-none focus:border-ring transition-colors"
           />
         </div>
       </div>
@@ -74,7 +74,7 @@ export function InviteRegisterForm({ email, token }: Props) {
             required
             minLength={6}
             placeholder="Mínimo 6 caracteres"
-            className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
+            className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-muted-foreground outline-none focus:border-ring transition-colors"
           />
         </div>
       </div>

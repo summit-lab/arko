@@ -150,7 +150,7 @@ export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
 
               {/* Active dot */}
               {active && !complete && (
-                <div className="ml-auto shrink-0 h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" />
+                <div className="ml-auto shrink-0 h-1.5 w-1.5 rounded-full bg-foreground/40 animate-pulse" />
               )}
             </div>
           );

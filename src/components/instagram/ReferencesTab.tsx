@@ -117,7 +117,7 @@ function ReelThumb({ reel }: { reel: ScrapedReel }) {
       href={reel.permalink ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
-      className="group relative rounded-xl overflow-hidden bg-zinc-900 block"
+      className="group relative rounded-xl overflow-hidden bg-muted block"
       style={{ aspectRatio: "9/16" }}
     >
       {reel.thumbnail_url && !failed ? (
@@ -199,12 +199,7 @@ function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete, ree
 
   return (
     <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        background: "linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.02) 100%)",
-        border: "1px solid rgba(255,255,255,0.09)",
-        boxShadow: "0 2px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)",
-      }}
+      className="glass-card rounded-2xl overflow-hidden"
       onMouseLeave={() => setConfirmDel(false)}
     >
       {/* ── Header: avatar + info ── */}
@@ -236,16 +231,16 @@ function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete, ree
             <div className="flex items-center gap-1 shrink-0">
               {igUrl && (
                 <a href={igUrl} target="_blank" rel="noopener noreferrer"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center transition-all hover:bg-white/[0.07]"
-                  style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                  className="h-7 w-7 rounded-lg flex items-center justify-center transition-all hover:bg-white/[0.07] border border-white/[0.08]">
                   <ExternalLink size={11} className="text-white/30" />
                 </a>
               )}
               <button onClick={handleDelete} disabled={deleting}
-                className="h-7 rounded-lg px-2 flex items-center gap-1 text-[10px] transition-all cursor-pointer disabled:opacity-30"
-                style={confirmDel ? {
-                  background: "rgba(251,113,133,0.15)", border: "1px solid rgba(251,113,133,0.3)", color: "#fb7185",
-                } : { border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.2)" }}>
+                className={`h-7 rounded-lg px-2 flex items-center gap-1 text-[10px] transition-all cursor-pointer disabled:opacity-30 border ${
+                  confirmDel
+                    ? "bg-rose-400/15 border-rose-400/30 text-rose-400"
+                    : "border-white/[0.08] text-white/20"
+                }`}>
                 {deleting ? <Loader2 size={9} className="animate-spin" /> : <X size={9} />}
                 {confirmDel && <span>Confirmar</span>}
               </button>
@@ -301,12 +296,7 @@ function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete, ree
         {/* Scrape / Re-scrape */}
         {reference.brand_url ? (
           <button onClick={handleScrape} disabled={scraping}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer disabled:opacity-40"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              color: "rgba(255,255,255,0.35)",
-            }}>
+            className="flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer disabled:opacity-40 bg-white/[0.04] border border-white/[0.08] text-white/40">
             {scraping
               ? <><Loader2 size={10} className="animate-spin" /> Scrapeando…</>
               : <><RefreshCw size={10} />{hasData ? "Re-scrapear" : "Ver perfil y reels"}</>
@@ -317,12 +307,7 @@ function ReferenceCard({ reference, workspaceId, onDelete, onScrapeComplete, ree
         {/* Toggle reels */}
         {hasReels && (
           <button onClick={() => onReelsToggle(!reelsOpen)}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer ml-auto"
-            style={{
-              background: reelsOpen ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              color: "rgba(255,255,255,0.4)",
-            }}>
+            className={`flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-medium transition-all cursor-pointer ml-auto border border-white/[0.08] text-white/40 ${reelsOpen ? "bg-white/[0.07]" : "bg-white/[0.03]"}`}>
             <Play size={9} />
             {reels.length} reels
             {reelsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
@@ -396,17 +381,15 @@ function AddModal({ onClose, onSave, workspaceId }: {
   }
 
   const inputStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: 12, padding: "10px 14px", color: "rgba(255,255,255,0.8)",
+    background: "var(--muted)", border: "1px solid var(--border)",
+    borderRadius: 12, padding: "10px 14px", color: "var(--foreground)",
     fontSize: 13, outline: "none", width: "100%", fontFamily: "inherit",
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-foreground/50 dark:bg-black/75 backdrop-blur-sm"
       onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 space-y-5"
-        style={{ background: "rgba(10,10,20,0.98)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}
+      <div className="w-full max-w-md rounded-2xl p-6 space-y-5 bg-popover text-popover-foreground border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -414,8 +397,7 @@ function AddModal({ onClose, onSave, workspaceId }: {
             <p className="text-[14px] text-white/80 font-light">Agregar referencia</p>
           </div>
           <button onClick={onClose}
-            className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/[0.07] transition-all cursor-pointer"
-            style={{ border: "1px solid rgba(255,255,255,0.09)" }}>
+            className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/[0.07] transition-all cursor-pointer border border-white/[0.1]">
             <X size={12} className="text-white/40" />
           </button>
         </div>
@@ -500,7 +482,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-pulse">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-40 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)" }} />
+          <div key={i} className="h-40 rounded-2xl bg-white/[0.03]" />
         ))}
       </div>
     );
@@ -524,8 +506,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
           </div>
           {references.length > 0 && (
             <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer bg-white/[0.05] border border-white/[0.1] text-white/50">
               <Plus size={13} /> Agregar
             </button>
           )}

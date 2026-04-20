@@ -28,13 +28,105 @@ export const maxDuration = 120;
 
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
-import { callLLM, type LLMMessage } from '@/services/llm.service';
+import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
 import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity } from '@/services/arko-ai-context';
 import { buildArkoSystemPrompt, buildReelContextPrompt } from '@/services/arko-ai-prompts';
 
 const MAX_TOOL_ITERATIONS = 5;
+
+/** Max tokens allowed for chat history to avoid context-length errors.
+ *  Claude Sonnet supports 200K input; we reserve headroom for system prompt,
+ *  tools definitions, workspace snapshot, reel context, and tool results. */
+const MAX_HISTORY_TOKENS = 80_000;
+
+/** Rough token estimator: ~4 chars per token (heuristic, good enough for truncation). */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/** Keep most recent messages whose combined tokens fit within the budget.
+ *  Always preserves the last user message (the one being answered). */
+function truncateHistoryByTokens(
+  messages: LLMMessage[],
+  maxTokens: number,
+): { messages: LLMMessage[]; truncated: boolean; droppedCount: number } {
+  if (messages.length === 0) return { messages, truncated: false, droppedCount: 0 };
+
+  let total = 0;
+  const kept: LLMMessage[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const tokens = estimateTokens(messages[i].content);
+    if (total + tokens > maxTokens && kept.length > 0) break;
+    total += tokens;
+    kept.unshift(messages[i]);
+  }
+
+  return {
+    messages: kept,
+    truncated: kept.length < messages.length,
+    droppedCount: messages.length - kept.length,
+  };
+}
+
+/** Detects if an error is recoverable by shrinking the prompt/retry. */
+function isRecoverableLLMError(err: unknown): 'shrink' | 'retry' | null {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes('context') && (msg.includes('length') || msg.includes('window') || msg.includes('too long'))) return 'shrink';
+  if (msg.includes('prompt is too long') || msg.includes('max_tokens')) return 'shrink';
+  if (msg.includes('rate') && msg.includes('limit')) return 'retry';
+  if (msg.includes('overloaded') || msg.includes('503') || msg.includes('529')) return 'retry';
+  if (msg.includes('timeout') || msg.includes('etimedout') || msg.includes('econnreset')) return 'retry';
+  return null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/** Calls Claude with resilience: on context-overflow errors, shrinks history and retries;
+ *  on transient errors (rate limit, overload, timeout), backs off and retries.
+ *  Mutates `messages` in place when shrinking so the caller sees the final set. */
+async function callLLMWithResilience(
+  options: LLMOptions,
+  onShrink?: (keptCount: number, droppedCount: number) => void,
+): Promise<LLMResponse> {
+  const budgets = [MAX_HISTORY_TOKENS, 50_000, 25_000, 10_000, 4_000];
+  let attempt = 0;
+  let lastErr: unknown;
+
+  while (attempt < budgets.length + 2) {
+    try {
+      return await callLLM(options);
+    } catch (err) {
+      lastErr = err;
+      const kind = isRecoverableLLMError(err);
+      if (!kind) throw err;
+
+      if (kind === 'shrink') {
+        const nextBudget = budgets[Math.min(attempt, budgets.length - 1)];
+        const before = options.messages.length;
+        const { messages: shrunk, droppedCount } = truncateHistoryByTokens(options.messages, nextBudget);
+        if (droppedCount === 0 && attempt > 0) {
+          // Can't shrink further — give up
+          throw err;
+        }
+        options.messages = shrunk;
+        if (onShrink && droppedCount > 0) onShrink(shrunk.length, before - shrunk.length);
+        console.warn(`[chat] Shrinking history (attempt ${attempt + 1}): kept ${shrunk.length}, dropped ${before - shrunk.length}, budget ${nextBudget}`);
+      } else {
+        // Transient error — exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+        console.warn(`[chat] Transient error (attempt ${attempt + 1}), retrying in ${delay}ms:`, (err as Error).message);
+        await sleep(delay);
+      }
+      attempt++;
+    }
+  }
+
+  throw lastErr;
+}
 
 /** Human-readable labels for each tool */
 const TOOL_LABELS: Record<string, string> = {
@@ -157,13 +249,13 @@ export async function POST(request: Request) {
         // Send initial thinking status
         controller.enqueue(sseEvent({ type: 'status', label: 'Pensando...' }));
 
-        // Load chat history (last 20 messages)
+        // Load chat history (last 30 messages — will be token-truncated below)
         const { data: history } = await supabase
           .from('chat_messages')
           .select('role, content')
           .eq('session_id', sessionId)
           .order('created_at', { ascending: true })
-          .limit(20);
+          .limit(30);
 
         // Load workspace snapshot (ADN + benchmarks + top topics — cached 30min)
         const snapshot = await loadWorkspaceSnapshot(supabase, auth.workspaceId);
@@ -175,12 +267,21 @@ export async function POST(request: Request) {
         }
 
         // Build LLM messages from history
-        const llmMessages: LLMMessage[] = (history ?? [])
+        const rawMessages: LLMMessage[] = (history ?? [])
           .filter((m: { role: string }) => m.role === 'user' || m.role === 'assistant')
           .map((m: { role: string; content: string }) => ({
             role: m.role as 'user' | 'assistant',
             content: m.content,
           }));
+
+        // Truncate by tokens to avoid context-length errors on long sessions
+        const { messages: llmMessages, truncated, droppedCount } = truncateHistoryByTokens(
+          rawMessages,
+          MAX_HISTORY_TOKENS,
+        );
+        if (truncated) {
+          console.log(`[chat] Truncated history: dropped ${droppedCount} oldest messages (session_id=${sessionId})`);
+        }
 
         // ─── Route by message complexity ──────────────────────────────────────────
         const recentTexts = llmMessages.filter(m => m.role === 'user').map(m => m.content);
@@ -205,13 +306,14 @@ export async function POST(request: Request) {
           controller.enqueue(sseEvent({ type: 'status', label: 'Generando respuesta...' }));
 
           const llmStart = Date.now();
-          const response = await callLLM({
+          const lightOptions: LLMOptions = {
             provider: lightConfig.provider,
             model: lightConfig.model,
             messages: currentMessages,
             system: systemPrompt,
             maxTokens: lightConfig.maxTokens,
-          });
+          };
+          const response = await callLLMWithResilience(lightOptions);
           const llmLatency = Date.now() - llmStart;
 
           totalInputTokens = response.inputTokens;
@@ -238,14 +340,15 @@ export async function POST(request: Request) {
             }));
 
             const llmStart = Date.now();
-            const response = await callLLM({
+            const loopOptions: LLMOptions = {
               provider: config.provider,
               model: config.model,
               messages: currentMessages,
               system: systemPrompt,
               tools: ARKO_TOOLS,
               maxTokens: config.maxTokens,
-            });
+            };
+            const response = await callLLMWithResilience(loopOptions);
             const llmLatency = Date.now() - llmStart;
 
             totalInputTokens += response.inputTokens;
@@ -376,8 +479,24 @@ export async function POST(request: Request) {
 
         controller.close();
       } catch (err) {
-        console.error('[chat] POST error:', err);
-        controller.enqueue(sseEvent({ type: 'error', message: 'Error interno del servidor' }));
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const errStack = err instanceof Error ? err.stack : undefined;
+        console.error('[chat] POST error:', { message: errMsg, stack: errStack, error: err });
+
+        // Map known error patterns to user-friendly messages
+        let userMessage = 'Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?';
+        const lowerErr = errMsg.toLowerCase();
+        if (lowerErr.includes('context') && (lowerErr.includes('length') || lowerErr.includes('window') || lowerErr.includes('too long'))) {
+          userMessage = 'La conversación es demasiado larga. Por favor iniciá una nueva sesión para continuar.';
+        } else if (lowerErr.includes('rate') && lowerErr.includes('limit')) {
+          userMessage = 'Estamos procesando muchas consultas. Esperá unos segundos y volvé a intentar.';
+        } else if (lowerErr.includes('overloaded') || lowerErr.includes('503')) {
+          userMessage = 'El servicio de IA está sobrecargado. Intentá de nuevo en un momento.';
+        } else if (lowerErr.includes('credit') || lowerErr.includes('billing') || lowerErr.includes('quota')) {
+          userMessage = 'Hay un problema de configuración del servicio. Contactá soporte.';
+        }
+
+        controller.enqueue(sseEvent({ type: 'error', message: userMessage }));
         controller.close();
       }
     },

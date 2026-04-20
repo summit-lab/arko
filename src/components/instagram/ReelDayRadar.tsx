@@ -4,6 +4,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar,
   ResponsiveContainer, Tooltip,
 } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface DayData {
   day: string;
@@ -13,14 +14,14 @@ interface DayData {
 function RadarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ value: number }> }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] pointer-events-none"
-      style={{ background: "rgba(10,10,20,0.95)", backdropFilter: "blur(20px)" }}>
-      <p className="text-white">{payload[0].value.toLocaleString("es-AR")} views</p>
+    <div className="rounded-lg border border-border bg-popover text-popover-foreground px-2.5 py-1.5 text-[11px] pointer-events-none backdrop-blur-xl shadow-xl">
+      <p className="text-popover-foreground">{payload[0].value.toLocaleString("es-AR")} views</p>
     </div>
   );
 }
 
 export function ReelDayRadar({ data }: { data: DayData[] }) {
+  const chart = useChartTheme();
   const bestDay = data.reduce((max, d) => (d.views > max.views ? d : max), data[0]);
   const hasData = data.some((d) => d.views > 0);
 
@@ -33,10 +34,10 @@ export function ReelDayRadar({ data }: { data: DayData[] }) {
       <div className="h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
-            <PolarGrid stroke="rgba(255,255,255,0.06)" />
+            <PolarGrid stroke={chart.grid} />
             <PolarAngleAxis
               dataKey="day"
-              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }}
+              tick={{ fill: chart.axisTick, fontSize: 11 }}
             />
             <Radar
               name="Views"

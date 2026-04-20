@@ -49,42 +49,42 @@ export default async function SettingsPage() {
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="page-title">Settings</h1>
-        <p className="text-zinc-400 mt-1 text-sm">Configuración de tu cuenta y workspace.</p>
+        <p className="text-muted-foreground mt-1 text-sm">Configuración de tu cuenta y workspace.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
         {/* Profile */}
         <div className="glass-panel rounded-xl p-6 space-y-4">
-          <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-            <User className="h-4 w-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
             Perfil
           </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Nombre</span>
-              <span className="text-sm text-zinc-200">{profile?.full_name || "--"}</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nombre</span>
+              <span className="text-sm text-foreground">{profile?.full_name || "--"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Email</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Email</span>
               <div className="flex items-center gap-2">
-                <Mail className="h-3 w-3 text-zinc-500" />
-                <span className="text-sm text-zinc-200">{profile?.email || user?.email || "--"}</span>
+                <Mail className="h-3 w-3 text-muted-foreground" />
+                <span className="text-sm text-foreground">{profile?.email || user?.email || "--"}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Rol</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Rol</span>
               <div className="flex items-center gap-1.5">
-                {isAdmin && <Shield className="h-3 w-3 text-amber-400" />}
-                <span className={`text-xs font-medium px-2 py-0.5 rounded ${isAdmin ? "text-amber-400 bg-amber-400/10" : "text-zinc-400 bg-white/5"}`}>
+                {isAdmin && <Shield className="h-3 w-3 text-amber-500 dark:text-amber-400" />}
+                <span className={`text-xs font-medium px-2 py-0.5 rounded ${isAdmin ? "text-amber-500 dark:text-amber-400 bg-amber-400/10" : "text-muted-foreground bg-muted"}`}>
                   {profile?.role || "--"}
                 </span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Miembro desde</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Miembro desde</span>
               <div className="flex items-center gap-2">
-                <Calendar className="h-3 w-3 text-zinc-500" />
-                <span className="text-sm text-zinc-200">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
+                <span className="text-sm text-foreground">
                   {profile?.created_at ? new Date(profile.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "--"}
                 </span>
               </div>
@@ -94,30 +94,30 @@ export default async function SettingsPage() {
 
         {/* Workspace */}
         <div className="glass-panel rounded-xl p-6 space-y-4">
-          <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
             Workspace
           </h3>
           {workspace ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Nombre</span>
-                <span className="text-sm text-zinc-200">{workspace.name}</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nombre</span>
+                <span className="text-sm text-foreground">{workspace.name}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Slug</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Slug</span>
                 <div className="flex items-center gap-2">
-                  <Globe className="h-3 w-3 text-zinc-500" />
-                  <code className="text-xs text-zinc-400">{workspace.slug}</code>
+                  <Globe className="h-3 w-3 text-muted-foreground" />
+                  <code className="text-xs text-muted-foreground">{workspace.slug}</code>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Plan</span>
-                <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded capitalize">{workspace.plan}</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Plan</span>
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded capitalize">{workspace.plan}</span>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">No hay workspace configurado.</p>
+            <p className="text-sm text-muted-foreground">No hay workspace configurado.</p>
           )}
         </div>
       </div>
@@ -130,25 +130,25 @@ export default async function SettingsPage() {
         >
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-lg bg-amber-400/10 flex items-center justify-center">
-              <Shield className="h-5 w-5 text-amber-400" />
+              <Shield className="h-5 w-5 text-amber-500 dark:text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-amber-400">Admin Panel</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Gestionar clientes, invitaciones y estadísticas globales</p>
+              <h3 className="text-sm font-semibold text-amber-500 dark:text-amber-400">Admin Panel</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Gestionar clientes, invitaciones y estadísticas globales</p>
             </div>
           </div>
-          <span className="text-xs text-zinc-500 group-hover:text-amber-400/70 transition-colors">Ir al panel →</span>
+          <span className="text-xs text-muted-foreground group-hover:text-amber-500/70 dark:group-hover:text-amber-400/70 transition-colors">Ir al panel →</span>
         </Link>
       )}
 
       {/* Branding */}
       <div className="glass-panel rounded-xl p-6 space-y-5">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-            <Palette className="h-4 w-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+            <Palette className="h-4 w-4 text-muted-foreground" />
             Branding del workspace
           </h3>
-          <p className="text-xs text-zinc-500 mt-1">Personaliza cómo aparece tu marca en el sidebar.</p>
+          <p className="text-xs text-muted-foreground mt-1">Personaliza cómo aparece tu marca en el sidebar.</p>
         </div>
 
         {/* Logo upload (client component) */}
@@ -162,7 +162,7 @@ export default async function SettingsPage() {
         {/* Brand name (server action form) */}
         <form action={updateBranding} className="space-y-3">
           <div>
-            <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">
+            <label className="block text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">
               Nombre de marca
             </label>
             <input
@@ -171,13 +171,13 @@ export default async function SettingsPage() {
               defaultValue={(workspace?.settings?.brand_name as string) ?? workspace?.name ?? ""}
               placeholder="Ej: Mi Empresa"
               maxLength={40}
-              className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-white/20 focus:bg-white/[0.06] transition-all"
+              className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:bg-white/[0.06] transition-all"
             />
           </div>
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-white/[0.06] border border-white/[0.10] text-sm text-zinc-200 hover:bg-white/[0.10] hover:border-white/[0.16] transition-all cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-white/[0.06] border border-white/[0.10] text-sm text-foreground hover:bg-white/[0.10] hover:border-white/[0.16] transition-all cursor-pointer"
             >
               Guardar nombre
             </button>
@@ -187,40 +187,40 @@ export default async function SettingsPage() {
 
       {/* Meta Connection */}
       <div className="glass-panel rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
-          <Instagram className="h-4 w-4 text-zinc-400" />
+        <h3 className="text-sm font-semibold text-foreground/80 mb-4 flex items-center gap-2">
+          <Instagram className="h-4 w-4 text-muted-foreground" />
           Conexión Meta / Instagram
         </h3>
         {hasActiveConnection && connection ? (
           <div className="space-y-5">
             <div className="grid grid-cols-4 gap-4">
               <div>
-                <p className="text-[10px] text-zinc-500 mb-1">Estado</p>
-                <span className="text-xs font-medium px-2 py-0.5 rounded text-emerald-400 bg-emerald-400/10">
+                <p className="text-[10px] text-muted-foreground mb-1">Estado</p>
+                <span className="text-xs font-medium px-2 py-0.5 rounded text-emerald-600 dark:text-emerald-400 bg-emerald-400/10">
                   conectada
                 </span>
               </div>
               <div>
-                <p className="text-[10px] text-zinc-500 mb-1">Cuenta IG</p>
-                <p className="text-sm text-zinc-200">@{connection.ig_username || "--"}</p>
+                <p className="text-[10px] text-muted-foreground mb-1">Cuenta IG</p>
+                <p className="text-sm text-foreground">@{connection.ig_username || "--"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-zinc-500 mb-1">IG Account ID</p>
-                <code className="text-[10px] text-zinc-400">{connection.ig_business_account_id || "--"}</code>
+                <p className="text-[10px] text-muted-foreground mb-1">IG Account ID</p>
+                <code className="text-[10px] text-muted-foreground">{connection.ig_business_account_id || "--"}</code>
               </div>
               <div>
-                <p className="text-[10px] text-zinc-500 mb-1">Última validación</p>
-                <p className="text-xs text-zinc-400">
+                <p className="text-[10px] text-muted-foreground mb-1">Última validación</p>
+                <p className="text-xs text-muted-foreground">
                   {connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleDateString("es-AR") : "--"}
                 </p>
               </div>
             </div>
 
             {workspace ? (
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/[0.025] px-4 py-4">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border dark:border-white/[0.08] bg-white/[0.025] px-4 py-4">
                 <div>
-                  <p className="text-sm text-zinc-200">¿Querés volver a conectar otra cuenta?</p>
-                  <p className="text-xs text-zinc-500 mt-1">Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.</p>
+                  <p className="text-sm text-foreground">¿Querés volver a conectar otra cuenta?</p>
+                  <p className="text-xs text-muted-foreground mt-1">Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.</p>
                 </div>
                 <DisconnectMetaButton workspaceId={workspace.id} />
               </div>
@@ -228,16 +228,16 @@ export default async function SettingsPage() {
           </div>
         ) : (
           <div className="text-center py-6">
-            <Instagram className="h-8 w-8 text-zinc-700 mx-auto mb-3" />
-            <p className="text-sm text-zinc-500 mb-2">No hay cuenta de Instagram conectada.</p>
+            <Instagram className="h-8 w-8 text-muted-foreground/60 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground mb-2">No hay cuenta de Instagram conectada.</p>
             {connection?.last_error ? (
-              <p className="text-xs text-red-400 mb-4">La última conexión no se completó. Podés volver a intentarlo.</p>
+              <p className="text-xs text-red-500 dark:text-red-400 mb-4">La última conexión no se completó. Podés volver a intentarlo.</p>
             ) : (
-              <p className="text-xs text-zinc-500 mb-4">Conectá tu cuenta para habilitar Instagram Intelligence.</p>
+              <p className="text-xs text-muted-foreground mb-4">Conectá tu cuenta para habilitar Instagram Intelligence.</p>
             )}
             <Link
               href="/onboarding"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-sm text-pink-300 px-5 py-2.5 rounded-lg hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-sm text-pink-600 dark:text-pink-300 px-5 py-2.5 rounded-lg hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
             >
               <Instagram className="h-4 w-4" />
               {connection ? "Reintentar conexión" : "Conectar cuenta"}

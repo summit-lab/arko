@@ -60,17 +60,17 @@ function CalendarGrid({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setViewMonth(subMonths(viewMonth, 1)); }}
-          className="p-1.5 rounded-lg hover:bg-white/[0.08] text-white/50 hover:text-white/80 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-[13px] font-medium text-white/80 capitalize">
+        <span className="text-[13px] font-medium text-foreground capitalize">
           {format(viewMonth, "MMMM yyyy", { locale: es })}
         </span>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setViewMonth(addMonths(viewMonth, 1)); }}
-          className="p-1.5 rounded-lg hover:bg-white/[0.08] text-white/50 hover:text-white/80 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -79,7 +79,7 @@ function CalendarGrid({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-0 mb-1">
         {["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"].map((d) => (
-          <div key={d} className="text-center text-[10px] font-medium text-white/30 py-1">
+          <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">
             {d}
           </div>
         ))}
@@ -103,13 +103,13 @@ function CalendarGrid({
               disabled={isFuture}
               className={`
                 relative h-8 text-[12px] transition-all duration-150 cursor-pointer
-                ${!inMonth ? "text-white/10" : isFuture ? "text-white/15 cursor-not-allowed" : "text-white/60 hover:text-white"}
+                ${!inMonth ? "text-muted-foreground/40" : isFuture ? "text-muted-foreground/50 cursor-not-allowed" : "text-foreground/80 hover:text-foreground"}
                 ${inRange && !start && !end ? "bg-violet-500/20" : ""}
-                ${start || end ? "bg-violet-500/40 text-white font-medium" : ""}
+                ${start || end ? "bg-violet-500/40 text-foreground font-medium" : ""}
                 ${start ? "rounded-l-md" : ""}
                 ${end ? "rounded-r-md" : ""}
-                ${!inRange && !start && !end ? "hover:bg-white/[0.08] rounded-md" : ""}
-                ${isToday && !start && !end ? "ring-1 ring-white/25 rounded-md" : ""}
+                ${!inRange && !start && !end ? "hover:bg-accent rounded-md" : ""}
+                ${isToday && !start && !end ? "ring-1 ring-border rounded-md" : ""}
               `}
             >
               {format(day, "d")}
@@ -119,7 +119,7 @@ function CalendarGrid({
       </div>
 
       {/* Selecting indicator */}
-      <div className="mt-3 text-[11px] text-white/35 text-center">
+      <div className="mt-3 text-[11px] text-muted-foreground text-center">
         {selecting === "from" ? "Seleccioná fecha inicio" : "Seleccioná fecha fin"}
       </div>
     </div>
@@ -254,30 +254,24 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
       <button
         type="button"
         onClick={() => setIsOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer hover:brightness-110"
+        className="flex items-center gap-2 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer hover:brightness-110 bg-accent/60 border border-border text-foreground/85"
         style={{
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "rgba(255,255,255,0.75)",
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
           minWidth: 200,
           padding: "10px 16px",
         }}
       >
-        <Calendar className="h-4 w-4 text-white/40" />
+        <Calendar className="h-4 w-4 text-muted-foreground" />
         <span className="flex-1 text-left">{rangeLabel(activeRange)}</span>
-        <ChevronDown className={`h-4 w-4 text-white/30 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {/* ── Dropdown Panel ── */}
       {isOpen && (
         <div
-          className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden"
+          className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl"
           style={{
             zIndex: 9999,
-            background: "#0a0a0a",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.04)",
             minWidth: 200,
           }}
           onClick={(e) => e.stopPropagation()}
@@ -295,13 +289,13 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                     onClick={() => handlePreset(p.key)}
                     className={`
                       w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-colors cursor-pointer
-                      ${isActive && !isCustomEntry ? "text-white bg-white/[0.06]" : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"}
-                      ${isCustomEntry ? "border-t border-white/[0.06] mt-1 pt-3" : ""}
+                      ${isActive && !isCustomEntry ? "text-foreground bg-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"}
+                      ${isCustomEntry ? "border-t border-border mt-1 pt-3" : ""}
                     `}
                   >
                     <span>{p.label}</span>
-                    {isActive && !isCustomEntry && <Check className="h-3.5 w-3.5 text-white/50" />}
-                    {isCustomEntry && <ChevronRight className="h-3.5 w-3.5 text-white/25" />}
+                    {isActive && !isCustomEntry && <Check className="h-3.5 w-3.5 text-muted-foreground" />}
+                    {isCustomEntry && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                   </button>
                 );
               })}
@@ -313,7 +307,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
               <button
                 type="button"
                 onClick={() => setView("presets")}
-                className="flex items-center gap-1.5 text-[12px] text-white/40 hover:text-white/60 mb-4 cursor-pointer transition-colors"
+                className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground mb-4 cursor-pointer transition-colors"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
                 Volver
@@ -326,20 +320,20 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                   onClick={() => setSelecting("from")}
                   className={`flex-1 text-center py-2 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
                     selecting === "from"
-                      ? "bg-violet-500/25 text-violet-300 border border-violet-500/30"
-                      : "bg-white/[0.06] text-white/50 border border-white/[0.06] hover:bg-white/[0.08]"
+                      ? "bg-violet-500/25 text-violet-700 dark:text-violet-300 border border-violet-500/30"
+                      : "bg-accent text-muted-foreground border border-border hover:bg-accent/70"
                   }`}
                 >
                   {tempFrom ? format(tempFrom, "d MMM yyyy", { locale: es }) : "Inicio"}
                 </button>
-                <span className="text-white/20 text-[12px]">→</span>
+                <span className="text-muted-foreground text-[12px]">→</span>
                 <button
                   type="button"
                   onClick={() => setSelecting("to")}
                   className={`flex-1 text-center py-2 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
                     selecting === "to"
-                      ? "bg-violet-500/25 text-violet-300 border border-violet-500/30"
-                      : "bg-white/[0.06] text-white/50 border border-white/[0.06] hover:bg-white/[0.08]"
+                      ? "bg-violet-500/25 text-violet-700 dark:text-violet-300 border border-violet-500/30"
+                      : "bg-accent text-muted-foreground border border-border hover:bg-accent/70"
                   }`}
                 >
                   {tempTo ? format(tempTo, "d MMM yyyy", { locale: es }) : "Fin"}
@@ -358,7 +352,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                 <button
                   type="button"
                   onClick={() => setView("presets")}
-                  className="flex-1 py-2 rounded-lg text-[12px] font-medium text-white/40 hover:text-white/60 bg-white/[0.06] hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  className="flex-1 py-2 rounded-lg text-[12px] font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/70 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>

@@ -144,7 +144,7 @@ function EditableField({
             }
           }}
           rows={1}
-          className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-[11px] text-white/70 font-light resize-none focus:outline-none focus:border-white/[0.2] transition-colors overflow-hidden"
+          className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-[11px] text-white/70 font-light resize-none focus:outline-none focus:border-ring transition-colors overflow-hidden"
         />
       </div>
     );

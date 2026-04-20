@@ -124,6 +124,14 @@ Agregar el servidor en `.mcp.json` y la variable en `.env.example`.
 
 ---
 
+## Cron jobs (Supabase pg_cron)
+
+| Edge function | Schedule (UTC) | AR local | Descripción |
+|---|---|---|---|
+| `aggregate-conversations` | `0 4 * * *` | 01:00 | Agrega `ig_conversation_events` del día anterior en `ig_daily_conversations`. TODO manual: agregar este cron en Dev y Prod. |
+
+---
+
 ## Archivos relacionados
 
 - `.mcp.json` — configuración de MCPs del proyecto (se commitea)

@@ -116,7 +116,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
             </div>
 
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-white/45">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-white/45">
                 <Sparkles className="h-3.5 w-3.5" />
                 Primera sincronización
               </div>
@@ -136,13 +136,13 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
               </div>
             </div>
 
-            <div className="mt-10 rounded-[24px] border border-white/10 bg-white/[0.03] p-6">
+            <div className="mt-10 rounded-[24px] border border-white/[0.1] bg-white/[0.03] p-6">
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Etapa actual</p>
                   <h2 className="mt-2 text-[24px] font-extralight tracking-[-0.03em] text-white">{currentPhase.title}</h2>
                 </div>
-                <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/65">
+                <div className="flex items-center gap-3 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-sm text-white/65">
                   <Loader2 className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
                   {isSyncing ? "Sincronizando" : "Pausada"}
                 </div>
@@ -223,7 +223,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     onClick={() => window.location.reload()}
-                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-white transition-all hover:bg-white/[0.1]"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.06] px-4 py-2 text-sm text-white transition-all hover:bg-white/[0.1]"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Reintentar sincronización

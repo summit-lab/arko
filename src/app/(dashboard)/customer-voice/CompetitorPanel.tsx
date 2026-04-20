@@ -12,6 +12,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
+import { AIMarkdown } from "@/components/ai/AIMarkdown";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +121,7 @@ function getHookInfo(type: string | null) {
 // ─── Charts section ──────────────────────────────────────────────────────────
 
 function CompetitorCharts({ competitors }: { competitors: Competitor[] }) {
+  const ct = useChartTheme();
   const withData = competitors.filter((c) => c.scraped_data && c.reels_count > 0);
   if (withData.length < 2) return null;
 
@@ -132,11 +135,19 @@ function CompetitorCharts({ competitors }: { competitors: Competitor[] }) {
     .sort((a, b) => b.followers - a.followers);
 
   // Avg views comparison
+  // Filter out reels with 0 views before averaging so this denominator stays
+  // symmetric with the InstagramShell "Yo" side and with CompetitorTab's
+  // ComparisonCharts "Ellos" side (both filter views > 0). Keeping filters
+  // consistent prevents the comparison from being biased against any party.
   const viewsData = competitors
     .filter((c) => c.reels.length > 0)
     .map((c) => {
-      const total = c.reels.reduce((s, r) => s + (r.views_count ?? 0), 0);
-      return { name: (c.name ?? "?").slice(0, 14), avgViews: Math.round(total / c.reels.length) };
+      const reelsWithViews = c.reels.filter((r) => (r.views_count ?? 0) > 0);
+      const total = reelsWithViews.reduce((s, r) => s + (r.views_count ?? 0), 0);
+      return {
+        name: (c.name ?? "?").slice(0, 14),
+        avgViews: reelsWithViews.length > 0 ? Math.round(total / reelsWithViews.length) : 0,
+      };
     })
     .sort((a, b) => b.avgViews - a.avgViews);
 
@@ -183,12 +194,12 @@ function CompetitorCharts({ competitors }: { competitors: Competitor[] }) {
                 <BarChart data={followerData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} width={60} />
+                    tick={{ fill: ct.axisTick, fontSize: 10 }} width={60} />
                   <Tooltip
-                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    cursor={{ fill: ct.cursor }}
                     content={({ active, payload }) => active && payload?.length ? (
-                      <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: "rgba(10,10,20,0.95)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        <span className="text-white/70">{fmtN(payload[0].value as number)} seguidores</span>
+                      <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, boxShadow: ct.tooltipShadow }}>
+                        <span style={{ color: ct.tooltipText }}>{fmtN(payload[0].value as number)} seguidores</span>
                       </div>
                     ) : null}
                   />
@@ -215,12 +226,12 @@ function CompetitorCharts({ competitors }: { competitors: Competitor[] }) {
                 <BarChart data={viewsData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} width={60} />
+                    tick={{ fill: ct.axisTick, fontSize: 10 }} width={60} />
                   <Tooltip
-                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    cursor={{ fill: ct.cursor }}
                     content={({ active, payload }) => active && payload?.length ? (
-                      <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: "rgba(10,10,20,0.95)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        <span className="text-white/70">{fmtN(payload[0].value as number)} views avg</span>
+                      <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, boxShadow: ct.tooltipShadow }}>
+                        <span style={{ color: ct.tooltipText }}>{fmtN(payload[0].value as number)} views avg</span>
                       </div>
                     ) : null}
                   />
@@ -268,6 +279,7 @@ function CompetitorCharts({ competitors }: { competitors: Competitor[] }) {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelProps) {
+  const ct = useChartTheme();
   const router = useRouter();
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
   const [analyzingReel, setAnalyzingReel] = useState<Record<string, boolean>>({});
@@ -577,7 +589,7 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
                           </button>
                           {hookTooltip === comp.id && (
                             <div className="absolute left-0 top-6 z-50 w-[280px] rounded-xl p-4 space-y-2 backdrop-blur-xl"
-                              style={{ background: "rgba(0,0,0,0.9)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 12px 48px rgba(0,0,0,0.6)" }}
+                              style={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, boxShadow: ct.tooltipShadow }}
                             >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-[11px] text-white/60 font-medium">Tipos de Hook (Framework Fran)</span>
@@ -731,7 +743,7 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
                                 {analysis.style_notes && (
                                   <div>
                                     <span className="text-[10px] text-white/20 uppercase tracking-[0.12em]">Formato del video</span>
-                                    <p className="text-[11px] text-white/50 font-light mt-0.5 leading-[1.5]">{analysis.style_notes}</p>
+                                    <div className="mt-1"><AIMarkdown variant="compact">{analysis.style_notes}</AIMarkdown></div>
                                   </div>
                                 )}
 
@@ -739,7 +751,7 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
                                 {analysis.narrative_structure && (
                                   <div>
                                     <span className="text-[10px] text-white/20 uppercase tracking-[0.12em]">Estructura narrativa</span>
-                                    <p className="text-[11px] text-white/50 font-light mt-0.5 leading-[1.5]">{analysis.narrative_structure}</p>
+                                    <div className="mt-1"><AIMarkdown variant="compact">{analysis.narrative_structure}</AIMarkdown></div>
                                   </div>
                                 )}
 
@@ -747,27 +759,27 @@ export function CompetitorPanel({ competitors, workspaceId }: CompetitorPanelPro
                                 {reel.transcript && (
                                   <div>
                                     <span className="text-[10px] text-white/20 uppercase tracking-[0.12em]">Transcripción</span>
-                                    <p className="text-[11px] text-white/40 font-light mt-0.5 leading-[1.5] italic">{reel.transcript}</p>
+                                    <p className="text-[11px] text-white/40 font-light mt-0.5 leading-[1.5] italic whitespace-pre-wrap">{reel.transcript}</p>
                                   </div>
                                 )}
 
                                 {analysis.ai_summary && (
                                   <div>
                                     <span className="text-[10px] text-white/20 uppercase tracking-[0.12em]">Resumen IA</span>
-                                    <p className="text-[11px] text-white/50 font-light mt-0.5 leading-[1.5]">{analysis.ai_summary}</p>
+                                    <div className="mt-1"><AIMarkdown variant="compact">{analysis.ai_summary}</AIMarkdown></div>
                                   </div>
                                 )}
                                 <div className="grid grid-cols-2 gap-2">
                                   {analysis.strengths && (
                                     <div>
                                       <span className="text-[10px] text-emerald-400/50 uppercase tracking-[0.12em]">Fortalezas</span>
-                                      <p className="text-[10px] text-white/45 font-light mt-0.5 leading-[1.5]">{analysis.strengths}</p>
+                                      <div className="mt-1"><AIMarkdown variant="compact">{analysis.strengths}</AIMarkdown></div>
                                     </div>
                                   )}
                                   {analysis.weaknesses && (
                                     <div>
                                       <span className="text-[10px] text-rose-400/50 uppercase tracking-[0.12em]">Debilidades</span>
-                                      <p className="text-[10px] text-white/45 font-light mt-0.5 leading-[1.5]">{analysis.weaknesses}</p>
+                                      <div className="mt-1"><AIMarkdown variant="compact">{analysis.weaknesses}</AIMarkdown></div>
                                     </div>
                                   )}
                                 </div>

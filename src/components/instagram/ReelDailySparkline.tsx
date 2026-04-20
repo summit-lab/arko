@@ -1,6 +1,7 @@
 "use client";
 
 import { AreaChart, Area, Tooltip, ResponsiveContainer, XAxis } from "recharts";
+import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface DailyPoint {
   date: string;
@@ -16,22 +17,16 @@ function SparkTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div
-      className="rounded-lg px-3 py-2"
-      style={{
-        background: "rgba(12,12,20,0.94)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-      }}
-    >
-      <p className="text-[10px] text-white/40 font-medium">{d.date}</p>
-      <p className="text-[13px] text-white font-light">+{d.views.toLocaleString()} <span className="text-[10px] text-white/40">views</span></p>
-      <p className="text-[11px] font-light" style={{ color: "#7A86E0" }}>{d.cumulative.toLocaleString()} <span className="text-[10px] text-white/30">acumuladas</span></p>
+    <div className="rounded-lg px-3 py-2 bg-popover text-popover-foreground border border-border shadow-xl">
+      <p className="text-[10px] text-muted-foreground font-medium">{d.date}</p>
+      <p className="text-[13px] text-popover-foreground font-light">+{d.views.toLocaleString()} <span className="text-[10px] text-muted-foreground">views</span></p>
+      <p className="text-[11px] font-light" style={{ color: "#7A86E0" }}>{d.cumulative.toLocaleString()} <span className="text-[10px] text-muted-foreground">acumuladas</span></p>
     </div>
   );
 }
 
 export function ReelDailySparkline({ data }: Props) {
+  const chart = useChartTheme();
   if (data.length < 2) return null;
 
   return (
@@ -49,10 +44,10 @@ export function ReelDailySparkline({ data }: Props) {
               dataKey="date"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "rgba(255,255,255,0.2)", fontSize: 9 }}
+              tick={{ fill: chart.axisTickSubtle, fontSize: 9 }}
               interval="preserveStartEnd"
             />
-            <Tooltip content={<SparkTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)" }} />
+            <Tooltip content={<SparkTooltip />} cursor={{ stroke: chart.grid }} />
             <Area
               type="monotone"
               dataKey="views"
