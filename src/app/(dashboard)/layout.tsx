@@ -15,12 +15,12 @@ export default async function DashboardLayout({
 }) {
   const cookieStore = await cookies();
   const isAdmin = cookieStore.get("arko_user_role")?.value === "admin";
-  const onboardingCompleted = cookieStore.get("arko_onboarding_completed")?.value === "true";
-  const showAdnAlert = !onboardingCompleted && !isAdmin;
+  // Cookie is an optimization; DB is the source of truth. Cookie can be stale
+  // right after the user completes the ADN (middleware sets it on the response,
+  // but the layout reads incoming cookies on the same request).
+  let onboardingCompleted = cookieStore.get("arko_onboarding_completed")?.value === "true";
 
-  // Fetch workspace branding + FAB pickers data. The IG connection check
-  // was removed: the FAB is available to every non-admin user because
-  // source_type='otro' works without any social account connected.
+  // Fetch workspace branding + onboarding status + FAB pickers data.
   const workspaceId = cookieStore.get("arko_workspace_id")?.value;
   let brandName: string | null = null;
   let logoUrl: string | null = null;
@@ -32,7 +32,7 @@ export default async function DashboardLayout({
     const [wsResult, reelsResult, storiesResult] = await Promise.all([
       supabase
         .from("workspaces")
-        .select("name, settings")
+        .select("name, settings, onboarding_completed")
         .eq("id", workspaceId)
         .single(),
       supabase
@@ -58,6 +58,9 @@ export default async function DashboardLayout({
       const settings = wsResult.data.settings as Record<string, unknown>;
       brandName = (settings?.brand_name as string) || wsResult.data.name || null;
       logoUrl = (settings?.logo_url as string) || null;
+      if (wsResult.data.onboarding_completed === true) {
+        onboardingCompleted = true;
+      }
     }
     if (reelsResult.data) reelsForPicker = reelsResult.data;
     if (storiesResult.data) {
@@ -78,6 +81,8 @@ export default async function DashboardLayout({
       });
     }
   }
+
+  const showAdnAlert = !onboardingCompleted && !isAdmin;
 
   return (
     <div className="flex min-h-screen">
