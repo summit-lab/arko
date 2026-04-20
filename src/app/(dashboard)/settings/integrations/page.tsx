@@ -4,15 +4,12 @@ import { redirect } from "next/navigation";
 import { Instagram, Youtube, Calendar, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DisconnectMetaButton } from "@/components/meta/DisconnectMetaButton";
-import { DmTrackingControls } from "@/components/settings/DmTrackingControls";
 
 interface MetaConnectionRow {
   id: string;
   status: string;
   ig_username: string | null;
   ig_business_account_id: string | null;
-  webhook_subscribed: boolean;
-  webhook_subscribed_at: string | null;
   created_at: string;
 }
 
@@ -22,26 +19,6 @@ interface YtChannelRow {
   custom_url: string | null;
   subscriber_count: number | null;
   created_at: string;
-}
-
-function formatRelativeSpanish(iso: string | null): string | null {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diffMs = now - then;
-  if (diffMs < 0) return "ahora";
-
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return "hace unos segundos";
-  if (minutes < 60) return `hace ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `hace ${hours} h`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `hace ${days} d`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `hace ${months} meses`;
-  const years = Math.floor(months / 12);
-  return `hace ${years} años`;
 }
 
 function formatDateSpanish(iso: string | null): string {
@@ -74,16 +51,13 @@ export default async function IntegrationsSettingsPage() {
   const resolvedWorkspaceId = workspace?.id ?? null;
 
   let metaConnection: MetaConnectionRow | null = null;
-  let lastEventAt: string | null = null;
   let ytChannels: YtChannelRow[] = [];
 
   if (resolvedWorkspaceId) {
     const [{ data: metaRow }, { data: ytRows }] = await Promise.all([
       supabase
         .from("meta_connections")
-        .select(
-          "id, status, ig_username, ig_business_account_id, webhook_subscribed, webhook_subscribed_at, created_at"
-        )
+        .select("id, status, ig_username, ig_business_account_id, created_at")
         .eq("workspace_id", resolvedWorkspaceId)
         .maybeSingle(),
       supabase
@@ -95,17 +69,6 @@ export default async function IntegrationsSettingsPage() {
 
     metaConnection = (metaRow as MetaConnectionRow | null) ?? null;
     ytChannels = (ytRows as YtChannelRow[] | null) ?? [];
-
-    if (metaConnection?.id) {
-      const { data: lastEvent } = await supabase
-        .from("ig_conversation_events")
-        .select("received_at")
-        .eq("meta_connection_id", metaConnection.id)
-        .order("received_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      lastEventAt = (lastEvent?.received_at as string | undefined) ?? null;
-    }
   }
 
   const hasActiveMeta =
@@ -116,7 +79,7 @@ export default async function IntegrationsSettingsPage() {
       <div>
         <h1 className="page-title">Integraciones</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Conectá tus cuentas y controlá qué datos recibe Moka.
+          Conectá tus cuentas de Instagram y YouTube.
         </p>
       </div>
 
@@ -128,7 +91,7 @@ export default async function IntegrationsSettingsPage() {
         </h2>
 
         {hasActiveMeta && metaConnection ? (
-          <div className="glass-panel rounded-xl p-6 space-y-5">
+          <div className="glass-panel rounded-xl p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[15px] font-light text-foreground">
@@ -144,23 +107,6 @@ export default async function IntegrationsSettingsPage() {
               </div>
               {resolvedWorkspaceId ? (
                 <DisconnectMetaButton workspaceId={resolvedWorkspaceId} />
-              ) : null}
-            </div>
-
-            <div className="border-t border-white/[0.06] pt-5">
-              <DmTrackingControls
-                metaConnectionId={metaConnection.id}
-                initialEnabled={metaConnection.webhook_subscribed}
-                lastEventLabel={
-                  lastEventAt
-                    ? `${formatRelativeSpanish(lastEventAt)} (${formatDateSpanish(lastEventAt)})`
-                    : null
-                }
-              />
-              {metaConnection.webhook_subscribed_at ? (
-                <p className="text-[10px] text-muted-foreground mt-3">
-                  Activado: {formatDateSpanish(metaConnection.webhook_subscribed_at)}
-                </p>
               ) : null}
             </div>
           </div>

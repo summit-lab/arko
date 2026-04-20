@@ -219,15 +219,16 @@ async function getDashboardData(range: DateRange) {
       .gte("sale_date", prev.from)
       .lte("sale_date", prev.to),
 
-    // Query 12: New IG conversations — last 14 days for the ConversationsChart card.
-    // Independent of `range` because the chart is tuned for a 14-day window and
-    // computes its own WoW delta internally.
+    // Query 12: Estimated "new interactions" — last 14 days.
+    // Formula: daily `replies` (story replies) + FLOOR(`comments`/2).
+    // Comments are halved because IG counts brand replies too; this approximates
+    // user-initiated conversations.
     supabase
-      .from("ig_daily_conversations")
-      .select("date, new_conversations")
+      .from("ig_account_insights")
+      .select("metric_date, replies, comments")
       .eq("workspace_id", workspaceId)
-      .gte("date", conversations14dFrom)
-      .order("date", { ascending: true }),
+      .gte("metric_date", conversations14dFrom)
+      .order("metric_date", { ascending: true }),
   ]);
 
   // ─── Log query errors ───
@@ -241,10 +242,7 @@ async function getDashboardData(range: DateRange) {
   if (reelsMonth.error) console.error('[dashboard] reelsMonth error:', reelsMonth.error);
   if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
   if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
-  // Swallow "undefined_table" (42P01) — conversations migration may not be applied yet.
-  if (conversations14d.error && conversations14d.error.code !== '42P01') {
-    console.error('[dashboard] conversations14d error:', conversations14d.error);
-  }
+  if (conversations14d.error) console.error('[dashboard] conversations14d error:', conversations14d.error);
 
   // ─── Process insights data ───
   // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
@@ -539,24 +537,18 @@ async function getDashboardData(range: DateRange) {
     engRate: engRateMonth,
   };
 
-  // ─── Conversations (IG DMs) — last 14 days ───
-  // If the workspace has never had a DM event, we may aggregate by meta_connection_id
-  // so the same date can appear twice. Collapse by `date` to match the
-  // ConversationsChart contract (one row per date).
-  const conversationsRaw = (conversations14d.data ?? []) as Array<{
-    date: string;
-    new_conversations: number | null;
+  // ─── Interacciones nuevas estimadas — last 14 days ───
+  // Formula: replies (story replies) + FLOOR(comments / 2).
+  // Account-level daily rows from ig_account_insights.
+  const interactionsRaw = (conversations14d.data ?? []) as Array<{
+    metric_date: string;
+    replies: number | null;
+    comments: number | null;
   }>;
-  const conversationsMap = new Map<string, number>();
-  for (const row of conversationsRaw) {
-    conversationsMap.set(
-      row.date,
-      (conversationsMap.get(row.date) ?? 0) + (row.new_conversations ?? 0)
-    );
-  }
-  const conversationsData = Array.from(conversationsMap.entries()).map(
-    ([date, new_conversations]) => ({ date, new_conversations })
-  );
+  const conversationsData = interactionsRaw.map((r) => ({
+    date: r.metric_date,
+    interactions: (r.replies ?? 0) + Math.floor((r.comments ?? 0) / 2),
+  }));
 
   return {
     kpis,
