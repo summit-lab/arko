@@ -105,6 +105,7 @@ async function getDashboardData(range: DateRange) {
     salesCurrent,
     salesPrevious,
     conversations14d,
+    adsMessaging14d,
   ] = await Promise.all([
     // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
     // — the date range predicate already bounds the result (Fix 3.6).
@@ -220,7 +221,7 @@ async function getDashboardData(range: DateRange) {
       .lte("sale_date", prev.to),
 
     // Query 12: Estimated "new interactions" — last 14 days.
-    // Formula: daily `replies` (story replies) + FLOOR(`comments`/2).
+    // Formula: daily `replies` (story replies) + FLOOR(`comments`/2) + ads_msg.
     // Comments are halved because IG counts brand replies too; this approximates
     // user-initiated conversations.
     supabase
@@ -229,6 +230,14 @@ async function getDashboardData(range: DateRange) {
       .eq("workspace_id", workspaceId)
       .gte("metric_date", conversations14dFrom)
       .order("metric_date", { ascending: true }),
+
+    // Query 13: Daily messaging conversations from Click-to-Message ads.
+    // Populated by sync-instagram after edge function redeploy (until then 0).
+    supabase
+      .from("ad_metrics_daily")
+      .select("metric_date, messaging_conversations")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", conversations14dFrom),
   ]);
 
   // ─── Log query errors ───
@@ -243,6 +252,7 @@ async function getDashboardData(range: DateRange) {
   if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
   if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
   if (conversations14d.error) console.error('[dashboard] conversations14d error:', conversations14d.error);
+  if (adsMessaging14d.error) console.error('[dashboard] adsMessaging14d error:', adsMessaging14d.error);
 
   // ─── Process insights data ───
   // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
@@ -538,16 +548,30 @@ async function getDashboardData(range: DateRange) {
   };
 
   // ─── Interacciones nuevas estimadas — last 14 days ───
-  // Formula: replies (story replies) + FLOOR(comments / 2).
-  // Account-level daily rows from ig_account_insights.
+  // Formula: replies (story replies) + FLOOR(comments / 2) + ads_messaging.
+  // Account-level daily rows from ig_account_insights + ad_metrics_daily sum per day.
   const interactionsRaw = (conversations14d.data ?? []) as Array<{
     metric_date: string;
     replies: number | null;
     comments: number | null;
   }>;
+  const adsMsgRows = (adsMessaging14d.data ?? []) as Array<{
+    metric_date: string;
+    messaging_conversations: number | null;
+  }>;
+  const adsMsgByDate = new Map<string, number>();
+  for (const r of adsMsgRows) {
+    adsMsgByDate.set(
+      r.metric_date,
+      (adsMsgByDate.get(r.metric_date) ?? 0) + (r.messaging_conversations ?? 0)
+    );
+  }
   const conversationsData = interactionsRaw.map((r) => ({
     date: r.metric_date,
-    interactions: (r.replies ?? 0) + Math.floor((r.comments ?? 0) / 2),
+    interactions:
+      (r.replies ?? 0) +
+      Math.floor((r.comments ?? 0) / 2) +
+      (adsMsgByDate.get(r.metric_date) ?? 0),
   }));
 
   return {

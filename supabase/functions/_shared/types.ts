@@ -72,6 +72,7 @@ export interface InsightRow {
   video_p75_watched_actions?: { action_type: string; value: string }[];
   video_p95_watched_actions?: { action_type: string; value: string }[];
   video_p100_watched_actions?: { action_type: string; value: string }[];
+  actions?: { action_type: string; value: string }[];
 }
 
 type MatchMethod = "source_instagram_media_id" | "effective_instagram_media_id" | "object_story_id" | "creative_permalink" | "shortcode";
