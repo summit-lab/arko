@@ -52,3 +52,4 @@ certificates
 
 # Claude Code settings (contiene tokens MCP)
 .claude/settings.json
+.claude/scheduled_tasks.lock
