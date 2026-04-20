@@ -361,8 +361,13 @@ async function getDashboardData(range: DateRange) {
   // Setting to null hides the badge instead of showing a lie — the KPI renderer guards on this.
   const viewsChange = null as { text: string; up: boolean } | null;
 
-  // Top 4 reels by views (from 90d window, panel labeled "Últimos 90 días")
+  // Top 4 reels by views (from 90d window, panel labeled "Últimos 90 días").
+  // Excludes "dark posts" — ad-only creatives where the reel was never posted
+  // organically to the feed. Meta returns NULL for views_org/likes/comments/saves
+  // on those, so they'd show up with 0 engagement and mislead the ranking.
+  // We require views_org > 0 (ensures the reel was actually posted organically).
   const topContent = [...reels]
+    .filter((r) => r.views_org > 0)
     .sort((a, b) => b.views_total - a.views_total)
     .slice(0, 4)
     .map((r) => {
