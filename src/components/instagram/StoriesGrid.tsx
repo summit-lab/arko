@@ -889,8 +889,8 @@ function EmptyState() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function StoriesGrid({ sequences, totalFollowers = 0 }: StoriesGridProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+export function StoriesGrid({ sequences, totalFollowers = 0, initialSelectedId = null }: StoriesGridProps & { initialSelectedId?: string | null }) {
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
 
   // Inject demo sequence so the layout always looks populated
   const allSequences: StorySequence[] = [...sequences, DEMO_SEQUENCE];

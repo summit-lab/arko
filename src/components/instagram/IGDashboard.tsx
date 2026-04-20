@@ -36,7 +36,10 @@ function ReelThumb({ src, idx }: { src: string | null; idx: number }) {
           <Play className="h-5 w-5 text-white/15" />
         </div>
       )}
-      <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white bg-black/60 backdrop-blur-sm">
+      <div
+        className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold backdrop-blur-sm"
+        style={{ backgroundColor: "rgba(0,0,0,0.72)", color: "#ffffff" }}
+      >
         #{idx + 1}
       </div>
     </div>
@@ -249,6 +252,24 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
     ? [rawChartData[0], { ...rawChartData[0], date: rawChartData[0].date + " " }]
     : rawChartData;
 
+  // Follower chart data — trim trailing 0s from the newFollowers series.
+  // Meta's follower_count insight has a 24-48h delay: querying today returns
+  // 0 for the most recent 1-2 days until Meta finishes processing. Storing
+  // that 0 is correct, but rendering it makes the chart dive to the floor at
+  // the right edge even though the data is just incomplete (not a real 0
+  // growth day). We trim only CONSECUTIVE trailing 0s — mid-series 0s are
+  // preserved (legitimate zero-growth days).
+  const trimmedFollowerSeries = (() => {
+    let end = rawChartData.length;
+    while (end > 0 && rawChartData[end - 1].newFollowers === 0) end--;
+    return rawChartData.slice(0, end);
+  })();
+  const followerChartData = isSingleDay
+    ? chartData
+    : trimmedFollowerSeries.length > 0
+      ? trimmedFollowerSeries
+      : rawChartData;
+
   // Best reel by views
   const sortedReels = [...reels].sort((a, b) => b.views_total - a.views_total);
   const bestReel = sortedReels[0] ?? null;
@@ -417,7 +438,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           </div>
           <div style={{ height: 120, width: "100%" }}>
             <ResponsiveContainer width="100%" height={120}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+              <AreaChart data={followerChartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="followersGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={chart.greenAccent} stopOpacity={0.3} />
