@@ -273,7 +273,11 @@ export function InstagramShell({
       )}
 
       {activeTab === "historias" && (
-        <StoriesGrid sequences={storySequences} totalFollowers={totalFollowers} />
+        <StoriesGrid
+          sequences={storySequences}
+          totalFollowers={totalFollowers}
+          initialSelectedId={searchParams.get("story")}
+        />
       )}
 
       {activeTab === "publicaciones" && (

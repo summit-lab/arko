@@ -40,11 +40,13 @@ type ContentFilter = "all" | "reels" | "posts" | "historias";
 
 function itemHref(item: CalendarItem): string {
   if (item.type === "historia") {
-    // Stories viewer lives inside the Instagram dashboard with a tab/section.
-    // If there's no dedicated route, fall back to the IG dashboard root.
-    return `/instagram?story=${item.id}`;
+    // Stories live inside the IG dashboard's "historias" tab. Pass both
+    // tab= (so InstagramShell opens that tab) and story= (so StoriesGrid
+    // auto-selects the specific sequence).
+    return `/instagram?tab=historias&story=${item.id}`;
   }
-  // Reels + posts both use the unified detail route.
+  // Reels + posts both use the unified detail route (/instagram/[id]
+  // dispatches to the post or reel view based on media_type).
   return `/instagram/${item.id}`;
 }
 
