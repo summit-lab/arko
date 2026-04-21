@@ -1379,67 +1379,81 @@ async function archiveStoryMedia(
   supabase: any,
   workspaceId: string,
   stories: Array<{ id: string; media_type: string; media_url?: string; thumbnail_url?: string }>,
-): Promise<void> {
-  // Find slides that have media but no storage path yet
+): Promise<{ attempted: number; uploaded: number; skippedTooBig: number; skippedFetchFailed: number; skippedNoSource: number; uploadErrors: number }> {
+  const stats = { attempted: 0, uploaded: 0, skippedTooBig: 0, skippedFetchFailed: 0, skippedNoSource: 0, uploadErrors: 0 };
+
+  // Find slides that have media but no storage path yet. `archived: false` filter
+  // removed so slides that expired before the first archival pass can still be
+  // retried on later syncs (the fetch will 403 anyway — we just stop silently
+  // giving up on them forever).
   const { data: slidesNeedingArchival } = await supabase
     .from("ig_story_slides")
     .select("id, ig_media_id, media_url, thumbnail_url, media_type")
     .eq("workspace_id", workspaceId)
     .is("media_storage_path", null)
-    .eq("archived", false)
     .limit(50);
 
-  if (!slidesNeedingArchival?.length) return;
+  if (!slidesNeedingArchival?.length) return stats;
+
+  const MAX_BYTES = 5 * 1024 * 1024;  // 5MB — IG story thumbnails are 300KB-2MB typical
 
   const CONCURRENCY = 3;
   for (let i = 0; i < slidesNeedingArchival.length; i += CONCURRENCY) {
     const batch = slidesNeedingArchival.slice(i, i + CONCURRENCY);
     await Promise.all(batch.map(async (slide: { id: string; ig_media_id: string; media_url: string | null; thumbnail_url: string | null; media_type: string | null }) => {
+      stats.attempted++;
       try {
-        // For videos use thumbnail_url, for images use media_url
-        const sourceUrl = slide.media_type === "VIDEO"
-          ? (slide.thumbnail_url || slide.media_url)
-          : (slide.media_url || slide.thumbnail_url);
+        // Prefer thumbnail_url for BOTH images and videos — it's the compressed
+        // preview (typically 300-500KB), far more likely to fit in storage and
+        // render fast in gallery cards. Fall back to media_url only if missing.
+        const sourceUrl = slide.thumbnail_url || slide.media_url;
 
-        if (!sourceUrl) return;
+        if (!sourceUrl) { stats.skippedNoSource++; return; }
 
-        // Download the image
+        // Download the image (Meta CDN URL — may 403 if expired)
         const imgRes = await fetch(sourceUrl);
-        if (!imgRes.ok) return;
+        if (!imgRes.ok) { stats.skippedFetchFailed++; return; }
 
         const buffer = await imgRes.arrayBuffer();
-
-        // Compress: resize to max 480px wide, convert to WebP at 75% quality
-        // Deno Edge Functions don't have Sharp, so we use the raw image but
-        // limit file size by only storing if < 512KB (bucket limit).
-        // For larger images, store the JPEG with reduced quality via canvas-free approach.
         const imageBytes = new Uint8Array(buffer);
 
-        // If image is > 512KB, skip (bucket limit will reject it anyway)
-        if (imageBytes.byteLength > 524288) return;
+        // Sanity cap — anything over 5MB is unexpected for a thumbnail; skip
+        // instead of risking bucket rejection.
+        if (imageBytes.byteLength > MAX_BYTES) { stats.skippedTooBig++; return; }
 
-        const storagePath = `${workspaceId}/${slide.ig_media_id}.webp`;
-        const contentType = "image/webp";
+        // Preserve source format when possible instead of forcing .webp — Meta
+        // returns JPEGs, calling them .webp was misleading (content-type ok but
+        // extension lies). Use .jpg for IG originals.
+        const isWebp = sourceUrl.toLowerCase().includes(".webp");
+        const ext = isWebp ? "webp" : "jpg";
+        const storagePath = `${workspaceId}/${slide.ig_media_id}.${ext}`;
+        const contentType = isWebp ? "image/webp" : "image/jpeg";
 
-        // Try to upload — if the source is already small enough, upload as-is
-        // The bucket's 512KB limit acts as a natural filter
         const { error: uploadError } = await supabase.storage
           .from("story-media")
-          .upload(storagePath, imageBytes, {
-            contentType: sourceUrl.includes(".webp") ? "image/webp" : "image/jpeg",
-            upsert: true,
-          });
+          .upload(storagePath, imageBytes, { contentType, upsert: true });
 
-        if (uploadError) return;
+        if (uploadError) {
+          stats.uploadErrors++;
+          console.warn(`[archiveStoryMedia] upload failed for ${slide.ig_media_id}: ${uploadError.message}`);
+          return;
+        }
 
-        // Update the slide with the storage path
         await supabase
           .from("ig_story_slides")
           .update({ media_storage_path: storagePath })
           .eq("id", slide.id);
-      } catch { /* non-critical */ }
+
+        stats.uploaded++;
+      } catch (err) {
+        stats.uploadErrors++;
+        console.warn(`[archiveStoryMedia] unexpected error for slide ${slide.ig_media_id}:`, err instanceof Error ? err.message : String(err));
+      }
     }));
   }
+
+  console.log(`[archiveStoryMedia] workspace=${workspaceId} stats=${JSON.stringify(stats)}`);
+  return stats;
 }
 
 // ═══════════════════════════════════════════════════════════════

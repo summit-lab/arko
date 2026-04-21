@@ -396,6 +396,37 @@
   scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
 }
 
+/* ── Stories sequence — thicker + more visible scrollbar for the slide strip,
+      since the global 6px scrollbar is nearly invisible for a prominent
+      horizontal scroll the user is meant to interact with ── */
+.stories-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.stories-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 5px;
+  margin: 0 12px;
+}
+.stories-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.stories-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+.stories-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.03);
+}
+html:not(.dark) .stories-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.04); }
+html:not(.dark) .stories-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.22); background-clip: padding-box; }
+html:not(.dark) .stories-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.38); background-clip: padding-box; }
+html:not(.dark) .stories-scroll { scrollbar-color: rgba(0, 0, 0, 0.22) rgba(0, 0, 0, 0.04); }
+
 /* ── Autofill override for dark theme inputs ── */
 .autofill-dark:-webkit-autofill,
 .autofill-dark:-webkit-autofill:hover,

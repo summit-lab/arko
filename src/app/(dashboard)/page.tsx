@@ -738,17 +738,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </div>
       </div>
 
-      {/* Main 70/30 Layout */}
-      <div className="flex gap-6">
-        {/* ── LEFT: Main Content (70%) ── */}
-        <div className="flex-1 min-w-0 space-y-6">
-
-          {/* Hero KPIs */}
-          <div className="grid grid-cols-5 gap-5">
-            {kpis.map((m, i) => {
-              const IconComp = ICON_MAP[m.icon];
-              return (
-                <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
+      {/* Hero KPIs — fila 1 full-width para que los 5 numeros respiren
+          (antes compartian ancho con la sidebar 320px y se cortaban en <1600px). */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5 mb-6">
+        {kpis.map((m, i) => {
+          const IconComp = ICON_MAP[m.icon];
+          return (
+            <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
                   <div className="flex items-center justify-between mb-4 relative z-10">
                     <p className="stat-label">{m.label}</p>
                     <div className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color}`}>
@@ -771,10 +767,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                       <span className="text-[11px] text-white/20">sin datos previos</span>
                     )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Fila 2+: contenido principal + sidebar, side-by-side en desktop,
+          stackeado en mobile (<1024px). La sidebar SIEMPRE queda al costado
+          en desktop, no baja; los KPIs de arriba ya ocupan la fila completa. */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── LEFT: charts + Mejor Contenido ── */}
+        <div className="flex-1 min-w-0 space-y-6">
 
           {/* Main charts — Recharts */}
           <div className="animate-slide-up stagger-4">
@@ -831,9 +834,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
         </div>
 
-        {/* ── RIGHT: Summary Panel (30%) ── */}
-        <div className="w-[320px] shrink-0 space-y-6">
-          {/* Quick Stats */}
+        {/* ── RIGHT: Summary sidebar (320px en desktop, full-width stackeada en <1024px) ── */}
+        <div className="w-full lg:w-[320px] lg:shrink-0 space-y-6">
+          {/* Quick Stats — columna vertical siempre. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
             <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
             <div className="space-y-5">

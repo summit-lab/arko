@@ -448,6 +448,33 @@ function StoriesSidebar({
   );
 }
 
+// ─── Slide thumbnail with onError fallback ───────────────────────────────────
+// Shared between StoryCard and SequenceDetail. Meta CDN URLs expire and then
+// next/image returns 403 — without this, the thumb just shows as blank.
+
+function SlideImage({ thumb, index, sizes }: { thumb: string | null; index: number; sizes: string }) {
+  const [failed, setFailed] = useState(false);
+  const show = !!thumb && !failed;
+  if (!show) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2">
+        <ImageIcon className="h-6 w-6 text-white/10" />
+        <span className="text-[9px] text-white/15 uppercase tracking-wider">Slide {index + 1}</span>
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={thumb!}
+      alt={`Slide ${index + 1}`}
+      fill
+      className="object-cover"
+      sizes={sizes}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 // ─── Story Card (gallery item) ────────────────────────────────────────────────
 
 function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }) {
@@ -455,6 +482,11 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
   const thumb = firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
   const rate = completionRate(seq.slides);
   const isActive = !seq.archived && !!seq.expires_at && new Date(seq.expires_at) > new Date();
+  // Meta CDN URLs expire after hours, so next/image proxy 403s for stale ones.
+  // Track load errors and swap to the placeholder instead of leaving the card
+  // visually empty.
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = !!thumb && !imageFailed;
 
   return (
     <div
@@ -466,13 +498,14 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
         className="relative w-full overflow-hidden bg-white/[0.03]"
         style={{ aspectRatio: "9/16", maxHeight: 240 }}
       >
-        {thumb ? (
+        {showImage ? (
           <Image
-            src={thumb}
+            src={thumb!}
             alt={`Historia ${fmtDateShort(seq.published_at)}`}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
             sizes="(max-width: 768px) 50vw, 200px"
+            onError={() => setImageFailed(true)}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2">
@@ -627,7 +660,12 @@ function SequenceDetail({
       </div>
 
       {/* ── 1. Sequence Flow (FIRST) ── */}
-      <div className={`${glassSectionClass} rounded-2xl p-6`}>
+      {/* Grid + minmax(0, 1fr) trick: un hijo flex con `min-w-max` normalmente
+          fuerza al padre a crecer y rompe el overflow-x-auto. Envolverlo en un
+          grid de una sola columna con `minmax(0, 1fr)` constrana al hijo al
+          ancho real del card, activando el scroll interno de manera confiable
+          en todos los browsers. */}
+      <div className={`${glassSectionClass} rounded-2xl p-6 overflow-hidden`}>
         <div className="flex items-center justify-between mb-6">
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/40">
             Flujo de secuencia
@@ -646,12 +684,13 @@ function SequenceDetail({
           )}
         </div>
 
-        <div
-          ref={setScrollRef}
-          className="overflow-x-auto pb-4 text-center"
-          style={{ scrollbarWidth: "thin", scrollbarColor: `${chart.trackBorder} transparent` }}
-        >
-          <div className="inline-flex items-start min-w-max">
+        <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+          <div
+            ref={setScrollRef}
+            className="overflow-x-auto overflow-y-hidden pb-4 stories-scroll"
+            style={{ scrollbarColor: `${chart.trackBorder} transparent` }}
+          >
+            <div className="flex items-start min-w-max">
             {slides.map((slide, i) => {
               const drop = i > 0 ? dropPct(slides[i - 1].impressions, slide.impressions) : 0;
               const thumb = slide.thumbnail_url ?? slide.media_url;
@@ -687,20 +726,7 @@ function SequenceDetail({
                         boxShadow: chart.isDark ? "0 8px 32px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.08)",
                       }}
                     >
-                      {thumb ? (
-                        <Image
-                          src={thumb}
-                          alt={`Slide ${i + 1}`}
-                          fill
-                          className="object-cover"
-                          sizes="176px"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full gap-2">
-                          <ImageIcon className="h-6 w-6 text-white/10" />
-                          <span className="text-[9px] text-white/15 uppercase tracking-wider">Slide {i + 1}</span>
-                        </div>
-                      )}
+                      <SlideImage thumb={thumb} index={i} sizes="176px" />
 
                       {/* Slide number pill */}
                       <div
@@ -760,6 +786,7 @@ function SequenceDetail({
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       </div>
