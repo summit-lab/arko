@@ -738,13 +738,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </div>
       </div>
 
-      {/* Main 70/30 Layout */}
-      <div className="flex gap-6">
-        {/* ── LEFT: Main Content (70%) ── */}
+      {/* Main 70/30 Layout — collapses to stacked single column below 1600px
+          so the 5 KPI cards have room to breathe (they cram on smaller screens
+          when competing with the 320px sidebar). */}
+      <div className="flex flex-col min-[1600px]:flex-row gap-6">
+        {/* ── LEFT: Main Content (full width below 1600, 70% above) ── */}
         <div className="flex-1 min-w-0 space-y-6">
 
-          {/* Hero KPIs */}
-          <div className="grid grid-cols-5 gap-5">
+          {/* Hero KPIs — responsive: 2 cols mobile, 3 md, 5 lg+ */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
             {kpis.map((m, i) => {
               const IconComp = ICON_MAP[m.icon];
               return (
@@ -831,19 +833,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
         </div>
 
-        {/* ── RIGHT: Summary Panel (30%) ── */}
-        <div className="w-[320px] shrink-0 space-y-6">
-          {/* Quick Stats */}
+        {/* ── RIGHT: Summary Panel (full width below 1600, 320px sidebar above) ── */}
+        <div className="w-full min-[1600px]:w-[320px] min-[1600px]:shrink-0 space-y-6">
+          {/* Quick Stats — grid horizontal cuando el panel está abajo (full width),
+              vuelve a columna única cuando el panel es sidebar (>=1600px). */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
             <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
-            <div className="space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 min-[1600px]:grid-cols-1 gap-5">
               {quickStats.map((s) => (
-                <div key={s.label} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[12px] text-white/35 font-light">{s.label}</p>
-                    <p className="text-[11px] text-white/20 font-light mt-0.5">{s.sub}</p>
+                <div key={s.label} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[12px] text-white/35 font-light truncate">{s.label}</p>
+                    <p className="text-[11px] text-white/20 font-light mt-0.5 truncate">{s.sub}</p>
                   </div>
-                  <CountUp value={s.value} className={`text-[22px] font-light tracking-[-0.02em] ${s.value.startsWith("$") ? "text-emerald-300" : "text-white"}`} />
+                  <CountUp value={s.value} className={`text-[22px] font-light tracking-[-0.02em] shrink-0 ${s.value.startsWith("$") ? "text-emerald-300" : "text-white"}`} />
                 </div>
               ))}
             </div>
