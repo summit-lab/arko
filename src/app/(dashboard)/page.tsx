@@ -738,19 +738,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </div>
       </div>
 
-      {/* Main 70/30 Layout — collapses to stacked single column below 1600px
-          so the 5 KPI cards have room to breathe (they cram on smaller screens
-          when competing with the 320px sidebar). */}
-      <div className="flex flex-col min-[1600px]:flex-row gap-6">
-        {/* ── LEFT: Main Content (full width below 1600, 70% above) ── */}
-        <div className="flex-1 min-w-0 space-y-6">
-
-          {/* Hero KPIs — responsive: 2 cols mobile, 3 md, 5 lg+ */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
-            {kpis.map((m, i) => {
-              const IconComp = ICON_MAP[m.icon];
-              return (
-                <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
+      {/* Hero KPIs — fila 1 full-width para que los 5 numeros respiren
+          (antes compartian ancho con la sidebar 320px y se cortaban en <1600px). */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5 mb-6">
+        {kpis.map((m, i) => {
+          const IconComp = ICON_MAP[m.icon];
+          return (
+            <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
                   <div className="flex items-center justify-between mb-4 relative z-10">
                     <p className="stat-label">{m.label}</p>
                     <div className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color}`}>
@@ -773,10 +767,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                       <span className="text-[11px] text-white/20">sin datos previos</span>
                     )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Fila 2+: contenido principal + sidebar, side-by-side en desktop,
+          stackeado en mobile (<1024px). La sidebar SIEMPRE queda al costado
+          en desktop, no baja; los KPIs de arriba ya ocupan la fila completa. */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── LEFT: charts + Mejor Contenido ── */}
+        <div className="flex-1 min-w-0 space-y-6">
 
           {/* Main charts — Recharts */}
           <div className="animate-slide-up stagger-4">
@@ -833,20 +834,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
         </div>
 
-        {/* ── RIGHT: Summary Panel (full width below 1600, 320px sidebar above) ── */}
-        <div className="w-full min-[1600px]:w-[320px] min-[1600px]:shrink-0 space-y-6">
-          {/* Quick Stats — grid horizontal cuando el panel está abajo (full width),
-              vuelve a columna única cuando el panel es sidebar (>=1600px). */}
+        {/* ── RIGHT: Summary sidebar (320px en desktop, full-width stackeada en <1024px) ── */}
+        <div className="w-full lg:w-[320px] lg:shrink-0 space-y-6">
+          {/* Quick Stats — columna vertical siempre. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
             <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 min-[1600px]:grid-cols-1 gap-5">
+            <div className="space-y-5">
               {quickStats.map((s) => (
-                <div key={s.label} className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[12px] text-white/35 font-light truncate">{s.label}</p>
-                    <p className="text-[11px] text-white/20 font-light mt-0.5 truncate">{s.sub}</p>
+                <div key={s.label} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[12px] text-white/35 font-light">{s.label}</p>
+                    <p className="text-[11px] text-white/20 font-light mt-0.5">{s.sub}</p>
                   </div>
-                  <CountUp value={s.value} className={`text-[22px] font-light tracking-[-0.02em] shrink-0 ${s.value.startsWith("$") ? "text-emerald-300" : "text-white"}`} />
+                  <CountUp value={s.value} className={`text-[22px] font-light tracking-[-0.02em] ${s.value.startsWith("$") ? "text-emerald-300" : "text-white"}`} />
                 </div>
               ))}
             </div>
