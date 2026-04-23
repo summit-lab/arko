@@ -53,6 +53,7 @@ const SOURCE_LABEL: Record<string, string> = {
   historia: "Historia",
   post: "Post",
   link_bio: "Link en Bio",
+  cta_bio: "CTA Bio",
   otro: "Otro",
 };
 const SOURCE_HEX: Record<string, string> = {
@@ -60,6 +61,7 @@ const SOURCE_HEX: Record<string, string> = {
   historia: "#AF6EC7",
   post: "#4BCEAF",
   link_bio: "#EB6991",
+  cta_bio: "#F59E0B",
   otro: "#9B9BA8",
 };
 const SOURCE_BG: Record<string, string> = {
@@ -67,6 +69,7 @@ const SOURCE_BG: Record<string, string> = {
   historia: "rgba(175,110,199,0.12)",
   post: "rgba(75,206,175,0.12)",
   link_bio: "rgba(235,105,145,0.12)",
+  cta_bio: "rgba(245,158,11,0.12)",
   otro: "rgba(155,155,168,0.12)",
 };
 

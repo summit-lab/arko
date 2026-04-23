@@ -7,6 +7,17 @@
 
 ## [unreleased] — 2026-04-23
 
+### Added — Ventas: nueva fuente "CTA Bio"
+
+Sexta fuente de pago predeterminada: **CTA Bio** — el copy del bio que empuja a un recurso/DM, distinto del **Link en Bio** (click directo al enlace del perfil). El user pidió poder medirlas por separado en Top fuentes y en el breakdown de Ventas.
+
+- `supabase/migrations/20260423000059_sales_source_type_cta_bio.sql` (NUEVO) — extiende CHECK constraint de `sales.source_type` para aceptar `cta_bio`. Aplicada en Prod + Dev.
+- `src/components/sales/SaleForm.tsx` — agrega al type `SaleSourceType` + label "CTA Bio" + color ámbar (#F59E0B).
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — mismo mapping para renderizar en la tabla de ventas.
+- `src/app/(dashboard)/page.tsx` — extendido `SOURCE_HEX/BG/ICON` (usa ícono `AtSign`). Al ser una fuente sin material asociado, queda excluido del ranking "Top fuentes de facturación" (mismo criterio que `link_bio` y `otro`).
+
+---
+
 ### Fixed — Ventas: cuotas retroactivas marcan todas las cuotas como cobradas
 
 Bug: al registrar una venta pasada con cuotas (ej. hace 3 meses, 5 cuotas ya cobradas en la realidad), el sistema solo marcaba paid las cuotas cuyo `due_date ≤ hoy` según el calendario teórico (sale_date + N×30d). Las cuotas "futuras" quedaban pending aunque el cliente ya las hubiera pagado.

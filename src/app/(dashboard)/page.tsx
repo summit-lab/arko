@@ -1,4 +1,4 @@
-import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes, AtSign } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
@@ -840,6 +840,7 @@ const SOURCE_HEX: Record<string, string> = {
   historia: "#AF6EC7",
   post: "#4BCEAF",
   link_bio: "#EB6991",
+  cta_bio: "#F59E0B",
   otro: "#9B9BA8",
 };
 
@@ -848,6 +849,7 @@ const SOURCE_BG: Record<string, string> = {
   historia: "rgba(175,110,199,0.12)",
   post: "rgba(75,206,175,0.12)",
   link_bio: "rgba(235,105,145,0.12)",
+  cta_bio: "rgba(245,158,11,0.12)",
   otro: "rgba(155,155,168,0.12)",
 };
 
@@ -856,6 +858,7 @@ const SOURCE_ICON = {
   historia: BookImage,
   post: Grid2X2,
   link_bio: LinkIcon,
+  cta_bio: AtSign,
   otro: Shapes,
 } as const;
 
