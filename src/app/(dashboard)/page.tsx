@@ -572,8 +572,13 @@ async function getDashboardData(range: DateRange) {
   //   label:     caption del reel o "Historia del DD/MM" o source_label
   //   billed:    SUM(amount_total)
   //   count:     cuantas ventas se atribuyen al material
+  // Solo consideramos ventas con MATERIAL ASOCIADO (reel/post/carrusel o
+  // historia). Las ventas con source_type='link_bio' o 'otro' no apuntan a
+  // contenido real, así que ensucian el ranking con agrupaciones genéricas
+  // ("Instagram", "CTA Bio", etc). Si el usuario quiere verlas aparte, se
+  // podría agregar un panel "Fuentes sin contenido" en el sidebar.
   type MaterialKey = { key: string; type: string; label: string; thumbnailUrl: string | null };
-  const materialOf = (s: typeof salesCurrentRows[number]): MaterialKey => {
+  const materialOf = (s: typeof salesCurrentRows[number]): MaterialKey | null => {
     // Reel embebido (incluye posts y carruseles — media_type decide el tipo).
     // Label preferido: auto_title (titulo AI generado) > caption truncado > fallback.
     if (s.reels?.id) {
@@ -604,19 +609,14 @@ async function getDashboardData(range: DateRange) {
         thumbnailUrl: storyThumb,
       };
     }
-    // Otro / link en bio / free label (sin material embebido)
-    const label = (s.source_label ?? "").trim();
-    return {
-      key: label ? `label:${label}` : `type:${s.source_type ?? "otro"}`,
-      type: s.source_type ?? "otro",
-      label: label || (s.source_type === "link_bio" ? "Link en Bio" : "Otro"),
-      thumbnailUrl: null,
-    };
+    // Sin contenido asociado (link_bio, otro) — se excluye del ranking.
+    return null;
   };
 
   const materialTotals = new Map<string, { type: string; label: string; thumbnailUrl: string | null; billed: number; count: number }>();
   for (const s of salesCurrentRows) {
     const m = materialOf(s);
+    if (!m) continue;
     const entry = materialTotals.get(m.key) ?? { type: m.type, label: m.label, thumbnailUrl: m.thumbnailUrl, billed: 0, count: 0 };
     entry.billed += Number(s.amount_total ?? 0);
     entry.count += 1;
@@ -890,14 +890,6 @@ const ICON_MAP = {
 } as const;
 
 // ─── Source type metadata — must mirror Ventas client for visual consistency ───
-
-const SOURCE_LABEL: Record<string, string> = {
-  reel: "Reel",
-  historia: "Historia",
-  post: "Post",
-  link_bio: "Link en Bio",
-  otro: "Otro",
-};
 
 const SOURCE_HEX: Record<string, string> = {
   reel: "#7A86E0",
