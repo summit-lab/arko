@@ -24,15 +24,15 @@ export default function LoginPage() {
     <div className="glass-panel rounded-xl p-8 border border-border dark:border-white/10">
       <div className="flex flex-col items-center mb-8">
         <Image
-          src="/Arcadia Logo.png"
+          src="/logos/moka.svg"
           alt="Moka Logo"
-          width={160}
-          height={36}
-          className="h-auto w-auto mb-6 dark:brightness-200"
+          width={56}
+          height={56}
+          className="w-14 h-14 mb-3"
           priority
         />
-        <h1 className="page-title text-2xl">Welcome back</h1>
-        <p className="text-muted-foreground text-sm mt-2">Sign in to your account</p>
+        <h1 className="page-title text-2xl">Bienvenido</h1>
+        <p className="text-muted-foreground text-sm mt-2">Ingresá a tu cuenta</p>
       </div>
 
       <form action={handleSubmit} className="space-y-5">
@@ -58,7 +58,7 @@ export default function LoginPage() {
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium text-foreground/80">
-            Password
+            Contraseña
           </label>
           <div className="relative">
             <input
@@ -82,14 +82,15 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:opacity-90 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 border border-border dark:border-white/10 rounded-lg px-4 py-3 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ color: "#ffffff" }}
+          className="w-full flex items-center justify-center gap-2 bg-[#3a1f04] hover:bg-[#4a2a08] border border-[#3a1f04]/40 rounded-lg px-4 py-3 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <div className="h-4 w-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
           ) : (
             <LogIn className="h-4 w-4" />
           )}
-          {loading ? 'Signing in...' : 'Sign in'}
+          {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
 
