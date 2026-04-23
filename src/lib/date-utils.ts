@@ -37,10 +37,6 @@ export function resolvePreset(preset: string): DateRange {
       return { from: toDateStr(subDays(today, 29)), to: todayStr, preset: p, days: 30 };
     case "90d":
       return { from: toDateStr(subDays(today, 89)), to: todayStr, preset: p, days: 90 };
-    case "180d":
-      return { from: toDateStr(subDays(today, 179)), to: todayStr, preset: p, days: 180 };
-    case "365d":
-      return { from: toDateStr(subDays(today, 364)), to: todayStr, preset: p, days: 365 };
     case "este_mes":
       return {
         from: toDateStr(startOfMonth(today)),
@@ -118,8 +114,6 @@ export function rangeLabel(range: DateRange): string {
     case "14d": return "Últimos 14 días";
     case "30d": return "Últimos 30 días";
     case "90d": return "Últimos 90 días";
-    case "180d": return "Últimos 6 meses";
-    case "365d": return "Último año";
     case "este_mes": return "Este mes";
     case "mes_anterior": return "Mes anterior";
     case "custom":
@@ -147,7 +141,7 @@ export function parseDateParams(
   // Legacy format: ?days=30 (without preset param)
   if (searchParams.days) {
     const days = parseInt(searchParams.days, 10);
-    const presetMap: Record<number, DatePreset> = { 1: "ayer", 7: "7d", 14: "14d", 30: "30d", 90: "90d", 180: "180d", 365: "365d" };
+    const presetMap: Record<number, DatePreset> = { 1: "ayer", 7: "7d", 14: "14d", 30: "30d", 90: "90d" };
     const preset = presetMap[days];
     if (preset) return resolvePreset(preset);
     // Arbitrary day count → custom range

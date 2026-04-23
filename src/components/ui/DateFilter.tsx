@@ -164,7 +164,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
       }
       if (days) {
         const d = parseInt(days, 10);
-        const presetMap: Record<number, DatePreset> = { 1: "ayer", 7: "7d", 14: "14d", 30: "30d", 90: "90d", 180: "180d", 365: "365d" };
+        const presetMap: Record<number, DatePreset> = { 1: "ayer", 7: "7d", 14: "14d", 30: "30d", 90: "90d" };
         if (presetMap[d]) return resolvePreset(presetMap[d]);
       }
     }

@@ -6,8 +6,6 @@ export type DatePreset =
   | "14d"
   | "30d"
   | "90d"
-  | "180d"
-  | "365d"
   | "este_mes"
   | "mes_anterior"
   | "custom";
@@ -28,8 +26,6 @@ export const DATE_PRESETS: { key: DatePreset; label: string }[] = [
   { key: "14d", label: "14 días" },
   { key: "30d", label: "30 días" },
   { key: "90d", label: "90 días" },
-  { key: "180d", label: "6 meses" },
-  { key: "365d", label: "1 año" },
   { key: "este_mes", label: "Este mes" },
   { key: "mes_anterior", label: "Mes anterior" },
   { key: "custom", label: "Personalizado" },
