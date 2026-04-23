@@ -16,6 +16,7 @@ import type { DateRange as SharedDateRange } from "@/types/date-filter";
 import { useChartTheme, type ChartTheme } from "@/hooks/useChartTheme";
 import { SaleFormModal } from "@/components/sales/SaleFormModal";
 import { AddPaymentModal } from "@/components/sales/AddPaymentModal";
+import { InstallmentsModal } from "@/components/sales/InstallmentsModal";
 import type { Sale, ReelPicker, StoryPicker } from "@/components/sales/SaleForm";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -75,18 +76,26 @@ const PALETTE = ["#7A86E0", "#AF6EC7", "#4BCEAF", "#EB6991", "#A5ADEE"];
 
 function SalesTooltip({ active, payload, label, ct }: {
   active?: boolean;
-  payload?: Array<{ value: number }>;
+  payload?: Array<{ value: number; dataKey?: string; name?: string; color?: string }>;
   label?: string;
   ct: ChartTheme;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div
-      className="rounded-xl px-3 py-2 text-[11px]"
+      className="rounded-xl px-3 py-2 text-[11px] space-y-1"
       style={{ background: ct.tooltipBg, border: `1px solid ${ct.tooltipBorder}`, backdropFilter: "blur(20px)", boxShadow: ct.tooltipShadow }}
     >
-      <p className="mb-0.5" style={{ color: ct.tooltipMuted }}>{label}</p>
-      <p className="font-light" style={{ color: "#7A86E0" }}>{fmtMoney(payload[0].value)}</p>
+      <p className="mb-1" style={{ color: ct.tooltipMuted }}>{label}</p>
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-1.5" style={{ color: ct.tooltipMuted }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
+            {p.name ?? p.dataKey}
+          </span>
+          <span className="font-medium" style={{ color: p.color }}>{fmtMoney(p.value)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -116,19 +125,28 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   const totalCollected = activeSales.reduce((s, v) => s + v.amount_collected, 0);
   const totalPending   = totalRevenue - totalCollected;
 
-  // Monthly chart (last 6 months)
-  const monthlyMap = new Map<string, number>();
+  // Monthly chart (last 6 months) — 2 series por mes:
+  //   facturado  = SUM(amount_total)
+  //   recolectado = SUM(amount_collected)
+  const monthlyMap = new Map<string, { facturado: number; recolectado: number }>();
   activeSales.forEach(s => {
     const key = s.sale_date.slice(0, 7);
-    monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + s.amount_total);
+    const entry = monthlyMap.get(key) ?? { facturado: 0, recolectado: 0 };
+    entry.facturado += s.amount_total;
+    entry.recolectado += s.amount_collected;
+    monthlyMap.set(key, entry);
   });
   const chartData = Array.from(monthlyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-6)
-    .map(([month, amount]) => {
+    .map(([month, v]) => {
       const [y, m] = month.split("-");
       const d = new Date(parseInt(y), parseInt(m) - 1, 1);
-      return { label: d.toLocaleString("es", { month: "short" }).replace(".", ""), amount };
+      return {
+        label: d.toLocaleString("es", { month: "short" }).replace(".", ""),
+        facturado: v.facturado,
+        recolectado: v.recolectado,
+      };
     });
 
   // Attribution by source_type
@@ -180,7 +198,12 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
       </div>
 
       {/* ── Date filter ── */}
-      <div className="mb-8 animate-slide-up stagger-1">
+      {/* relative + z-20: el dropdown del DateFilter tiene que quedar por
+          encima de los KPI cards hermanos. animate-slide-up crea un stacking
+          context nuevo, y el orden DOM hace que el grid tape al dropdown si
+          no forzamos. Mismo patrón que el header del dashboard principal.
+          Menor que el topbar global (z-50) para no taparlo al hacer scroll. */}
+      <div className="mb-8 animate-slide-up stagger-1 relative z-20">
         <DateFilter
           mode="state"
           defaultPreset="este_mes"
@@ -233,10 +256,23 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
         {/* ── Left: chart + table ── */}
         <div className="flex-1 min-w-0 space-y-6">
 
-          {/* Monthly chart */}
+          {/* Monthly chart — 2 barras por mes: Facturación (azul) y Efectivo
+              recolectado (verde). */}
           {chartData.length > 0 && (
             <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
-              <h3 className="text-[13px] font-light text-white/80 mb-5">Facturación mensual</h3>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-[13px] font-light text-white/80">Facturación mensual</h3>
+                <div className="flex items-center gap-4 text-[10px] text-white/40">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ background: "#7A86E0" }} />
+                    Facturación
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ background: "#34d399" }} />
+                    Efectivo recolectado
+                  </span>
+                </div>
+              </div>
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 4, right: 4, left: -15, bottom: 0 }}>
@@ -254,14 +290,8 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                       tickFormatter={(v: number) => `$${v >= 1000 ? `${Math.round(v / 1000)}K` : v}`}
                     />
                     <Tooltip content={<SalesTooltip ct={ct} />} cursor={{ fill: ct.cursor }} />
-                    <Bar dataKey="amount" radius={[6, 6, 0, 0]} barSize={28}>
-                      {chartData.map((_, i) => (
-                        <Cell
-                          key={i}
-                          fill={i === chartData.length - 1 ? "#7A86E0" : "rgba(122,134,224,0.32)"}
-                        />
-                      ))}
-                    </Bar>
+                    <Bar dataKey="facturado" name="Facturación" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={16} />
+                    <Bar dataKey="recolectado" name="Efectivo recolectado" fill="#34d399" radius={[4, 4, 0, 0]} barSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -505,7 +535,15 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
         />
       )}
 
-      {paymentSale && (
+      {paymentSale && paymentSale.payment_type === "cuotas" && (
+        <InstallmentsModal
+          sale={paymentSale}
+          onClose={() => setPaymentSale(null)}
+          onSaved={handlePaymentSaved}
+        />
+      )}
+
+      {paymentSale && paymentSale.payment_type !== "cuotas" && (
         <AddPaymentModal
           sale={paymentSale}
           onClose={() => setPaymentSale(null)}

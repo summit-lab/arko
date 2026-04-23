@@ -7,6 +7,47 @@
 
 ## [unreleased] — 2026-04-23
 
+### Improved — Competidores: +150% reels scrapeados + campos nuevos
+
+- **Límite subido 20 → 50 reels** por scrape de competidor. Más data histórica para detectar patrones (hooks, estructura, temas recurrentes) sin cambiar de actor.
+- **Nuevos campos** persistidos en `competitor_reels`:
+  - `location_name` / `location_id` — ubicación taggeada (útil para creators con audiencia geo-específica).
+  - `tagged_users` — array de @usernames mencionados en el reel (detecta colabs, partnerships).
+  - `product_type` — feed / clips / igtv (distingue reel vs otras piezas).
+  - `is_video` — flag booleano para filtrar rápido.
+  - `maybe_trial` — columna preparada para heurística futura de detección de trial reels en competidores (hoy queda NULL). La detección de trials de cuentas ajenas **no es 100% posible** vía Apify porque Instagram no expone `is_shared_to_feed` públicamente; un scrape dual (grid + reels tab) + comparación por `short_code` daría ~70-80% precisión pero duplicaría el costo Apify.
+
+**Tradeoff confirmado**: el scrape de cada competidor consume ~2.5× más compute units de Apify. El cron de `competitor-scraping` (4 AM UTC) sigue corriendo igual — solo tarda un poco más.
+
+#### Archivos
+- `supabase/migrations/20260423000055_competitor_reels_enrichment.sql` (NUEVO) — aplicada en Prod Arko.
+- `src/services/competitor-scraper.service.ts` — MAX_REELS 20→50 + parseo de location/tagged_users/product_type/is_video.
+
+---
+
+### Added — Ventas: cuotas programadas con auto-paid
+
+Cuando una venta tiene `payment_type='cuotas'`, el sistema genera automáticamente las cuotas programadas:
+
+- **Cuota 1**: mismo día que `sale_date`
+- **Cuotas 2..N**: mismo día del mes, mes a mes
+
+Un pg_cron diario marca las cuotas vencidas (due_date <= hoy) como cobradas. Un trigger recalcula `sales.amount_collected` y `sales.payment_status` cada vez que cambia una cuota.
+
+Si un cliente no pagó realmente, el usuario abre la venta desde la tabla (ícono Wallet), ve todas las cuotas con su fecha y monto, y desmarca la que corresponda — el total cobrado se actualiza en vivo.
+
+El modal `AddPaymentModal` original sigue disponible para ventas `deposito` y `full` con pendientes (cobros fuera de calendario).
+
+#### Archivos
+- `supabase/migrations/20260423000054_sale_installments.sql` (NUEVO) — tabla `sale_installments` + trigger `recalc_sale_from_installments` + pg_cron `auto-pay-installments-daily`. **Aplicada en Prod Arko + backfill de ventas existentes.**
+- `src/app/api/sales/route.ts` — POST genera N cuotas al crear venta de cuotas
+- `src/app/api/sales/[id]/installments/route.ts` (NUEVO) — GET/PATCH por cuota
+- `src/components/sales/InstallmentsModal.tsx` (NUEVO) — UI de toggle cobrada/pendiente
+- `src/components/sales/SaleForm.tsx` — envía `n_cuotas` al endpoint
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — selecciona InstallmentsModal para `payment_type='cuotas'`
+
+---
+
 ### Fixed — Multiplicador de Reels: org-only + contextual al filtro de tipo
 
 Dos bugs en el cálculo del multiplicador (x̄) que se mostraba en cada Reel card:
