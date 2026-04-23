@@ -34,15 +34,16 @@ export async function POST(
     const resetStatus = async () => {
       await supabase
         .from('workspace_competitors')
-        .update({ analysis_status: 'idle' })
+        .update({ analysis_status: 'idle', analysis_started_at: null })
         .eq('id', competitorId)
         .eq('workspace_id', auth.workspaceId);
     };
 
-    // Mark as analyzing (persistent loading state durante el scrape)
+    // Mark as analyzing. analysis_started_at lo lee el watchdog de pg_cron
+    // para distinguir scrapes legítimos en curso (<10min) de rows stuck.
     await supabase
       .from('workspace_competitors')
-      .update({ analysis_status: 'analyzing' })
+      .update({ analysis_status: 'analyzing', analysis_started_at: new Date().toISOString() })
       .eq('id', competitorId)
       .eq('workspace_id', auth.workspaceId);
 

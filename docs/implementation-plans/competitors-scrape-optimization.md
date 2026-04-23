@@ -82,15 +82,16 @@ estimada: ~10-20s menos por scrape.
   `maybe_trial`)
 - ✅ Scraper service extrae y persiste los campos nuevos desde Apify
 
-**En Prod (requiere verificación por el próximo agente):**
-- 🔲 Correr SQL en el SQL editor para desbloquear competitors ya trabados
-  (se trabaron antes del fix y siguen con `analysis_status='analyzing'`):
+**En Prod (hecho en sesión 2026-04-23 segunda tanda):**
+- ✅ Correr SQL para desbloquear competitors ya trabados — se desbloquearon
+  `Max Inhouse` y `Nik Setting`. La query original del plan usaba `updated_at`
+  que NO existe en `workspace_competitors`; adaptada a `last_scraped_at`:
 
 ```sql
 UPDATE workspace_competitors
-SET analysis_status = 'idle', updated_at = now()
+SET analysis_status = 'idle'
 WHERE analysis_status = 'analyzing'
-  AND updated_at < now() - interval '10 minutes';
+  AND (last_scraped_at IS NULL OR last_scraped_at < now() - interval '10 minutes');
 ```
 
 - 🔲 Verificar que los competitors que se scrapearon después del merge
@@ -120,13 +121,24 @@ scrapearon post-fix.
 
 ## 4. Pendientes opcionales
 
-### 4.1 Watchdog pg_cron para auto-desbloquear (recomendado)
+### 4.1 Watchdog pg_cron para auto-desbloquear ✅ APLICADO 2026-04-23
 
-Aunque el código nuevo garantiza reset, agregar un watchdog (mismo patrón que
-`sync_jobs_watchdog_mark_stuck`) es una red de seguridad barata contra
-regresiones futuras.
+Aplicado como migration `20260423000056_competitor_analyzing_watchdog.sql`.
+Detalles de lo que quedó en Prod:
 
-**Archivo nuevo:** `supabase/migrations/20260423000056_competitor_analyzing_watchdog.sql`
+- Columna nueva `workspace_competitors.analysis_started_at timestamptz`
+  (se agregó porque `updated_at` no existe y `last_scraped_at` sólo refleja
+  el último scrape exitoso, no el intento en curso).
+- Función `public.competitor_analyzing_watchdog_unblock_stuck()` que resetea
+  a 'idle' todos los rows con `analysis_status='analyzing'` cuyo
+  `analysis_started_at IS NULL` o es más viejo que 10 min.
+- pg_cron `competitor-analyzing-watchdog` cada `*/10 * * * *`.
+- Endpoints actualizados para setear `analysis_started_at=now()` al marcar
+  analyzing y limpiarlo al resetear:
+  - `src/app/api/v1/competitors/[id]/scrape/route.ts`
+  - `src/app/api/v1/competitors/[id]/analyze/route.ts`
+
+**Para referencia histórica, el SQL original del plan era:**
 
 ```sql
 CREATE OR REPLACE FUNCTION public.unblock_stuck_competitor_analyzing()
@@ -258,16 +270,17 @@ Per memoria del proyecto:
 
 ## 8. Checklist de arranque para el próximo agente
 
-- [ ] Leer este archivo completo
-- [ ] Confirmar que MCP `arko` está conectado (`claude mcp list` → ✓ Connected)
-- [ ] Correr query de verificación (sección 3) y adjuntar resultado
-- [ ] Si hay stuck → correr UPDATE de sección 3 para desbloquear
-- [ ] Si user pide optimizaciones → revisar sección 4 (priorizar 4.1
-  watchdog como red de seguridad)
+- [x] Leer este archivo completo
+- [x] Confirmar que MCP `arko` está conectado (`claude mcp list` → ✓ Connected)
+- [x] Correr query de verificación (sección 3) y adjuntar resultado
+- [x] Si hay stuck → correr UPDATE de sección 3 para desbloquear (Max Inhouse + Nik Setting)
+- [x] Aplicar 4.1 watchdog (migration 56)
+- [ ] Si user pide optimizaciones adicionales → revisar sección 4.2 (thumbnails)
+      y 4.3 (streaming progress). 4.4 (maybe_trial) requiere pedirlo explícito.
 - [ ] NO re-aplicar los fixes del PR #59, ya están mergeados
 
 ---
 
-**Última actualización**: 2026-04-23 · Sesión Claude Opus 4.7
-**PR de referencia**: #59 en `summit-lab/arko`
-**Commit con los fixes**: `498fefc`
+**Última actualización**: 2026-04-23 · Segunda pasada: watchdog + `analysis_started_at`
+**PR de referencia**: #59 en `summit-lab/arko` (fixes iniciales) + rama actual `chore/sync-pending-benchmarks-dashboard` (watchdog)
+**Commits con los fixes**: `498fefc` (scrape bugs) + migration 56 en Prod Arko
