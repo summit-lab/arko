@@ -424,11 +424,22 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                   <input
                     type="date"
                     value={form.first_installment_date}
-                    onChange={e => set("first_installment_date", e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      // Auto-sincroniza sale_date con first_installment_date.
+                      // El user puede después tocar sale_date manualmente si
+                      // quiere separarlas; pero el default coherente es que
+                      // la venta se registre el mismo día de la 1ª cuota.
+                      setForm(f => ({
+                        ...f,
+                        first_installment_date: v,
+                        sale_date: v || f.sale_date,
+                      }));
+                    }}
                     className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-3 text-[12px] text-foreground outline-none focus:border-white/20 transition-colors"
                   />
                   <p className="text-[10px] text-white/30 leading-relaxed">
-                    Las siguientes cuotas se generan cada 30 días. Si la dejás vacía, usa la fecha de venta.
+                    Las siguientes cuotas se generan cada 30 días. La fecha de venta se sincroniza automáticamente con este valor (podés cambiarla después).
                   </p>
                 </div>
                 {amountTotal > 0 && (
