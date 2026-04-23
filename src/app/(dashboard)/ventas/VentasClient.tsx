@@ -130,15 +130,36 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   const totalPending   = totalRevenue - totalCollected;
 
   // Monthly chart (last 6 months) — 2 series por mes:
-  //   facturado  = SUM(amount_total)
-  //   recolectado = SUM(amount_collected)
+  //   facturado   = SUM por mes de vencimiento de cada cuota (o sale_date si full/deposito)
+  //   recolectado = SUM por mes de paid_at real (o sale_date si el cobro fue upfront)
+  //
+  // Antes sumábamos todo al mes del sale_date, lo que concentraba una venta
+  // de 3 cuotas en un solo mes y dejaba vacíos los meses donde realmente
+  // entra el cashflow. Ahora distribuimos según cuándo vence/entra cada cuota.
   const monthlyMap = new Map<string, { facturado: number; recolectado: number }>();
-  activeSales.forEach(s => {
-    const key = s.sale_date.slice(0, 7);
+  const addTo = (key: string, bucket: "facturado" | "recolectado", amount: number) => {
+    if (!amount) return;
     const entry = monthlyMap.get(key) ?? { facturado: 0, recolectado: 0 };
-    entry.facturado += s.amount_total;
-    entry.recolectado += s.amount_collected;
+    entry[bucket] += amount;
     monthlyMap.set(key, entry);
+  };
+  activeSales.forEach(s => {
+    const saleKey = s.sale_date.slice(0, 7);
+    const installments = s.installments ?? [];
+
+    if (s.payment_type === "cuotas" && installments.length > 0) {
+      // Distribuir por vencimiento/pago de cada cuota.
+      installments.forEach(i => {
+        addTo(i.due_date.slice(0, 7), "facturado", Number(i.amount));
+        if (i.paid_at) {
+          addTo(i.paid_at.slice(0, 7), "recolectado", Number(i.amount));
+        }
+      });
+    } else {
+      // Full o depósito (sin cuotas granulares): todo al mes del sale_date.
+      addTo(saleKey, "facturado", s.amount_total);
+      addTo(saleKey, "recolectado", s.amount_collected);
+    }
   });
   const chartData = Array.from(monthlyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))

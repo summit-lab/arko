@@ -22,6 +22,9 @@ export interface Sale {
   reel_id: string | null;
   story_sequence_id?: string | null;
   reels: { id: string; caption: string | null; thumbnail_url: string | null; permalink: string | null } | null;
+  /** Cuotas asociadas (si payment_type='cuotas'). Usado en charts para
+   *  distribuir el revenue por mes de vencimiento/pago real. */
+  installments?: Array<{ due_date: string; paid_at: string | null; amount: number }>;
 }
 
 export interface ReelPicker {
