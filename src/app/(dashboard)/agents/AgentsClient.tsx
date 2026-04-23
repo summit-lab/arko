@@ -301,13 +301,52 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] py-16">
-      <div className="relative mb-8">
+      <div className="relative mb-8 group">
         <div
           className="absolute inset-0 blur-2xl opacity-20 rounded-full"
           style={{ background: "radial-gradient(circle, rgba(120,120,120,0.3) 0%, transparent 70%)" }}
         />
-        <div className="relative h-20 w-20 rounded-2xl bg-accent border border-border flex items-center justify-center backdrop-blur-sm">
-          <ArkoLogoSmall size={36} opacity={0.5} />
+        <div className="relative h-20 w-20 rounded-2xl bg-accent border border-border flex items-center justify-center backdrop-blur-sm cursor-pointer">
+          <ArkoLogoSmall size={56} opacity={1} className="moka-head-tilt-right" />
+        </div>
+
+        {/* Woof! speech bubble — pixel/retro, aparece al hover del contenedor.
+            Tail largo que baja hacia el Moka, como saliendo de su boca. */}
+        <div
+          className="absolute -top-10 -right-10 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-out pointer-events-none select-none"
+        >
+          <div
+            className="relative px-3 py-1.5 font-mono font-bold uppercase tracking-wider text-[13px] text-foreground"
+            style={{
+              background: "var(--background)",
+              border: "3px solid var(--foreground)",
+              boxShadow: "4px 4px 0 var(--foreground)",
+            }}
+          >
+            Woof!
+            {/* Tail largo — tip hacia abajo-izquierda, llega cerca del Moka.
+                Dos layers (border + fill) para respetar el grosor del border. */}
+            <span
+              className="absolute w-0 h-0"
+              style={{
+                bottom: "-26px",
+                left: "4px",
+                borderLeft: "9px solid transparent",
+                borderRight: "9px solid transparent",
+                borderTop: "26px solid var(--foreground)",
+              }}
+            />
+            <span
+              className="absolute w-0 h-0"
+              style={{
+                bottom: "-20px",
+                left: "8px",
+                borderLeft: "5px solid transparent",
+                borderRight: "5px solid transparent",
+                borderTop: "20px solid var(--background)",
+              }}
+            />
+          </div>
         </div>
       </div>
 

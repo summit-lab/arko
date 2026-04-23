@@ -16,7 +16,7 @@ const manropeLight = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Moka | AI Marketing Director",
+  title: "Moka",
   description: "AI-powered Marketing Director for high-earning content creators.",
 };
 

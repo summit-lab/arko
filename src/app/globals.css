@@ -396,6 +396,40 @@
   scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
 }
 
+/* ── Moka head tilt — al hover del logo del topbar, anima la cabecita como un
+      perrito curioso. Primero mira a la derecha, despues se asienta inclinada
+      a la izquierda y se queda asi mientras el hover dure (fill-mode forwards).
+      transform-origin al centro-inferior para que el giro sea del cuello. ── */
+@keyframes moka-head-tilt {
+  0%   { transform: rotate(0deg); }
+  40%  { transform: rotate(14deg); }
+  100% { transform: rotate(-16deg); }
+}
+
+.moka-head-tilt {
+  transform-origin: 50% 65%;
+  transition: transform 0.35s ease-out;
+}
+
+.group:hover .moka-head-tilt {
+  animation: moka-head-tilt 0.9s ease-in-out forwards;
+}
+
+/* Variante solo-derecha para el logo de Moka AI — mas sutil, un tilt hacia
+   la derecha y se queda ahi mientras dure el hover. */
+@keyframes moka-head-tilt-right {
+  to { transform: rotate(18deg); }
+}
+
+.moka-head-tilt-right {
+  transform-origin: 50% 65%;
+  transition: transform 0.35s ease-out;
+}
+
+.group:hover .moka-head-tilt-right {
+  animation: moka-head-tilt-right 0.5s ease-out forwards;
+}
+
 /* ── Stories sequence — thicker + more visible scrollbar for the slide strip,
       since the global 6px scrollbar is nearly invisible for a prominent
       horizontal scroll the user is meant to interact with ── */

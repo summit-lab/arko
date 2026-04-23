@@ -17,12 +17,12 @@ export function SaleFormModal({ reels, stories, onClose, onSaved, defaultSourceT
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: ct.overlayBg, backdropFilter: "blur(14px)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[480px] rounded-2xl max-h-[90vh] overflow-y-auto glass-card"
+        className="w-full max-w-[480px] rounded-2xl max-h-[90vh] flex flex-col glass-card"
         style={{
           boxShadow: "0 40px 100px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1)",
           backdropFilter: "blur(40px)",

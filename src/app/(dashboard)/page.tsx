@@ -1,4 +1,4 @@
-import { Eye, Heart, Bookmark, MessageSquare, DollarSign, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
@@ -81,6 +81,8 @@ async function getDashboardData(range: DateRange) {
   // Period reels range (ISO bounds for reels.published_at timestamptz) — Fix 3.1/3.2
   const periodReelsFromISO = toISOStart(range.from);
   const periodReelsToISO = toISOStart(nextDay(range.to));
+  const periodReelsPrevFromISO = toISOStart(prev.from);
+  const periodReelsPrevToISO = toISOStart(nextDay(prev.to));
 
   // Current calendar month window (for Metas del Mes donuts) — Fix 3.3
   const monthWin = getCurrentMonthWindow();
@@ -95,6 +97,7 @@ async function getDashboardData(range: DateRange) {
     insightsMonthGoals,
     reels90d,
     reelsPeriod,
+    reelsPrevPeriod,
     reelsMonth,
     goalsResult,
     salesCurrent,
@@ -104,6 +107,7 @@ async function getDashboardData(range: DateRange) {
     adsMessagingCurrent,
     adsMessagingPrev,
     storiesForCalendar,
+    reelMetricsDailyWindow,
   ] = await Promise.all([
     // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
     // — the date range predicate already bounds the result (Fix 3.6).
@@ -178,6 +182,20 @@ async function getDashboardData(range: DateRange) {
       .order("published_at", { ascending: false })
       .limit(500),
 
+    // Query 7b: Reels in PREVIOUS period — para el delta de "Vistas Totales".
+    // Solo traemos views (org + paid), no necesitamos metadata para el KPI.
+    supabase
+      .from("reels")
+      .select(`
+        id, published_at,
+        reel_metrics (views_org),
+        reel_metrics_paid (views_paid)
+      `)
+      .eq("workspace_id", workspaceId)
+      .gte("published_at", periodReelsPrevFromISO)
+      .lt("published_at", periodReelsPrevToISO)
+      .limit(500),
+
     // Query 8: Reels published in CURRENT CALENDAR MONTH — for Metas del Mes "views" donut (C6).
     // Matches the basis used by the "Vistas Totales" Dashboard KPI (sum of reel views_org + views_paid)
     // so the donut reconciles with the header number when both are shown.
@@ -200,19 +218,19 @@ async function getDashboardData(range: DateRange) {
       .eq("workspace_id", workspaceId)
       .eq("period_start", monthStart),
 
-    // Query 10: Sales — current selected period (for "Ventas cobradas" KPI + source breakdown)
+    // Query 10: Sales — current selected period (para Facturacion + Efectivo + source breakdown)
     supabase
       .from("sales")
-      .select("amount_collected, source_type, payment_status")
+      .select("amount_total, amount_collected, source_type, payment_status")
       .eq("workspace_id", workspaceId)
       .neq("payment_status", "cancelled")
       .gte("sale_date", range.from)
       .lte("sale_date", range.to),
 
-    // Query 11: Sales — previous period (for KPI delta)
+    // Query 11: Sales — previous period (para KPI deltas)
     supabase
       .from("sales")
-      .select("amount_collected")
+      .select("amount_total, amount_collected")
       .eq("workspace_id", workspaceId)
       .neq("payment_status", "cancelled")
       .gte("sale_date", prev.from)
@@ -261,6 +279,17 @@ async function getDashboardData(range: DateRange) {
       .gte("published_at", ninetyDaysAgo)
       .order("published_at", { ascending: false })
       .limit(200),
+
+    // Query 17: reel_metrics_daily para "Vistas Totales" KPI — snapshots
+    // cumulativos por reel por dia. Traemos desde el inicio del periodo PREVIO
+    // hasta el fin del actual asi tenemos baseline para ambos periodos.
+    // Views ganadas = delta de cumulativos (end - start) por reel, sumado.
+    supabase
+      .from("reel_metrics_daily")
+      .select("reel_id, metric_date, views_org, views_paid")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", prev.from)
+      .lte("metric_date", range.to),
   ]);
 
   // ─── Log query errors ───
@@ -271,6 +300,7 @@ async function getDashboardData(range: DateRange) {
   if (insightsMonthGoals.error) console.error('[dashboard] insightsMonthGoals error:', insightsMonthGoals.error);
   if (reels90d.error) console.error('[dashboard] reels90d error:', reels90d.error);
   if (reelsPeriod.error) console.error('[dashboard] reelsPeriod error:', reelsPeriod.error);
+  if (reelsPrevPeriod.error) console.error('[dashboard] reelsPrevPeriod error:', reelsPrevPeriod.error);
   if (reelsMonth.error) console.error('[dashboard] reelsMonth error:', reelsMonth.error);
   if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
   if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
@@ -360,18 +390,70 @@ async function getDashboardData(range: DateRange) {
     };
   });
 
-  // Views KPI scoped to selected period (Fix 3.1)
-  const totalViewsPeriod = reelsInPeriod.reduce((s, r) => s + r.views_total, 0);
+  // Views KPI — total de vistas GANADAS en la ventana por TODOS los reels
+  // (no solo los publicados en la ventana). Usamos snapshots de
+  // reel_metrics_daily y restamos: delta entre el ultimo snapshot del periodo
+  // y el ultimo del periodo previo (baseline).
+  //
+  // Reels viejos siguen acumulando vistas — esta metrica las captura, a
+  // diferencia del SUM de reels_in_period que se queda en 0 cuando no publicas
+  // nada nuevo en la ventana.
+  const dailyRows = (reelMetricsDailyWindow.data ?? []) as Array<{
+    reel_id: string;
+    metric_date: string;
+    views_org: number | null;
+    views_paid: number | null;
+  }>;
+  const viewsByReel = new Map<string, Array<{ date: string; views: number }>>();
+  for (const row of dailyRows) {
+    const list = viewsByReel.get(row.reel_id) ?? [];
+    list.push({
+      date: row.metric_date,
+      views: (row.views_org ?? 0) + (row.views_paid ?? 0),
+    });
+    viewsByReel.set(row.reel_id, list);
+  }
+
+  // Calcula views ganadas en [windowStart, windowEnd] por reel:
+  //   endViews   = ultimo snapshot cuya date <= windowEnd
+  //   baseline   = ultimo snapshot cuya date < windowStart (si existe)
+  //   si no hay baseline (reel nuevo) => start = primer snapshot en la ventana
+  //   delta = endViews - baseline (nunca negativo)
+  const viewsGainedInWindow = (windowStart: string, windowEnd: string): number => {
+    let total = 0;
+    for (const rows of viewsByReel.values()) {
+      const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
+      let baseline: number | null = null;
+      let endViews: number | null = null;
+      let firstInWindow: number | null = null;
+      for (const r of sorted) {
+        if (r.date < windowStart) {
+          baseline = r.views; // keep updating to latest before window
+        } else if (r.date <= windowEnd) {
+          if (firstInWindow === null) firstInWindow = r.views;
+          endViews = r.views; // keep updating to latest in window
+        }
+      }
+      if (endViews === null) continue;
+      const start = baseline ?? firstInWindow ?? 0;
+      const delta = endViews - start;
+      if (delta > 0) total += delta;
+    }
+    return total;
+  };
+
+  const totalViewsPeriod = viewsGainedInWindow(range.from, range.to);
+  const totalViewsPrevPeriod = viewsGainedInWindow(prev.from, prev.to);
 
   // Sales total from 90d window (Top Ventas panel)
   const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
-  // C5: No previous-period reels query exists, so we can't compute a views delta honestly.
-  // The KPI value is sum(reel.views_total) for the current period, but we have no equivalent
-  // aggregate for the previous period. Previously this was computed from reach (an account-level
-  // metric, not comparable to reel views), which produced a misleading "+X%" badge.
-  // Setting to null hides the badge instead of showing a lie — the KPI renderer guards on this.
-  const viewsChange = null as { text: string; up: boolean } | null;
+  // Delta vs periodo anterior — ahora ambos valores representan "vistas
+  // ganadas en la ventana" (ver viewsGainedInWindow arriba), asi que el
+  // pctChange es honesto.
+  const viewsChange: { text: string; up: boolean } | null = (totalViewsPeriod > 0 || totalViewsPrevPeriod > 0)
+    ? pctChange(totalViewsPeriod, totalViewsPrevPeriod)
+    : null;
 
   // Top 4 reels by views (from 90d window, panel labeled "Últimos 90 días").
   // Excludes "dark posts" — ad-only creatives where the reel was never posted
@@ -465,61 +547,28 @@ async function getDashboardData(range: DateRange) {
   // Currency treated as implicit USD (no currency column in schema).
 
   const salesCurrentRows = (salesCurrent.data ?? []) as Array<{
+    amount_total: number | null;
     amount_collected: number | null;
     source_type: string | null;
     payment_status: string | null;
   }>;
   const salesPreviousRows = (salesPrevious.data ?? []) as Array<{
+    amount_total: number | null;
     amount_collected: number | null;
   }>;
 
-  const totalSalesCollected = salesCurrentRows.reduce((s, r) => s + (r.amount_collected ?? 0), 0);
-  const totalSalesCollectedPrev = salesPreviousRows.reduce((s, r) => s + (r.amount_collected ?? 0), 0);
+  // Facturacion = amount_total (deal/precio acordado, lo facturado)
+  // Efectivo = amount_collected (cash que ya entro)
+  const totalBilled = salesCurrentRows.reduce((s, r) => s + Number(r.amount_total ?? 0), 0);
+  const totalBilledPrev = salesPreviousRows.reduce((s, r) => s + Number(r.amount_total ?? 0), 0);
+  const billingChange = pctChange(totalBilled, totalBilledPrev);
+
+  const totalSalesCollected = salesCurrentRows.reduce((s, r) => s + Number(r.amount_collected ?? 0), 0);
+  const totalSalesCollectedPrev = salesPreviousRows.reduce((s, r) => s + Number(r.amount_collected ?? 0), 0);
   const salesChange = pctChange(totalSalesCollected, totalSalesCollectedPrev);
 
-  // ─── KPIs ───
-
-  const kpis = [
-    {
-      label: "Vistas Totales",
-      // Scoped to selected period (Fix 3.1)
-      value: totalViewsPeriod > 0 ? formatCompact(totalViewsPeriod) : "—",
-      // C5: viewsChange is null — no honest previous-period comparison available.
-      // Using "—" + up:true so the renderer falls through to the "sin datos previos" branch.
-      change: viewsChange?.text ?? "—",
-      up: viewsChange?.up ?? true,
-      icon: "eye" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Guardados",
-      value: sumCurrent.saves > 0 ? formatCompact(sumCurrent.saves) : "—",
-      ...pctChange(sumCurrent.saves, sumPrevious.saves),
-      icon: "bookmark" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Me gusta",
-      value: sumCurrent.likes > 0 ? formatCompact(sumCurrent.likes) : "—",
-      ...pctChange(sumCurrent.likes, sumPrevious.likes),
-      icon: "heart" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Comentarios",
-      value: sumCurrent.comments > 0 ? formatCompact(sumCurrent.comments) : "—",
-      ...pctChange(sumCurrent.comments, sumPrevious.comments),
-      icon: "message" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Ventas cobradas",
-      value: totalSalesCollected > 0 ? `$${formatCompact(totalSalesCollected)}` : "—",
-      ...salesChange,
-      icon: "dollar" as const,
-      color: "text-white/60",
-    },
-  ];
+  // KPIs array is built further down — after the conversations/stories
+  // aggregations, because two of its cards depend on those series.
 
   // ─── Quick Stats ───
 
@@ -681,6 +730,76 @@ async function getDashboardData(range: DateRange) {
   );
   const conversationsPrevTotal = Math.round((prevBase + adsMsgPrevTotal) * ORGANIC_UPLIFT);
 
+  // ─── KPIs ───
+  // Set final: Vistas Totales · Conversaciones generadas · Comentarios ·
+  // Respuestas a historias · Ventas cobradas.
+
+  // "Conversaciones generadas" = sum of the estimated interactions series
+  // (replies + floor(comments/2) + ads_messaging, 5% organic uplift). Excludes
+  // today — same criterion as the chart.
+  const conversationsCurrentTotal = conversationsData.reduce(
+    (sum, d) => sum + d.interactions, 0
+  );
+  const conversationsChange = pctChange(conversationsCurrentTotal, conversationsPrevTotal);
+
+  // "Respuestas a historias" = sum of total_replies from ig_story_sequences in
+  // the selected period. Filtered client-side from the 90d fetch to avoid an
+  // extra query.
+  const storiesRows = (storiesForCalendar.data ?? []) as Array<{ published_at: string; total_replies: number | null }>;
+  const storyRepliesCurrent = storiesRows
+    .filter((s) => s.published_at >= range.from && s.published_at <= range.to)
+    .reduce((sum, s) => sum + (s.total_replies ?? 0), 0);
+  const storyRepliesPrev = storiesRows
+    .filter((s) => s.published_at >= prev.from && s.published_at <= prev.to)
+    .reduce((sum, s) => sum + (s.total_replies ?? 0), 0);
+  const storyRepliesChange = pctChange(storyRepliesCurrent, storyRepliesPrev);
+
+  const kpis = [
+    {
+      label: "Vistas Totales",
+      // Siempre mostrar numero real (0 en vez de guion).
+      value: formatCompact(totalViewsPeriod),
+      change: viewsChange?.text ?? "—",
+      up: viewsChange?.up ?? true,
+      icon: "eye" as const,
+      color: "text-white/60",
+    },
+    {
+      label: "Conversaciones generadas",
+      value: formatCompact(conversationsCurrentTotal),
+      ...conversationsChange,
+      icon: "conversations" as const,
+      color: "text-white/60",
+    },
+    {
+      label: "Comentarios",
+      value: formatCompact(sumCurrent.comments),
+      ...pctChange(sumCurrent.comments, sumPrevious.comments),
+      icon: "message" as const,
+      color: "text-white/60",
+    },
+    {
+      label: "Respuestas a historias",
+      value: formatCompact(storyRepliesCurrent),
+      ...storyRepliesChange,
+      icon: "reply" as const,
+      color: "text-white/60",
+    },
+  ];
+
+  // Ventas: vive en el sidebar como card con 2 metricas stackeadas.
+  // Ambas siempre muestran $0 (nunca guion) y van en verde.
+  const salesMetrics = {
+    billing: {
+      value: `$${formatCompact(totalBilled)}`,
+      change: billingChange,
+    },
+    collected: {
+      value: `$${formatCompact(totalSalesCollected)}`,
+      change: salesChange,
+    },
+  };
+
   return {
     kpis,
     topContent,
@@ -693,6 +812,7 @@ async function getDashboardData(range: DateRange) {
     metasActuals,
     conversationsData,
     conversationsPrevTotal,
+    salesMetrics,
   };
 }
 
@@ -703,6 +823,8 @@ const ICON_MAP = {
   bookmark: Bookmark,
   heart: Heart,
   message: MessageSquare,
+  conversations: MessagesSquare,
+  reply: Reply,
   dollar: DollarSign,
 } as const;
 
@@ -722,11 +844,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const calendarContent = data?.calendarContent ?? [];
   const conversationsData = data?.conversationsData ?? [];
   const conversationsPrevTotal = data?.conversationsPrevTotal ?? 0;
+  const salesMetrics = data?.salesMetrics ?? null;
 
   return (
     <div className="px-8 py-10">
-      {/* Header */}
-      <div className="animate-slide-up mb-10 flex items-start justify-between relative">
+      {/* Header del Dashboard — z-20 para crear stacking context propio que
+          permite al dropdown del DateFilter flotar sobre los KPIs. Menor que
+          el topbar global (z-50) para que el sticky header quede siempre
+          arriba cuando scroleas. */}
+      <div className="animate-slide-up mb-10 flex items-start justify-between relative z-20">
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
@@ -738,17 +864,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </div>
       </div>
 
-      {/* Hero KPIs — fila 1 full-width para que los 5 numeros respiren
-          (antes compartian ancho con la sidebar 320px y se cortaban en <1600px). */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5 mb-6">
-        {kpis.map((m, i) => {
-          const IconComp = ICON_MAP[m.icon];
-          return (
-            <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
-                  <div className="flex items-center justify-between mb-4 relative z-10">
-                    <p className="stat-label">{m.label}</p>
-                    <div className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color}`}>
-                      <IconComp className="h-[18px] w-[18px]" />
+      {/* Layout 70/30: columna izq (KPIs + charts + mejor contenido) | sidebar der
+          (Ventas arriba + Resumen Rapido + etc). Los KPIs viven DENTRO del col izq
+          asi que tienen el mismo ancho que los graficos de abajo. Ventas va
+          arriba del todo en la sidebar, alineada al ras superior con los KPIs. */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── LEFT: KPIs + charts + Mejor Contenido ── */}
+        <div className="flex-1 min-w-0 space-y-6">
+
+          {/* Hero KPIs — 2 cols en mobile, 4 cols en lg+. Restringido al ancho
+              del col izq asi no invade el sidebar. */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {kpis.map((m, i) => {
+              const IconComp = ICON_MAP[m.icon];
+              return (
+                <div key={m.label} className={`@container glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
+                  {/* Container query: card angosto → icono ARRIBA + label DEBAJO
+                      (stackeado). Card ancho (>=180px) → label IZQ + icono DER
+                      (horizontal). Los `order` hacen el swap del arreglo DOM. */}
+                  <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
+                    <p className="stat-label leading-tight order-last @[180px]:order-first">{m.label}</p>
+                    <div className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color} order-first @[180px]:order-last`}>
+                      <IconComp className="h-[18px] w-[18px] shrink-0" />
                     </div>
                   </div>
                   <CountUp value={m.value} className="stat-number-xl relative z-10" />
@@ -767,17 +904,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                       <span className="text-[11px] text-white/20">sin datos previos</span>
                     )}
                   </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Fila 2+: contenido principal + sidebar, side-by-side en desktop,
-          stackeado en mobile (<1024px). La sidebar SIEMPRE queda al costado
-          en desktop, no baja; los KPIs de arriba ya ocupan la fila completa. */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* ── LEFT: charts + Mejor Contenido ── */}
-        <div className="flex-1 min-w-0 space-y-6">
+                </div>
+              );
+            })}
+          </div>
 
           {/* Main charts — Recharts */}
           <div className="animate-slide-up stagger-4">
@@ -832,10 +962,79 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             )}
           </div>
 
+          {/* Calendario de Contenido — al ancho del col izq asi llena el espacio
+              bajo "Mejor Contenido" en vez de ocupar full-width al fondo. */}
+          <div className="animate-slide-up stagger-6">
+            <ContentCalendar items={calendarContent} />
+          </div>
+
         </div>
 
         {/* ── RIGHT: Summary sidebar (320px en desktop, full-width stackeada en <1024px) ── */}
         <div className="w-full lg:w-[320px] lg:shrink-0 space-y-6">
+          {/* Ventas — 2 glass-cards independientes stackeados (matchean el
+              estilo de los KPIs de la fila 1: label arriba con icono a la der,
+              numero grande debajo, delta abajo). */}
+          {salesMetrics && (
+            <>
+              {/* Facturacion */}
+              <div className="@container glass-card px-6 py-5 animate-slide-up stagger-1">
+                <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
+                  <p className="stat-label leading-tight order-last @[180px]:order-first">Facturación</p>
+                  <div className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] text-emerald-400 order-first @[180px]:order-last">
+                    <DollarSign className="h-[18px] w-[18px] shrink-0" />
+                  </div>
+                </div>
+                <CountUp value={salesMetrics.billing.value} className="stat-number-xl relative z-10 text-emerald-300" />
+                <div className="flex items-center gap-1.5 mt-3 relative z-10">
+                  {salesMetrics.billing.change.text !== "—" && salesMetrics.billing.value !== "$0" ? (
+                    <>
+                      {salesMetrics.billing.change.up ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                      )}
+                      <span className={`text-[12px] font-medium ${salesMetrics.billing.change.up ? "text-emerald-400" : "text-red-400"}`}>
+                        {salesMetrics.billing.change.text}
+                      </span>
+                      <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
+                    </>
+                  ) : (
+                    <span className="text-[11px] text-white/20">sin datos previos</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Efectivo recolectado */}
+              <div className="@container glass-card px-6 py-5 animate-slide-up stagger-2">
+                <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
+                  <p className="stat-label leading-tight order-last @[180px]:order-first">Efectivo recolectado</p>
+                  <div className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] text-emerald-400 order-first @[180px]:order-last">
+                    <DollarSign className="h-[18px] w-[18px] shrink-0" />
+                  </div>
+                </div>
+                <CountUp value={salesMetrics.collected.value} className="stat-number-xl relative z-10 text-emerald-300" />
+                <div className="flex items-center gap-1.5 mt-3 relative z-10">
+                  {salesMetrics.collected.change.text !== "—" && salesMetrics.collected.value !== "$0" ? (
+                    <>
+                      {salesMetrics.collected.change.up ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                      )}
+                      <span className={`text-[12px] font-medium ${salesMetrics.collected.change.up ? "text-emerald-400" : "text-red-400"}`}>
+                        {salesMetrics.collected.change.text}
+                      </span>
+                      <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
+                    </>
+                  ) : (
+                    <span className="text-[11px] text-white/20">sin datos previos</span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Quick Stats — columna vertical siempre. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
             <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
@@ -896,11 +1095,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             );
           })()}
         </div>
-      </div>
-
-      {/* ── Calendario full-width ── */}
-      <div className="mt-6 animate-slide-up stagger-6">
-        <ContentCalendar items={calendarContent} />
       </div>
     </div>
   );
