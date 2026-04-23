@@ -20,6 +20,7 @@ export default async function VentasPage() {
     client_name: string | null;
     reel_id: string | null;
     reels: { id: string; caption: string | null; thumbnail_url: string | null; permalink: string | null } | null;
+    installments: Array<{ due_date: string; paid_at: string | null; amount: number }>;
   }> = [];
 
   let reelsForPicker: Array<{ id: string; caption: string | null; thumbnail_url: string | null; published_at: string | null }> = [];
@@ -34,7 +35,8 @@ export default async function VentasPage() {
           id, source_type, source_label, amount_total, amount_collected,
           payment_type, payment_status, sale_date, payment_method, notes,
           client_name, reel_id,
-          reels (id, caption, thumbnail_url, permalink)
+          reels (id, caption, thumbnail_url, permalink),
+          sale_installments (due_date, paid_at, amount)
         `)
         .eq("workspace_id", workspaceId)
         .order("sale_date", { ascending: false })
@@ -66,6 +68,7 @@ export default async function VentasPage() {
       sales = salesResult.data.map((s) => ({
         ...s,
         reels: Array.isArray(s.reels) ? (s.reels[0] ?? null) : s.reels,
+        installments: Array.isArray(s.sale_installments) ? s.sale_installments : [],
       })) as typeof sales;
     }
     if (reelsResult.data) reelsForPicker = reelsResult.data;

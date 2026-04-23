@@ -74,9 +74,13 @@ export async function POST(req: NextRequest) {
   // ─── Generar cuotas programadas ───────────────────────────────
   // Si es venta de cuotas, creamos N filas en sale_installments.
   // La primera vence en first_installment_date (default: sale_date), cada
-  // siguiente suma 30 días exactos. Las cuotas cuyo due_date ya pasó (≤ hoy)
-  // se marcan como paid al insertar — el cron diario haría lo mismo al día
-  // siguiente, pero así el total de amount_collected queda correcto de una.
+  // siguiente suma 30 días exactos.
+  //
+  // Se marcan paid solo las cuotas cuyo due_date ≤ hoy. El resto queda
+  // pending y el cron diario las marca a medida que vencen. Si el user
+  // cargó una venta vieja y una cuota futura (por calendario teórico) en
+  // realidad ya la cobró, puede marcarla manualmente desde InstallmentsModal.
+  //
   // El trigger de DB recalcula sales.amount_collected y payment_status.
   if (body.payment_type === "cuotas" && body.n_cuotas && body.n_cuotas >= 2) {
     const n = Math.min(60, Math.max(2, Math.floor(body.n_cuotas)));

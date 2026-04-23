@@ -7,6 +7,52 @@
 
 ## [unreleased] — 2026-04-23
 
+### Added — Ventas: botón editar en la tabla
+
+En la fila de cada venta ahora aparece un ícono de lápiz (hover) junto al de eliminar. Abre el mismo SaleFormModal pero en **modo edición**:
+- Pre-llena todos los campos desde la venta existente.
+- Salta directo al step 2 (información editable).
+- Permite modificar: monto total, cobrado, fecha, fuente/sub-label, cliente, notas, status.
+- **No permite cambiar**: `payment_type`, `n_cuotas` ni la atribución (reel/historia). Si hace falta, eliminar y recrear. Los campos deshabilitados quedan marcados "(no editable)" para que el user lo vea.
+- Submit hace `PATCH /api/sales/[id]` (el endpoint ya existía).
+
+#### Archivos
+- `src/components/sales/SaleForm.tsx` — prop `sale?: Sale`, `buildFormFromSale`, `isEditing` flag, PATCH vs POST.
+- `src/components/sales/SaleFormModal.tsx` — forward del prop `sale`.
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — state `editingSale`, botón `Pencil`, modal de edición.
+
+---
+
+### Added — Ventas: nueva fuente "CTA Bio"
+
+Sexta fuente de pago predeterminada: **CTA Bio** — el copy del bio que empuja a un recurso/DM, distinto del **Link en Bio** (click directo al enlace del perfil). El user pidió poder medirlas por separado en Top fuentes y en el breakdown de Ventas.
+
+- `supabase/migrations/20260423000059_sales_source_type_cta_bio.sql` (NUEVO) — extiende CHECK constraint de `sales.source_type` para aceptar `cta_bio`. Aplicada en Prod + Dev.
+- `src/components/sales/SaleForm.tsx` — agrega al type `SaleSourceType` + label "CTA Bio" + color ámbar (#F59E0B).
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — mismo mapping para renderizar en la tabla de ventas.
+- `src/app/(dashboard)/page.tsx` — extendido `SOURCE_HEX/BG/ICON` (usa ícono `AtSign`). Al ser una fuente sin material asociado, queda excluido del ranking "Top fuentes de facturación" (mismo criterio que `link_bio` y `otro`).
+
+---
+
+### Fixed — Ventas: cuotas retroactivas marcan todas las cuotas como cobradas
+
+Bug: al registrar una venta pasada con cuotas (ej. hace 3 meses, 5 cuotas ya cobradas en la realidad), el sistema solo marcaba paid las cuotas cuyo `due_date ≤ hoy` según el calendario teórico (sale_date + N×30d). Las cuotas "futuras" quedaban pending aunque el cliente ya las hubiera pagado.
+
+**Fix:** si `sale_date < hoy`, asumir venta retroactiva → marcar TODAS las cuotas como paid. Si el user cargó mal (alguna cuota sí quedó pending), puede desmarcarla desde InstallmentsModal.
+
+- `src/app/api/sales/route.ts` — lógica `isRetroactive` al generar cuotas.
+- `src/components/sales/SaleForm.tsx` — preview muestra "{N}/{N} cuotas" cobradas + hint cuando es retroactiva.
+
+---
+
+### Fixed — Instagram reels: filtro de fechas cerraba mal el rango
+
+Las queries de `/instagram` (reels, stories, posts) usaban `.gte(published_at)` sin `.lt` cerrando el extremo superior. Al elegir "mes anterior" o cualquier rango que terminara antes de hoy, la UI mostraba también los reels del mes actual. Queries en Prod confirman que el fix trae los 25 reels correctos de marzo cuando se filtra "mes anterior".
+
+- `src/app/(dashboard)/instagram/page.tsx` — 3 queries con `.lt(published_at, nextDay(to))`.
+
+---
+
 ### Improved — Competidores: ventana 30 días, progreso en vivo, trial detection
 
 Rediseño del flujo de scrape + análisis para que la UX no sea una caja negra de 2-3 min:
