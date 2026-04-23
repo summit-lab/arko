@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
 import { DateFilter } from "@/components/ui/DateFilter";
-import { parseDateParams, toISOStart } from "@/lib/date-utils";
+import { parseDateParams, toISOStart, nextDay } from "@/lib/date-utils";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
@@ -21,6 +21,11 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const dateRange = parseDateParams(params, "90d");
   const periodDays = dateRange.days;
   const periodStartIso = toISOStart(dateRange.from);
+  // Upper bound exclusivo: para filtrar `published_at` entre dateRange.from y
+  // dateRange.to debemos cerrar con `.lt(nextDay(to))`. Sin esto, preset
+  // "mes_anterior" o cualquier rango que termine antes de hoy traía también
+  // todos los reels posteriores al límite superior.
+  const periodEndIsoExclusive = toISOStart(nextDay(dateRange.to));
 
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
@@ -98,6 +103,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         `)
         .eq("workspace_id", workspaceId)
         .gte("published_at", periodStartIso)
+        .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
         .limit(200),
       supabase.from("reel_benchmarks").select("avg_views_90d, avg_views_by_type").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
@@ -129,6 +135,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         `)
         .eq("workspace_id", workspaceId)
         .gte("published_at", periodStartIso)
+        .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
         .limit(100),
       supabase
@@ -142,6 +149,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .eq("workspace_id", workspaceId)
         .not("media_product_type", "eq", "REELS")
         .gte("published_at", periodStartIso)
+        .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
         .limit(200),
       supabase.from("sync_jobs").select("metadata").eq("workspace_id", workspaceId).eq("job_type", "ads_insights").order("created_at", { ascending: false }).limit(1).maybeSingle(),
