@@ -269,7 +269,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
       {/* ── Dropdown Panel ── */}
       {isOpen && (
         <div
-          className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl"
+          className="absolute top-full left-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl"
           style={{
             zIndex: 9999,
             minWidth: 200,
