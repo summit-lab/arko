@@ -196,9 +196,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col min-h-0 flex-1">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07]">
+      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07] shrink-0">
         <div>
           <h3 className="text-[15px] font-light text-white">Nueva Venta</h3>
           <p className="text-[11px] text-white/30 mt-0.5">
@@ -213,7 +213,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
       </div>
 
       {/* Progress bar */}
-      <div className="flex px-6 pt-4 gap-1.5">
+      <div className="flex px-6 pt-4 gap-1.5 shrink-0">
         {[1, 2].map(n => (
           <div
             key={n}
@@ -223,7 +223,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
         ))}
       </div>
 
-      <div className="px-6 py-5 space-y-5">
+      <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1 min-h-0">
 
         {/* ── Step 1: Información de la venta ── */}
         {step === 1 && (
@@ -442,18 +442,6 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               />
             </div>
 
-            <button
-              onClick={() => setStep(2)}
-              className="w-full py-3 rounded-xl text-[13px] font-medium text-white cursor-pointer transition-all hover:brightness-110 flex items-center justify-center gap-2"
-              style={{
-                background: "linear-gradient(180deg, rgba(122,134,224,0.18) 0%, rgba(122,134,224,0.1) 100%)",
-                border: "1px solid rgba(122,134,224,0.3)",
-                borderTop: "1px solid rgba(122,134,224,0.5)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
-              }}
-            >
-              Siguiente <ArrowRight className="h-3.5 w-3.5" />
-            </button>
           </>
         )}
 
@@ -646,30 +634,51 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               />
             </div>
 
-            {error && <p className="text-[11px] text-red-400">{error}</p>}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStep(1)}
-                className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
-              >
-                ← Atrás
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-white cursor-pointer transition-all hover:brightness-110 disabled:opacity-50"
-                style={{
-                  background: "linear-gradient(180deg, rgba(122,134,224,0.22) 0%, rgba(122,134,224,0.12) 100%)",
-                  border: "1px solid rgba(122,134,224,0.32)",
-                  borderTop: "1px solid rgba(122,134,224,0.52)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
-                }}
-              >
-                {loading ? "Guardando..." : "Guardar venta"}
-              </button>
-            </div>
           </>
+        )}
+      </div>
+
+      {/* Footer — sticky con botones */}
+      <div className="px-6 py-4 border-t border-white/[0.07] shrink-0 space-y-3">
+        {step === 2 && error && <p className="text-[11px] text-red-400">{error}</p>}
+
+        {step === 1 && (
+          <button
+            onClick={() => setStep(2)}
+            className="w-full py-3 rounded-xl text-[13px] font-medium text-white cursor-pointer transition-all hover:brightness-110 flex items-center justify-center gap-2"
+            style={{
+              background: "linear-gradient(180deg, rgba(122,134,224,0.18) 0%, rgba(122,134,224,0.1) 100%)",
+              border: "1px solid rgba(122,134,224,0.3)",
+              borderTop: "1px solid rgba(122,134,224,0.5)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
+            }}
+          >
+            Siguiente <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {step === 2 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setStep(1)}
+              className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
+            >
+              ← Atrás
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-white cursor-pointer transition-all hover:brightness-110 disabled:opacity-50"
+              style={{
+                background: "linear-gradient(180deg, rgba(122,134,224,0.22) 0%, rgba(122,134,224,0.12) 100%)",
+                border: "1px solid rgba(122,134,224,0.32)",
+                borderTop: "1px solid rgba(122,134,224,0.52)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
+              }}
+            >
+              {loading ? "Guardando..." : "Guardar venta"}
+            </button>
+          </div>
         )}
       </div>
     </div>

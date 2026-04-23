@@ -80,7 +80,11 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 - La duración del Reel (`duration_seconds`) se obtiene de Apify (`videoDuration`) porque Meta no la expone en el media object ni en insights.
 - **Impresiones conocidas:** si `impressions_org` no está disponible desde Meta, la ficha no debe mostrar `0` como si fuera dato real. Debe mostrar el total conocido (paid si existe) o `—` con nota aclaratoria de que Meta no expone impresiones orgánicas para todos los Reels.
 - Las visualizaciones de la ficha no deben usar barras ambiguas "relativas al mayor número" cuando no existe denominador de negocio; en esos casos se muestran valores absolutos, y las barras quedan reservadas para relaciones explícitas tipo `x de y`.
-- El benchmark 90d de la ficha excluye Reels con `reel_type = trial_likely` y calcula ratios contra `views_total` (`views_org + views_paid`) para comparar con la misma base que ve el usuario en pantalla.
+- El benchmark 90d se calcula **solo con `views_org`** (ads no entran ni al numerador ni al promedio). Se guardan 3 promedios en `reel_benchmarks.avg_views_by_type`: `normal` (excluye `trial_likely`), `trial` (solo trials), `all` (todos). La UI elige cuál usar según el filtro de tipo activo:
+  - Filtro `Reel` (default) → compara contra `avg_views_by_type.normal`
+  - Filtro `Trial reel` → compara contra `avg_views_by_type.trial` (evita que todos los trials caigan en ~0.2x al compararse contra normales)
+  - Filtro `Todos` → compara contra `avg_views_by_type.all`
+- Las métricas derivadas (`avg_engagement_rate`, `avg_retention_rate`, `avg_likes_per_view`, etc.) se siguen calculando únicamente con Reels `normal` (excluyendo trials) porque trials distorsionan esas ratios.
 - La ficha no debe recalcular ese benchmark en cada apertura: consume el snapshot más reciente persistido en `reel_benchmarks` para mantener tiempos de respuesta bajos.
 - `reel_benchmarks` se recalcula por `workspace` al finalizar cada sync de media (`/api/v1/sync/instagram` con `steps=all|media`), por lo que desde el **primer sync** ya debe existir un snapshot base de promedios de la cuenta para las fichas y vistas agregadas.
 - El benchmark es **propio de la cuenta/workspace**, no global de Arko: usa únicamente los Reels del usuario dentro de la ventana móvil de 90 días y se actualiza en background cada vez que el usuario vuelve a sincronizar.

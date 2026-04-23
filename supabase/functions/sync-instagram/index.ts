@@ -1480,7 +1480,7 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
   if (error) throw new Error(`Benchmark query failed: ${error.message}`);
 
   // deno-lint-ignore no-explicit-any
-  const eligible = ((data ?? []) as any[])
+  const allWithMetrics = ((data ?? []) as any[])
     .map((reel) => {
       const organic = Array.isArray(reel.reel_metrics) ? reel.reel_metrics[0] : reel.reel_metrics;
       const paid = Array.isArray(reel.reel_metrics_paid) ? reel.reel_metrics_paid[0] : reel.reel_metrics_paid;
@@ -1504,9 +1504,25 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
         durationSeconds: reel.duration_seconds ?? null,
       };
     })
-    .filter((r) => r.hasMetrics && r.reelType !== "trial_likely");
+    .filter((r) => r.hasMetrics);
+
+  // `eligible` = universo histórico "normal" para las métricas derivadas
+  // (engagement_rate, retention_rate, etc). Excluye trials porque distorsionan
+  // las ratios.
+  const eligible = allWithMetrics.filter((r) => r.reelType !== "trial_likely");
 
   const avg = (vals: number[]) => vals.length === 0 ? 0 : vals.reduce((s, v) => s + v, 0) / vals.length;
+
+  // Multiplicador contextual al filtro de tipo en la UI.
+  // Todos sobre views_org: ads no inflan ni el promedio ni el numerador.
+  const trialReels  = allWithMetrics.filter((r) => r.reelType === "trial_likely");
+  const normalReels = allWithMetrics.filter((r) => r.reelType !== "trial_likely");
+  const avgViewsByType = {
+    normal: avg(normalReels.map((r) => r.viewsTotal)),
+    trial:  avg(trialReels.map((r) => r.viewsTotal)),
+    all:    avg(allWithMetrics.map((r) => r.viewsTotal)),
+  };
+
   const withViews = eligible.filter((r) => r.viewsTotal > 0);
   const withWatchTime = eligible.filter((r) => r.avgWatchTime != null);
   const withDuration = eligible.filter((r) => r.durationSeconds != null && r.durationSeconds > 0);
@@ -1522,7 +1538,8 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
       calculated_at: new Date().toISOString(),
       window_start: windowStart, window_end: windowEnd,
       reels_in_window: eligible.length,
-      avg_views_90d: avg(eligible.map((r) => r.viewsTotal)),
+      avg_views_90d: avgViewsByType.normal,
+      avg_views_by_type: avgViewsByType,
       avg_comments_90d: avg(eligible.map((r) => r.comments)),
       avg_saves_90d: avg(eligible.map((r) => r.saves)),
       avg_follows_90d: avg(eligible.map((r) => r.follows)),

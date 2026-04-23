@@ -111,7 +111,12 @@ export async function refreshReelBenchmarks(
 
   const reels = (data ?? []) as ReelRow[];
 
-  const eligible = reels
+  // `allWithMetrics` = universo base para los 3 benchmarks (incluye trials).
+  // `eligible`       = universo "normal" histórico: excluye trials.
+  //                    Se sigue usando para todas las métricas extra
+  //                    (avg_engagement_rate, avg_retention_rate, etc.)
+  //                    porque históricamente trials distorsionan esas ratios.
+  const allWithMetrics = reels
     .map((reel) => {
       const organic = normalizeRelation(reel.reel_metrics);
       const paid = normalizeRelation(reel.reel_metrics_paid);
@@ -143,9 +148,21 @@ export async function refreshReelBenchmarks(
     })
     .filter((reel) => {
       if (!reel.hasMetrics) return false;
-      if (EXCLUDE_TRIALS && reel.reelType === 'trial_likely') return false;
       return reel.viewsTotal >= MIN_VIEWS_THRESHOLD;
     });
+
+  const eligible = allWithMetrics.filter(
+    (reel) => !(EXCLUDE_TRIALS && reel.reelType === 'trial_likely'),
+  );
+
+  // Multiplicador: universos separados por tipo. Todos promedian views_org.
+  const trialReels  = allWithMetrics.filter((r) => r.reelType === 'trial_likely');
+  const normalReels = allWithMetrics.filter((r) => r.reelType !== 'trial_likely');
+  const avgViewsByType = {
+    normal: average(normalReels.map((r) => r.viewsTotal)),
+    trial:  average(trialReels.map((r) => r.viewsTotal)),
+    all:    average(allWithMetrics.map((r) => r.viewsTotal)),
+  };
 
   const withViews = eligible.filter((reel) => reel.viewsTotal > 0);
   const withWatchTime = eligible.filter((reel) => reel.avgWatchTime != null);
@@ -162,7 +179,11 @@ export async function refreshReelBenchmarks(
     window_end: windowEnd,
     reels_in_window: eligible.length,
     // Absolute averages
-    avg_views_90d: average(eligible.map((reel) => reel.viewsTotal)),
+    avg_views_90d: avgViewsByType.normal,
+    // Per-type benchmarks: multiplicador contextual al filtro de tipo en la UI.
+    // Todos calculados sólo con views_org (ads no inflan el promedio ni el
+    // multiplicador individual de ningún reel).
+    avg_views_by_type: avgViewsByType,
     avg_comments_90d: average(eligible.map((reel) => reel.comments)),
     avg_saves_90d: average(eligible.map((reel) => reel.saves)),
     avg_follows_90d: average(eligible.map((reel) => reel.follows)),

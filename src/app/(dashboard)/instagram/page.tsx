@@ -36,6 +36,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     performer_multiple: number | null; is_top_performer: boolean; sales_amount: number | null;
   };
   let reels: ReelCard[] = [];
+  let benchmarksForShell: { normal: number; trial: number; all: number } = { normal: 0, trial: 0, all: 0 };
   let dailyInsights: Array<{
     metric_date: string; impressions: number; reach: number; profile_views: number;
     accounts_engaged: number; total_interactions: number; likes: number; comments: number;
@@ -99,7 +100,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .gte("published_at", periodStartIso)
         .order("published_at", { ascending: false })
         .limit(200),
-      supabase.from("reel_benchmarks").select("avg_views_90d").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("reel_benchmarks").select("avg_views_90d, avg_views_by_type").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
       supabase
         .from("ig_account_insights")
         .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
@@ -300,14 +301,33 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       const reelsData = mediaResult.data.filter((r) => r.media_product_type === "REELS");
 
       if (reelsData.length > 0) {
-        const avgViewsBenchmark = benchmarkResult.data?.avg_views_90d || 1;
+        // Multiplicador = views_org / avg_views_org_del_tipo. Solo-orgánico en
+        // ambos lados: un reel con ads no infla su propio multiplicador ni
+        // el promedio del resto. El tipo depende del filtro activo en la UI,
+        // así que el client recalcula; acá sólo persistimos un valor base
+        // ("normal" benchmark) para `is_top_performer` y para sort default.
+        const rawByType = benchmarkResult.data?.avg_views_by_type as
+          | { normal?: number; trial?: number; all?: number }
+          | null
+          | undefined;
+        const fallbackNormal = benchmarkResult.data?.avg_views_90d || 0;
+        const benchmarksByType = {
+          normal: rawByType?.normal ?? fallbackNormal,
+          trial:  rawByType?.trial  ?? 0,
+          all:    rawByType?.all    ?? fallbackNormal,
+        };
         reels = reelsData.map((r) => {
           const m = getMetrics(r.reel_metrics);
           const p = getPaid(r.reel_metrics_paid);
           const viewsOrg = m?.views_org || 0;
           const viewsPaid = p?.views_paid || 0;
           const viewsTotal = viewsOrg + viewsPaid;
-          const multiple = avgViewsBenchmark > 0 ? viewsTotal / avgViewsBenchmark : null;
+          // Top performer: comparado contra el benchmark del tipo del reel.
+          // Así, un trial que destaca entre trials también cuenta como top.
+          const ownBenchmark = r.reel_type === "trial_likely"
+            ? benchmarksByType.trial
+            : benchmarksByType.normal;
+          const baseMultiple = ownBenchmark > 0 ? viewsOrg / ownBenchmark : null;
           return {
             id: r.id, ig_media_id: r.ig_media_id, caption: r.caption, auto_title: r.auto_title ?? null,
             permalink: r.permalink, thumbnail_url: r.thumbnail_url,
@@ -316,11 +336,14 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
             views_org: viewsOrg, views_paid: viewsPaid, views_total: viewsTotal,
             likes: m?.likes_total || 0, saves: m?.saves_total || 0,
             comments: m?.comments_total || 0, shares: m?.shares_total || 0,
-            follows: m?.follows_generated || 0, performer_multiple: multiple,
-            is_top_performer: (multiple || 0) >= 3,
+            follows: m?.follows_generated || 0,
+            // performer_multiple queda legacy: el UI lo recalcula según filtro.
+            performer_multiple: baseMultiple,
+            is_top_performer: (baseMultiple || 0) >= 3,
             sales_amount: salesByReel.get(r.id) ?? null,
           };
         });
+        benchmarksForShell = benchmarksByType;
       }
     }
 
@@ -427,6 +450,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         posts={posts}
         reelsSummary={reelsSummary}
         reelsMissingDuration={reelsMissingDuration}
+        benchmarksByType={benchmarksForShell}
         workspaceId={workspaceId}
         initialCompetitors={initialCompetitors}
         initialReferences={initialReferences}

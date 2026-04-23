@@ -168,6 +168,7 @@ export interface InstagramShellProps {
   posts: PostCard[];
   reelsSummary: ReelsSummary | undefined;
   reelsMissingDuration: number;
+  benchmarksByType: { normal: number; trial: number; all: number };
   workspaceId: string | null;
   // Pre-fetched data for instant tab switching (no client-side fetch on mount)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,6 +203,7 @@ export function InstagramShell({
   storySequences,
   posts,
   reelsSummary,
+  benchmarksByType,
   workspaceId,
   initialCompetitors,
   initialReferences,
@@ -269,7 +271,7 @@ export function InstagramShell({
       )}
 
       {activeTab === "reels" && (
-        <ReelsGrid reels={reels} summary={reelsSummary} />
+        <ReelsGrid reels={reels} summary={reelsSummary} benchmarksByType={benchmarksByType} />
       )}
 
       {activeTab === "historias" && (

@@ -45,17 +45,19 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       {/* ── Crossing & Fading Divider Lines ── */}
+      {/* z-[60] para que los dividers siempre ganen contra el topbar sticky
+          (que esta en z-50). Antes el backdrop-blur del topbar los tapaba. */}
       {/* Vertical Line */}
       <div
-        className="fixed left-[260px] top-0 bottom-0 w-[1px] z-50 pointer-events-none divider-vertical"
+        className="fixed left-[260px] top-0 bottom-0 w-[1px] z-[60] pointer-events-none divider-vertical"
       />
       {/* Horizontal Line */}
       <div
-        className="fixed left-0 right-0 top-[80px] h-[1px] z-50 pointer-events-none divider-horizontal"
+        className="fixed left-0 right-0 top-[80px] h-[1px] z-[60] pointer-events-none divider-horizontal"
       />
       {/* Intersection Glow */}
       <div
-        className="fixed left-[260px] top-[80px] w-4 h-4 -ml-2 -mt-2 rounded-full z-50 pointer-events-none divider-glow"
+        className="fixed left-[260px] top-[80px] w-4 h-4 -ml-2 -mt-2 rounded-full z-[60] pointer-events-none divider-glow"
       />
 
       <Suspense fallback={null}>

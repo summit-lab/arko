@@ -4,7 +4,37 @@
 > Cada entrada incluye: fecha, tipo, archivos afectados, request original.
  
 ---
- 
+
+## [unreleased] — 2026-04-23
+
+### Fixed — Multiplicador de Reels: org-only + contextual al filtro de tipo
+
+Dos bugs en el cálculo del multiplicador (x̄) que se mostraba en cada Reel card:
+
+- **Bug A — Ads inflaban el multiplicador**: el numerador sumaba `views_org + views_paid` pero el denominador (promedio 90d) ya era solo `views_org`. Un Reel con 100k org + 100k ads aparecía con ×2 falso. Ahora el numerador también pasa a `views_org`: ads se siguen mostrando aparte pero no afectan el ranking.
+- **Bug B — Multiplicador no reaccionaba al filtro de tipo**: al filtrar por "Trial reel", el multiplicador seguía comparando contra el promedio de Reels normales, y todos los trials caían en ~0.2x. Ahora hay 3 benchmarks separados (`normal`, `trial`, `all`) y la UI elige el apropiado según el filtro activo.
+
+Cambios:
+
+- **DB** — `reel_benchmarks.avg_views_by_type jsonb` con `{ normal, trial, all }`. Migración aplicada en Dev Arko.
+- **Service** — `reel-benchmarks.service.ts` calcula los 3 promedios usando solo `views_org`. Métricas derivadas (engagement, retention, etc.) siguen excluyendo trials.
+- **Edge Function** — `sync-instagram/index.ts` replica la lógica nueva para que cada sync actualice el JSONB.
+- **Server + API** — `page.tsx` e `api/v1/reels/route.ts` leen el JSONB; `is_top_performer` se calcula comparando cada Reel contra el benchmark de su propio tipo.
+- **UI** — `ReelsGrid` recibe los 3 benchmarks y computa el multiplicador on-the-fly cuando cambia el `typeFilter`.
+- **Docs** — `docs/features/ig-intelligence.md` documenta la nueva semántica.
+
+#### Archivos modificados
+- `supabase/migrations/20260423000053_benchmarks_by_type.sql` (NUEVO)
+- `src/services/reel-benchmarks.service.ts`
+- `supabase/functions/sync-instagram/index.ts` (requiere redeploy)
+- `src/app/(dashboard)/instagram/page.tsx`
+- `src/app/api/v1/reels/route.ts`
+- `src/components/instagram/InstagramShell.tsx`
+- `src/components/instagram/ReelsGrid.tsx`
+- `docs/features/ig-intelligence.md`
+
+---
+
 ## [0.14.4] — 2026-03-27
 
 ### Fixed — Supabase error handling + black screen prevention
