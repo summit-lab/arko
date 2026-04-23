@@ -29,23 +29,36 @@ export async function POST(
     const { id: competitorId } = await params;
     const supabase = await createClient();
 
-    // Mark as analyzing (persistent loading state)
+    // Helper para resetear el estado — se llama SIEMPRE al final (success o error)
+    // para que el status no quede pegado en "analyzing" si algo falla silencioso.
+    const resetStatus = async () => {
+      await supabase
+        .from('workspace_competitors')
+        .update({ analysis_status: 'idle' })
+        .eq('id', competitorId)
+        .eq('workspace_id', auth.workspaceId);
+    };
+
+    // Mark as analyzing (persistent loading state durante el scrape)
     await supabase
       .from('workspace_competitors')
       .update({ analysis_status: 'analyzing' })
       .eq('id', competitorId)
       .eq('workspace_id', auth.workspaceId);
 
+    let result: Awaited<ReturnType<typeof scrapeCompetitor>>;
     const startMs = Date.now();
-    const result = await scrapeCompetitor(supabase, competitorId, auth.workspaceId);
+    try {
+      result = await scrapeCompetitor(supabase, competitorId, auth.workspaceId);
+    } catch (err) {
+      // Scrape crasheó inesperado — resetear status y propagar error.
+      await resetStatus();
+      throw err;
+    }
     const latencyMs = Date.now() - startMs;
 
     if (result.error) {
-      // Reset status on failure (no analyze will follow)
-      await supabase
-        .from('workspace_competitors')
-        .update({ analysis_status: 'idle' })
-        .eq('id', competitorId);
+      await resetStatus();
 
       // Log failed scrape attempt
       await logIntegrationUsage(supabase, {
@@ -61,6 +74,10 @@ export async function POST(
       });
       return api400(result.error);
     }
+
+    // Happy path — resetear status ANTES del return (bug previo: se quedaba
+    // pegado en "analyzing" para siempre porque el success path no reseteaba).
+    await resetStatus();
 
     // Log profile scrape cost
     await logIntegrationUsage(supabase, {
