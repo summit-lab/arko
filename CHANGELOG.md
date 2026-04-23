@@ -7,6 +7,21 @@
 
 ## [unreleased] — 2026-04-23
 
+### Added — Competidores: watchdog pg_cron para auto-desbloquear scrapes stuck
+
+Red de seguridad contra regresiones del bug de `analysis_status='analyzing'` pegado para siempre (ya arreglado en PR #59 a nivel código). Un pg_cron corre cada 10 min y libera cualquier row cuyo scrape haya pasado de los 10 min sin completarse (Vercel `maxDuration=120s`, así que cualquier cosa >10 min está muerta).
+
+**Cómo distinguir scrapes legítimos en curso:** nueva columna `workspace_competitors.analysis_started_at` seteada por los endpoints `POST /competitors/[id]/scrape` y `POST /competitors/[id]/analyze` al iniciar, y limpiada al terminar. `last_scraped_at` no servía porque refleja el último scrape exitoso, no el intento actual.
+
+**Cleanup ejecutado al aplicar:** 2 competidores stuck (`Max Inhouse`, `Nik Setting`) desbloqueados manualmente antes del deploy.
+
+#### Archivos
+- `supabase/migrations/20260423000056_competitor_analyzing_watchdog.sql` (NUEVO) — aplicada en Prod Arko.
+- `src/app/api/v1/competitors/[id]/scrape/route.ts` — setea `analysis_started_at` al marcar analyzing; lo resetea en `resetStatus`.
+- `src/app/api/v1/competitors/[id]/analyze/route.ts` — mismo patrón (endpoint también deja el status pegado si crashea).
+
+---
+
 ### Improved — Competidores: +150% reels scrapeados + campos nuevos
 
 - **Límite subido 20 → 50 reels** por scrape de competidor. Más data histórica para detectar patrones (hooks, estructura, temas recurrentes) sin cambiar de actor.

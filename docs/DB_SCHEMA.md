@@ -303,6 +303,8 @@ erDiagram
 | `scraped_data` | jsonb | NO | '{}' | Datos scrapeados |
 | `last_scraped_at` | timestamptz | SÍ | — | Última fecha de scraping |
 | `created_at` | timestamptz | NO | now() | — |
+| `analysis_status` | text | NO | 'idle' | idle / analyzing — flag UI para spinner de scrape/analyze |
+| `analysis_started_at` | timestamptz | SÍ | — | Timestamp de inicio del scrape/analyze actual. Leído por watchdog pg_cron `competitor-analyzing-watchdog` para desbloquear rows stuck >10min. |
 
 **RLS:** via is_workspace_member(workspace_id)
 

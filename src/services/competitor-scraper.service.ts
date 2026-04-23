@@ -385,48 +385,52 @@ export async function scrapeCompetitor(
     })
   );
 
-  // Delete old reels for this competitor, then insert fresh
+  // Delete old reels for this competitor, then BULK insert los 50 nuevos en
+  // una sola query. Antes eran 50 INSERTs seriales (~10-20s); ahora 1 roundtrip.
   await supabase
     .from('competitor_reels')
     .delete()
     .eq('competitor_id', competitorId);
 
-  let reelsInserted = 0;
-  for (const reel of reelsWithStableUrls) {
-    const { error: insertError } = await supabase
-      .from('competitor_reels')
-      .insert({
-        competitor_id: competitorId,
-        workspace_id: workspaceId,
-        short_code: reel.short_code,
-        permalink: reel.permalink,
-        caption: reel.caption,
-        likes_count: reel.likes_count,
-        comments_count: reel.comments_count,
-        views_count: reel.views_count,
-        shares_count: reel.shares_count,
-        duration_seconds: reel.duration_seconds,
-        published_at: reel.published_at,
-        thumbnail_url: reel.thumbnail_url,
-        video_url: reel.video_url,
-        transcript: reel.transcript,
-        hashtags: reel.hashtags,
-        mentions: reel.mentions,
-        music_artist: reel.music_artist,
-        music_name: reel.music_name,
-        location_name: reel.location_name,
-        location_id: reel.location_id,
-        tagged_users: reel.tagged_users,
-        product_type: reel.product_type,
-        is_video: reel.is_video,
-        raw_data: reel,
-        scraped_at: new Date().toISOString(),
-      });
+  const scrapedAt = new Date().toISOString();
+  const rowsToInsert = reelsWithStableUrls.map((reel) => ({
+    competitor_id: competitorId,
+    workspace_id: workspaceId,
+    short_code: reel.short_code,
+    permalink: reel.permalink,
+    caption: reel.caption,
+    likes_count: reel.likes_count,
+    comments_count: reel.comments_count,
+    views_count: reel.views_count,
+    shares_count: reel.shares_count,
+    duration_seconds: reel.duration_seconds,
+    published_at: reel.published_at,
+    thumbnail_url: reel.thumbnail_url,
+    video_url: reel.video_url,
+    transcript: reel.transcript,
+    hashtags: reel.hashtags,
+    mentions: reel.mentions,
+    music_artist: reel.music_artist,
+    music_name: reel.music_name,
+    location_name: reel.location_name,
+    location_id: reel.location_id,
+    tagged_users: reel.tagged_users,
+    product_type: reel.product_type,
+    is_video: reel.is_video,
+    raw_data: reel,
+    scraped_at: scrapedAt,
+  }));
 
-    if (insertError) {
-      console.error('[competitor-scraper] Insert reel error:', insertError.message);
+  let reelsInserted = 0;
+  if (rowsToInsert.length > 0) {
+    const { error: bulkError, count } = await supabase
+      .from('competitor_reels')
+      .insert(rowsToInsert, { count: 'exact' });
+
+    if (bulkError) {
+      console.error('[competitor-scraper] Bulk insert error:', bulkError.message);
     } else {
-      reelsInserted++;
+      reelsInserted = count ?? rowsToInsert.length;
     }
   }
 

@@ -36,10 +36,12 @@ export async function POST(
       return api400('Competitor not found in this workspace');
     }
 
-    // Ensure status is 'analyzing' (may already be set by scrape)
+    // Ensure status is 'analyzing' (may already be set by scrape).
+    // analysis_started_at lo lee el watchdog pg_cron para distinguir
+    // runs legítimas en curso de rows stuck por crash/timeout.
     await supabase
       .from('workspace_competitors')
-      .update({ analysis_status: 'analyzing' })
+      .update({ analysis_status: 'analyzing', analysis_started_at: new Date().toISOString() })
       .eq('id', competitorId);
 
     const startMs = Date.now();
@@ -49,7 +51,7 @@ export async function POST(
     // Reset status to idle
     await supabase
       .from('workspace_competitors')
-      .update({ analysis_status: 'idle' })
+      .update({ analysis_status: 'idle', analysis_started_at: null })
       .eq('id', competitorId);
 
     const successful = results.filter(r => r.success).length;
@@ -90,7 +92,7 @@ export async function POST(
       const { id: competitorId } = await params;
       await supabase
         .from('workspace_competitors')
-        .update({ analysis_status: 'idle' })
+        .update({ analysis_status: 'idle', analysis_started_at: null })
         .eq('id', competitorId);
     } catch { /* best effort */ }
 
