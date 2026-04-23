@@ -60,7 +60,7 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
       style={{ background: ct.overlayBg, backdropFilter: "blur(14px)" }}
       onClick={onClose}
     >

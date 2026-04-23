@@ -290,8 +290,8 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                       tickFormatter={(v: number) => `$${v >= 1000 ? `${Math.round(v / 1000)}K` : v}`}
                     />
                     <Tooltip content={<SalesTooltip ct={ct} />} cursor={{ fill: ct.cursor }} />
-                    <Bar dataKey="facturado" name="Facturación" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={16} />
-                    <Bar dataKey="recolectado" name="Efectivo recolectado" fill="#34d399" radius={[4, 4, 0, 0]} barSize={16} />
+                    <Bar dataKey="facturado" name="Facturación" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={56} />
+                    <Bar dataKey="recolectado" name="Efectivo recolectado" fill="#34d399" radius={[4, 4, 0, 0]} barSize={56} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

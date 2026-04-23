@@ -99,11 +99,24 @@ const buildEmptyForm = (defaultSourceType: SaleSourceType) => ({
   n_cuotas: "3",
   amount_collected: "",
   expected_date: "",
+  first_installment_date: "",
   payment_type: "full",
   sale_date: new Date().toISOString().split("T")[0],
   notes: "",
   client_name: "",
 });
+
+// Cuántas cuotas ya vencieron a hoy, dadas fecha de la primera cuota y N total.
+// Cuota i (0..n-1) vence en first + i*30 días. Cuenta las que tengan due ≤ hoy.
+function countDueByToday(firstDateStr: string, n: number): number {
+  if (!firstDateStr) return 0;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const firstMs = new Date(`${firstDateStr}T00:00:00Z`).getTime();
+  const todayMs = new Date(`${todayStr}T00:00:00Z`).getTime();
+  if (firstMs > todayMs) return 0;
+  const diffDays = Math.floor((todayMs - firstMs) / 86_400_000);
+  return Math.min(n, Math.floor(diffDays / 30) + 1);
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -129,8 +142,17 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
   const amountTotal = parseFloat(form.amount_total) || 0;
   const nCuotas = Math.max(1, parseInt(form.n_cuotas) || 1);
   const perCuota = amountTotal > 0 ? Math.round(amountTotal / nCuotas) : 0;
+  // Para cuotas: efectivo recolectado = perCuota × cuotas ya vencidas por fecha.
+  // El usuario no ingresa cobro upfront — el cron diario marca paid cuando vence cada cuota.
+  const firstInstallmentDate = form.first_installment_date || form.sale_date;
+  const paidCuotasCount =
+    form.payment_type === "cuotas" ? countDueByToday(firstInstallmentDate, nCuotas) : 0;
   const amountCollected =
-    form.payment_type === "full" ? amountTotal : (parseFloat(form.amount_collected) || 0);
+    form.payment_type === "full"
+      ? amountTotal
+      : form.payment_type === "cuotas"
+      ? paidCuotasCount * perCuota
+      : (parseFloat(form.amount_collected) || 0);
   const amountPending = Math.max(0, amountTotal - amountCollected);
 
   const derivedStatus = (): string => {
@@ -178,6 +200,8 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           client_contact: null,
           // Solo para cuotas: el endpoint genera las filas en sale_installments.
           n_cuotas: form.payment_type === "cuotas" ? nCuotas : undefined,
+          first_installment_date:
+            form.payment_type === "cuotas" ? firstInstallmentDate : undefined,
         }),
       });
       if (!res.ok) { const e = await res.json() as { error: string }; throw new Error(e.error); }
@@ -326,17 +350,16 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Cobrado hasta hoy</label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-[13px]">$</span>
-                    <input
-                      type="number"
-                      value={form.amount_collected}
-                      onChange={e => set("amount_collected", e.target.value)}
-                      placeholder="0"
-                      className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-7 pr-3 py-3 text-[15px] text-foreground font-light placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
-                    />
-                  </div>
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fecha de la primera cuota</label>
+                  <input
+                    type="date"
+                    value={form.first_installment_date}
+                    onChange={e => set("first_installment_date", e.target.value)}
+                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-3 text-[12px] text-foreground outline-none focus:border-white/20 transition-colors"
+                  />
+                  <p className="text-[10px] text-white/30 leading-relaxed">
+                    Las siguientes cuotas se generan cada 30 días. Si la dejás vacía, usa la fecha de venta.
+                  </p>
                 </div>
                 {amountTotal > 0 && (
                   <div

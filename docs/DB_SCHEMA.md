@@ -305,6 +305,7 @@ erDiagram
 | `created_at` | timestamptz | NO | now() | — |
 | `analysis_status` | text | NO | 'idle' | idle / analyzing — flag UI para spinner de scrape/analyze |
 | `analysis_started_at` | timestamptz | SÍ | — | Timestamp de inicio del scrape/analyze actual. Leído por watchdog pg_cron `competitor-analyzing-watchdog` para desbloquear rows stuck >10min. |
+| `scrape_progress` | jsonb | SÍ | — | Progreso en vivo del scrape/analyze (`{phase, message, current?, total?}`). Polleado por la UI cada 2s desde `GET /api/v1/competitors/[id]`. |
 
 **RLS:** via is_workspace_member(workspace_id)
 

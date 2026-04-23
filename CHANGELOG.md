@@ -7,6 +7,37 @@
 
 ## [unreleased] — 2026-04-23
 
+### Improved — Competidores: ventana 30 días, progreso en vivo, trial detection
+
+Rediseño del flujo de scrape + análisis para que la UX no sea una caja negra de 2-3 min:
+
+- **Ventana fija de 30 días**: el scraper ahora pide reels publicados en los últimos 30 días (antes tomaba los top-50 sin importar cuándo se publicaron). Usa `onlyPostsNewerThan: "30 days"` en el actor + filtro defensivo post-fetch.
+- **Progreso en vivo**: nueva columna `workspace_competitors.scrape_progress jsonb` que los endpoints `/scrape` y `/analyze` actualizan entre fases ("Bajando reels…", "Descargando portadas 12/47…", "Analizando 3/6…"). La UI pollea `GET /api/v1/competitors/[id]` cada 2s y muestra el mensaje dinámico en el botón en vez del texto fijo "Analizando…".
+- **Análisis automático de 6 (antes 5)**: `analyzeCompetitorReels` sube el limit de top-views a 6 y emite progress per-reel.
+- **Trial-reel detection (best effort)**: nuevo scrape paralelo del grid del perfil vía `apify~instagram-post-scraper`. Si un reel aparece en la tab `/reels/` pero NO en el grid del perfil → `competitor_reels.maybe_trial = true` (señal fuerte de Instagram "share to feed: off"). Si el actor del grid falla o no devuelve nada, la columna queda NULL y el resto del scrape sigue normal.
+- **Orden por views en la lista global**: `GET /api/v1/competitors` ahora ordena los reels embebidos por `views_count` desc y sube el límite por competidor a 100 (antes 24).
+
+#### Archivos
+- `supabase/migrations/20260423000057_competitor_scrape_progress.sql` (NUEVO) — aplicada en Prod Arko.
+- `src/services/competitor-scraper.service.ts` — progreso por fase, ventana 30d, scrape del grid para trials.
+- `src/services/competitor-analysis.service.ts` — limit 5→6, emit progress por reel analizado.
+- `src/app/api/v1/competitors/[id]/route.ts` (NUEVO) — endpoint liviano para polling.
+- `src/app/api/v1/competitors/route.ts` — SELECT incluye `scrape_progress` + `maybe_trial`, orden por views, limit 100.
+- `src/components/instagram/CompetitorTab.tsx` — polling cada 2s, botón con mensaje dinámico.
+
+---
+
+### Changed — Ventas: cuotas ahora piden fecha de la primera cuota (no monto upfront)
+
+Simplificación del flujo de cuotas pedida por Francisco: el input **"Cobrado hasta hoy"** se elimina y se reemplaza por **"Fecha de la primera cuota"** (default: fecha de venta si la dejan vacía). Intervalo entre cuotas pasa de "mismo día del mes" a **+30 días exactos**. Las cuotas cuyo `due_date <= hoy` se marcan paid automáticamente al insertar — el efectivo recolectado se va sumando solo a medida que vencen las cuotas (ya lo hacía el cron diario; ahora también al crear).
+
+#### Archivos
+- `src/components/sales/SaleForm.tsx` — reemplaza input de "Cobrado hasta hoy" por date picker "Fecha de la primera cuota"; recalcula `amountCollected` preview según cuotas ya vencidas.
+- `src/app/api/sales/route.ts` — acepta `first_installment_date` (default `sale_date`), genera cuotas cada 30 días, marca paid las que ya vencieron.
+- `docs/features/sales.md` — decisiones y Auto-paid actualizados.
+
+---
+
 ### Added — Competidores: watchdog pg_cron para auto-desbloquear scrapes stuck
 
 Red de seguridad contra regresiones del bug de `analysis_status='analyzing'` pegado para siempre (ya arreglado en PR #59 a nivel código). Un pg_cron corre cada 10 min y libera cualquier row cuyo scrape haya pasado de los 10 min sin completarse (Vercel `maxDuration=120s`, así que cualquier cosa >10 min está muerta).

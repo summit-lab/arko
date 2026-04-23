@@ -195,23 +195,29 @@ for (let i = 0; i < reels.length; i += CONCURRENCY) {
 }
 ```
 
-### 4.3 Streaming progress a la UI
+### 4.3 Streaming progress a la UI ✅ APLICADO 2026-04-23
 
-Hoy la UI espera los ~2-3 min del scrape con un spinner genérico. Un
-endpoint SSE o polling cada 10s a `/api/v1/competitors/[id]/status` que
-devuelva `analysis_status + reels_en_db + percentage` mejoraría la UX.
-Prioridad baja porque con el fix actual el tiempo bajó a aceptable.
+Implementado con polling cada 2s en vez de SSE (más simple + mismo UX):
+- Nueva columna `workspace_competitors.scrape_progress jsonb` (migration 57).
+- Endpoints `/scrape` y `/analyze` emiten progress entre fases.
+- Endpoint nuevo `GET /api/v1/competitors/[id]` liviano para polling.
+- `CompetitorTab.tsx` pollea cada 2s y muestra `message` del progress.
 
-### 4.4 Detección de trial reels (columna `maybe_trial`)
+### 4.4 Detección de trial reels (`maybe_trial`) ✅ APLICADO 2026-04-23
 
-Migration 55 agregó la columna pero queda NULL. Implementar heurística:
-- Scrape doble (`/reels/` tab + grid/perfil tab)
-- Comparar `short_code`: los que aparecen en `/reels/` pero no en el grid
-  probablemente son trial reels
-- Setear `maybe_trial = true` para esos
+Implementado con scrape paralelo best-effort:
+- `apify~instagram-post-scraper` corre en paralelo con los scrapes de profile
+  y reels (sin penalización de latencia).
+- Se comparan shortcodes: si un reel está en `/reels/` pero no en el grid →
+  `maybe_trial = true`.
+- Si el actor del grid falla, la columna queda NULL y el resto del scrape
+  procede normal.
 
-Costo: 2× Apify compute units por competitor. Solo activar si el usuario
-lo pide explícitamente.
+### 4.5 Ventana 30 días ✅ APLICADO 2026-04-23
+
+El scraper ahora pasa `onlyPostsNewerThan: "30 days"` al actor + filtro
+defensivo post-fetch. Límite global subido a 100 reels (scraper) y 100 en
+el SELECT del GET /api/v1/competitors (antes 24).
 
 ---
 

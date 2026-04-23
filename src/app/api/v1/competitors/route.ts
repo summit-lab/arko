@@ -17,11 +17,11 @@ export async function GET(request: Request) {
     const { data: competitors, error } = await supabase
       .from('workspace_competitors')
       .select(`
-        id, name, ig_url, why_better, scraped_data, last_scraped_at, analysis_status,
+        id, name, ig_url, why_better, scraped_data, last_scraped_at, analysis_status, scrape_progress,
         competitor_reels (
           id, short_code, permalink, caption,
           likes_count, comments_count, views_count, shares_count,
-          duration_seconds, published_at, thumbnail_url,
+          duration_seconds, published_at, thumbnail_url, maybe_trial,
           hashtags, music_artist, music_name,
           competitor_reel_analysis (
             hook_text, hook_type, narrative_structure, content_type,
@@ -35,8 +35,8 @@ export async function GET(request: Request) {
       `)
       .eq('workspace_id', auth.workspaceId)
       .order('created_at', { ascending: true })
-      .order('published_at', { ascending: false, referencedTable: 'competitor_reels' })
-      .limit(24, { referencedTable: 'competitor_reels' })
+      .order('views_count', { ascending: false, nullsFirst: false, referencedTable: 'competitor_reels' })
+      .limit(100, { referencedTable: 'competitor_reels' })
       .order('snapshot_date', { ascending: false, referencedTable: 'competitor_follower_snapshots' })
       .limit(90, { referencedTable: 'competitor_follower_snapshots' });
 
