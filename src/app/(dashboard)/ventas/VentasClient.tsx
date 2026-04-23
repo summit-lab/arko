@@ -130,12 +130,15 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   const totalPending   = totalRevenue - totalCollected;
 
   // Monthly chart (last 6 months) — 2 series por mes:
-  //   facturado   = SUM por mes de vencimiento de cada cuota (o sale_date si full/deposito)
-  //   recolectado = SUM por mes de paid_at real (o sale_date si el cobro fue upfront)
+  //   facturado   = SUM(amount_total) por mes de sale_date (todo el deal
+  //                 se factura el día que se vende, independiente de cómo
+  //                 se cobre después).
+  //   recolectado = SUM por mes de paid_at de cada cuota (cashflow real).
+  //                 Para full/deposito sin cuotas, va todo al mes de
+  //                 sale_date (el cobro se asumió al momento de la venta).
   //
-  // Antes sumábamos todo al mes del sale_date, lo que concentraba una venta
-  // de 3 cuotas en un solo mes y dejaba vacíos los meses donde realmente
-  // entra el cashflow. Ahora distribuimos según cuándo vence/entra cada cuota.
+  // Esto refleja el patrón contable estándar: revenue recognition al
+  // momento de la venta, cashflow en el momento del cobro.
   const monthlyMap = new Map<string, { facturado: number; recolectado: number }>();
   const addTo = (key: string, bucket: "facturado" | "recolectado", amount: number) => {
     if (!amount) return;
@@ -147,17 +150,18 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
     const saleKey = s.sale_date.slice(0, 7);
     const installments = s.installments ?? [];
 
+    // Facturación siempre al mes del sale_date.
+    addTo(saleKey, "facturado", s.amount_total);
+
     if (s.payment_type === "cuotas" && installments.length > 0) {
-      // Distribuir por vencimiento/pago de cada cuota.
+      // Recolectado: cada cuota paid se suma al mes de su paid_at.
       installments.forEach(i => {
-        addTo(i.due_date.slice(0, 7), "facturado", Number(i.amount));
         if (i.paid_at) {
           addTo(i.paid_at.slice(0, 7), "recolectado", Number(i.amount));
         }
       });
     } else {
-      // Full o depósito (sin cuotas granulares): todo al mes del sale_date.
-      addTo(saleKey, "facturado", s.amount_total);
+      // Full o depósito: todo el cobrado va al mes de sale_date.
       addTo(saleKey, "recolectado", s.amount_collected);
     }
   });
