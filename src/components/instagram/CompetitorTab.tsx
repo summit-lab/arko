@@ -1333,6 +1333,10 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const [analyzingReels, setAnalyzingReels] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("views");
+  // Paginación del grid de reels del competidor seleccionado: 20 por página.
+  // Reset a 1 cada vez que cambia de competidor o de sort.
+  const [reelsPage, setReelsPage] = useState(1);
+  const REELS_PAGE_SIZE = 20;
   // Modal state
   const [modal, setModal] = useState<{ reel: CompetitorReel; analysis: ReelAnalysis } | null>(null);
 
@@ -1416,6 +1420,15 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
   const selected = competitors.find((c) => c.id === selectedId) ?? null;
   const sortedReels = selected ? sortReels(selected.competitor_reels, sort) : [];
+  const totalPages = Math.max(1, Math.ceil(sortedReels.length / REELS_PAGE_SIZE));
+  const currentPage = Math.min(reelsPage, totalPages);
+  const paginatedReels = sortedReels.slice(
+    (currentPage - 1) * REELS_PAGE_SIZE,
+    currentPage * REELS_PAGE_SIZE,
+  );
+
+  // Reset page when competitor or sort changes.
+  useEffect(() => { setReelsPage(1); }, [selectedId, sort]);
 
   if (loading) {
     return (
@@ -1571,18 +1584,52 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                   <p className="text-[10px] text-white/15 mt-1">Hacé click en "Scrape + Analizar"</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {sortedReels.map((reel) => (
-                    <ReelGalleryCard
-                      key={reel.id}
-                      reel={reel}
-                      competitorId={selected.id}
-                      onAnalyze={(reelId) => handleAnalyzeReel(selected.id, reelId)}
-                      analyzing={analyzingReels.has(reel.id)}
-                      onOpenAnalysis={(r, a) => setModal({ reel: r, analysis: a })}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {paginatedReels.map((reel) => (
+                      <ReelGalleryCard
+                        key={reel.id}
+                        reel={reel}
+                        competitorId={selected.id}
+                        onAnalyze={(reelId) => handleAnalyzeReel(selected.id, reelId)}
+                        analyzing={analyzingReels.has(reel.id)}
+                        onOpenAnalysis={(r, a) => setModal({ reel: r, analysis: a })}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Footer de paginación — solo si hay más de una página */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 px-1">
+                      <span className="text-[11px] text-white/30">
+                        {(currentPage - 1) * REELS_PAGE_SIZE + 1}
+                        {"–"}
+                        {Math.min(currentPage * REELS_PAGE_SIZE, sortedReels.length)}
+                        {" de "}
+                        {sortedReels.length}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setReelsPage((p) => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/60 border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ← Anterior
+                        </button>
+                        <span className="text-[11px] text-white/40 px-2 tabular-nums">
+                          {currentPage} / {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setReelsPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/60 border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          Siguiente →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

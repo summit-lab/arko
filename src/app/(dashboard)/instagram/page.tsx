@@ -169,7 +169,9 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .eq("workspace_id", workspaceId)
         .order("created_at", { ascending: true })
         .order("published_at", { ascending: false, referencedTable: "competitor_reels" })
-        .limit(24, { referencedTable: "competitor_reels" })
+        // Alineado con MAX_REELS_PER_SCRAPE (50) del scraper. La UI pagina
+        // de 20 en 20, así que con 50 cubrimos 2-3 páginas por competidor.
+        .limit(50, { referencedTable: "competitor_reels" })
         .order("snapshot_date", { ascending: false, referencedTable: "competitor_follower_snapshots" })
         .limit(90, { referencedTable: "competitor_follower_snapshots" }),
       supabase
