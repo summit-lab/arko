@@ -55,7 +55,7 @@ export default function PrivacyPolicyPage() {
             by Summit Lab that provides AI-powered marketing intelligence for
             content creators and personal brands. This Privacy Policy describes
             how we collect, use, store, and protect your information when you use
-            our platform at www.usearko.io (the &quot;Service&quot;).
+            our platform at www.usemoka.io (the &quot;Service&quot;).
           </p>
           <p>
             By using Moka, you consent to the data practices described in this
@@ -175,8 +175,8 @@ export default function PrivacyPolicyPage() {
           <ul className="list-none space-y-1">
             <li>
               Email:{" "}
-              <a href="mailto:support@usearko.io" className="text-violet-400 underline underline-offset-4">
-                support@usearko.io
+              <a href="mailto:support@usemoka.io" className="text-violet-400 underline underline-offset-4">
+                support@usemoka.io
               </a>
             </li>
             <li>Company: Summit Lab</li>

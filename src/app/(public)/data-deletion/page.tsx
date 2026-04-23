@@ -265,10 +265,10 @@ export default async function DataDeletionPage({
               associated data, send an email to:
             </p>
             <a
-              href="mailto:support@usearko.io?subject=Data%20Deletion%20Request"
+              href="mailto:support@usemoka.io?subject=Data%20Deletion%20Request"
               className="mt-4 inline-block rounded-xl border border-white/[0.08] bg-white/[0.04] px-6 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.08]"
             >
-              support@usearko.io
+              support@usemoka.io
             </a>
             <p className="mt-4 text-sm text-white/50">
               Please include:
@@ -347,8 +347,8 @@ export default async function DataDeletionPage({
           </h2>
           <p className="text-sm leading-relaxed text-white/60">
             For any questions about data deletion or privacy, contact us at{" "}
-            <a href="mailto:support@usearko.io" className="text-violet-400 underline underline-offset-4">
-              support@usearko.io
+            <a href="mailto:support@usemoka.io" className="text-violet-400 underline underline-offset-4">
+              support@usemoka.io
             </a>
             .
           </p>
