@@ -40,6 +40,14 @@ Módulo que conecta con la cuenta de Instagram del usuario y analiza los Reels e
 - Comparar retención entre videos.
 - Detectar patrones: qué temas/formatos generan más alcance, más guardados, más ventas.
 
+### 3.1 Análisis de Competidores
+- **Fuente**: Apify actors `apify~instagram-profile-scraper` + `apify~instagram-reel-scraper`. Scrape diario vía pg_cron (4 AM UTC).
+- **Volumen**: **50 reels por competidor** por scrape (subido desde 20 en 2026-04-23). Tradeoff: ~2.5× más compute units de Apify por run.
+- **Campos persistidos** en `competitor_reels`: métricas (views/likes/comments/shares), caption, hashtags, mentions, `tagged_users` (colabs), `location_name`, `product_type`, duración, thumbnail + video_url (almacenados en bucket `competitor-assets`), transcript (on-demand), música.
+- **Análisis IA**: una llamada a Gemini 2.5 Flash analiza cada reel y persiste en `competitor_reel_analysis` (hook_text/type, narrative_structure, content_type, cta, topic_cluster, strengths, weaknesses, ai_summary).
+- **Follower tracking**: `competitor_follower_snapshots` guarda un snapshot diario (upsert por `snapshot_date`) para trending histórico.
+- **Detección de trials en competidores**: **no implementada**. Instagram no expone `is_shared_to_feed` en scraping público, así que la detección exacta requiere el token del dueño (solo disponible para la cuenta propia). La columna `competitor_reels.maybe_trial` está reservada para una heurística futura basada en scrape dual (reels tab vs grid) con match por `short_code` — daría ~70-80% de precisión pero duplicaría el costo Apify.
+
 ### 4. Atribución de Views Pagas
 - Cruza Meta Marketing API con los Reels de Instagram para calcular `views_paid` por pieza.
 - El mapeo Ad → Reel prioriza `source_instagram_media_id`, luego `effective_instagram_media_id`, luego `object_story_id`, y luego permalink del creative.

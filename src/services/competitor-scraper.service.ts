@@ -14,7 +14,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const APIFY_PROFILE_SCRAPER_ACTOR = 'apify~instagram-profile-scraper';
 const APIFY_REEL_SCRAPER_ACTOR = 'apify~instagram-reel-scraper';
 const APIFY_BASE_URL = 'https://api.apify.com/v2/acts';
-const MAX_REELS_PER_SCRAPE = 20;
+// Subido de 20 → 50 (2026-04-23): más data histórica para análisis de
+// competidores sin cambiar el actor. Tradeoff: cada scrape consume más
+// compute units de Apify. Plan mensual de Apify tiene que bancarlo.
+const MAX_REELS_PER_SCRAPE = 50;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +52,15 @@ interface ApifyReelResult {
   transcript?: string;
   displayUrl?: string;
   videoUrl?: string;
+  isVideo?: boolean;
+  productType?: string;
+  type?: string;
+  locationName?: string;
+  locationId?: string;
+  // Apify no siempre normaliza el nombre del campo — a veces viene como
+  // `taggedUsers`, a veces como `taggedAccounts`. Parseamos ambos.
+  taggedUsers?: Array<{ username?: string } | string>;
+  taggedAccounts?: Array<{ username?: string } | string>;
   musicInfo?: {
     artist_name?: string;
     song_name?: string;
@@ -87,6 +99,12 @@ export interface CompetitorReelData {
   mentions: string[];
   music_artist: string | null;
   music_name: string | null;
+  // Campos de enriquecimiento (2026-04-23).
+  location_name: string | null;
+  location_id: string | null;
+  tagged_users: string[];
+  product_type: string | null;
+  is_video: boolean | null;
 }
 
 export interface ScrapeResult {
@@ -201,24 +219,40 @@ async function scrapeReels(username: string, token: string, limit: number): Prom
 
   const data = await response.json() as ApifyReelResult[];
 
-  return data.map((item) => ({
-    short_code: toNullableString(item.shortCode),
-    permalink: toNullableString(item.url),
-    caption: toNullableString(item.caption),
-    likes_count: item.likesCount ?? null,
-    comments_count: item.commentsCount ?? null,
-    views_count: item.videoViewCount ?? item.videoPlayCount ?? null,
-    shares_count: item.sharesCount ?? null,
-    duration_seconds: item.videoDuration ?? null,
-    published_at: item.timestamp ?? null,
-    thumbnail_url: toNullableString(item.displayUrl),
-    video_url: toNullableString(item.videoUrl),
-    transcript: toNullableString(item.transcript),
-    hashtags: item.hashtags ?? [],
-    mentions: item.mentions ?? [],
-    music_artist: toNullableString(item.musicInfo?.artist_name),
-    music_name: toNullableString(item.musicInfo?.song_name),
-  }));
+  return data.map((item) => {
+    // taggedUsers / taggedAccounts normalización: puede venir como string o
+    // como objeto { username }. Filtramos vacíos y dedup.
+    const taggedRaw = item.taggedUsers ?? item.taggedAccounts ?? [];
+    const tagged = Array.from(new Set(
+      taggedRaw
+        .map((u) => (typeof u === 'string' ? u : u?.username))
+        .filter((u): u is string => typeof u === 'string' && u.length > 0)
+    ));
+
+    return {
+      short_code: toNullableString(item.shortCode),
+      permalink: toNullableString(item.url),
+      caption: toNullableString(item.caption),
+      likes_count: item.likesCount ?? null,
+      comments_count: item.commentsCount ?? null,
+      views_count: item.videoViewCount ?? item.videoPlayCount ?? null,
+      shares_count: item.sharesCount ?? null,
+      duration_seconds: item.videoDuration ?? null,
+      published_at: item.timestamp ?? null,
+      thumbnail_url: toNullableString(item.displayUrl),
+      video_url: toNullableString(item.videoUrl),
+      transcript: toNullableString(item.transcript),
+      hashtags: item.hashtags ?? [],
+      mentions: item.mentions ?? [],
+      music_artist: toNullableString(item.musicInfo?.artist_name),
+      music_name: toNullableString(item.musicInfo?.song_name),
+      location_name: toNullableString(item.locationName),
+      location_id: toNullableString(item.locationId),
+      tagged_users: tagged,
+      product_type: toNullableString(item.productType ?? item.type),
+      is_video: item.isVideo ?? null,
+    };
+  });
 }
 
 // ─── Image Storage Helpers ──────────────────────────────────────────────────
@@ -380,6 +414,11 @@ export async function scrapeCompetitor(
         mentions: reel.mentions,
         music_artist: reel.music_artist,
         music_name: reel.music_name,
+        location_name: reel.location_name,
+        location_id: reel.location_id,
+        tagged_users: reel.tagged_users,
+        product_type: reel.product_type,
+        is_video: reel.is_video,
         raw_data: reel,
         scraped_at: new Date().toISOString(),
       });

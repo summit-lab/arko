@@ -120,7 +120,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
   const submittingRef = useRef(false);
 
   const filtered = useMemo(
-    () => reels.filter(r => (r.caption ?? "").toLowerCase().includes(search.toLowerCase())).slice(0, 20),
+    () => reels.filter(r => (r.caption ?? "").toLowerCase().includes(search.toLowerCase())),
     [reels, search]
   );
 
@@ -176,6 +176,8 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           notes: buildNotes(),
           client_name: form.client_name || null,
           client_contact: null,
+          // Solo para cuotas: el endpoint genera las filas en sale_installments.
+          n_cuotas: form.payment_type === "cuotas" ? nCuotas : undefined,
         }),
       });
       if (!res.ok) { const e = await res.json() as { error: string }; throw new Error(e.error); }

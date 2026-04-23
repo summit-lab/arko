@@ -1,4 +1,4 @@
-import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
@@ -218,10 +218,18 @@ async function getDashboardData(range: DateRange) {
       .eq("workspace_id", workspaceId)
       .eq("period_start", monthStart),
 
-    // Query 10: Sales — current selected period (para Facturacion + Efectivo + source breakdown)
+    // Query 10: Sales — current selected period (para Facturacion + Efectivo + material breakdown)
+    // Embebemos reels, story_sequences + sus slides, con campos para el render:
+    //   - reels: auto_title, caption (fallback), thumbnail_url (portada)
+    //   - stories: published_at + primer slide para su thumbnail
     supabase
       .from("sales")
-      .select("amount_total, amount_collected, source_type, payment_status")
+      .select(`
+        amount_total, amount_collected, source_type, source_label, payment_status,
+        reel_id, story_sequence_id,
+        reels(id, caption, auto_title, thumbnail_url, media_type),
+        ig_story_sequences(id, published_at, ig_story_slides(slide_index, thumbnail_url, media_url))
+      `)
       .eq("workspace_id", workspaceId)
       .neq("payment_status", "cancelled")
       .gte("sale_date", range.from)
@@ -455,29 +463,6 @@ async function getDashboardData(range: DateRange) {
     ? pctChange(totalViewsPeriod, totalViewsPrevPeriod)
     : null;
 
-  // Top 4 reels by views (from 90d window, panel labeled "Últimos 90 días").
-  // Excludes "dark posts" — ad-only creatives where the reel was never posted
-  // organically to the feed. Meta returns NULL for views_org/likes/comments/saves
-  // on those, so they'd show up with 0 engagement and mislead the ranking.
-  // We require views_org > 0 (ensures the reel was actually posted organically).
-  const topContent = [...reels]
-    .filter((r) => r.views_org > 0)
-    .sort((a, b) => b.views_total - a.views_total)
-    .slice(0, 4)
-    .map((r) => {
-      const engRate = r.views_total > 0
-        ? ((r.likes + r.comments + r.saves + r.shares) / r.views_total) * 100
-        : 0;
-      return {
-        title: r.caption?.slice(0, 60) || "Sin título",
-        platform: r.has_ads ? "IG Reel (Ads)" : "IG Reel",
-        views: formatCompact(r.views_total),
-        saves: formatCompact(r.saves),
-        likes: formatCompact(r.likes),
-        engRate: engRate > 0 ? `${engRate.toFixed(0)}%` : "—",
-      };
-    });
-
   // Best reel — now scoped to SELECTED period (Fix 3.2)
   const bestReelViews = reelsInPeriod.length > 0
     ? Math.max(...reelsInPeriod.map((r) => r.views_total))
@@ -546,11 +531,20 @@ async function getDashboardData(range: DateRange) {
   // ─── Sales (current selected period) — "Ventas cobradas" KPI + source donut ───
   // Currency treated as implicit USD (no currency column in schema).
 
-  const salesCurrentRows = (salesCurrent.data ?? []) as Array<{
+  const salesCurrentRows = (salesCurrent.data ?? []) as unknown as Array<{
     amount_total: number | null;
     amount_collected: number | null;
     source_type: string | null;
+    source_label: string | null;
     payment_status: string | null;
+    reel_id: string | null;
+    story_sequence_id: string | null;
+    reels?: { id: string; caption: string | null; auto_title: string | null; thumbnail_url: string | null; media_type: string | null } | null;
+    ig_story_sequences?: {
+      id: string;
+      published_at: string | null;
+      ig_story_slides?: Array<{ slide_index: number; thumbnail_url: string | null; media_url: string | null }>;
+    } | null;
   }>;
   const salesPreviousRows = (salesPrevious.data ?? []) as Array<{
     amount_total: number | null;
@@ -566,6 +560,73 @@ async function getDashboardData(range: DateRange) {
   const totalSalesCollected = salesCurrentRows.reduce((s, r) => s + Number(r.amount_collected ?? 0), 0);
   const totalSalesCollectedPrev = salesPreviousRows.reduce((s, r) => s + Number(r.amount_collected ?? 0), 0);
   const salesChange = pctChange(totalSalesCollected, totalSalesCollectedPrev);
+
+  // ─── Top 5 materiales de facturación ───
+  // Agrupa por MATERIAL UNICO (reel_id, story_sequence_id o source_label),
+  // no por tipo de fuente. De ese modo cada reel/post/historia aparece como
+  // un item propio aunque haya generado varias ventas.
+  //
+  // Cada row tiene:
+  //   key:       identificador unico estable (para map + key de React)
+  //   type:      "reel" | "post" | "historia" | "otro" (para icono/color)
+  //   label:     caption del reel o "Historia del DD/MM" o source_label
+  //   billed:    SUM(amount_total)
+  //   count:     cuantas ventas se atribuyen al material
+  type MaterialKey = { key: string; type: string; label: string; thumbnailUrl: string | null };
+  const materialOf = (s: typeof salesCurrentRows[number]): MaterialKey => {
+    // Reel embebido (incluye posts y carruseles — media_type decide el tipo).
+    // Label preferido: auto_title (titulo AI generado) > caption truncado > fallback.
+    if (s.reels?.id) {
+      const mt = s.reels.media_type;
+      const isPost = mt === "IMAGE" || mt === "CAROUSEL_ALBUM";
+      const autoTitle = (s.reels.auto_title ?? "").trim();
+      const captionShort = (s.reels.caption ?? "").trim().slice(0, 80);
+      return {
+        key: `reel:${s.reels.id}`,
+        type: isPost ? "post" : "reel",
+        label: autoTitle || captionShort || (isPost ? "Post sin titulo" : "Reel sin titulo"),
+        thumbnailUrl: s.reels.thumbnail_url ?? null,
+      };
+    }
+    // Historia embebida — para la portada, usamos el primer slide (slide_index=0).
+    if (s.ig_story_sequences?.id) {
+      const d = s.ig_story_sequences.published_at;
+      const formatted = d
+        ? new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+        : "";
+      const slides = s.ig_story_sequences.ig_story_slides ?? [];
+      const firstSlide = [...slides].sort((a, b) => a.slide_index - b.slide_index)[0];
+      const storyThumb = firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
+      return {
+        key: `story:${s.ig_story_sequences.id}`,
+        type: "historia",
+        label: formatted ? `Historia del ${formatted}` : "Historia",
+        thumbnailUrl: storyThumb,
+      };
+    }
+    // Otro / link en bio / free label (sin material embebido)
+    const label = (s.source_label ?? "").trim();
+    return {
+      key: label ? `label:${label}` : `type:${s.source_type ?? "otro"}`,
+      type: s.source_type ?? "otro",
+      label: label || (s.source_type === "link_bio" ? "Link en Bio" : "Otro"),
+      thumbnailUrl: null,
+    };
+  };
+
+  const materialTotals = new Map<string, { type: string; label: string; thumbnailUrl: string | null; billed: number; count: number }>();
+  for (const s of salesCurrentRows) {
+    const m = materialOf(s);
+    const entry = materialTotals.get(m.key) ?? { type: m.type, label: m.label, thumbnailUrl: m.thumbnailUrl, billed: 0, count: 0 };
+    entry.billed += Number(s.amount_total ?? 0);
+    entry.count += 1;
+    materialTotals.set(m.key, entry);
+  }
+  const topSources = [...materialTotals.entries()]
+    .map(([key, v]) => ({ key, source_type: v.type, label: v.label, thumbnailUrl: v.thumbnailUrl, billed: v.billed, count: v.count }))
+    .filter((s) => s.billed > 0)
+    .sort((a, b) => b.billed - a.billed)
+    .slice(0, 6);
 
   // KPIs array is built further down — after the conversations/stories
   // aggregations, because two of its cards depend on those series.
@@ -802,7 +863,6 @@ async function getDashboardData(range: DateRange) {
 
   return {
     kpis,
-    topContent,
     quickStats,
     growthData,
     engagementData,
@@ -813,6 +873,7 @@ async function getDashboardData(range: DateRange) {
     conversationsData,
     conversationsPrevTotal,
     salesMetrics,
+    topSources,
   };
 }
 
@@ -828,6 +889,113 @@ const ICON_MAP = {
   dollar: DollarSign,
 } as const;
 
+// ─── Source type metadata — must mirror Ventas client for visual consistency ───
+
+const SOURCE_LABEL: Record<string, string> = {
+  reel: "Reel",
+  historia: "Historia",
+  post: "Post",
+  link_bio: "Link en Bio",
+  otro: "Otro",
+};
+
+const SOURCE_HEX: Record<string, string> = {
+  reel: "#7A86E0",
+  historia: "#AF6EC7",
+  post: "#4BCEAF",
+  link_bio: "#EB6991",
+  otro: "#9B9BA8",
+};
+
+const SOURCE_BG: Record<string, string> = {
+  reel: "rgba(122,134,224,0.12)",
+  historia: "rgba(175,110,199,0.12)",
+  post: "rgba(75,206,175,0.12)",
+  link_bio: "rgba(235,105,145,0.12)",
+  otro: "rgba(155,155,168,0.12)",
+};
+
+const SOURCE_ICON = {
+  reel: Film,
+  historia: BookImage,
+  post: Grid2X2,
+  link_bio: LinkIcon,
+  otro: Shapes,
+} as const;
+
+function fmtMoneyInt(n: number): string {
+  return `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+}
+
+interface TopSourceRow {
+  key: string;
+  source_type: string;
+  label: string;
+  thumbnailUrl: string | null;
+  billed: number;
+  count: number;
+}
+
+function TopSourcesList({ topSources }: { topSources: TopSourceRow[] }) {
+  const maxBilled = topSources.reduce((m, s) => Math.max(m, s.billed), 0);
+  const totalBilled = topSources.reduce((s, r) => s + r.billed, 0);
+  return (
+    <div className="space-y-2.5">
+      {topSources.map((s, i) => {
+        const hex = SOURCE_HEX[s.source_type] ?? SOURCE_HEX.otro;
+        const bg = SOURCE_BG[s.source_type] ?? SOURCE_BG.otro;
+        // Label = titulo/caption del material (cada reel/historia/post es unico).
+        const label = s.label;
+        const Icon = SOURCE_ICON[s.source_type as keyof typeof SOURCE_ICON] ?? Shapes;
+        const barPct = maxBilled > 0 ? (s.billed / maxBilled) * 100 : 0;
+        const sharePct = totalBilled > 0 ? Math.round((s.billed / totalBilled) * 100) : 0;
+        return (
+          <div
+            key={s.key}
+            className="flex items-center gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-white/[0.03]"
+          >
+            <span className="text-[11px] font-medium text-white/25 w-4 shrink-0 text-center">{i + 1}</span>
+            {/* Thumbnail del reel/post si hay; fallback al icono del tipo. */}
+            {s.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={s.thumbnailUrl}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-md object-cover"
+                style={{ border: `1px solid ${bg}` }}
+              />
+            ) : (
+              <div
+                className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center"
+                style={{ background: bg }}
+              >
+                <Icon className="h-[17px] w-[17px]" style={{ color: hex }} />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3 mb-1.5">
+                <span className="text-[13px] font-medium text-white/85 truncate">{label}</span>
+                <span className="text-[13px] font-medium text-emerald-400 tabular-nums">{fmtMoneyInt(s.billed)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-1 rounded-full bg-white/[0.05] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${barPct}%`, background: hex }}
+                  />
+                </div>
+                <span className="text-[10px] text-white/35 tabular-nums whitespace-nowrap">
+                  {s.count} venta{s.count !== 1 ? "s" : ""} · {sharePct}%
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Page ───
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string }> }) {
@@ -836,7 +1004,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const data = await getDashboardData(dateRange);
 
   const kpis = data?.kpis ?? [];
-  const topContent = data?.topContent ?? [];
   const quickStats = data?.quickStats ?? [];
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
@@ -845,6 +1012,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const conversationsData = data?.conversationsData ?? [];
   const conversationsPrevTotal = data?.conversationsPrevTotal ?? 0;
   const salesMetrics = data?.salesMetrics ?? null;
+  const topSources = data?.topSources ?? [];
 
   return (
     <div className="px-8 py-10">
@@ -914,50 +1082,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             <DashboardCharts growthData={growthData} engagementData={engagementData} salesData={salesChartData} />
           </div>
 
-          {/* Top Performing Content */}
+          {/* Top fuentes de facturación (periodo seleccionado).
+              Reemplaza el bloque histórico "Mejor Contenido". Si no hay ventas
+              con facturación > 0 en el periodo, mostramos un empty state en
+              lugar de omitir la card — así el layout no salta. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[15px] font-light text-white tracking-wide">Mejor Contenido</h3>
-              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Últimos 90 días</span>
+              <h3 className="text-[15px] font-light text-white tracking-wide">Top fuentes de facturación</h3>
+              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Periodo seleccionado</span>
             </div>
-            {topContent.length > 0 ? (
-              <div className="space-y-1">
-                {/* Table header */}
-                <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-                  <div className="col-span-1">#</div>
-                  <div className="col-span-4">Título</div>
-                  <div className="col-span-2 text-right">Vistas</div>
-                  <div className="col-span-1 text-right">Guard.</div>
-                  <div className="col-span-1 text-right">Likes</div>
-                  <div className="col-span-1 text-center">Eng%</div>
-                  <div className="col-span-2 text-center">Plataforma</div>
-                </div>
-                {topContent.map((c, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center py-3.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer group">
-                    <div className="col-span-1">
-                      <span className="text-[13px] font-light text-white/25">{i + 1}</span>
-                    </div>
-                    <div className="col-span-4 flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
-                        {c.platform.includes("IG") ? <Instagram className="h-4 w-4 text-pink-400/70" /> : <Youtube className="h-4 w-4 text-red-400/70" />}
-                      </div>
-                      <span className="text-[13px] font-light text-white/70 group-hover:text-white truncate transition-colors">{c.title}</span>
-                    </div>
-                    <div className="col-span-2 text-right text-[13px] font-light text-white">{c.views}</div>
-                    <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.saves}</div>
-                    <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.likes}</div>
-                    <div className="col-span-1 text-center">
-                      <span className="text-[11px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">{c.engRate}</span>
-                    </div>
-                    <div className="col-span-2 text-center">
-                      <span className="pill-badge">{c.platform}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {topSources.length > 0 ? (
+              <TopSourcesList topSources={topSources} />
             ) : (
               <div className="py-10 text-center">
-                <p className="text-[13px] text-white/20 font-light">No hay contenido aún</p>
+                <p className="text-[13px] text-white/20 font-light">No hay ventas en este periodo</p>
               </div>
             )}
           </div>

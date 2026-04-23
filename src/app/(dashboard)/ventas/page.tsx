@@ -39,13 +39,17 @@ export default async function VentasPage() {
         .eq("workspace_id", workspaceId)
         .order("sale_date", { ascending: false })
         .limit(200),
+      // Pickers de Nueva Venta: traer TODOS los reels y stories de los últimos
+      // 90 días. El UI tiene scroll + search, así que mostrar todos es seguro.
+      // Cap alto (500) como safety net contra cuentas muy activas; Supabase
+      // impone su propio hard cap por defecto (1000) si lo pedimos sin .limit().
       supabase
         .from("reels")
         .select("id, caption, thumbnail_url, published_at")
         .eq("workspace_id", workspaceId)
         .gte("published_at", ninetyDaysAgo)
         .order("published_at", { ascending: false })
-        .limit(100),
+        .limit(500),
       supabase
         .from("ig_story_sequences")
         .select(`
@@ -55,7 +59,7 @@ export default async function VentasPage() {
         .eq("workspace_id", workspaceId)
         .gte("published_at", ninetyDaysAgo)
         .order("published_at", { ascending: false })
-        .limit(60),
+        .limit(500),
     ]);
 
     if (salesResult.data) {
