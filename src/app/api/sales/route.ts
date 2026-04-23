@@ -76,15 +76,10 @@ export async function POST(req: NextRequest) {
   // La primera vence en first_installment_date (default: sale_date), cada
   // siguiente suma 30 días exactos.
   //
-  // Lógica de auto-paid:
-  //   - Venta retroactiva (sale_date < hoy) → asumimos que el cliente ya
-  //     cobró TODAS las cuotas. El user habrá cargado la venta para llenar
-  //     un historial, no para trackear cuotas futuras. Si alguna cuota no
-  //     se cobró en realidad, puede desmarcarla desde InstallmentsModal.
-  //   - Venta actual/futura (sale_date >= hoy) → comportamiento clásico:
-  //     solo se marcan paid las cuotas cuyo due_date ≤ hoy (= primera cuota
-  //     cuando sale_date = hoy); el resto queda pending y se irá auto-pagando
-  //     vía pg_cron diario a medida que venzan.
+  // Se marcan paid solo las cuotas cuyo due_date ≤ hoy. El resto queda
+  // pending y el cron diario las marca a medida que vencen. Si el user
+  // cargó una venta vieja y una cuota futura (por calendario teórico) en
+  // realidad ya la cobró, puede marcarla manualmente desde InstallmentsModal.
   //
   // El trigger de DB recalcula sales.amount_collected y payment_status.
   if (body.payment_type === "cuotas" && body.n_cuotas && body.n_cuotas >= 2) {
@@ -96,29 +91,18 @@ export async function POST(req: NextRequest) {
     const firstMs = new Date(`${firstDateStr}T00:00:00Z`).getTime();
     const todayStr = new Date().toISOString().split("T")[0];
     const todayMs = new Date(`${todayStr}T00:00:00Z`).getTime();
-    const saleDateMs = new Date(`${body.sale_date}T00:00:00Z`).getTime();
-    const isRetroactive = saleDateMs < todayMs;
 
     const rows = Array.from({ length: n }, (_, i) => {
       const installmentNumber = i + 1;
       const dueMs = firstMs + i * 86_400_000 * 30;
       const dueStr = new Date(dueMs).toISOString().split("T")[0];
-      // Cuota marcada paid si:
-      //   a) su due_date ya pasó, o
-      //   b) la venta es retroactiva (asumimos historial completo)
-      const shouldBePaid = dueMs <= todayMs || isRetroactive;
-      // paid_at = due_date si ya venció; para cuotas "futuras" de una venta
-      // retroactiva usamos hoy (refleja cuándo el user registra el cobro).
-      const paidAt = shouldBePaid
-        ? (dueMs <= todayMs ? `${dueStr}T00:00:00Z` : `${todayStr}T00:00:00Z`)
-        : null;
       return {
         sale_id: data.id,
         workspace_id: workspaceId,
         installment_number: installmentNumber,
         due_date: dueStr,
         amount: installmentNumber === n ? lastCuota : perCuota,
-        paid_at: paidAt,
+        paid_at: dueMs <= todayMs ? `${dueStr}T00:00:00Z` : null,
       };
     });
 

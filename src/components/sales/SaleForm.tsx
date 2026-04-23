@@ -173,26 +173,18 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
   const amountTotal = parseFloat(form.amount_total) || 0;
   const nCuotas = Math.max(1, parseInt(form.n_cuotas) || 1);
   const perCuota = amountTotal > 0 ? Math.round(amountTotal / nCuotas) : 0;
-  // Para cuotas:
-  //   - Venta retroactiva (sale_date < hoy) → asumimos que el cliente ya
-  //     cobró las N cuotas. El endpoint marca todas como paid al crear.
-  //   - Venta actual/futura → efectivo recolectado = perCuota × cuotas
-  //     vencidas según fecha. El cron diario va marcando paid a medida que
-  //     vencen el resto.
+  // Para cuotas: efectivo recolectado = perCuota × cuotas cuyo due_date ≤ hoy.
+  // Si el user cargó una venta vieja y alguna cuota "futura" (por calendario
+  // teórico) en realidad ya la cobró, la marca manualmente desde
+  // InstallmentsModal después de crear.
   const firstInstallmentDate = form.first_installment_date || form.sale_date;
-  const todayStr = new Date().toISOString().split("T")[0];
-  const isRetroactive = form.sale_date < todayStr;
   const paidCuotasCount =
-    form.payment_type !== "cuotas"
-      ? 0
-      : isRetroactive
-      ? nCuotas
-      : countDueByToday(firstInstallmentDate, nCuotas);
+    form.payment_type === "cuotas" ? countDueByToday(firstInstallmentDate, nCuotas) : 0;
   const amountCollected =
     form.payment_type === "full"
       ? amountTotal
       : form.payment_type === "cuotas"
-      ? (isRetroactive ? amountTotal : paidCuotasCount * perCuota)
+      ? paidCuotasCount * perCuota
       : (parseFloat(form.amount_collected) || 0);
   const amountPending = Math.max(0, amountTotal - amountCollected);
 
@@ -454,8 +446,8 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     <div className="flex justify-between text-[11px]">
                       <span className="text-white/40">
                         Efectivo recolectado
-                        {isRetroactive && form.payment_type === "cuotas" && (
-                          <span className="text-white/25 ml-1.5">({nCuotas}/{nCuotas} cuotas)</span>
+                        {form.payment_type === "cuotas" && amountTotal > 0 && (
+                          <span className="text-white/25 ml-1.5">({paidCuotasCount}/{nCuotas} cuotas vencidas)</span>
                         )}
                       </span>
                       <span style={{ color: "#4BCEAF" }}>{fmtMoney(amountCollected)}</span>
@@ -464,9 +456,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                       <span className="text-white/40">Por cobrar</span>
                       <span style={{ color: "#EB6991" }}>{fmtMoney(amountPending)}</span>
                     </div>
-                    {isRetroactive && form.payment_type === "cuotas" && (
+                    {form.payment_type === "cuotas" && amountTotal > 0 && paidCuotasCount < nCuotas && (
                       <p className="text-[10px] text-white/40 leading-relaxed pt-1 border-t border-white/[0.06]">
-                        Venta retroactiva: todas las cuotas se marcarán como cobradas al crear. Si alguna no se cobró, podés desmarcarla después desde el detalle.
+                        Las cuotas no vencidas quedan como pendientes. Si ya las cobraste, podés marcarlas después desde el detalle.
                       </p>
                     )}
                   </div>
