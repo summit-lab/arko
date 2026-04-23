@@ -51,7 +51,7 @@ export default function TermsPage() {
 
         <Section title="1. Acceptance of Terms">
           <p>
-            These Terms of Service (&quot;Terms&quot;) govern your use of Moka (&quot;Service&quot;), a SaaS analytics platform developed by Summit Lab and accessible at www.usearko.io. By creating an account, accepting an invitation, or otherwise using the Service, you agree to these Terms. If you do not agree, you may not use the Service.
+            These Terms of Service (&quot;Terms&quot;) govern your use of Moka (&quot;Service&quot;), a SaaS analytics platform developed by Summit Lab and accessible at www.usemoka.io. By creating an account, accepting an invitation, or otherwise using the Service, you agree to these Terms. If you do not agree, you may not use the Service.
           </p>
         </Section>
 
@@ -66,7 +66,7 @@ export default function TermsPage() {
 
         <Section title="3. Accounts and Eligibility">
           <p>
-            You must be at least 18 years old to use Moka. You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account. Notify us immediately at <a href="mailto:support@usearko.io" className="text-violet-400 underline underline-offset-4">support@usearko.io</a> if you suspect unauthorized access.
+            You must be at least 18 years old to use Moka. You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account. Notify us immediately at <a href="mailto:support@usemoka.io" className="text-violet-400 underline underline-offset-4">support@usemoka.io</a> if you suspect unauthorized access.
           </p>
           <p>
             Each workspace is isolated via PostgreSQL Row-Level Security. Sharing credentials or circumventing workspace boundaries is prohibited.
@@ -171,8 +171,8 @@ export default function TermsPage() {
           <ul className="list-none space-y-1">
             <li>
               Email:{" "}
-              <a href="mailto:support@usearko.io" className="text-violet-400 underline underline-offset-4">
-                support@usearko.io
+              <a href="mailto:support@usemoka.io" className="text-violet-400 underline underline-offset-4">
+                support@usemoka.io
               </a>
             </li>
             <li>Company: Summit Lab</li>
