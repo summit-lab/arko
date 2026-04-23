@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
     client_contact?: string;
     // Cuotas — solo requerido si payment_type === 'cuotas'.
     n_cuotas?: number;
+    // Fecha de la primera cuota (YYYY-MM-DD). Si no se pasa, usa sale_date.
+    first_installment_date?: string;
   };
 
   const { data, error } = await supabase
@@ -71,33 +73,32 @@ export async function POST(req: NextRequest) {
 
   // ─── Generar cuotas programadas ───────────────────────────────
   // Si es venta de cuotas, creamos N filas en sale_installments.
-  // La primera vence en sale_date, cada siguiente suma 1 mes.
-  // Las primeras K cuotas donde K = floor(amount_collected/perCuota)
-  // quedan marcadas como paid_at = sale_date (cobro upfront).
-  // El trigger de DB se encarga de recalcular sales.amount_collected
-  // y payment_status, así que el valor que pasamos arriba se
-  // sobreescribe con el cálculo autoritativo.
+  // La primera vence en first_installment_date (default: sale_date), cada
+  // siguiente suma 30 días exactos. Las cuotas cuyo due_date ya pasó (≤ hoy)
+  // se marcan como paid al insertar — el cron diario haría lo mismo al día
+  // siguiente, pero así el total de amount_collected queda correcto de una.
+  // El trigger de DB recalcula sales.amount_collected y payment_status.
   if (body.payment_type === "cuotas" && body.n_cuotas && body.n_cuotas >= 2) {
     const n = Math.min(60, Math.max(2, Math.floor(body.n_cuotas)));
     const perCuota = Math.round((body.amount_total / n) * 100) / 100;
     // Última cuota compensa decimales.
     const lastCuota = Math.round((body.amount_total - perCuota * (n - 1)) * 100) / 100;
-    const paidCount = perCuota > 0 ? Math.min(n, Math.floor(body.amount_collected / perCuota)) : 0;
-    const saleDate = body.sale_date; // YYYY-MM-DD
+    const firstDateStr = body.first_installment_date || body.sale_date; // YYYY-MM-DD
+    const firstMs = new Date(`${firstDateStr}T00:00:00Z`).getTime();
+    const todayStr = new Date().toISOString().split("T")[0];
+    const todayMs = new Date(`${todayStr}T00:00:00Z`).getTime();
 
     const rows = Array.from({ length: n }, (_, i) => {
       const installmentNumber = i + 1;
-      // add months preservando el día (JS Date hace clamp natural: 31 enero + 1 mes = 28/29 feb).
-      const due = new Date(`${saleDate}T00:00:00Z`);
-      due.setUTCMonth(due.getUTCMonth() + i);
-      const dueStr = due.toISOString().split("T")[0];
+      const dueMs = firstMs + i * 86_400_000 * 30;
+      const dueStr = new Date(dueMs).toISOString().split("T")[0];
       return {
         sale_id: data.id,
         workspace_id: workspaceId,
         installment_number: installmentNumber,
         due_date: dueStr,
         amount: installmentNumber === n ? lastCuota : perCuota,
-        paid_at: installmentNumber <= paidCount ? `${saleDate}T00:00:00Z` : null,
+        paid_at: dueMs <= todayMs ? `${dueStr}T00:00:00Z` : null,
       };
     });
 

@@ -24,7 +24,7 @@ Solo se llenan cuando `payment_type='cuotas'`. Una fila por cuota:
 
 ## Auto-paid + recálculo
 
-- **Al crear venta con cuotas**: el endpoint POST `/api/sales` genera las N filas. Primera cuota = `sale_date`, siguientes = mismo día del mes cada mes. Las primeras K = `floor(amount_collected / perCuota)` cuotas se marcan como `paid_at = sale_date` (cobradas upfront).
+- **Al crear venta con cuotas**: el endpoint POST `/api/sales` genera las N filas. El usuario elige `first_installment_date` (default: `sale_date` si la deja vacía). Primera cuota = `first_installment_date`, siguientes = **+30 días exactos** entre cada una. Las cuotas cuyo `due_date <= hoy` se marcan como `paid_at = due_date` al insertar (evita esperar al cron para que queden reflejadas).
 - **pg_cron diario** (`auto-pay-installments-daily`, 00:05 UTC): marca como cobradas las cuotas con `due_date <= hoy` y `paid_at IS NULL`. Asume que se cobraron en la fecha; si el cliente no pagó realmente, el usuario desmarca manualmente.
 - **Trigger `recalc_sale_from_installments`** (INSERT/UPDATE/DELETE on `sale_installments`): recalcula `sales.amount_collected = SUM(amount WHERE paid_at IS NOT NULL)` y actualiza `payment_status`.
 
@@ -46,7 +46,8 @@ Solo se llenan cuando `payment_type='cuotas'`. Una fila por cuota:
 
 ## Decisiones
 
-- **Frecuencia mensual, mismo día**: JS `Date.setUTCMonth(+i)` hace clamp natural (31 ene + 1 mes = 28/29 feb).
+- **Frecuencia +30 días**: intervalos fijos de 30 días entre cuotas (antes era "mismo día del mes"). Simplifica la UI (una sola fecha) y evita ambigüedad del día 31. El trigger de DB sigue igual — solo cambia cómo se llenan los `due_date` al insertar.
+- **Sin input de cobro upfront**: el usuario solo elige la fecha de la primera cuota. Las cuotas con `due_date <= hoy` se marcan paid automáticamente al insertar; el cron diario se encarga del resto a futuro.
 - **Auto-paid optimista**: el cron no verifica pagos reales — asume cobradas al vencer. Pensado para creators con cobro automático (Stripe / Mercado Pago debit) o para el caso común donde sí se cobra. El usuario corrige manualmente los casos que fallan.
 - **Límite**: máximo 60 cuotas por venta (sanity cap en el endpoint).
 - **No rollback**: si la venta se crea pero falla el insert de installments, la venta queda sin cuotas. Log del error; el usuario puede regenerarlas manualmente si hace falta (TODO futuro).

@@ -1,8 +1,20 @@
 /**
  * competitor-scraper.service.ts
  * Scrapes competitor Instagram profiles and their reels via Apify.
- * Uses the same apify~instagram-reel-scraper actor but configured
- * for profile-level scraping (username instead of URL).
+ *
+ * Key pieces:
+ *  - `apify~instagram-profile-scraper` → profile metadata (followers, bio, avatar).
+ *  - `apify~instagram-reel-scraper` → /reels/ tab reels from the last 30 days.
+ *  - `apify~instagram-post-scraper` → feed/grid posts; used only to detect
+ *    "trial reels": reels that appear in the /reels/ tab but NOT in the grid
+ *    (Instagram's "share to feed: off" mode). Best-effort — if this actor
+ *    fails or returns nothing, maybe_trial stays NULL and the rest of the
+ *    scrape proceeds normally.
+ *
+ * Progress is emitted to `workspace_competitors.scrape_progress` (jsonb) at
+ * every phase. The UI polls GET /api/v1/competitors/[id] every 2s and renders
+ * the `message` field so the user knows what's happening during the ~2-3 min
+ * scrape+analyze window.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -13,11 +25,47 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const APIFY_PROFILE_SCRAPER_ACTOR = 'apify~instagram-profile-scraper';
 const APIFY_REEL_SCRAPER_ACTOR = 'apify~instagram-reel-scraper';
+const APIFY_POST_SCRAPER_ACTOR = 'apify~instagram-post-scraper';
 const APIFY_BASE_URL = 'https://api.apify.com/v2/acts';
-// Subido de 20 → 50 (2026-04-23): más data histórica para análisis de
-// competidores sin cambiar el actor. Tradeoff: cada scrape consume más
-// compute units de Apify. Plan mensual de Apify tiene que bancarlo.
-const MAX_REELS_PER_SCRAPE = 50;
+
+// Ventana de scrape: reels publicados en los últimos 30 días. Si un competidor
+// publica menos de 50 reels/mes (la mayoría), recibimos todos; si publica más,
+// el cap de 100 corta en lo más reciente.
+const SCRAPE_WINDOW_DAYS = 30;
+const MAX_REELS_PER_SCRAPE = 100;
+
+// ─── Progress reporting ─────────────────────────────────────────────────────
+
+type ScrapeProgress = {
+  phase:
+    | 'starting'
+    | 'scraping_profile'
+    | 'scraping_reels'
+    | 'scraping_grid'
+    | 'uploading_thumbs'
+    | 'saving'
+    | 'done';
+  message: string;
+  current?: number;
+  total?: number;
+};
+
+async function setProgress(
+  supabase: SupabaseClient,
+  competitorId: string,
+  progress: ScrapeProgress,
+): Promise<void> {
+  // Escribimos con el client regular; el endpoint ya respeta RLS del workspace.
+  // Best-effort: si falla, no rompemos el scrape por un update cosmético.
+  try {
+    await supabase
+      .from('workspace_competitors')
+      .update({ scrape_progress: progress })
+      .eq('id', competitorId);
+  } catch (err) {
+    console.warn('[competitor-scraper] setProgress failed:', err);
+  }
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,14 +105,18 @@ interface ApifyReelResult {
   type?: string;
   locationName?: string;
   locationId?: string;
-  // Apify no siempre normaliza el nombre del campo — a veces viene como
-  // `taggedUsers`, a veces como `taggedAccounts`. Parseamos ambos.
   taggedUsers?: Array<{ username?: string } | string>;
   taggedAccounts?: Array<{ username?: string } | string>;
   musicInfo?: {
     artist_name?: string;
     song_name?: string;
   };
+}
+
+interface ApifyPostResult {
+  shortCode?: string;
+  id?: string;
+  timestamp?: string;
 }
 
 export interface CompetitorProfileData {
@@ -99,12 +151,15 @@ export interface CompetitorReelData {
   mentions: string[];
   music_artist: string | null;
   music_name: string | null;
-  // Campos de enriquecimiento (2026-04-23).
   location_name: string | null;
   location_id: string | null;
   tagged_users: string[];
   product_type: string | null;
   is_video: boolean | null;
+  // True si el reel aparece en /reels/ pero NO en el grid del perfil →
+  // Instagram "Share to feed: off", señal fuerte de trial reel.
+  // NULL si no pudimos scrapear el grid (actor falló, timeout, etc.).
+  maybe_trial: boolean | null;
 }
 
 export interface ScrapeResult {
@@ -133,11 +188,7 @@ function getApifyToken(): string | null {
 
 function extractUsername(igUrl: string): string {
   const cleaned = igUrl.trim().replace(/\/$/, '');
-
-  // Handle @username format
   if (cleaned.startsWith('@')) return cleaned.slice(1);
-
-  // Handle full URL
   try {
     const url = new URL(cleaned.startsWith('http') ? cleaned : `https://${cleaned}`);
     const parts = url.pathname.split('/').filter(Boolean);
@@ -197,12 +248,16 @@ async function scrapeProfile(username: string, token: string): Promise<Competito
 async function scrapeReels(username: string, token: string, limit: number): Promise<CompetitorReelData[]> {
   const endpoint = `${APIFY_BASE_URL}/${APIFY_REEL_SCRAPER_ACTOR}/run-sync-get-dataset-items?${new URLSearchParams({ token })}`;
 
+  // Ventana de 30 días: el actor soporta `onlyPostsNewerThan` con un string
+  // relativo tipo "30 days". Si no lo respeta, filtramos por fecha nosotros
+  // abajo — esa defensa es barata.
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username: [`https://www.instagram.com/${username}/reels/`],
       resultsLimit: limit,
+      onlyPostsNewerThan: `${SCRAPE_WINDOW_DAYS} days`,
       includeTranscript: false,
       includeSharesCount: true,
       includeDownloadedVideo: false,
@@ -219,47 +274,103 @@ async function scrapeReels(username: string, token: string, limit: number): Prom
 
   const data = await response.json() as ApifyReelResult[];
 
-  return data.map((item) => {
-    // taggedUsers / taggedAccounts normalización: puede venir como string o
-    // como objeto { username }. Filtramos vacíos y dedup.
-    const taggedRaw = item.taggedUsers ?? item.taggedAccounts ?? [];
-    const tagged = Array.from(new Set(
-      taggedRaw
-        .map((u) => (typeof u === 'string' ? u : u?.username))
-        .filter((u): u is string => typeof u === 'string' && u.length > 0)
-    ));
+  // Filtro adicional por fecha: si el actor no respeta `onlyPostsNewerThan`,
+  // cortamos cualquier reel publicado antes del umbral.
+  const cutoffMs = Date.now() - SCRAPE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
-    return {
-      short_code: toNullableString(item.shortCode),
-      permalink: toNullableString(item.url),
-      caption: toNullableString(item.caption),
-      likes_count: item.likesCount ?? null,
-      comments_count: item.commentsCount ?? null,
-      views_count: item.videoViewCount ?? item.videoPlayCount ?? null,
-      shares_count: item.sharesCount ?? null,
-      duration_seconds: item.videoDuration ?? null,
-      published_at: item.timestamp ?? null,
-      thumbnail_url: toNullableString(item.displayUrl),
-      video_url: toNullableString(item.videoUrl),
-      transcript: toNullableString(item.transcript),
-      hashtags: item.hashtags ?? [],
-      mentions: item.mentions ?? [],
-      music_artist: toNullableString(item.musicInfo?.artist_name),
-      music_name: toNullableString(item.musicInfo?.song_name),
-      location_name: toNullableString(item.locationName),
-      location_id: toNullableString(item.locationId),
-      tagged_users: tagged,
-      product_type: toNullableString(item.productType ?? item.type),
-      is_video: item.isVideo ?? null,
-    };
-  });
+  return data
+    .filter((item) => {
+      if (!item.timestamp) return true; // sin fecha lo dejamos pasar
+      const ts = new Date(item.timestamp).getTime();
+      return Number.isFinite(ts) ? ts >= cutoffMs : true;
+    })
+    .map((item) => {
+      const taggedRaw = item.taggedUsers ?? item.taggedAccounts ?? [];
+      const tagged = Array.from(new Set(
+        taggedRaw
+          .map((u) => (typeof u === 'string' ? u : u?.username))
+          .filter((u): u is string => typeof u === 'string' && u.length > 0)
+      ));
+
+      return {
+        short_code: toNullableString(item.shortCode),
+        permalink: toNullableString(item.url),
+        caption: toNullableString(item.caption),
+        likes_count: item.likesCount ?? null,
+        comments_count: item.commentsCount ?? null,
+        views_count: item.videoViewCount ?? item.videoPlayCount ?? null,
+        shares_count: item.sharesCount ?? null,
+        duration_seconds: item.videoDuration ?? null,
+        published_at: item.timestamp ?? null,
+        thumbnail_url: toNullableString(item.displayUrl),
+        video_url: toNullableString(item.videoUrl),
+        transcript: toNullableString(item.transcript),
+        hashtags: item.hashtags ?? [],
+        mentions: item.mentions ?? [],
+        music_artist: toNullableString(item.musicInfo?.artist_name),
+        music_name: toNullableString(item.musicInfo?.song_name),
+        location_name: toNullableString(item.locationName),
+        location_id: toNullableString(item.locationId),
+        tagged_users: tagged,
+        product_type: toNullableString(item.productType ?? item.type),
+        is_video: item.isVideo ?? null,
+        maybe_trial: null, // se setea después del scrape del grid
+      };
+    });
+}
+
+// ─── Grid (feed) scraping for trial-reel detection ──────────────────────────
+
+/**
+ * Best-effort: scrapea el grid/feed del perfil y devuelve el set de
+ * shortcodes visibles. Si el actor falla o devuelve vacío, retornamos null y
+ * el caller deja `maybe_trial` en NULL para todos los reels.
+ *
+ * La lógica de trial-detection depende de esta diferencia:
+ *   gridShortcodes  ⊇ los reels que el competidor "mostró" en su perfil
+ *   reelsShortcodes ⊇ todos los reels (incluye los con "share to feed: off")
+ *   trial = reels \ grid
+ */
+async function scrapeGridShortcodes(
+  username: string,
+  token: string,
+  limit: number,
+): Promise<Set<string> | null> {
+  const endpoint = `${APIFY_BASE_URL}/${APIFY_POST_SCRAPER_ACTOR}/run-sync-get-dataset-items?${new URLSearchParams({ token })}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: [`https://www.instagram.com/${username}/`],
+        resultsLimit: limit,
+        onlyPostsNewerThan: `${SCRAPE_WINDOW_DAYS} days`,
+        skipPinnedPosts: true,
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(90000),
+    });
+
+    if (!response.ok) {
+      console.warn(`[competitor-scraper] Grid scrape failed for @${username}:`, response.status);
+      return null;
+    }
+
+    const data = await response.json() as ApifyPostResult[];
+    const shortcodes = new Set<string>();
+    for (const item of data) {
+      const sc = toNullableString(item.shortCode);
+      if (sc) shortcodes.add(sc);
+    }
+    return shortcodes;
+  } catch (err) {
+    console.warn('[competitor-scraper] Grid scrape exception:', err);
+    return null;
+  }
 }
 
 // ─── Image Storage Helpers ──────────────────────────────────────────────────
-// The 'competitor-assets' bucket is created via migration
-// (20260407000033_competitor_assets_and_follower_snapshots.sql).
-// Do NOT try to create it at runtime — the client auth token doesn't have
-// storage admin rights and the call would silently fail.
 
 const STORAGE_BUCKET = 'competitor-assets';
 
@@ -277,8 +388,6 @@ async function downloadAndUploadImage(
     const buffer = await res.arrayBuffer();
     const contentType = res.headers.get('content-type') ?? 'image/jpeg';
 
-    // Use service-role client — the scraper runs server-side but the user
-    // session (anon key) doesn't have storage write permissions.
     const adminClient = createAdminClient();
     const { error } = await adminClient.storage
       .from(STORAGE_BUCKET)
@@ -309,7 +418,8 @@ export async function scrapeCompetitor(
     return { profile: null, reels: [], reelsInserted: 0, error: 'APIFY_API_TOKEN not configured' };
   }
 
-  // Get competitor data
+  await setProgress(supabase, competitorId, { phase: 'starting', message: 'Preparando scrape...' });
+
   const { data: competitor, error: fetchError } = await supabase
     .from('workspace_competitors')
     .select('id, name, ig_url, workspace_id')
@@ -327,8 +437,15 @@ export async function scrapeCompetitor(
 
   const username = extractUsername(competitor.ig_url);
 
-  // Scrape profile and reels in parallel
-  const [profile, reels] = await Promise.all([
+  // Fase 1-3 en paralelo: profile, reels del último mes, grid del perfil.
+  // Los 3 actors de Apify son independientes; correrlos concurrentes corta
+  // ~60-90s del scrape total.
+  await setProgress(supabase, competitorId, {
+    phase: 'scraping_reels',
+    message: `Bajando reels y perfil de @${username} (últimos ${SCRAPE_WINDOW_DAYS} días)...`,
+  });
+
+  const [profile, reels, gridShortcodes] = await Promise.all([
     scrapeProfile(username, token).catch((err) => {
       console.error('[competitor-scraper] Profile error:', err);
       return null;
@@ -337,9 +454,29 @@ export async function scrapeCompetitor(
       console.error('[competitor-scraper] Reels error:', err);
       return [] as CompetitorReelData[];
     }),
+    scrapeGridShortcodes(username, token, MAX_REELS_PER_SCRAPE).catch((err) => {
+      console.error('[competitor-scraper] Grid error:', err);
+      return null;
+    }),
   ]);
 
-  // Upload profile pic to Supabase Storage (so it never expires)
+  // Tag `maybe_trial` comparando reels vs grid. Si no pudimos traer el grid
+  // (actor falló), dejamos NULL — la UI lo interpreta como "desconocido".
+  let trialCount = 0;
+  if (gridShortcodes && gridShortcodes.size > 0) {
+    for (const reel of reels) {
+      if (!reel.short_code) continue;
+      reel.maybe_trial = !gridShortcodes.has(reel.short_code);
+      if (reel.maybe_trial) trialCount++;
+    }
+  }
+
+  await setProgress(supabase, competitorId, {
+    phase: 'scraping_reels',
+    message: `${reels.length} reels encontrados${trialCount > 0 ? ` (${trialCount} posible${trialCount !== 1 ? 's' : ''} trial)` : ''}. Preparando portadas...`,
+  });
+
+  // Upload profile pic to Storage (persiste aunque el CDN de Meta expire)
   if (profile?.ig_profile_pic_url) {
     const storageUrl = await downloadAndUploadImage(
       profile.ig_profile_pic_url,
@@ -348,7 +485,6 @@ export async function scrapeCompetitor(
     if (storageUrl) profile.ig_profile_pic_url = storageUrl;
   }
 
-  // Update competitor record with profile data
   if (profile) {
     await supabase
       .from('workspace_competitors')
@@ -358,9 +494,8 @@ export async function scrapeCompetitor(
       })
       .eq('id', competitorId);
 
-    // Upsert daily follower snapshot (builds historical trend over time)
     if (profile.ig_follower_count && profile.ig_follower_count > 0) {
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const today = new Date().toISOString().slice(0, 10);
       await supabase
         .from('competitor_follower_snapshots')
         .upsert({
@@ -372,21 +507,49 @@ export async function scrapeCompetitor(
     }
   }
 
-  // Upload reel thumbnails to storage in parallel (so they never expire)
+  // Fase 4: upload thumbnails. Emitimos progreso granular — esta es la parte
+  // visible para el user (puede durar 20-40s en scrapes con muchos reels).
+  await setProgress(supabase, competitorId, {
+    phase: 'uploading_thumbs',
+    current: 0,
+    total: reels.length,
+    message: `Descargando portadas de ${reels.length} reels...`,
+  });
+
+  let thumbsDone = 0;
   const reelsWithStableUrls = await Promise.all(
     reels.map(async (reel, i) => {
-      if (!reel.thumbnail_url) return reel;
-      const key = reel.short_code ?? `reel-${i}`;
-      const storageUrl = await downloadAndUploadImage(
-        reel.thumbnail_url,
-        `${workspaceId}/${competitorId}/reels/${key}.jpg`
-      );
-      return storageUrl ? { ...reel, thumbnail_url: storageUrl } : reel;
+      let result = reel;
+      if (reel.thumbnail_url) {
+        const key = reel.short_code ?? `reel-${i}`;
+        const storageUrl = await downloadAndUploadImage(
+          reel.thumbnail_url,
+          `${workspaceId}/${competitorId}/reels/${key}.jpg`
+        );
+        if (storageUrl) result = { ...reel, thumbnail_url: storageUrl };
+      }
+      thumbsDone++;
+      // Update cada ~3 thumbs (o en el último) — updates más frecuentes para
+      // que la UI muestre el contador bajando rápido. Con ~47 reels son ~16
+      // escrituras en la fase, trivial para la DB.
+      if (thumbsDone % 3 === 0 || thumbsDone === reels.length) {
+        await setProgress(supabase, competitorId, {
+          phase: 'uploading_thumbs',
+          current: thumbsDone,
+          total: reels.length,
+          message: `Descargando portadas ${thumbsDone} de ${reels.length}...`,
+        });
+      }
+      return result;
     })
   );
 
-  // Delete old reels for this competitor, then BULK insert los 50 nuevos en
-  // una sola query. Antes eran 50 INSERTs seriales (~10-20s); ahora 1 roundtrip.
+  // Fase 5: persist
+  await setProgress(supabase, competitorId, {
+    phase: 'saving',
+    message: `Guardando ${reelsWithStableUrls.length} reels en BD...`,
+  });
+
   await supabase
     .from('competitor_reels')
     .delete()
@@ -417,6 +580,7 @@ export async function scrapeCompetitor(
     tagged_users: reel.tagged_users,
     product_type: reel.product_type,
     is_video: reel.is_video,
+    maybe_trial: reel.maybe_trial,
     raw_data: reel,
     scraped_at: scrapedAt,
   }));
@@ -433,6 +597,11 @@ export async function scrapeCompetitor(
       reelsInserted = count ?? rowsToInsert.length;
     }
   }
+
+  await setProgress(supabase, competitorId, {
+    phase: 'done',
+    message: `Scrape terminado: ${reelsInserted} reels`,
+  });
 
   return { profile, reels: reelsWithStableUrls, reelsInserted };
 }

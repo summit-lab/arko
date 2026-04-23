@@ -7,6 +7,7 @@ import {
   Swords, TrendingUp, Brain, Lightbulb, BarChart3, BookOpen,
   ArrowUpDown, Calendar, Eye, BookMarked, X, Target, Sparkles,
   Layers, Shield, AlertTriangle, Palette, MousePointerClick,
+  Download, Database, CheckCircle, Loader2,
 } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
@@ -64,6 +65,13 @@ interface FollowerSnapshot {
   follower_count: number;
 }
 
+interface ScrapeProgress {
+  phase: string;
+  message: string;
+  current?: number;
+  total?: number;
+}
+
 interface Competitor {
   id: string;
   name: string | null;
@@ -72,6 +80,7 @@ interface Competitor {
   scraped_data: ScrapedData;
   last_scraped_at: string | null;
   analysis_status: string;
+  scrape_progress?: ScrapeProgress | null;
   competitor_reels: CompetitorReel[];
   competitor_follower_snapshots: FollowerSnapshot[];
 }
@@ -263,6 +272,95 @@ function Pill({ icon: Icon, value, label }: { icon: React.ElementType; value: st
   );
 }
 
+// ─── Live progress overlay (blur + barra + fases) ────────────────────────────
+// Se renderiza sobre el panel central del competidor seleccionado mientras el
+// scrape+analyze corre. Lee scrape_progress del servidor (vía polling) y lo
+// traduce a UI rica: paso actual, porcentaje, contador X/Y, checkpoints.
+
+const PROGRESS_PHASES = [
+  { key: "starting", label: "Iniciando", icon: Zap },
+  { key: "scraping_reels", label: "Scrapeando", icon: Download },
+  { key: "uploading_thumbs", label: "Portadas", icon: Layers },
+  { key: "saving", label: "Guardando", icon: Database },
+  { key: "analyzing", label: "Análisis IA", icon: Brain },
+  { key: "done", label: "Listo", icon: CheckCircle },
+] as const;
+
+function ScrapeProgressOverlay({ competitor }: { competitor: Competitor }) {
+  const progress = competitor.scrape_progress ?? { phase: "starting", message: "Preparando scrape…" };
+  const currentIdx = Math.max(0, PROGRESS_PHASES.findIndex((p) => p.key === progress.phase));
+  const pct = (() => {
+    if (progress.total && progress.current != null) {
+      const phaseBase = (currentIdx / (PROGRESS_PHASES.length - 1)) * 100;
+      const phaseSlice = (1 / (PROGRESS_PHASES.length - 1)) * 100;
+      const withinPhase = (progress.current / progress.total) * phaseSlice;
+      return Math.min(100, phaseBase + withinPhase);
+    }
+    return ((currentIdx + 0.5) / (PROGRESS_PHASES.length - 1)) * 100;
+  })();
+
+  const CurrentIcon = PROGRESS_PHASES[currentIdx]?.icon ?? Loader2;
+
+  return (
+    <div className="absolute inset-0 z-20 flex items-center rounded-xl overflow-hidden">
+      {/* Blur sobre el profile header — sólo esa card, no el resto del panel */}
+      <div className="absolute inset-0 bg-background/75 dark:bg-black/55 backdrop-blur-md" />
+
+      {/* Contenido inline (se adapta al alto del profile header) */}
+      <div className="relative w-full px-5 py-3 space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 shrink-0 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
+            <CurrentIcon size={15} className="text-violet-400 animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-medium text-white/90 truncate">
+              {progress.message || "Trabajando…"}
+            </p>
+            <p className="text-[10px] text-white/40 uppercase tracking-wider">
+              Analizando {competitor.name ?? "competidor"}
+            </p>
+          </div>
+          <div className="shrink-0 text-right tabular-nums">
+            <div className="text-[13px] font-medium text-violet-300">{Math.round(pct)}%</div>
+            {progress.total != null && progress.current != null && (
+              <div className="text-[10px] text-white/40">{progress.current}/{progress.total}</div>
+            )}
+          </div>
+        </div>
+
+        {/* Barra + fases en una sola fila */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-1 rounded-full bg-white/[0.08] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-400 transition-[width] duration-700 ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {PROGRESS_PHASES.filter((p) => p.key !== "done").map((phase, i) => {
+              const done = i < currentIdx;
+              const active = i === currentIdx;
+              return (
+                <div
+                  key={phase.key}
+                  title={phase.label}
+                  className={`h-1.5 w-1.5 rounded-full transition-all ${
+                    done
+                      ? "bg-emerald-400"
+                      : active
+                      ? "bg-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.8)]"
+                      : "bg-white/15"
+                  }`}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Analysis Modal ───────────────────────────────────────────────────────────
 
 function AnalysisModal({ reel, analysis, competitor, onClose }: {
@@ -282,7 +380,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -1364,6 +1462,15 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const handleScrapeAndAnalyze = useCallback(async (competitorId: string) => {
     setScraping(competitorId);
     setError(null);
+    // Optimistic: marcamos el competidor como 'analyzing' en el state local
+    // para que el useEffect de polling arranque YA y el botón empiece a
+    // pintar scrape_progress.message en vivo. Sin esto el polling no dispara
+    // hasta que termine el scrape (60-90s) y load() traiga el status real.
+    setCompetitors((prev) => prev.map((c) =>
+      c.id === competitorId
+        ? { ...c, analysis_status: "analyzing", scrape_progress: { phase: "starting", message: "Preparando scrape…" } }
+        : c,
+    ));
     try {
       const scrapeRes = await fetch(`/api/v1/competitors/${competitorId}/scrape`, { method: "POST", headers });
       if (!scrapeRes.ok) {
@@ -1373,13 +1480,37 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
       const scrapeJson = await scrapeRes.json() as { data?: { reels_inserted?: number } };
       const newReels = scrapeJson.data?.reels_inserted ?? 0;
 
-      // Only call analyze (Gemini AI = $$$) if scrape found new unanalyzed reels
+      // setScraping(null) temprano — el spinner del botón puede apagarse,
+      // el polling se encarga de mostrar el progress del analyze que sigue.
+      setScraping(null);
+
       if (newReels > 0) {
-        await fetch(`/api/v1/competitors/${competitorId}/analyze`, { method: "POST", headers });
+        // NO llamamos load() acá: entre scrape terminado e analyze iniciado,
+        // el server queda momentáneamente en 'idle' y load() apagaría el
+        // polling justo antes de que el analyze levante analysis_status de
+        // nuevo a 'analyzing'. Mantenemos el state local optimistic y
+        // dejamos que el useEffect de polling refresque al detectar la
+        // transición analyzing→idle cuando el analyze termine.
+        fetch(`/api/v1/competitors/${competitorId}/analyze`, { method: "POST", headers })
+          .catch((err) => console.warn('[competitor-analyze] background analyze failed:', err));
+      } else {
+        // No hay reels para analizar — reset local + refetch ya.
+        setCompetitors((prev) => prev.map((c) =>
+          c.id === competitorId
+            ? { ...c, analysis_status: "idle", scrape_progress: null }
+            : c,
+        ));
+        await load();
       }
-      await load();
+      return;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar");
+      // Reset optimistic state tras un error.
+      setCompetitors((prev) => prev.map((c) =>
+        c.id === competitorId
+          ? { ...c, analysis_status: "idle", scrape_progress: null }
+          : c,
+      ));
     } finally {
       setScraping(null);
     }
@@ -1429,6 +1560,52 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
   // Reset page when competitor or sort changes.
   useEffect(() => { setReelsPage(1); }, [selectedId, sort]);
+
+  // Polling live progress. Seguimos polleando mientras haya AL MENOS UNA de
+  // estas dos señales activas para el competidor:
+  //   - analysis_status === "analyzing"
+  //   - scrape_progress !== null (el scrape deja "done" entre scrape y analyze;
+  //     analyze limpia a null cuando termina todo)
+  // Esto cubre el intervalo ~500ms entre scrape (idle) y analyze (analyzing)
+  // donde sólo con analysis_status perderíamos el handoff y apagaríamos el
+  // poll antes de tiempo.
+  const pollingCompetitorId = useMemo(
+    () => competitors.find((c) => c.analysis_status === "analyzing" || c.scrape_progress != null)?.id ?? null,
+    [competitors],
+  );
+  useEffect(() => {
+    if (!pollingCompetitorId) return;
+    let cancelled = false;
+    let prevProgress: ScrapeProgress | null = { phase: "starting", message: "" };
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/v1/competitors/${pollingCompetitorId}`, { headers });
+        if (!res.ok || cancelled) return;
+        const json = await res.json() as { data?: { analysis_status: string; scrape_progress: ScrapeProgress | null } };
+        const status = json.data?.analysis_status ?? "idle";
+        const progress = json.data?.scrape_progress ?? null;
+
+        setCompetitors((prev) => prev.map((c) =>
+          c.id === pollingCompetitorId
+            ? { ...c, analysis_status: status, scrape_progress: progress }
+            : c,
+        ));
+
+        // Transición a "todo terminado": status idle + progress null.
+        // Refrescamos la lista para traer reels + análisis nuevos.
+        if (status === "idle" && progress === null && prevProgress !== null) {
+          await load();
+        }
+        prevProgress = progress;
+      } catch { /* ignore transient network errors */ }
+    };
+
+    // Primer tick inmediato, luego cada 2s.
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [pollingCompetitorId, headers, load]);
 
   if (loading) {
     return (
@@ -1508,8 +1685,11 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
           {/* ── Reels gallery ── */}
           {selected && (
             <div className="space-y-3 min-w-0">
-              {/* Profile header */}
-              <div className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.08]">
+              {/* Profile header — el overlay de progreso se monta sólo sobre este card */}
+              <div className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.08] relative">
+                {(selected.analysis_status === "analyzing" || selected.scrape_progress != null) && (
+                  <ScrapeProgressOverlay competitor={selected} />
+                )}
                 <div className="flex items-start gap-3">
                   <Avatar url={(selected.scraped_data as ScrapedData)?.ig_profile_pic_url} name={selected.name} size={48} />
                   <div className="flex-1 min-w-0">
@@ -1552,11 +1732,16 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                   <button
                     onClick={() => handleScrapeAndAnalyze(selected.id)}
                     disabled={scraping === selected.id || selected.analysis_status === "analyzing"}
-                    className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40"
+                    className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40 max-w-[320px]"
                     style={GLASS}
                   >
                     {(scraping === selected.id || selected.analysis_status === "analyzing") ? (
-                      <><RefreshCw size={12} className="animate-spin text-white/40" /><span className="text-white/40">Analizando…</span></>
+                      <>
+                        <RefreshCw size={12} className="animate-spin text-white/40 shrink-0" />
+                        <span className="text-white/50 truncate">
+                          {selected.scrape_progress?.message ?? "Analizando…"}
+                        </span>
+                      </>
                     ) : selected.competitor_reels.length > 0 ? (
                       <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">Re-analizar</span></>
                     ) : (

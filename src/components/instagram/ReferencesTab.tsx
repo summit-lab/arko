@@ -329,7 +329,7 @@ function AnalysisModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-foreground/50 dark:bg-black/75 backdrop-blur-sm"
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-foreground/50 dark:bg-black/75 backdrop-blur-sm"
       onClick={onClose}>
       <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6 space-y-5 bg-popover text-popover-foreground border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
@@ -639,7 +639,7 @@ function AddModal({ onClose, onSave, workspaceId }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-foreground/50 dark:bg-black/75 backdrop-blur-sm"
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-foreground/50 dark:bg-black/75 backdrop-blur-sm"
       onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl p-6 space-y-5 bg-popover text-popover-foreground border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}>

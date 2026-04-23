@@ -180,7 +180,7 @@ export function ReelChatPanel({
 
       {/* Slide-in panel */}
       <div
-        className={`fixed top-0 right-0 z-50 flex flex-col w-[720px] max-w-[90vw] h-dvh border-l border-border bg-popover backdrop-blur-2xl shadow-[-8px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={`fixed top-0 right-0 z-[80] flex flex-col w-[720px] max-w-[90vw] h-dvh border-l border-border bg-popover backdrop-blur-2xl shadow-[-8px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -275,7 +275,7 @@ export function ReelChatPanel({
       {/* Backdrop overlay when panel is open */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-[70] bg-black/30 backdrop-blur-sm transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}

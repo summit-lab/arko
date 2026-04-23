@@ -38,35 +38,23 @@ export async function Header() {
     const supabase = await createClient();
     const workspaceId = await getWorkspaceId();
     if (workspaceId) {
-      const [{ data: insights }, { data: reelMetrics }] = await Promise.all([
-        supabase
-          .from("ig_account_insights")
-          .select("followers_total, total_interactions, impressions")
-          .eq("workspace_id", workspaceId)
-          .order("metric_date", { ascending: false })
-          .limit(90),
-        supabase
-          .from("reels")
-          .select("reel_metrics (views_org), reel_metrics_paid (views_paid)")
-          .eq("workspace_id", workspaceId)
-          .limit(500),
-      ]);
+      // Header stats fijos: ventana de 90 dias (no afectado por filtros del dashboard).
+      // Vistas = SUM(impressions) account-level — misma metrica que IG nativo.
+      const { data: insights } = await supabase
+        .from("ig_account_insights")
+        .select("followers_total, total_interactions, impressions")
+        .eq("workspace_id", workspaceId)
+        .order("metric_date", { ascending: false })
+        .limit(90);
       if (insights && insights.length > 0) {
         const latest = insights[0];
         if (latest.followers_total > 0) headerFollowers = fmtHeader(latest.followers_total);
         const totalInteractions = insights.reduce((s, d) => s + (d.total_interactions ?? 0), 0);
         const totalImpressions = insights.reduce((s, d) => s + (d.impressions ?? 0), 0);
         if (totalImpressions > 0) {
+          headerViews = fmtHeader(totalImpressions);
           headerEngRate = `${((totalInteractions / totalImpressions) * 100).toFixed(1)}%`;
         }
-      }
-      if (reelMetrics && reelMetrics.length > 0) {
-        const totalViews = reelMetrics.reduce((s, r) => {
-          const m = r.reel_metrics as unknown as { views_org: number } | null;
-          const p = r.reel_metrics_paid as unknown as { views_paid: number } | null;
-          return s + (m?.views_org ?? 0) + (p?.views_paid ?? 0);
-        }, 0);
-        if (totalViews > 0) headerViews = fmtHeader(totalViews);
       }
     }
   } catch { /* header stats are non-critical */ }

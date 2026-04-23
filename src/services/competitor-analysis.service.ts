@@ -658,7 +658,10 @@ export async function analyzeCompetitorReels(
   competitorId: string,
   workspaceId: string
 ): Promise<AnalysisResult[]> {
-  // Get top 5 reels by views that don't have analysis yet
+  // Top 6 reels por views sin análisis aún. Analizamos en paralelo — cada uno
+  // tarda ~35s con Gemini video; secuencial sería 6×35=210s y no cabe en el
+  // maxDuration de 120s. En paralelo total ≈ max(tiempos individuales) ≈ 40s.
+  // El resto queda para análisis manual desde la UI.
   const { data: reels, error } = await supabase
     .from('competitor_reels')
     .select(`
@@ -670,21 +673,33 @@ export async function analyzeCompetitorReels(
     .eq('workspace_id', workspaceId)
     .is('competitor_reel_analysis.id', null)
     .order('views_count', { ascending: false, nullsFirst: false })
-    .limit(3); // 3 reels max — Gemini takes ~35s per video, 3×35=105s fits in 120s timeout
+    .limit(6);
 
   if (error || !reels || reels.length === 0) {
     return [];
   }
 
-  const geminiAvailable = isGeminiEnabled();
-  const results: AnalysisResult[] = [];
+  // Emitimos progress inicial — la UI lo pollea para mostrar "Analizando 0/6…".
+  await supabase
+    .from('workspace_competitors')
+    .update({
+      scrape_progress: {
+        phase: 'analyzing',
+        current: 0,
+        total: reels.length,
+        message: `Analizando ${reels.length} reels con Gemini...`,
+      },
+    })
+    .eq('id', competitorId);
 
-  for (const reel of reels) {
+  const geminiAvailable = isGeminiEnabled();
+  let analyzedCount = 0;
+
+  const analyzeOne = async (reel: typeof reels[number]): Promise<AnalysisResult> => {
     try {
       let analysisData: ReelAnalysisData;
       let extractedTranscript: string | null = null;
 
-      // Gemini video → Gemini text → callLLM fallback
       if (geminiAvailable && (reel as CompetitorReel).video_url) {
         try {
           const geminiResult = await analyzeReelWithGemini(reel as CompetitorReel);
@@ -700,7 +715,6 @@ export async function analyzeCompetitorReels(
         analysisData = await analyzeReelFallback(reel as CompetitorReel);
       }
 
-      // Save transcript to competitor_reels if Gemini extracted one
       if (extractedTranscript) {
         await supabase
           .from('competitor_reels')
@@ -728,21 +742,55 @@ export async function analyzeCompetitorReels(
           tokens_used: analysisData.tokens_used,
         });
 
-      results.push({
+      analyzedCount++;
+      await supabase
+        .from('workspace_competitors')
+        .update({
+          scrape_progress: {
+            phase: 'analyzing',
+            current: analyzedCount,
+            total: reels.length,
+            message: `Analizando ${analyzedCount}/${reels.length} reels con Gemini...`,
+          },
+        })
+        .eq('id', competitorId);
+
+      return {
         reelId: reel.id,
         success: !insertError,
         tokensUsed: analysisData.tokens_used,
         error: insertError?.message,
-      });
+      };
     } catch (err) {
-      results.push({
+      analyzedCount++;
+      await supabase
+        .from('workspace_competitors')
+        .update({
+          scrape_progress: {
+            phase: 'analyzing',
+            current: analyzedCount,
+            total: reels.length,
+            message: `Analizando ${analyzedCount}/${reels.length} reels con Gemini...`,
+          },
+        })
+        .eq('id', competitorId);
+
+      return {
         reelId: reel.id,
         success: false,
         tokensUsed: 0,
         error: err instanceof Error ? err.message : 'Unknown error',
-      });
+      };
     }
-  }
+  };
+
+  const results = await Promise.all(reels.map(analyzeOne));
+
+  // Progress final: limpiamos el objeto así la UI deja de mostrar el mensaje.
+  await supabase
+    .from('workspace_competitors')
+    .update({ scrape_progress: null })
+    .eq('id', competitorId);
 
   return results;
 }

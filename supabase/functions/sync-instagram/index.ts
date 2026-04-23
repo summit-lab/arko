@@ -1612,8 +1612,11 @@ async function snapshotDailyMetrics(supabase: any, workspaceId: string): Promise
       spend_cents: paid?.spend_cents ?? 0,
       fetched_at: new Date().toISOString(),
     };
-  // deno-lint-ignore no-explicit-any
-  }).filter((r: any) => r.views_org > 0 || r.likes_total > 0 || r.views_paid > 0);
+  });
+  // No filtramos snapshots con metricas en cero. Reels nuevos sin views aun
+  // (IG API tarda 24-48h en reportar) deben registrar su primer snapshot del
+  // dia para que el calculo de "vistas generadas en ventana" tenga baseline
+  // correcto. Costo en storage: insignificante (~24K filas/ano por workspace).
 
   if (rows.length === 0) return;
 

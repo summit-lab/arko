@@ -81,8 +81,6 @@ async function getDashboardData(range: DateRange) {
   // Period reels range (ISO bounds for reels.published_at timestamptz) — Fix 3.1/3.2
   const periodReelsFromISO = toISOStart(range.from);
   const periodReelsToISO = toISOStart(nextDay(range.to));
-  const periodReelsPrevFromISO = toISOStart(prev.from);
-  const periodReelsPrevToISO = toISOStart(nextDay(prev.to));
 
   // Current calendar month window (for Metas del Mes donuts) — Fix 3.3
   const monthWin = getCurrentMonthWindow();
@@ -97,8 +95,6 @@ async function getDashboardData(range: DateRange) {
     insightsMonthGoals,
     reels90d,
     reelsPeriod,
-    reelsPrevPeriod,
-    reelsMonth,
     goalsResult,
     salesCurrent,
     salesPrevious,
@@ -107,7 +103,8 @@ async function getDashboardData(range: DateRange) {
     adsMessagingCurrent,
     adsMessagingPrev,
     storiesForCalendar,
-    reelMetricsDailyWindow,
+    viewsCurrentInsights,
+    viewsPrevInsights,
   ] = await Promise.all([
     // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
     // — the date range predicate already bounds the result (Fix 3.6).
@@ -182,35 +179,6 @@ async function getDashboardData(range: DateRange) {
       .order("published_at", { ascending: false })
       .limit(500),
 
-    // Query 7b: Reels in PREVIOUS period — para el delta de "Vistas Totales".
-    // Solo traemos views (org + paid), no necesitamos metadata para el KPI.
-    supabase
-      .from("reels")
-      .select(`
-        id, published_at,
-        reel_metrics (views_org),
-        reel_metrics_paid (views_paid)
-      `)
-      .eq("workspace_id", workspaceId)
-      .gte("published_at", periodReelsPrevFromISO)
-      .lt("published_at", periodReelsPrevToISO)
-      .limit(500),
-
-    // Query 8: Reels published in CURRENT CALENDAR MONTH — for Metas del Mes "views" donut (C6).
-    // Matches the basis used by the "Vistas Totales" Dashboard KPI (sum of reel views_org + views_paid)
-    // so the donut reconciles with the header number when both are shown.
-    supabase
-      .from("reels")
-      .select(`
-        id, published_at,
-        reel_metrics (views_org),
-        reel_metrics_paid (views_paid)
-      `)
-      .eq("workspace_id", workspaceId)
-      .gte("published_at", `${monthStart}T00:00:00.000Z`)
-      .lt("published_at", `${monthTo}T00:00:00.000Z`)
-      .limit(500),
-
     // Query 9: Workspace goals for current month
     supabase
       .from("workspace_goals")
@@ -228,7 +196,7 @@ async function getDashboardData(range: DateRange) {
         amount_total, amount_collected, source_type, source_label, payment_status,
         reel_id, story_sequence_id,
         reels(id, caption, auto_title, thumbnail_url, media_type),
-        ig_story_sequences(id, published_at, ig_story_slides(slide_index, thumbnail_url, media_url))
+        ig_story_sequences(id, published_at, ig_story_slides(slide_index, thumbnail_url, media_url, media_storage_path))
       `)
       .eq("workspace_id", workspaceId)
       .neq("payment_status", "cancelled")
@@ -288,16 +256,22 @@ async function getDashboardData(range: DateRange) {
       .order("published_at", { ascending: false })
       .limit(200),
 
-    // Query 17: reel_metrics_daily para "Vistas Totales" KPI — snapshots
-    // cumulativos por reel por dia. Traemos desde el inicio del periodo PREVIO
-    // hasta el fin del actual asi tenemos baseline para ambos periodos.
-    // Views ganadas = delta de cumulativos (end - start) por reel, sumado.
+    // Query 17 + 18: "Vistas Totales" del periodo. Usamos account-level
+    // impressions de ig_account_insights — es la misma metrica que IG nativo
+    // muestra como "Impresiones de la cuenta". Suma TODO: reels nuevos, viejos
+    // creciendo, stories, posts. Daily, sumable por cualquier ventana.
     supabase
-      .from("reel_metrics_daily")
-      .select("reel_id, metric_date, views_org, views_paid")
+      .from("ig_account_insights")
+      .select("impressions")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", range.from)
+      .lte("metric_date", range.to),
+    supabase
+      .from("ig_account_insights")
+      .select("impressions")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", prev.from)
-      .lte("metric_date", range.to),
+      .lte("metric_date", prev.to),
   ]);
 
   // ─── Log query errors ───
@@ -308,8 +282,8 @@ async function getDashboardData(range: DateRange) {
   if (insightsMonthGoals.error) console.error('[dashboard] insightsMonthGoals error:', insightsMonthGoals.error);
   if (reels90d.error) console.error('[dashboard] reels90d error:', reels90d.error);
   if (reelsPeriod.error) console.error('[dashboard] reelsPeriod error:', reelsPeriod.error);
-  if (reelsPrevPeriod.error) console.error('[dashboard] reelsPrevPeriod error:', reelsPrevPeriod.error);
-  if (reelsMonth.error) console.error('[dashboard] reelsMonth error:', reelsMonth.error);
+  if (viewsCurrentInsights.error) console.error('[dashboard] viewsCurrentInsights error:', viewsCurrentInsights.error);
+  if (viewsPrevInsights.error) console.error('[dashboard] viewsPrevInsights error:', viewsPrevInsights.error);
   if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
   if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
   if (conversationsCurrent.error) console.error('[dashboard] conversationsCurrent error:', conversationsCurrent.error);
@@ -398,67 +372,15 @@ async function getDashboardData(range: DateRange) {
     };
   });
 
-  // Views KPI — total de vistas GANADAS en la ventana por TODOS los reels
-  // (no solo los publicados en la ventana). Usamos snapshots de
-  // reel_metrics_daily y restamos: delta entre el ultimo snapshot del periodo
-  // y el ultimo del periodo previo (baseline).
-  //
-  // Reels viejos siguen acumulando vistas — esta metrica las captura, a
-  // diferencia del SUM de reels_in_period que se queda en 0 cuando no publicas
-  // nada nuevo en la ventana.
-  const dailyRows = (reelMetricsDailyWindow.data ?? []) as Array<{
-    reel_id: string;
-    metric_date: string;
-    views_org: number | null;
-    views_paid: number | null;
-  }>;
-  const viewsByReel = new Map<string, Array<{ date: string; views: number }>>();
-  for (const row of dailyRows) {
-    const list = viewsByReel.get(row.reel_id) ?? [];
-    list.push({
-      date: row.metric_date,
-      views: (row.views_org ?? 0) + (row.views_paid ?? 0),
-    });
-    viewsByReel.set(row.reel_id, list);
-  }
-
-  // Calcula views ganadas en [windowStart, windowEnd] por reel:
-  //   endViews   = ultimo snapshot cuya date <= windowEnd
-  //   baseline   = ultimo snapshot cuya date < windowStart (si existe)
-  //   si no hay baseline (reel nuevo) => start = primer snapshot en la ventana
-  //   delta = endViews - baseline (nunca negativo)
-  const viewsGainedInWindow = (windowStart: string, windowEnd: string): number => {
-    let total = 0;
-    for (const rows of viewsByReel.values()) {
-      const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
-      let baseline: number | null = null;
-      let endViews: number | null = null;
-      let firstInWindow: number | null = null;
-      for (const r of sorted) {
-        if (r.date < windowStart) {
-          baseline = r.views; // keep updating to latest before window
-        } else if (r.date <= windowEnd) {
-          if (firstInWindow === null) firstInWindow = r.views;
-          endViews = r.views; // keep updating to latest in window
-        }
-      }
-      if (endViews === null) continue;
-      const start = baseline ?? firstInWindow ?? 0;
-      const delta = endViews - start;
-      if (delta > 0) total += delta;
-    }
-    return total;
-  };
-
-  const totalViewsPeriod = viewsGainedInWindow(range.from, range.to);
-  const totalViewsPrevPeriod = viewsGainedInWindow(prev.from, prev.to);
+  // Vistas Totales = SUM(impressions) account-level. Misma metrica que IG nativo.
+  const sumImpressions = (rows: Array<{ impressions: number | null }> | null) =>
+    (rows ?? []).reduce((s, r) => s + (r.impressions ?? 0), 0);
+  const totalViewsPeriod = sumImpressions(viewsCurrentInsights.data);
+  const totalViewsPrevPeriod = sumImpressions(viewsPrevInsights.data);
 
   // Sales total from 90d window (Top Ventas panel)
   const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
-  // Delta vs periodo anterior — ahora ambos valores representan "vistas
-  // ganadas en la ventana" (ver viewsGainedInWindow arriba), asi que el
-  // pctChange es honesto.
   const viewsChange: { text: string; up: boolean } | null = (totalViewsPeriod > 0 || totalViewsPrevPeriod > 0)
     ? pctChange(totalViewsPeriod, totalViewsPrevPeriod)
     : null;
@@ -501,20 +423,12 @@ async function getDashboardData(range: DateRange) {
 
   const monthRows = (insightsMonthGoals.data ?? []).filter(hasSignal);
 
-  // C6: monthSumViews now aggregates from reels (views_org + views_paid) for reels
-  // published during the current calendar month — matching the basis of the "Vistas Totales"
-  // Dashboard KPI so the Metas del Mes donut reconciles with the header number.
-  // Previously this summed ig_account_insights.impressions (account-level impressions, a
-  // different universe than reel video plays) while labeled "Views" in the UI — misleading.
-  // monthSumReach / monthSumInteractions stay on ig_account_insights (account-level, correct
-  // basis for engagement-rate derivation).
-  const monthSumViews = (reelsMonth.data ?? []).reduce((s, r) => {
-    const metrics = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
-    const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
-    return s + (metrics?.views_org ?? 0) + (paid?.views_paid ?? 0);
-  }, 0);
+  // Mismo basis que el KPI "Vistas Totales": account-level impressions de IG.
+  const monthSumViews = monthRows.reduce((s, r) => s + (r.impressions || 0), 0);
   const monthSumReach = monthRows.reduce((s, r) => s + (r.reach || 0), 0);
   const monthSumInteractions = monthRows.reduce((s, r) => s + interactionsOf(r), 0);
+  const monthSumLikes = monthRows.reduce((s, r) => s + (r.likes || 0), 0);
+  const monthSumSaves = monthRows.reduce((s, r) => s + (r.saves || 0), 0);
 
   // Followers gained this month: followers_total diff (preferred), fallback to follower_count sum
   const monthWithFt = monthRows.filter((r) => (r.followers_total || 0) > 0);
@@ -543,7 +457,7 @@ async function getDashboardData(range: DateRange) {
     ig_story_sequences?: {
       id: string;
       published_at: string | null;
-      ig_story_slides?: Array<{ slide_index: number; thumbnail_url: string | null; media_url: string | null }>;
+      ig_story_slides?: Array<{ slide_index: number; thumbnail_url: string | null; media_url: string | null; media_storage_path: string | null }>;
     } | null;
   }>;
   const salesPreviousRows = (salesPrevious.data ?? []) as Array<{
@@ -577,6 +491,29 @@ async function getDashboardData(range: DateRange) {
   // contenido real, así que ensucian el ranking con agrupaciones genéricas
   // ("Instagram", "CTA Bio", etc). Si el usuario quiere verlas aparte, se
   // podría agregar un panel "Fuentes sin contenido" en el sidebar.
+
+  // Storage-first para portadas de historia: el media_url/thumbnail_url que
+  // devuelve Meta es un CDN firmado que expira a los ~5-7 días y queda roto.
+  // El archivador de sync-instagram guarda una copia en el bucket
+  // "story-media" y popula media_storage_path — generamos signed URLs en
+  // bulk y preferimos ese link sobre el CDN volátil.
+  const storyStoragePaths = new Set<string>();
+  for (const s of salesCurrentRows) {
+    const slides = s.ig_story_sequences?.ig_story_slides ?? [];
+    for (const slide of slides) {
+      if (slide.media_storage_path) storyStoragePaths.add(slide.media_storage_path);
+    }
+  }
+  const storySignedUrls = new Map<string, string>();
+  if (storyStoragePaths.size > 0) {
+    const { data: signed } = await supabase.storage
+      .from("story-media")
+      .createSignedUrls([...storyStoragePaths], 3600);
+    for (const su of signed ?? []) {
+      if (su.signedUrl && su.path) storySignedUrls.set(su.path, su.signedUrl);
+    }
+  }
+
   type MaterialKey = { key: string; type: string; label: string; thumbnailUrl: string | null };
   const materialOf = (s: typeof salesCurrentRows[number]): MaterialKey | null => {
     // Reel embebido (incluye posts y carruseles — media_type decide el tipo).
@@ -601,7 +538,10 @@ async function getDashboardData(range: DateRange) {
         : "";
       const slides = s.ig_story_sequences.ig_story_slides ?? [];
       const firstSlide = [...slides].sort((a, b) => a.slide_index - b.slide_index)[0];
-      const storyThumb = firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
+      const archivedUrl = firstSlide?.media_storage_path
+        ? storySignedUrls.get(firstSlide.media_storage_path) ?? null
+        : null;
+      const storyThumb = archivedUrl ?? firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
       return {
         key: `story:${s.ig_story_sequences.id}`,
         type: "historia",
@@ -729,11 +669,15 @@ async function getDashboardData(range: DateRange) {
     reach: goalsMap.get("reach") ?? null,
   };
 
-  // Raw numeric values for donut calculation — CURRENT MONTH window (Fix 3.3)
+  // Raw numeric values for donut calculation — CURRENT MONTH window (Fix 3.3).
+  // Keys must match METRIC_CONFIG in MetasDonut (views/followers/engagement_rate/reach/likes/saves).
   const metasActuals = {
     views: monthSumViews,
     followers: followersGainedMonth,
-    engRate: engRateMonth,
+    engagement_rate: engRateMonth,
+    reach: monthSumReach,
+    likes: monthSumLikes,
+    saves: monthSumSaves,
   };
 
   // ─── Interacciones nuevas estimadas — respects dashboard date filter ───
@@ -947,7 +891,11 @@ function TopSourcesList({ topSources }: { topSources: TopSourceRow[] }) {
             className="flex items-center gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-white/[0.03]"
           >
             <span className="text-[11px] font-medium text-white/25 w-4 shrink-0 text-center">{i + 1}</span>
-            {/* Thumbnail del reel/post si hay; fallback al icono del tipo. */}
+            {/* Thumbnail del material. Si falta (historia sin slide, reel
+                archivado sin thumbnail_url, etc.) generamos una "portada
+                sintética" con gradiente del color del tipo + inicial del
+                label. Siempre hay algo visual — nunca un placeholder genérico
+                de "imagen rota". */}
             {s.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -958,10 +906,17 @@ function TopSourcesList({ topSources }: { topSources: TopSourceRow[] }) {
               />
             ) : (
               <div
-                className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center"
-                style={{ background: bg }}
+                className="h-9 w-9 shrink-0 rounded-md flex items-center justify-center relative overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${hex}55, ${hex}15)`,
+                  border: `1px solid ${bg}`,
+                }}
+                aria-hidden
               >
-                <Icon className="h-[17px] w-[17px]" style={{ color: hex }} />
+                <Icon className="h-[13px] w-[13px] absolute top-0.5 right-0.5 opacity-60" style={{ color: hex }} />
+                <span className="text-[13px] font-semibold leading-none" style={{ color: hex }}>
+                  {(label.trim().charAt(0) || "?").toUpperCase()}
+                </span>
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -1186,14 +1141,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             <ConversationsChart data={conversationsData} previousTotal={conversationsPrevTotal} />
           </div>
 
-          {/* Metas del Mes — Donuts */}
+          {/* Metas del Mes — Donuts (soporta las 6 metricas configurables) */}
           <MetasDonut
-            views={data?.metasActuals?.views ?? 0}
-            followers={data?.metasActuals?.followers ?? 0}
-            engRate={data?.metasActuals?.engRate ?? 0}
-            goalViews={data?.goals?.views ?? null}
-            goalFollowers={data?.goals?.followers ?? null}
-            goalEngRate={data?.goals?.engagement_rate ?? null}
+            goals={data?.goals ?? {}}
+            actuals={data?.metasActuals ?? {}}
           />
 
           {/* Top Ventas */}

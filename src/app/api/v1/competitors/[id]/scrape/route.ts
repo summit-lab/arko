@@ -31,6 +31,10 @@ export async function POST(
 
     // Helper para resetear el estado — se llama SIEMPRE al final (success o error)
     // para que el status no quede pegado en "analyzing" si algo falla silencioso.
+    // Ojo: NO limpiamos scrape_progress aquí. El endpoint /analyze (que corre
+    // después en background) puede seguir escribiendo progress; dejarlo con el
+    // último valor de "scrape done" es la UX correcta hasta que el analyze
+    // termine y limpie su propia progress.
     const resetStatus = async () => {
       await supabase
         .from('workspace_competitors')
