@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import {
   DollarSign, Plus, TrendingUp, Clock,
-  Trash2, Wallet,
+  Trash2, Wallet, Pencil,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -110,6 +110,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   const [sales, setSales] = useState<Sale[]>(initialSales);
   const [showModal, setShowModal] = useState(false);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [activeRange, setActiveRange] = useState<SharedDateRange>(() => resolvePreset("este_mes"));
 
   // Date filtering
@@ -174,6 +175,11 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   const handlePaymentSaved = (updated: Sale) => {
     setSales(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated, reels: s.reels } : s)));
     setPaymentSale(null);
+  };
+
+  const handleEditSaved = (updated: Sale) => {
+    setSales(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated, reels: s.reels } : s)));
+    setEditingSale(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -433,7 +439,15 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                           </button>
                         )}
                         <button
+                          onClick={() => setEditingSale(s)}
+                          title="Editar venta"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white/25 hover:text-white/70 shrink-0"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
                           onClick={() => handleDelete(s.id)}
+                          title="Eliminar venta"
                           className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white/20 hover:text-red-400 shrink-0"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -535,6 +549,16 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
           stories={storiesForPicker}
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {editingSale && (
+        <SaleFormModal
+          reels={reelsForPicker}
+          stories={storiesForPicker}
+          sale={editingSale}
+          onClose={() => setEditingSale(null)}
+          onSaved={handleEditSaved}
         />
       )}
 

@@ -7,6 +7,22 @@
 
 ## [unreleased] — 2026-04-23
 
+### Added — Ventas: botón editar en la tabla
+
+En la fila de cada venta ahora aparece un ícono de lápiz (hover) junto al de eliminar. Abre el mismo SaleFormModal pero en **modo edición**:
+- Pre-llena todos los campos desde la venta existente.
+- Salta directo al step 2 (información editable).
+- Permite modificar: monto total, cobrado, fecha, fuente/sub-label, cliente, notas, status.
+- **No permite cambiar**: `payment_type`, `n_cuotas` ni la atribución (reel/historia). Si hace falta, eliminar y recrear. Los campos deshabilitados quedan marcados "(no editable)" para que el user lo vea.
+- Submit hace `PATCH /api/sales/[id]` (el endpoint ya existía).
+
+#### Archivos
+- `src/components/sales/SaleForm.tsx` — prop `sale?: Sale`, `buildFormFromSale`, `isEditing` flag, PATCH vs POST.
+- `src/components/sales/SaleFormModal.tsx` — forward del prop `sale`.
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — state `editingSale`, botón `Pencil`, modal de edición.
+
+---
+
 ### Added — Ventas: nueva fuente "CTA Bio"
 
 Sexta fuente de pago predeterminada: **CTA Bio** — el copy del bio que empuja a un recurso/DM, distinto del **Link en Bio** (click directo al enlace del perfil). El user pidió poder medirlas por separado en Top fuentes y en el breakdown de Ventas.

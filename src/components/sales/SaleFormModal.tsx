@@ -10,9 +10,11 @@ interface SaleFormModalProps {
   onClose: () => void;
   onSaved: (sale: Sale) => void;
   defaultSourceType?: SaleFormProps["defaultSourceType"];
+  /** Si se pasa, el modal entra en modo edición. */
+  sale?: Sale | null;
 }
 
-export function SaleFormModal({ reels, stories, onClose, onSaved, defaultSourceType }: SaleFormModalProps) {
+export function SaleFormModal({ reels, stories, onClose, onSaved, defaultSourceType, sale }: SaleFormModalProps) {
   const ct = useChartTheme();
 
   return (
@@ -36,6 +38,7 @@ export function SaleFormModal({ reels, stories, onClose, onSaved, defaultSourceT
           onCancel={onClose}
           onSuccess={onSaved}
           defaultSourceType={defaultSourceType}
+          sale={sale}
         />
       </div>
     </div>

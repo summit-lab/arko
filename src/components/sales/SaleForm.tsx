@@ -20,6 +20,7 @@ export interface Sale {
   notes: string | null;
   client_name: string | null;
   reel_id: string | null;
+  story_sequence_id?: string | null;
   reels: { id: string; caption: string | null; thumbnail_url: string | null; permalink: string | null } | null;
 }
 
@@ -47,6 +48,14 @@ export interface SaleFormProps {
   onSuccess: (sale: Sale) => void;
   onCancel?: () => void;
   defaultSourceType?: SaleSourceType;
+  /**
+   * Si se pasa, el form entra en modo EDICIÓN:
+   *   - precarga todos los campos desde el sale existente
+   *   - submit hace PATCH en vez de POST
+   *   - deshabilita cambios que regenerarían cuotas (payment_type, n_cuotas)
+   *     y cambios de atribución (reel_id / story_sequence_id)
+   */
+  sale?: Sale | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -109,6 +118,22 @@ const buildEmptyForm = (defaultSourceType: SaleSourceType) => ({
   client_name: "",
 });
 
+const buildFormFromSale = (sale: Sale) => ({
+  reel_id: sale.reel_id ?? "",
+  story_sequence_id: sale.story_sequence_id ?? "",
+  source_type: sale.source_type,
+  source_label: sale.source_label ?? "",
+  amount_total: String(sale.amount_total ?? ""),
+  n_cuotas: "3", // disabled en edición — no regeneramos cuotas
+  amount_collected: String(sale.amount_collected ?? ""),
+  expected_date: "",
+  first_installment_date: "",
+  payment_type: sale.payment_type,
+  sale_date: sale.sale_date,
+  notes: sale.notes ?? "",
+  client_name: sale.client_name ?? "",
+});
+
 // Cuántas cuotas ya vencieron a hoy, dadas fecha de la primera cuota y N total.
 // Cuota i (0..n-1) vence en first + i*30 días. Cuenta las que tengan due ≤ hoy.
 function countDueByToday(firstDateStr: string, n: number): number {
@@ -123,13 +148,16 @@ function countDueByToday(firstDateStr: string, n: number): number {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceType = "reel" }: SaleFormProps) {
+export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceType = "reel", sale }: SaleFormProps) {
   const ct = useChartTheme();
-  const [form, setForm] = useState(() => buildEmptyForm(defaultSourceType));
+  const isEditing = Boolean(sale);
+  const [form, setForm] = useState(() => (sale ? buildFormFromSale(sale) : buildEmptyForm(defaultSourceType)));
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<1 | 2>(1);
+  // En edición saltamos directo al step 2 (los campos de atribución están
+  // deshabilitados y ya precargados).
+  const [step, setStep] = useState<1 | 2>(sale ? 2 : 1);
   // Synchronous re-entry guard. `loading` is async (React batches state
   // updates), so rapid clicks can fire two fetches before the disabled
   // flag flips. A ref we mutate before awaiting blocks the duplicate.
@@ -194,37 +222,56 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reel_id: form.reel_id || null,
-          story_sequence_id: form.story_sequence_id || null,
-          source_type: form.source_type,
-          source_label: form.source_label || null,
-          amount_total: amountTotal,
-          amount_collected: amountCollected,
-          payment_type: form.payment_type,
-          payment_status: derivedStatus(),
-          sale_date: form.sale_date,
-          payment_method: null,
-          notes: buildNotes(),
-          client_name: form.client_name || null,
-          client_contact: null,
-          // Solo para cuotas: el endpoint genera las filas en sale_installments.
-          n_cuotas: form.payment_type === "cuotas" ? nCuotas : undefined,
-          first_installment_date:
-            form.payment_type === "cuotas" ? firstInstallmentDate : undefined,
-        }),
-      });
+      // Modo edición: PATCH sólo los campos editables. Atribución, payment_type
+      // y n_cuotas NO se tocan (las cuotas ya existen y regenerarlas sería
+      // peligroso). Si el user necesita cambiar tipo de pago, que elimine y
+      // vuelva a crear.
+      const res = isEditing && sale
+        ? await fetch(`/api/sales/${sale.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              source_type: form.source_type,
+              source_label: form.source_label || null,
+              amount_total: amountTotal,
+              amount_collected: amountCollected,
+              payment_status: derivedStatus(),
+              sale_date: form.sale_date,
+              notes: buildNotes(),
+              client_name: form.client_name || null,
+            }),
+          })
+        : await fetch("/api/sales", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              reel_id: form.reel_id || null,
+              story_sequence_id: form.story_sequence_id || null,
+              source_type: form.source_type,
+              source_label: form.source_label || null,
+              amount_total: amountTotal,
+              amount_collected: amountCollected,
+              payment_type: form.payment_type,
+              payment_status: derivedStatus(),
+              sale_date: form.sale_date,
+              payment_method: null,
+              notes: buildNotes(),
+              client_name: form.client_name || null,
+              client_contact: null,
+              n_cuotas: form.payment_type === "cuotas" ? nCuotas : undefined,
+              first_installment_date:
+                form.payment_type === "cuotas" ? firstInstallmentDate : undefined,
+            }),
+          });
       if (!res.ok) { const e = await res.json() as { error: string }; throw new Error(e.error); }
       const saved = await res.json() as Sale;
       const reel = reels.find(r => r.id === form.reel_id);
       onSuccess({
         ...saved,
-        reels: reel
+        // En edición preservamos la ref al reel que ya tenía; si era "otro" el reel será null.
+        reels: (isEditing && sale ? sale.reels : null) ?? (reel
           ? { id: reel.id, caption: reel.caption, thumbnail_url: reel.thumbnail_url, permalink: null }
-          : null,
+          : null),
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar");
@@ -239,9 +286,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07] shrink-0">
         <div>
-          <h3 className="text-[15px] font-light text-white">Nueva Venta</h3>
+          <h3 className="text-[15px] font-light text-white">{isEditing ? "Editar Venta" : "Nueva Venta"}</h3>
           <p className="text-[11px] text-white/30 mt-0.5">
-            Paso {step} de 2 — {step === 1 ? "Información de la venta" : "Fuente & Cliente"}
+            {isEditing
+              ? "El tipo de pago y la atribución no se pueden cambiar"
+              : `Paso ${step} de 2 — ${step === 1 ? "Información de la venta" : "Fuente & Cliente"}`}
           </p>
         </div>
         {onCancel && (
@@ -251,16 +300,18 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
         )}
       </div>
 
-      {/* Progress bar */}
-      <div className="flex px-6 pt-4 gap-1.5 shrink-0">
-        {[1, 2].map(n => (
-          <div
-            key={n}
-            className="flex-1 h-[2px] rounded-full transition-all duration-300"
-            style={{ background: step >= n ? "#7A86E0" : ct.mutedSurface }}
-          />
-        ))}
-      </div>
+      {/* Progress bar — oculta en edición (salteamos step 1) */}
+      {!isEditing && (
+        <div className="flex px-6 pt-4 gap-1.5 shrink-0">
+          {[1, 2].map(n => (
+            <div
+              key={n}
+              className="flex-1 h-[2px] rounded-full transition-all duration-300"
+              style={{ background: step >= n ? "#7A86E0" : ct.mutedSurface }}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1 min-h-0">
 
@@ -269,15 +320,18 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           <>
             {/* Payment type tabs */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Tipo de pago</label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
+                Tipo de pago{isEditing && <span className="text-white/20 normal-case ml-1">(no editable)</span>}
+              </label>
               <div className="grid grid-cols-3 gap-1.5">
                 {Object.entries(PAYMENT_LABEL).map(([k, label]) => {
                   const active = form.payment_type === k;
                   return (
                     <button
                       key={k}
+                      disabled={isEditing}
                       onClick={() => { set("payment_type", k); set("amount_collected", ""); }}
-                      className={`py-2.5 rounded-xl text-[11px] font-medium cursor-pointer transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
+                      className={`py-2.5 rounded-xl text-[11px] font-medium transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"} ${isEditing ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                       style={active
                         ? {
                             background: "linear-gradient(180deg, rgba(122,134,224,0.2) 0%, rgba(122,134,224,0.1) 100%)",
@@ -345,14 +399,17 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">N° de cuotas</label>
+                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
+                      N° de cuotas{isEditing && <span className="text-white/20 normal-case ml-1">(fijo)</span>}
+                    </label>
                     <input
                       type="number"
                       min="2"
                       max="36"
+                      disabled={isEditing}
                       value={form.n_cuotas}
                       onChange={e => set("n_cuotas", e.target.value)}
-                      className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-3 text-[15px] text-foreground font-light outline-none focus:border-white/20 transition-colors"
+                      className={`w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-3 text-[15px] text-foreground font-light outline-none focus:border-white/20 transition-colors ${isEditing ? "opacity-60 cursor-not-allowed" : ""}`}
                     />
                   </div>
                   <div className="space-y-2">
@@ -498,15 +555,18 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           <>
             {/* Source type */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fuente de la venta</label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
+                Fuente de la venta{isEditing && <span className="text-white/20 normal-case ml-1">(fija)</span>}
+              </label>
+              <div className="grid grid-cols-6 gap-1.5">
                 {(Object.entries(SOURCE_LABEL) as Array<[SaleSourceType, string]>).map(([k, label]) => {
                   const active = form.source_type === k;
                   return (
                     <button
                       key={k}
+                      disabled={isEditing}
                       onClick={() => { set("source_type", k); set("source_label", ""); set("reel_id", ""); set("story_sequence_id", ""); }}
-                      className={`py-2 rounded-xl text-[10px] font-medium text-center cursor-pointer transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
+                      className={`py-2 rounded-xl text-[10px] font-medium text-center transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"} ${isEditing ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
                       style={active
                         ? {
                             background: SOURCE_BG[k],
@@ -523,9 +583,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               </div>
             </div>
 
-            {/* Reel picker */}
+            {/* Reel picker — read-only en edición */}
             {form.source_type === "reel" && (
-              <div className="space-y-2">
+              <div className={`space-y-2 ${isEditing ? "opacity-60 pointer-events-none" : ""}`}>
                 <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Reel que generó la venta</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-white/25" />
@@ -563,9 +623,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               </div>
             )}
 
-            {/* Historia: story sequence picker */}
+            {/* Historia: story sequence picker — read-only en edición */}
             {form.source_type === "historia" && (
-              <div className="space-y-2">
+              <div className={`space-y-2 ${isEditing ? "opacity-60 pointer-events-none" : ""}`}>
                 <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Historia que generó la venta</label>
                 {stories.length > 0 ? (
                   <div
@@ -707,12 +767,15 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
         {step === 2 && (
           <div className="flex gap-2">
-            <button
-              onClick={() => setStep(1)}
-              className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
-            >
-              ← Atrás
-            </button>
+            {/* Botón "Atrás" solo en modo creación (en edición arrancamos en step 2) */}
+            {!isEditing && (
+              <button
+                onClick={() => setStep(1)}
+                className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
+              >
+                ← Atrás
+              </button>
+            )}
             <button
               onClick={handleSave}
               disabled={loading}
@@ -724,7 +787,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
               }}
             >
-              {loading ? "Guardando..." : "Guardar venta"}
+              {loading ? "Guardando..." : isEditing ? "Guardar cambios" : "Guardar venta"}
             </button>
           </div>
         )}
