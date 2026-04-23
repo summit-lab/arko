@@ -69,25 +69,37 @@ export async function GET(request: Request) {
       return api500();
     }
 
-    // Get latest benchmark for top performer calculation
+    // Get latest benchmark for top performer calculation.
+    // Usamos avg_views_by_type (por tipo) cuando está disponible. Fallback a
+    // avg_views_90d para workspaces que todavía no corrieron el refresh.
     const { data: benchmark } = await supabase
       .from('reel_benchmarks')
-      .select('avg_views_90d')
+      .select('avg_views_90d, avg_views_by_type')
       .eq('workspace_id', auth.workspaceId)
       .order('calculated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const avgViews90d = benchmark?.avg_views_90d || 0;
+    const rawByType = (benchmark?.avg_views_by_type ?? null) as
+      | { normal?: number; trial?: number; all?: number }
+      | null;
+    const avgViewsNormal = rawByType?.normal ?? benchmark?.avg_views_90d ?? 0;
+    const avgViewsTrial  = rawByType?.trial  ?? 0;
 
-    // Transform to ReelCard format
+    // Transform to ReelCard format.
+    // performer_multiple se calcula con views_org / benchmark_del_tipo_del_reel.
+    // Ads no entran al numerador (no inflan el propio multiplicador) ni al
+    // denominador (el benchmark ya fue calculado con views_org en el service).
     const cards: ReelCard[] = (reels || []).map((reel) => {
       const metricsArr = reel.reel_metrics as unknown as { views_org: number }[] | null;
       const paidArr = reel.reel_metrics_paid as unknown as { views_paid: number }[] | null;
       const viewsOrg = metricsArr?.[0]?.views_org || 0;
       const viewsPaid = paidArr?.[0]?.views_paid || 0;
       const viewsTotal = viewsOrg + viewsPaid;
-      const performerMultiple = avgViews90d > 0 ? viewsTotal / avgViews90d : null;
+      const ownBenchmark = reel.reel_type === 'trial_likely'
+        ? avgViewsTrial
+        : avgViewsNormal;
+      const performerMultiple = ownBenchmark > 0 ? viewsOrg / ownBenchmark : null;
 
       return {
         id: reel.id,

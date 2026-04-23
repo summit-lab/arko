@@ -58,6 +58,7 @@ export interface ReelsSummary {
 interface ReelsGridProps {
   reels: Reel[];
   summary?: ReelsSummary;
+  benchmarksByType: { normal: number; trial: number; all: number };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -513,7 +514,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ReelsGrid({ reels, summary }: ReelsGridProps) {
+export function ReelsGrid({ reels, summary, benchmarksByType }: ReelsGridProps) {
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("published_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -522,6 +523,21 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
   const [page, setPage] = useState(1);
 
   useEffect(() => { setPage(1); }, [sortKey, sortDir, typeFilter, distFilter]);
+
+  // Multiplicador = views_org / benchmark_del_tipo_seleccionado.
+  // Cambia con el filtro de tipo para permitir comparar trials entre trials
+  // y normales entre normales. El numerador es siempre views_org para que
+  // los reels con ads no inflen artificialmente su propia métrica.
+  const activeBenchmark = useMemo(() => {
+    if (typeFilter === "trial") return benchmarksByType.trial;
+    if (typeFilter === "all")   return benchmarksByType.all;
+    return benchmarksByType.normal;
+  }, [typeFilter, benchmarksByType]);
+
+  const computeMultiple = (r: Reel): number | null => {
+    if (activeBenchmark <= 0) return null;
+    return r.views_org / activeBenchmark;
+  };
 
   const filtered = useMemo(() => {
     let result = [...reels];
@@ -537,8 +553,8 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
         aVal = a.published_at ? new Date(a.published_at).getTime() : 0;
         bVal = b.published_at ? new Date(b.published_at).getTime() : 0;
       } else if (sortKey === "performer_multiple") {
-        aVal = a.performer_multiple ?? 0;
-        bVal = b.performer_multiple ?? 0;
+        aVal = computeMultiple(a) ?? 0;
+        bVal = computeMultiple(b) ?? 0;
       } else {
         aVal = a[sortKey] as number;
         bVal = b[sortKey] as number;
@@ -547,7 +563,8 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
     });
 
     return result;
-  }, [reels, sortKey, sortDir, typeFilter, distFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reels, sortKey, sortDir, typeFilter, distFilter, activeBenchmark]);
 
   return (
     <div>
@@ -632,7 +649,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             </div>
           )}
           {filtered.slice(0, page * PAGE_SIZE).map((reel) => {
-            const multiple = reel.performer_multiple || 0;
+            const multiple = computeMultiple(reel) ?? 0;
             const isPromoted = reel.has_ads || reel.views_paid > 0;
             // Inline styles so colors survive any light-mode CSS overrides (pill sits on a dark thumbnail).
             const pillInline: { background: string; borderColor: string; color: string } =
