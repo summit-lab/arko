@@ -7,6 +7,25 @@
 
 ## [unreleased] — 2026-04-23
 
+### Fixed — Ventas: cuotas retroactivas marcan todas las cuotas como cobradas
+
+Bug: al registrar una venta pasada con cuotas (ej. hace 3 meses, 5 cuotas ya cobradas en la realidad), el sistema solo marcaba paid las cuotas cuyo `due_date ≤ hoy` según el calendario teórico (sale_date + N×30d). Las cuotas "futuras" quedaban pending aunque el cliente ya las hubiera pagado.
+
+**Fix:** si `sale_date < hoy`, asumir venta retroactiva → marcar TODAS las cuotas como paid. Si el user cargó mal (alguna cuota sí quedó pending), puede desmarcarla desde InstallmentsModal.
+
+- `src/app/api/sales/route.ts` — lógica `isRetroactive` al generar cuotas.
+- `src/components/sales/SaleForm.tsx` — preview muestra "{N}/{N} cuotas" cobradas + hint cuando es retroactiva.
+
+---
+
+### Fixed — Instagram reels: filtro de fechas cerraba mal el rango
+
+Las queries de `/instagram` (reels, stories, posts) usaban `.gte(published_at)` sin `.lt` cerrando el extremo superior. Al elegir "mes anterior" o cualquier rango que terminara antes de hoy, la UI mostraba también los reels del mes actual. Queries en Prod confirman que el fix trae los 25 reels correctos de marzo cuando se filtra "mes anterior".
+
+- `src/app/(dashboard)/instagram/page.tsx` — 3 queries con `.lt(published_at, nextDay(to))`.
+
+---
+
 ### Improved — Competidores: ventana 30 días, progreso en vivo, trial detection
 
 Rediseño del flujo de scrape + análisis para que la UX no sea una caja negra de 2-3 min:
