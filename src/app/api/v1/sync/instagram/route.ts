@@ -17,6 +17,13 @@ import { apiSuccess, api500 } from '@/lib/api/response';
 import { env } from '@/lib/env';
 import { generateMissingTitles } from '@/services/reel-titles.service';
 
+// Vercel Pro plan permite hasta 300s. `after()` corre post-response pero
+// DENTRO de la misma invocación serverless — si el route termina antes que
+// el for loop de 3 steps (account + media + stories, hasta 300s total),
+// Vercel mata la función y los steps posteriores nunca corren.
+// Con Pro + maxDuration=300 la cadena completa se puede ejecutar.
+export const maxDuration = 300;
+
 interface EdgeErrorContext {
   status?: number;
   body?: unknown;
@@ -54,39 +61,53 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const syncHeaders = { 'x-sync-secret': env.SYNC_SECRET ?? '' };
 
-    // Heavy syncs (full, media, account, ads) tardan 100-180s — superan el
-    // timeout default del fetch del browser (60s Chrome, 120s Firefox) y la
-    // UI veía "Sync falló (504)" aunque el server completara bien.
+    // ─── Heavy sync fire-and-forget + step-chaining ─────────────────
+    // Supabase Edge tiene timeout de 150s por invocación. Antes hacíamos
+    // UNA sola invocación con steps=all → si un user tenía muchos reels,
+    // el edge moría antes de terminar y pasos posteriores nunca corrían.
     //
-    // Fix: para heavy syncs, fire-and-forget. El cliente ya tiene
-    // `useSyncJobProgress` que pollea /api/v1/sync/status cada 4s y trackea
-    // el progreso real del sync_job que insertó la edge function.
-    const isHeavySync = steps === 'all' || steps === 'media' || steps === 'account' || steps === 'ads';
+    // Ahora cuando `steps=all`, encadenamos 3 invocaciones secuenciales,
+    // cada una con SU propio budget de 150s:
+    //   1. account (~15s)     — followers, impressions, reach (KPIs top)
+    //   2. media   (0-300s)   — reels + ads + benchmarks (el pesado); si
+    //                           muere, account ya actualizó el dashboard
+    //   3. stories (~30s)     — stories sequences
+    //
+    // Si alguna falla, logueamos pero seguimos con la siguiente. Así un
+    // fallo aislado no bloquea el sync del resto.
+    const isHeavySync = steps === 'all' || steps === 'media' || steps === 'account';
 
     if (isHeavySync) {
-      // `after()` difiere la ejecución hasta después que la response salió al
-      // cliente. Así el cliente recibe 202 en ~200ms, el edge function
-      // corre libre hasta ~180s, y el hook de polling muestra el progreso.
+      const stepsChain = steps === 'all'
+        ? ['account', 'media', 'stories']
+        : [steps];
+
+      // `after()` difiere la ejecución hasta después que la response salió.
+      // El cliente recibe 202 en ~200ms y el hook de polling muestra progreso.
       after(async () => {
-        try {
-          const { error } = await supabase.functions.invoke('sync-instagram', {
-            body: { workspace_id: auth.workspaceId, steps },
-            headers: syncHeaders,
-          });
-          if (error) {
-            const { status, code, body } = await readEdgeError(error).then((r) => ({
-              status: r.status,
-              body: r.body,
-              code: (r.body && typeof r.body === 'object')
-                ? (r.body as Record<string, unknown>).code : undefined,
-            }));
-            console.error('[sync/instagram] background sync failed:', { status, code, body });
-            return;
+        for (const step of stepsChain) {
+          try {
+            const { error } = await supabase.functions.invoke('sync-instagram', {
+              body: { workspace_id: auth.workspaceId, steps: step },
+              headers: syncHeaders,
+            });
+            if (error) {
+              const r = await readEdgeError(error);
+              const code = (r.body && typeof r.body === 'object')
+                ? (r.body as Record<string, unknown>).code : undefined;
+              console.error(`[sync/instagram] step=${step} failed:`, { status: r.status, code, body: r.body });
+              // TOKEN_EXPIRED corta la cadena — las demás invocaciones van a
+              // fallar igual. El user tiene que reconectar.
+              if (code === 'TOKEN_EXPIRED') break;
+              // Otros errores: seguir con el próximo step.
+              continue;
+            }
+          } catch (err) {
+            console.error(`[sync/instagram] step=${step} unhandled:`, err);
           }
-          await generateMissingTitles(auth.workspaceId).catch(() => { /* no crítico */ });
-        } catch (err) {
-          console.error('[sync/instagram] background sync unhandled:', err);
         }
+        // Enriquecer títulos al final (no crítico, solo afecta reels nuevos).
+        await generateMissingTitles(auth.workspaceId).catch(() => { /* no crítico */ });
       });
 
       return NextResponse.json(
