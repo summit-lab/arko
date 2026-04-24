@@ -8,6 +8,15 @@ import { revalidatePath } from 'next/cache'
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
+  // Clear stale workspace/role cookies before signing in. Previene que un
+  // user loguee sobre la sesión de otro y herede el workspace_id del anterior
+  // (ej. admin entró a un cliente via /admin panel y después otro user loguea
+  // en el mismo browser → veía data del cliente con RLS denegando todo).
+  const cookieStore = await cookies()
+  cookieStore.delete('arko_workspace_id')
+  cookieStore.delete('arko_user_role')
+  cookieStore.delete('arko_onboarding_completed')
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
