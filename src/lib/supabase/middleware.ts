@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Public routes: no auth required
-const PUBLIC_ROUTES = ['/login', '/invite', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/data-deletion']
+const PUBLIC_ROUTES = ['/login', '/invite', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
