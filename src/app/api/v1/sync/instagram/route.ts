@@ -17,6 +17,13 @@ import { apiSuccess, api500 } from '@/lib/api/response';
 import { env } from '@/lib/env';
 import { generateMissingTitles } from '@/services/reel-titles.service';
 
+// Vercel Pro plan permite hasta 300s. `after()` corre post-response pero
+// DENTRO de la misma invocación serverless — si el route termina antes que
+// el for loop de 3 steps (account + media + stories, hasta 300s total),
+// Vercel mata la función y los steps posteriores nunca corren.
+// Con Pro + maxDuration=300 la cadena completa se puede ejecutar.
+export const maxDuration = 300;
+
 interface EdgeErrorContext {
   status?: number;
   body?: unknown;
