@@ -10,7 +10,7 @@
  * steps=check  → Just checks if there are new media items (~1-2s)
  */
 
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api500 } from '@/lib/api/response';
@@ -54,7 +54,54 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const syncHeaders = { 'x-sync-secret': env.SYNC_SECRET ?? '' };
 
-    // Invoke the Supabase Edge Function
+    // Heavy syncs (full, media, account, ads) tardan 100-180s — superan el
+    // timeout default del fetch del browser (60s Chrome, 120s Firefox) y la
+    // UI veía "Sync falló (504)" aunque el server completara bien.
+    //
+    // Fix: para heavy syncs, fire-and-forget. El cliente ya tiene
+    // `useSyncJobProgress` que pollea /api/v1/sync/status cada 4s y trackea
+    // el progreso real del sync_job que insertó la edge function.
+    const isHeavySync = steps === 'all' || steps === 'media' || steps === 'account' || steps === 'ads';
+
+    if (isHeavySync) {
+      // `after()` difiere la ejecución hasta después que la response salió al
+      // cliente. Así el cliente recibe 202 en ~200ms, el edge function
+      // corre libre hasta ~180s, y el hook de polling muestra el progreso.
+      after(async () => {
+        try {
+          const { error } = await supabase.functions.invoke('sync-instagram', {
+            body: { workspace_id: auth.workspaceId, steps },
+            headers: syncHeaders,
+          });
+          if (error) {
+            const { status, code, body } = await readEdgeError(error).then((r) => ({
+              status: r.status,
+              body: r.body,
+              code: (r.body && typeof r.body === 'object')
+                ? (r.body as Record<string, unknown>).code : undefined,
+            }));
+            console.error('[sync/instagram] background sync failed:', { status, code, body });
+            return;
+          }
+          await generateMissingTitles(auth.workspaceId).catch(() => { /* no crítico */ });
+        } catch (err) {
+          console.error('[sync/instagram] background sync unhandled:', err);
+        }
+      });
+
+      return NextResponse.json(
+        {
+          data: {
+            status: 'queued',
+            message: 'Sync iniciado. El progreso se muestra debajo.',
+          },
+        },
+        { status: 202 },
+      );
+    }
+
+    // Quick/check: sincronico, responde rapido (3-5s). El UX aca es esperar
+    // la respuesta porque la gracia de estos modos es ser rapidos.
     const { data, error } = await supabase.functions.invoke('sync-instagram', {
       body: { workspace_id: auth.workspaceId, steps },
       headers: syncHeaders,
@@ -66,7 +113,6 @@ export async function POST(request: Request) {
       const code = typeof bodyObj.code === 'string' ? bodyObj.code : undefined;
       console.error('[sync/instagram] Edge Function error:', { status, code, body });
 
-      // Surface structured status so the client can prompt reconnect / rate-limit etc.
       if (status === 401 && code === 'TOKEN_EXPIRED') {
         return NextResponse.json(
           { error: 'TOKEN_EXPIRED', message: 'La conexión con Meta expiró. Reconectá tu cuenta.' },
@@ -84,10 +130,8 @@ export async function POST(request: Request) {
       return api500();
     }
 
-    // Generate titles for new reels in background (non-blocking)
     generateMissingTitles(auth.workspaceId).catch(() => { /* background, no crítico */ });
 
-    // Pass through the Edge Function response
     return apiSuccess(data);
   } catch (err) {
     console.error('[sync/instagram] Unhandled error:', err);
