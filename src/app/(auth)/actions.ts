@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -68,6 +69,14 @@ export async function logout() {
   const cookieStore = await cookies()
   cookieStore.delete('arko_workspace_id')
   cookieStore.delete('arko_user_role')
+  cookieStore.delete('arko_onboarding_completed')
+
+  // Invalidar cache del layout: sin esto, en Next 16 con Turbopack el
+  // server action puede devolver un payload RSC stale que el cliente
+  // no sabe procesar (→ "An unexpected response was received from the
+  // server" + React error #418 hydration mismatch al re-renderizar
+  // con user=null pero layout todavía cacheado con user=X).
+  revalidatePath('/', 'layout')
 
   redirect('/login')
 }
