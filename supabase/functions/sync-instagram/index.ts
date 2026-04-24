@@ -147,7 +147,25 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Step 1+2: Media + Ads ──
+    // ── Step 1 (was Step 4): Account Insights — corre PRIMERO ──
+    // Rationale: antes el account_insights corría último y si el edge function
+    // timeouteaba (~150s) durante el sync de reels, los KPIs account-level
+    // (followers_total, impressions, reach) quedaban stale indefinidamente.
+    // Es el step MÁS rápido (~10-20s) y el que la UI muestra más prominente,
+    // así que debe correr primero para garantizar que el dashboard se
+    // actualice aunque los reels no completen.
+    if (steps === "all" || steps === "account") {
+      const { data: accountJob } = await supabase
+        .from("sync_jobs")
+        .insert({ workspace_id, job_type: "account_insights", status: "queued" })
+        .select("id")
+        .single();
+      if (accountJob) {
+        accountResult = await syncAccountInsights(supabase, workspace_id, accountJob.id, connection.ig_business_account_id, accessToken);
+      }
+    }
+
+    // ── Step 2+3: Media + Ads ──
     if (steps === "all" || steps === "media") {
       const { data: reelsJob } = await supabase
         .from("sync_jobs")
@@ -187,7 +205,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Step 3: Stories ──
+    // ── Step 4: Stories ──
     if (steps === "stories") {
       const { data: storiesJob, error: storiesJobError } = await supabase
         .from("sync_jobs")
@@ -199,18 +217,6 @@ Deno.serve(async (req: Request) => {
         storiesResult = { storiesFetched: 0, sequencesUpserted: 0, slidesUpserted: 0, errors: [`job insert: ${storiesJobError.message}`] };
       } else if (storiesJob) {
         storiesResult = await syncStories(supabase, workspace_id, storiesJob.id, connection.ig_business_account_id, accessToken);
-      }
-    }
-
-    // ── Step 4: Account Insights ──
-    if (steps === "all" || steps === "account") {
-      const { data: accountJob } = await supabase
-        .from("sync_jobs")
-        .insert({ workspace_id, job_type: "account_insights", status: "queued" })
-        .select("id")
-        .single();
-      if (accountJob) {
-        accountResult = await syncAccountInsights(supabase, workspace_id, accountJob.id, connection.ig_business_account_id, accessToken);
       }
     }
 
