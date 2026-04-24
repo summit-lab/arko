@@ -203,7 +203,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   };
 
   const handleEditSaved = (updated: Sale) => {
-    setSales(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated, reels: s.reels } : s)));
+    setSales(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated } : s)));
     setEditingSale(null);
   };
 
@@ -353,7 +353,8 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                 <div
                   className="grid grid-cols-12 gap-2 text-[10px] text-white/25 uppercase tracking-[0.1em] pb-2.5 px-2 border-b border-white/[0.05]"
                 >
-                  <div className="col-span-4">Fuente / Cliente</div>
+                  <div className="col-span-3">Fuente / Cliente</div>
+                  <div className="col-span-1">Fecha</div>
                   <div className="col-span-2 text-right">Facturación</div>
                   <div className="col-span-2 text-right">Recolectado</div>
                   <div className="col-span-2 text-center">Tipo</div>
@@ -376,7 +377,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                       className="grid grid-cols-12 gap-2 items-center py-3 px-2 rounded-xl hover:bg-white/[0.025] transition-all group"
                     >
                       {/* Source / Content */}
-                      <div className="col-span-4 flex items-center gap-2.5 min-w-0">
+                      <div className="col-span-3 flex items-center gap-2.5 min-w-0">
                         {s.reels?.thumbnail_url ? (
                           <div className="relative h-9 w-6 rounded overflow-hidden shrink-0">
                             <Image src={s.reels.thumbnail_url} alt="" fill className="object-cover" sizes="24px" />
@@ -414,6 +415,11 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                             )}
                           </div>
                         </div>
+                      </div>
+
+                      {/* Fecha */}
+                      <div className="col-span-1 text-[10px] text-white/35 leading-snug">
+                        {new Date(s.sale_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }).replace(".", "")}
                       </div>
 
                       {/* Revenue */}

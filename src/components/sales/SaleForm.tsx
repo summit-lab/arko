@@ -158,9 +158,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // En edición saltamos directo al step 2 (los campos de atribución están
-  // deshabilitados y ya precargados).
-  const [step, setStep] = useState<1 | 2>(sale ? 2 : 1);
+  const [step, setStep] = useState<1 | 2>(1);
   // Synchronous re-entry guard. `loading` is async (React batches state
   // updates), so rapid clicks can fire two fetches before the disabled
   // flag flips. A ref we mutate before awaiting blocks the duplicate.
@@ -226,10 +224,13 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              reel_id: form.reel_id || null,
+              story_sequence_id: form.story_sequence_id || null,
               source_type: form.source_type,
               source_label: form.source_label || null,
               amount_total: amountTotal,
               amount_collected: amountCollected,
+              payment_type: form.payment_type,
               payment_status: derivedStatus(),
               sale_date: form.sale_date,
               notes: buildNotes(),
@@ -263,10 +264,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
       const reel = reels.find(r => r.id === form.reel_id);
       onSuccess({
         ...saved,
-        // En edición preservamos la ref al reel que ya tenía; si era "otro" el reel será null.
-        reels: (isEditing && sale ? sale.reels : null) ?? (reel
+        reels: reel
           ? { id: reel.id, caption: reel.caption, thumbnail_url: reel.thumbnail_url, permalink: null }
-          : null),
+          : null,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar");
@@ -283,9 +283,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
         <div>
           <h3 className="text-[15px] font-light text-white">{isEditing ? "Editar Venta" : "Nueva Venta"}</h3>
           <p className="text-[11px] text-white/30 mt-0.5">
-            {isEditing
-              ? "El tipo de pago y la atribución no se pueden cambiar"
-              : `Paso ${step} de 2 — ${step === 1 ? "Información de la venta" : "Fuente & Cliente"}`}
+            {`Paso ${step} de 2 — ${step === 1 ? "Información de la venta" : "Fuente & Cliente"}`}
           </p>
         </div>
         {onCancel && (
@@ -295,18 +293,15 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
         )}
       </div>
 
-      {/* Progress bar — oculta en edición (salteamos step 1) */}
-      {!isEditing && (
-        <div className="flex px-6 pt-4 gap-1.5 shrink-0">
-          {[1, 2].map(n => (
-            <div
-              key={n}
-              className="flex-1 h-[2px] rounded-full transition-all duration-300"
-              style={{ background: step >= n ? "#7A86E0" : ct.mutedSurface }}
-            />
-          ))}
-        </div>
-      )}
+      <div className="flex px-6 pt-4 gap-1.5 shrink-0">
+        {[1, 2].map(n => (
+          <div
+            key={n}
+            className="flex-1 h-[2px] rounded-full transition-all duration-300"
+            style={{ background: step >= n ? "#7A86E0" : ct.mutedSurface }}
+          />
+        ))}
+      </div>
 
       <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1 min-h-0">
 
@@ -315,18 +310,15 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           <>
             {/* Payment type tabs */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
-                Tipo de pago{isEditing && <span className="text-white/20 normal-case ml-1">(no editable)</span>}
-              </label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Tipo de pago</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {Object.entries(PAYMENT_LABEL).map(([k, label]) => {
                   const active = form.payment_type === k;
                   return (
                     <button
                       key={k}
-                      disabled={isEditing}
                       onClick={() => { set("payment_type", k); set("amount_collected", ""); }}
-                      className={`py-2.5 rounded-xl text-[11px] font-medium transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"} ${isEditing ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                      className={`py-2.5 rounded-xl text-[11px] font-medium transition-all cursor-pointer ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
                       style={active
                         ? {
                             background: "linear-gradient(180deg, rgba(122,134,224,0.2) 0%, rgba(122,134,224,0.1) 100%)",
@@ -395,7 +387,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
-                      N° de cuotas{isEditing && <span className="text-white/20 normal-case ml-1">(fijo)</span>}
+                      N° de cuotas{isEditing && <span className="text-white/20 normal-case ml-1">(no cambia)</span>}
                     </label>
                     <input
                       type="number"
@@ -561,18 +553,15 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           <>
             {/* Source type */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
-                Fuente de la venta{isEditing && <span className="text-white/20 normal-case ml-1">(fija)</span>}
-              </label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fuente de la venta</label>
               <div className="grid grid-cols-6 gap-1.5">
                 {(Object.entries(SOURCE_LABEL) as Array<[SaleSourceType, string]>).map(([k, label]) => {
                   const active = form.source_type === k;
                   return (
                     <button
                       key={k}
-                      disabled={isEditing}
                       onClick={() => { set("source_type", k); set("source_label", ""); set("reel_id", ""); set("story_sequence_id", ""); }}
-                      className={`py-2 rounded-xl text-[10px] font-medium text-center transition-all ${active ? "text-white" : "text-white/30 hover:text-white/55"} ${isEditing ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                      className={`py-2 rounded-xl text-[10px] font-medium text-center transition-all cursor-pointer ${active ? "text-white" : "text-white/30 hover:text-white/55"}`}
                       style={active
                         ? {
                             background: SOURCE_BG[k],
@@ -589,9 +578,8 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               </div>
             </div>
 
-            {/* Reel picker — read-only en edición */}
             {form.source_type === "reel" && (
-              <div className={`space-y-2 ${isEditing ? "opacity-60 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Reel que generó la venta</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-white/25" />
@@ -629,9 +617,8 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               </div>
             )}
 
-            {/* Historia: story sequence picker — read-only en edición */}
             {form.source_type === "historia" && (
-              <div className={`space-y-2 ${isEditing ? "opacity-60 pointer-events-none" : ""}`}>
+              <div className="space-y-2">
                 <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Historia que generó la venta</label>
                 {stories.length > 0 ? (
                   <div
@@ -773,15 +760,12 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
         {step === 2 && (
           <div className="flex gap-2">
-            {/* Botón "Atrás" solo en modo creación (en edición arrancamos en step 2) */}
-            {!isEditing && (
-              <button
-                onClick={() => setStep(1)}
-                className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
-              >
-                ← Atrás
-              </button>
-            )}
+            <button
+              onClick={() => setStep(1)}
+              className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
+            >
+              ← Atrás
+            </button>
             <button
               onClick={handleSave}
               disabled={loading}

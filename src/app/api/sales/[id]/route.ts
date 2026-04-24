@@ -23,6 +23,8 @@ export async function PATCH(
     client_contact: string;
     source_type: string;
     source_label: string;
+    reel_id: string | null;
+    story_sequence_id: string | null;
   }>;
 
   const { data, error } = await supabase
