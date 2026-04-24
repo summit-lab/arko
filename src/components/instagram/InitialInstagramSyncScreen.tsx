@@ -69,30 +69,113 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
       setError(null);
 
       try {
-        const response = await fetch(`/api/v1/sync/instagram?workspace_id=${workspaceId}`, {
+        // El endpoint ahora responde 202 inmediato y corre el sync en background
+        // (fix del 504 + chain de 3 invocaciones). No podemos esperar la
+        // response como antes — tenemos que pollear sync_jobs para saber cuándo
+        // los steps críticos (account + media) completaron.
+        const kickoffStart = Date.now();
+        const kickoffRes = await fetch(`/api/v1/sync/instagram?workspace_id=${workspaceId}`, {
           method: "POST",
         });
-        const json = await response.json();
-        const responseError = json?.message || json?.error || json?.data?.errors?.[0] || "No pudimos completar la sincronización inicial.";
+        const kickoffJson = await kickoffRes.json().catch(() => ({}));
 
-        if (!response.ok || json?.data?.status === "failed") {
-          throw new Error(responseError);
+        // Error inmediato (auth, token expirado, etc.) — cortamos.
+        if (!kickoffRes.ok && kickoffRes.status !== 202) {
+          throw new Error(
+            kickoffJson?.message ||
+              kickoffJson?.error ||
+              "No pudimos iniciar la sincronización."
+          );
         }
 
-        if (cancelled) {
-          return;
-        }
+        // Polling hasta que account_insights + full_sync completen.
+        // Timeout de 5 min como safety.
+        const TIMEOUT_MS = 5 * 60 * 1000;
+        const POLL_INTERVAL_MS = 3000;
+        const startedAt = kickoffStart;
 
-        setPhaseIndex(PHASES.length - 1);
-        window.dispatchEvent(new Event("nav:start"));
-        router.replace("/instagram");
-        router.refresh();
+        while (!cancelled) {
+          if (Date.now() - startedAt > TIMEOUT_MS) {
+            throw new Error(
+              "La sincronización está tardando más de lo esperado. Podés reintentar o entrar igual y refrescar en unos minutos."
+            );
+          }
+
+          const statusRes = await fetch(
+            `/api/v1/sync/status?workspace_id=${workspaceId}`
+          );
+          if (!statusRes.ok) {
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+            continue;
+          }
+          const statusJson = await statusRes.json();
+          const jobs = Array.isArray(statusJson?.data) ? statusJson.data : [];
+
+          // Sólo consideramos jobs iniciados DESPUÉS del kickoff (con 10s de
+          // margen) para ignorar jobs viejos que puedan estar running/orphan.
+          const relevant = jobs.filter(
+            (j: { started_at: string }) =>
+              new Date(j.started_at).getTime() >= startedAt - 10_000
+          );
+
+          const findJob = (type: string) =>
+            relevant.find((j: { job_type: string }) => j.job_type === type);
+
+          const accountJob = findJob("account_insights");
+          const mediaJob = findJob("full_sync");
+          const storiesJob = findJob("stories_sync");
+
+          // Fase 2 = "Descargando contenidos" (cuando account está por terminar)
+          // Fase 3 = "Procesando métricas y Ads" (cuando account completó y media arrancó)
+          // Fase 4 = "Armando dashboard" (cuando media completó)
+          if (mediaJob?.status === "completed") {
+            setPhaseIndex(3);
+          } else if (accountJob?.status === "completed") {
+            setPhaseIndex(2);
+          } else if (accountJob?.status === "running" || mediaJob?.status === "running") {
+            setPhaseIndex(1);
+          }
+
+          // Account + media listos → el dashboard tiene todo lo esencial.
+          // Stories es opcional; no bloqueamos el redirect.
+          if (
+            accountJob?.status === "completed" &&
+            mediaJob?.status === "completed"
+          ) {
+            if (cancelled) return;
+
+            // Esperamos 1s extra para dar chance a que stories también complete
+            // si falta poco. No bloquea si no.
+            if (storiesJob && storiesJob.status === "running") {
+              await new Promise((r) => setTimeout(r, 1500));
+            }
+
+            setPhaseIndex(PHASES.length - 1);
+            window.dispatchEvent(new Event("nav:start"));
+            router.replace("/instagram");
+            router.refresh();
+            return;
+          }
+
+          // Si alguno falló, cortamos con error.
+          if (accountJob?.status === "failed" || mediaJob?.status === "failed") {
+            throw new Error(
+              "Alguno de los pasos de sincronización falló. Reintentá o revisá la conexión con Meta."
+            );
+          }
+
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        }
       } catch (syncError) {
         if (cancelled) {
           return;
         }
 
-        setError(syncError instanceof Error ? syncError.message : "No pudimos completar la sincronización inicial.");
+        setError(
+          syncError instanceof Error
+            ? syncError.message
+            : "No pudimos completar la sincronización inicial."
+        );
         setIsSyncing(false);
       }
     }
