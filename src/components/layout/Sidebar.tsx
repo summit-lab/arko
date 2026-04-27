@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useTransition, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Settings,
   LogOut,
@@ -15,20 +16,22 @@ import { useTheme } from "./ThemeProvider";
 const BROWN = "#111111";
 const BROWN_LIGHT = "rgba(0,0,0,0.65)";
 
-const navItems = [
-  { name: "Dashboard",  href: "/",          svg: "/svgs/dashboard_21.svg" },
-  { name: "Instagram",  href: "/instagram", svg: "/svgs/instagram_5.svg" },
-  { name: "YouTube",    href: "/youtube",   svg: "/svgs/youtube_16.svg" },
-  { name: "Meta Ads",   href: "/ads",       svg: "/svgs/meta_logo.svg" },
-  { name: "Ventas",     href: "/ventas",    svg: "/svgs/megaphone_9.svg" },
-  { name: "Moka AI",   href: "/agents",    svg: "/svgs/robot_6.svg" },
+// Brand/proper-noun labels (Dashboard/Instagram/YouTube/Meta Ads/Moka AI) stay
+// untranslated; only "Ventas" varies between locales.
+const buildNavItems = (t: (key: string) => string) => [
+  { name: "Dashboard",   href: "/",          svg: "/svgs/dashboard_21.svg" },
+  { name: "Instagram",   href: "/instagram", svg: "/svgs/instagram_5.svg" },
+  { name: "YouTube",     href: "/youtube",   svg: "/svgs/youtube_16.svg" },
+  { name: "Meta Ads",    href: "/ads",       svg: "/svgs/meta_logo.svg" },
+  { name: t("ventas"),   href: "/ventas",    svg: "/svgs/megaphone_9.svg" },
+  { name: "Moka AI",     href: "/agents",    svg: "/svgs/robot_6.svg" },
 ];
 
-const settingsNavItems = [
-  { name: "Branding",      href: "/settings",              svg: "/svgs/dashboard_21.svg" },
-  { name: "ADN de Marca",  href: "/settings/adn",          svg: "/logos/moka.svg" },
-  { name: "Metas",         href: "/settings/metas",        svg: "/svgs/megaphone_9.svg" },
-  { name: "Integraciones", href: "/settings/integrations", svg: "/svgs/instagram_5.svg" },
+const buildSettingsNavItems = (t: (key: string) => string) => [
+  { name: t("branding"),     href: "/settings",              svg: "/svgs/dashboard_21.svg" },
+  { name: t("adn"),          href: "/settings/adn",          svg: "/logos/moka.svg" },
+  { name: t("metas"),        href: "/settings/metas",        svg: "/svgs/megaphone_9.svg" },
+  { name: t("integrations"), href: "/settings/integrations", svg: "/svgs/instagram_5.svg" },
 ];
 
 interface SidebarProps {
@@ -43,6 +46,9 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
   const router = useRouter();
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const t = useTranslations("nav");
+  const navItems = buildNavItems(t);
+  const settingsNavItems = buildSettingsNavItems(t);
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -152,7 +158,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
             className="text-[12px] mt-1 font-medium tracking-wide"
             style={{ color: isLight ? BROWN_LIGHT : "rgba(255,255,255,0.35)" }}
           >
-            {brandName ? "powered by Moka" : "Intelligence Suite"}
+            {brandName ? t("subtitlePoweredBy") : t("subtitleDefault")}
           </p>
         </div>
       </div>
@@ -162,7 +168,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
         {isInSettings && (
           <div className={`px-3 pb-3 mb-1 border-b ${isLight ? "border-gray-100" : "border-white/[0.06]"}`}>
             <p className={`text-[10px] uppercase tracking-[0.12em] font-medium ${isLight ? "text-gray-400" : "text-white/30"}`}>
-              Configuración
+              {t("settingsHeader")}
             </p>
           </div>
         )}
@@ -244,7 +250,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
               perrito (ojos, manchas) pero en gris claro. */}
           <Image
             src="/logos/moka.svg"
-            alt="ADN de Marca"
+            alt={t("adn")}
             width={26}
             height={26}
             className="relative z-10 shrink-0 transition-opacity"
@@ -257,7 +263,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
             className={`text-[14px] transition-colors relative z-10 flex-1 ${navTextClass(isItemActive("/settings/adn"))}`}
             style={isLight ? { color: isItemActive("/settings/adn") ? BROWN : "rgba(17,17,17,0.56)" } : undefined}
           >
-            ADN de Marca
+            {t("adn")}
           </span>
           {adnPending && (
             <span className="relative z-10 flex h-2 w-2">
@@ -288,7 +294,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
           >
             <span className={`transition-colors text-sm ${isLight ? "text-gray-400 group-hover:text-gray-600" : "text-white/30 group-hover:text-white/60"}`}>←</span>
             <span className={`text-[13px] font-light tracking-wide transition-colors ${isLight ? "text-gray-400 group-hover:text-gray-600" : "text-white/30 group-hover:text-white/60"}`}>
-              Volver al app
+              {t("backToApp")}
             </span>
           </Link>
         </div>
@@ -303,7 +309,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
             className="group relative flex items-center gap-3 px-3 h-[32px] rounded-lg transition-all duration-200 hover:bg-amber-500/[0.05]"
           >
             <Shield size={16} strokeWidth={1.5} className="text-amber-400/60 transition-colors group-hover:text-amber-400" />
-            <span className="text-[14px] tracking-wide font-normal text-amber-400/60 transition-colors group-hover:text-amber-400">Admin</span>
+            <span className="text-[14px] tracking-wide font-normal text-amber-400/60 transition-colors group-hover:text-amber-400">{t("admin")}</span>
           </Link>
         )}
         <Link
@@ -321,7 +327,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
             className="text-[14px] tracking-wide font-normal transition-colors"
             style={{ color: isLight ? "rgba(17,17,17,0.50)" : "rgba(255,255,255,0.4)" }}
           >
-            Settings
+            {t("settings")}
           </span>
         </Link>
 
@@ -331,7 +337,7 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
             className="w-full relative flex items-center gap-3 px-3 h-[32px] rounded-lg transition-all duration-200 hover:bg-red-500/[0.05] text-red-400/60 hover:text-red-400"
           >
             <LogOut size={16} strokeWidth={1.5} />
-            <span className="text-[14px] tracking-wide font-normal">Log out</span>
+            <span className="text-[14px] tracking-wide font-normal">{t("logout")}</span>
           </button>
         </form>
       </div>

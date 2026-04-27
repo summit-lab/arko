@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -40,17 +41,19 @@ export async function registerWithInvite(formData: FormData) {
   const fullName = formData.get('full_name') as string
   const token = formData.get('token') as string
 
+  const t = await getTranslations('auth.errors')
+
   // Validate invitation token
   const { data: invitation, error: invError } = await supabase
     .rpc('validate_invitation', { p_token: token })
 
   if (invError || !invitation || invitation.length === 0) {
-    return { error: 'Invitación inválida o expirada' }
+    return { error: t('invitationInvalid') }
   }
 
   // Verify email matches the invitation
   if (invitation[0].email !== email) {
-    return { error: 'El email no coincide con la invitación' }
+    return { error: t('emailMismatch') }
   }
 
   const { error } = await supabase.auth.signUp({

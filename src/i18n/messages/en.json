@@ -24,5 +24,47 @@
       "en": "English",
       "saved": "Language updated"
     }
+  },
+  "nav": {
+    "ventas": "Sales",
+    "settingsHeader": "Settings",
+    "branding": "Branding",
+    "adn": "Brand DNA",
+    "metas": "Goals",
+    "integrations": "Integrations",
+    "backToApp": "Back to app",
+    "admin": "Admin",
+    "settings": "Settings",
+    "logout": "Log out",
+    "subtitleDefault": "Intelligence Suite",
+    "subtitlePoweredBy": "powered by Moka"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome",
+      "subtitle": "Sign in to your account",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@email.com",
+      "passwordLabel": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "inviteOnly": "Invitation-only access."
+    },
+    "invite": {
+      "welcomeTitle": "Welcome to Moka",
+      "welcomeSubtitle": "Create your account to get started.",
+      "invalidTitle": "Invalid invitation",
+      "invalidDescription": "This invitation link is invalid, has already been used, or has expired.",
+      "fullNameLabel": "Full name",
+      "fullNamePlaceholder": "Your name",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 6 characters",
+      "submit": "Create account",
+      "submitting": "Creating account…"
+    },
+    "errors": {
+      "invitationInvalid": "Invalid or expired invitation",
+      "emailMismatch": "Email doesn't match the invitation"
+    }
   }
 }

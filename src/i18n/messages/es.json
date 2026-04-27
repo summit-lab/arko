@@ -24,5 +24,47 @@
       "en": "Inglés",
       "saved": "Idioma actualizado"
     }
+  },
+  "nav": {
+    "ventas": "Ventas",
+    "settingsHeader": "Configuración",
+    "branding": "Branding",
+    "adn": "ADN de Marca",
+    "metas": "Metas",
+    "integrations": "Integraciones",
+    "backToApp": "Volver al app",
+    "admin": "Admin",
+    "settings": "Settings",
+    "logout": "Log out",
+    "subtitleDefault": "Intelligence Suite",
+    "subtitlePoweredBy": "powered by Moka"
+  },
+  "auth": {
+    "login": {
+      "title": "Bienvenido",
+      "subtitle": "Ingresá a tu cuenta",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tu@email.com",
+      "passwordLabel": "Contraseña",
+      "submit": "Ingresar",
+      "submitting": "Ingresando…",
+      "inviteOnly": "Acceso solo por invitación."
+    },
+    "invite": {
+      "welcomeTitle": "Bienvenido a Moka",
+      "welcomeSubtitle": "Creá tu cuenta para comenzar.",
+      "invalidTitle": "Invitación no válida",
+      "invalidDescription": "Este link de invitación es inválido, ya fue usado o expiró.",
+      "fullNameLabel": "Nombre completo",
+      "fullNamePlaceholder": "Tu nombre",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "Mínimo 6 caracteres",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta…"
+    },
+    "errors": {
+      "invitationInvalid": "Invitación inválida o expirada",
+      "emailMismatch": "El email no coincide con la invitación"
+    }
   }
 }

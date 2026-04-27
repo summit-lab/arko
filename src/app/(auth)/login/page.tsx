@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { useTranslations } from 'next-intl'
 import { login } from '../actions'
 import { LogIn, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
+  const t = useTranslations('auth.login')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -31,8 +33,8 @@ export default function LoginPage() {
           className="w-14 h-14 mb-3"
           priority
         />
-        <h1 className="page-title text-2xl">Bienvenido</h1>
-        <p className="text-muted-foreground text-sm mt-2">Ingresá a tu cuenta</p>
+        <h1 className="page-title text-2xl">{t('title')}</h1>
+        <p className="text-muted-foreground text-sm mt-2">{t('subtitle')}</p>
       </div>
 
       <form action={handleSubmit} className="space-y-5">
@@ -44,21 +46,21 @@ export default function LoginPage() {
 
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium text-foreground/80">
-            Email
+            {t('emailLabel')}
           </label>
           <input
             id="email"
             name="email"
             type="email"
             required
-            placeholder="tu@email.com"
+            placeholder={t('emailPlaceholder')}
             className="w-full bg-input/40 dark:bg-white/5 border border-border dark:border-white/10 rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-all"
           />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium text-foreground/80">
-            Contraseña
+            {t('passwordLabel')}
           </label>
           <div className="relative">
             <input
@@ -90,13 +92,13 @@ export default function LoginPage() {
           ) : (
             <LogIn className="h-4 w-4" />
           )}
-          {loading ? 'Ingresando...' : 'Ingresar'}
+          {loading ? t('submitting') : t('submit')}
         </button>
       </form>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-muted-foreground">
-          Acceso solo por invitación.
+          {t('inviteOnly')}
         </p>
       </div>
     </div>
