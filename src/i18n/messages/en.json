@@ -139,6 +139,23 @@
       "noCaption": "No caption"
     }
   },
+  "agents": {
+    "title": "Moka AI",
+    "subtitle": "Your marketing consultant with access to all your workspace data.",
+    "placeholder": "Ask Moka...",
+    "shiftEnterHint": "Shift + Enter for new line",
+    "newConversation": "New conversation",
+    "noSessions": "No conversations yet",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{n} days ago",
+    "suggestions": {
+      "0": "Analyze my recent reels and tell me what patterns you see",
+      "1": "How is my performance this month?",
+      "2": "Give me hook ideas based on what works best for me",
+      "3": "What is my main differentiator vs competitors?"
+    }
+  },
   "customerVoice": {
     "title": "Your Identity",
     "subtitle": "Your brand's complete DNA and competitor analysis.",
