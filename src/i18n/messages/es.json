@@ -39,6 +39,58 @@
     "subtitleDefault": "Intelligence Suite",
     "subtitlePoweredBy": "powered by Moka"
   },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Resumen global de tu marca personal.",
+    "vsPrevious": "vs anterior",
+    "noPrevious": "sin datos previos",
+    "periodSubLabel": "últimos {days} días",
+    "kpis": {
+      "totalViews": "Vistas Totales",
+      "conversations": "Conversaciones generadas",
+      "comments": "Comentarios",
+      "storyReplies": "Respuestas a historias"
+    },
+    "quickStats": {
+      "title": "Resumen Rápido",
+      "totalReach": "Alcance Total",
+      "engagementRate": "Tasa de Engagement",
+      "engagementSub": "interacciones / alcance",
+      "bestReel": "Mejor Reel",
+      "bestReelSub": "views",
+      "newFollows": "Nuevos Follows",
+      "totalSales": "Ventas Totales",
+      "salesSub": "desde reels"
+    },
+    "sales": {
+      "billing": "Facturación",
+      "collected": "Efectivo recolectado",
+      "topSources": "Top fuentes de facturación",
+      "topSourcesPeriod": "Periodo seleccionado",
+      "noSales": "No hay ventas en este periodo",
+      "topSales": "Top Ventas",
+      "fromReels": "desde reels",
+      "saleCount": "{count, plural, one {# venta} other {# ventas}}"
+    },
+    "calendar": {
+      "postUntitled": "Post sin titulo",
+      "reelUntitled": "Reel sin titulo",
+      "story": "Historia",
+      "storyOf": "Historia del {date}",
+      "noCaption": "Sin caption"
+    }
+  },
+  "instagram": {
+    "pageTitle": "IG Intelligence",
+    "pageSubtitle": "Análisis profundo de tu cuenta de Instagram.",
+    "connectMetaHint": "(Conectá tu cuenta Meta para ver data real)",
+    "connectButton": "Conectar Instagram"
+  },
+  "youtube": {
+    "pageTitle": "YT Intelligence",
+    "pageSubtitle": "Análisis profundo de tu canal de YouTube.",
+    "needWorkspace": "Necesitás un workspace activo."
+  },
   "auth": {
     "login": {
       "title": "Bienvenido",

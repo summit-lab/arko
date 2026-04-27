@@ -39,6 +39,58 @@
     "subtitleDefault": "Intelligence Suite",
     "subtitlePoweredBy": "powered by Moka"
   },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Global overview of your personal brand.",
+    "vsPrevious": "vs previous",
+    "noPrevious": "no previous data",
+    "periodSubLabel": "last {days} days",
+    "kpis": {
+      "totalViews": "Total Views",
+      "conversations": "Conversations generated",
+      "comments": "Comments",
+      "storyReplies": "Story replies"
+    },
+    "quickStats": {
+      "title": "Quick Summary",
+      "totalReach": "Total Reach",
+      "engagementRate": "Engagement Rate",
+      "engagementSub": "interactions / reach",
+      "bestReel": "Best Reel",
+      "bestReelSub": "views",
+      "newFollows": "New Follows",
+      "totalSales": "Total Sales",
+      "salesSub": "from reels"
+    },
+    "sales": {
+      "billing": "Billing",
+      "collected": "Cash collected",
+      "topSources": "Top revenue sources",
+      "topSourcesPeriod": "Selected period",
+      "noSales": "No sales in this period",
+      "topSales": "Top Sales",
+      "fromReels": "from reels",
+      "saleCount": "{count, plural, one {# sale} other {# sales}}"
+    },
+    "calendar": {
+      "postUntitled": "Untitled post",
+      "reelUntitled": "Untitled reel",
+      "story": "Story",
+      "storyOf": "Story from {date}",
+      "noCaption": "No caption"
+    }
+  },
+  "instagram": {
+    "pageTitle": "IG Intelligence",
+    "pageSubtitle": "Deep analysis of your Instagram account.",
+    "connectMetaHint": "(Connect your Meta account to see real data)",
+    "connectButton": "Connect Instagram"
+  },
+  "youtube": {
+    "pageTitle": "YT Intelligence",
+    "pageSubtitle": "Deep analysis of your YouTube channel.",
+    "needWorkspace": "You need an active workspace."
+  },
   "auth": {
     "login": {
       "title": "Welcome",
