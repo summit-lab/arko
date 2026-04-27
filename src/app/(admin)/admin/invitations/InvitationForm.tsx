@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Mail, Copy, Check, Loader2 } from "lucide-react";
 import { createInvitation } from "./actions";
 
 export function InvitationForm() {
+  const t = useTranslations("admin.invitations.form");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -37,13 +39,13 @@ export function InvitationForm() {
   return (
     <div className="glass-card p-6 animate-slide-up stagger-1">
       <h3 className="text-[15px] font-light text-white tracking-wide mb-5">
-        Generar Invitación
+        {t("title")}
       </h3>
 
       <form action={handleSubmit} className="flex items-end gap-4">
         <div className="flex-1">
           <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
-            Email del cliente
+            {t("emailLabel")}
           </label>
           <div className="relative">
             <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
@@ -51,7 +53,7 @@ export function InvitationForm() {
               name="email"
               type="email"
               required
-              placeholder="cliente@ejemplo.com"
+              placeholder={t("emailPlaceholder")}
               autoComplete="off"
               className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-muted-foreground outline-none focus:border-amber-400/30 transition-colors autofill-dark"
             />
@@ -63,7 +65,7 @@ export function InvitationForm() {
           className="h-[42px] px-6 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-[13px] font-medium hover:bg-amber-400/15 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-          Generar Link
+          {t("submit")}
         </button>
       </form>
 
@@ -83,7 +85,7 @@ export function InvitationForm() {
             className="shrink-0 h-8 px-3 rounded-md bg-emerald-400/10 text-emerald-400 text-[12px] font-medium hover:bg-emerald-400/20 transition-all cursor-pointer flex items-center gap-1.5"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? "Copiado" : "Copiar"}
+            {copied ? t("copied") : t("copy")}
           </button>
         </div>
       )}

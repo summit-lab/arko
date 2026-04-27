@@ -139,6 +139,75 @@
       "noCaption": "No caption"
     }
   },
+  "admin": {
+    "panelLabel": "Panel",
+    "backToApp": "Back to Moka",
+    "nav": {
+      "dashboard": "Dashboard",
+      "clients": "Clients",
+      "invitations": "Invitations",
+      "usage": "Usage"
+    },
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "subtitle": "Platform overview.",
+      "stats": {
+        "clients": "Clients",
+        "workspaces": "Workspaces",
+        "activeConnections": "Active Connections",
+        "pendingInvitations": "Pending Invitations"
+      },
+      "recent": {
+        "title": "Recent Sign-ups",
+        "headerName": "Name",
+        "headerEmail": "Email",
+        "headerRole": "Role",
+        "headerDate": "Date",
+        "empty": "No users registered."
+      }
+    },
+    "clients": {
+      "title": "Users",
+      "subtitle": "All workspaces registered on the platform.",
+      "headerWorkspace": "Workspace",
+      "headerOwner": "Owner",
+      "headerConnection": "Connection",
+      "headerAdn": "DNA",
+      "headerStatus": "Status",
+      "headerUsage": "Usage $",
+      "headerCreated": "Created",
+      "empty": "No clients registered.",
+      "noConnection": "No connection",
+      "pending": "Pending"
+    },
+    "invitations": {
+      "title": "Invitations",
+      "subtitle": "Generate sign-up links for new clients.",
+      "form": {
+        "title": "Generate Invitation",
+        "emailLabel": "Client email",
+        "emailPlaceholder": "client@example.com",
+        "submit": "Generate Link",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
+      "list": {
+        "title": "Invitation History",
+        "headerEmail": "Email",
+        "headerStatus": "Status",
+        "headerCreated": "Created",
+        "headerExpires": "Expires",
+        "headerAction": "Action",
+        "empty": "No invitations.",
+        "cancel": "Cancel",
+        "status": {
+          "pending": "Pending",
+          "used": "Used",
+          "expired": "Expired"
+        }
+      }
+    }
+  },
   "onboarding": {
     "thinking": "Moka is thinking...",
     "complete": "Communication DNA complete",

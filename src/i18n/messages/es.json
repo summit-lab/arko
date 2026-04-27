@@ -139,6 +139,75 @@
       "noCaption": "Sin caption"
     }
   },
+  "admin": {
+    "panelLabel": "Panel",
+    "backToApp": "Volver a Moka",
+    "nav": {
+      "dashboard": "Dashboard",
+      "clients": "Clientes",
+      "invitations": "Invitaciones",
+      "usage": "Usage"
+    },
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "subtitle": "Vista general de la plataforma.",
+      "stats": {
+        "clients": "Clientes",
+        "workspaces": "Workspaces",
+        "activeConnections": "Conexiones Activas",
+        "pendingInvitations": "Invitaciones Pendientes"
+      },
+      "recent": {
+        "title": "Últimos Registros",
+        "headerName": "Nombre",
+        "headerEmail": "Email",
+        "headerRole": "Rol",
+        "headerDate": "Fecha",
+        "empty": "No hay usuarios registrados."
+      }
+    },
+    "clients": {
+      "title": "Usuarios",
+      "subtitle": "Todos los workspaces registrados en la plataforma.",
+      "headerWorkspace": "Workspace",
+      "headerOwner": "Owner",
+      "headerConnection": "Conexión",
+      "headerAdn": "ADN",
+      "headerStatus": "Estado",
+      "headerUsage": "Uso $",
+      "headerCreated": "Creado",
+      "empty": "No hay clientes registrados.",
+      "noConnection": "Sin conexión",
+      "pending": "Pendiente"
+    },
+    "invitations": {
+      "title": "Invitaciones",
+      "subtitle": "Generá links de registro para nuevos clientes.",
+      "form": {
+        "title": "Generar Invitación",
+        "emailLabel": "Email del cliente",
+        "emailPlaceholder": "cliente@ejemplo.com",
+        "submit": "Generar Link",
+        "copy": "Copiar",
+        "copied": "Copiado"
+      },
+      "list": {
+        "title": "Historial de Invitaciones",
+        "headerEmail": "Email",
+        "headerStatus": "Estado",
+        "headerCreated": "Creada",
+        "headerExpires": "Expira",
+        "headerAction": "Acción",
+        "empty": "No hay invitaciones.",
+        "cancel": "Cancelar",
+        "status": {
+          "pending": "Pendiente",
+          "used": "Usada",
+          "expired": "Expirada"
+        }
+      }
+    }
+  },
   "onboarding": {
     "thinking": "Moka está pensando...",
     "complete": "ADN de Comunicación completo",
