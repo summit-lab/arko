@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Check, Loader2, Languages } from "lucide-react";
 import { updateUserLocale } from "@/i18n/actions";
@@ -9,10 +8,11 @@ import { LOCALES, type Locale } from "@/i18n/config";
 
 export function LanguageToggle() {
   const t = useTranslations("settings.language");
-  const router = useRouter();
   const currentLocale = useLocale() as Locale;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Used only to keep the button visually selected during the (very brief)
+  // window between the server action returning and the page reloading.
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
   function handleSelect(next: Locale) {
@@ -25,7 +25,9 @@ export function LanguageToggle() {
         return;
       }
       setSavedAt(Date.now());
-      router.refresh();
+      // Hard reload — router.refresh() doesn't reliably pick up the cookie
+      // change inside the same RSC response on Next 16/Turbopack.
+      window.location.reload();
     });
   }
 
