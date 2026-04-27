@@ -1,4 +1,5 @@
 import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes, AtSign } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
@@ -10,6 +11,8 @@ import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
 import type { DateRange } from "@/types/date-filter";
 import { Suspense } from "react";
+
+type DashboardTranslator = Awaited<ReturnType<typeof getTranslations<"dashboard">>>;
 
 // ─── Helpers ───
 
@@ -65,7 +68,7 @@ function getCurrentMonthWindow(): { from: string; to: string } {
 
 // ─── Data Fetching ───
 
-async function getDashboardData(range: DateRange) {
+async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) return null;
 
@@ -526,7 +529,7 @@ async function getDashboardData(range: DateRange) {
       return {
         key: `reel:${s.reels.id}`,
         type: isPost ? "post" : "reel",
-        label: autoTitle || captionShort || (isPost ? "Post sin titulo" : "Reel sin titulo"),
+        label: autoTitle || captionShort || (isPost ? t("calendar.postUntitled") : t("calendar.reelUntitled")),
         thumbnailUrl: s.reels.thumbnail_url ?? null,
       };
     }
@@ -545,7 +548,7 @@ async function getDashboardData(range: DateRange) {
       return {
         key: `story:${s.ig_story_sequences.id}`,
         type: "historia",
-        label: formatted ? `Historia del ${formatted}` : "Historia",
+        label: formatted ? t("calendar.storyOf", { date: formatted }) : t("calendar.story"),
         thumbnailUrl: storyThumb,
       };
     }
@@ -573,15 +576,15 @@ async function getDashboardData(range: DateRange) {
 
   // ─── Quick Stats ───
 
-  const periodSubLabel = `últimos ${range.days} días`;
+  const periodSubLabel = t("periodSubLabel", { days: range.days });
 
   const quickStats = [
-    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: periodSubLabel },
-    { label: "Tasa de Engagement", value: engRatePeriod > 0 ? `${engRatePeriod.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
-    { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
+    { label: t("quickStats.totalReach"), value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: periodSubLabel },
+    { label: t("quickStats.engagementRate"), value: engRatePeriod > 0 ? `${engRatePeriod.toFixed(1)}%` : "—", sub: t("quickStats.engagementSub") },
+    { label: t("quickStats.bestReel"), value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: t("quickStats.bestReelSub") },
     // Sub-label now matches the selected period (Fix 3.2)
-    { label: "Nuevos Follows", value: newFollowsWindow > 0 ? formatCompact(newFollowsWindow) : "—", sub: periodSubLabel },
-    ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
+    { label: t("quickStats.newFollows"), value: newFollowsWindow > 0 ? formatCompact(newFollowsWindow) : "—", sub: periodSubLabel },
+    ...(totalSales > 0 ? [{ label: t("quickStats.totalSales"), value: `$${formatCompact(totalSales)}`, sub: t("quickStats.salesSub") }] : []),
   ];
 
   // Calendar content (reels/posts/carousels + stories) — for the monthly calendar.
@@ -650,7 +653,7 @@ async function getDashboardData(range: DateRange) {
     .sort((a, b) => (b.sales_amount ?? 0) - (a.sales_amount ?? 0))
     .slice(0, 8)
     .map((r) => ({
-      caption: r.caption ? (r.caption.length > 22 ? r.caption.slice(0, 22) + "…" : r.caption) : "Sin caption",
+      caption: r.caption ? (r.caption.length > 22 ? r.caption.slice(0, 22) + "…" : r.caption) : t("calendar.noCaption"),
       amount: r.sales_amount ?? 0,
       views: r.views_total,
     }));
@@ -761,7 +764,7 @@ async function getDashboardData(range: DateRange) {
 
   const kpis = [
     {
-      label: "Vistas Totales",
+      label: t("kpis.totalViews"),
       // Siempre mostrar numero real (0 en vez de guion).
       value: formatCompact(totalViewsPeriod),
       change: viewsChange?.text ?? "—",
@@ -770,21 +773,21 @@ async function getDashboardData(range: DateRange) {
       color: "text-white/60",
     },
     {
-      label: "Conversaciones generadas",
+      label: t("kpis.conversations"),
       value: formatCompact(conversationsCurrentTotal),
       ...conversationsChange,
       icon: "conversations" as const,
       color: "text-white/60",
     },
     {
-      label: "Comentarios",
+      label: t("kpis.comments"),
       value: formatCompact(sumCurrent.comments),
       ...pctChange(sumCurrent.comments, sumPrevious.comments),
       icon: "message" as const,
       color: "text-white/60",
     },
     {
-      label: "Respuestas a historias",
+      label: t("kpis.storyReplies"),
       value: formatCompact(storyRepliesCurrent),
       ...storyRepliesChange,
       icon: "reply" as const,
@@ -875,7 +878,7 @@ interface TopSourceRow {
   count: number;
 }
 
-function TopSourcesList({ topSources }: { topSources: TopSourceRow[] }) {
+function TopSourcesList({ topSources, t }: { topSources: TopSourceRow[]; t: DashboardTranslator }) {
   const maxBilled = topSources.reduce((m, s) => Math.max(m, s.billed), 0);
   const totalBilled = topSources.reduce((s, r) => s + r.billed, 0);
   return (
@@ -935,7 +938,7 @@ function TopSourcesList({ topSources }: { topSources: TopSourceRow[] }) {
                   />
                 </div>
                 <span className="text-[10px] text-white/35 tabular-nums whitespace-nowrap">
-                  {s.count} venta{s.count !== 1 ? "s" : ""} · {sharePct}%
+                  {t("sales.saleCount", { count: s.count })} · {sharePct}%
                 </span>
               </div>
             </div>
@@ -951,7 +954,8 @@ function TopSourcesList({ topSources }: { topSources: TopSourceRow[] }) {
 export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string }> }) {
   const params = await searchParams;
   const dateRange = parseDateParams(params, "30d");
-  const data = await getDashboardData(dateRange);
+  const t = await getTranslations("dashboard");
+  const data = await getDashboardData(dateRange, t);
 
   const kpis = data?.kpis ?? [];
   const quickStats = data?.quickStats ?? [];
@@ -972,8 +976,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           arriba cuando scroleas. */}
       <div className="animate-slide-up mb-10 flex items-start justify-between relative z-20">
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
+          <h1 className="page-title">{t("title")}</h1>
+          <p className="text-white/35 mt-3 text-[15px] font-light">{t("subtitle")}</p>
         </div>
         <div className="mt-1">
           <Suspense fallback={null}>
@@ -1016,10 +1020,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                           <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
                         )}
                         <span className={`text-[12px] font-medium ${m.up ? "text-emerald-400" : "text-red-400"}`}>{m.change}</span>
-                        <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
+                        <span className="text-[11px] text-white/25 ml-1">{t("vsPrevious")}</span>
                       </>
                     ) : (
-                      <span className="text-[11px] text-white/20">sin datos previos</span>
+                      <span className="text-[11px] text-white/20">{t("noPrevious")}</span>
                     )}
                   </div>
                 </div>
@@ -1038,14 +1042,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
               lugar de omitir la card — así el layout no salta. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[15px] font-light text-white tracking-wide">Top fuentes de facturación</h3>
-              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Periodo seleccionado</span>
+              <h3 className="text-[15px] font-light text-white tracking-wide">{t("sales.topSources")}</h3>
+              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">{t("sales.topSourcesPeriod")}</span>
             </div>
             {topSources.length > 0 ? (
-              <TopSourcesList topSources={topSources} />
+              <TopSourcesList topSources={topSources} t={t} />
             ) : (
               <div className="py-10 text-center">
-                <p className="text-[13px] text-white/20 font-light">No hay ventas en este periodo</p>
+                <p className="text-[13px] text-white/20 font-light">{t("sales.noSales")}</p>
               </div>
             )}
           </div>
@@ -1068,7 +1072,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
               {/* Facturacion */}
               <div className="@container glass-card px-6 py-5 animate-slide-up stagger-1">
                 <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
-                  <p className="stat-label leading-tight order-last @[180px]:order-first">Facturación</p>
+                  <p className="stat-label leading-tight order-last @[180px]:order-first">{t("sales.billing")}</p>
                   <div className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] text-emerald-400 order-first @[180px]:order-last">
                     <DollarSign className="h-[18px] w-[18px] shrink-0" />
                   </div>
@@ -1096,7 +1100,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
               {/* Efectivo recolectado */}
               <div className="@container glass-card px-6 py-5 animate-slide-up stagger-2">
                 <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
-                  <p className="stat-label leading-tight order-last @[180px]:order-first">Efectivo recolectado</p>
+                  <p className="stat-label leading-tight order-last @[180px]:order-first">{t("sales.collected")}</p>
                   <div className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] text-emerald-400 order-first @[180px]:order-last">
                     <DollarSign className="h-[18px] w-[18px] shrink-0" />
                   </div>
@@ -1125,7 +1129,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
           {/* Quick Stats — columna vertical siempre. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
-            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">{t("quickStats.title")}</h3>
             <div className="space-y-5">
               {quickStats.map((s) => (
                 <div key={s.label} className="flex items-center justify-between">
@@ -1157,10 +1161,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             return (
               <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-4">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Top Ventas</h3>
+                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">{t("sales.topSales")}</h3>
                   <span className="text-[15px] font-light text-emerald-300">${formatCompact(total)}</span>
                 </div>
-                <p className="text-[10px] text-white/20 mb-4">desde reels</p>
+                <p className="text-[10px] text-white/20 mb-4">{t("sales.fromReels")}</p>
                 <div className="space-y-3">
                   {salesChartData.map((d, i) => (
                     <div key={i}>

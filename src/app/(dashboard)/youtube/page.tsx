@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { YouTubeConnect } from "@/components/youtube/YouTubeConnect";
@@ -10,12 +11,13 @@ export default async function YouTubePage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const workspaceId = await getWorkspaceId();
   const dateRange = parseDateParams(params, "90d");
+  const t = await getTranslations("youtube");
 
   if (!workspaceId) {
     return (
       <div className="px-8 py-10">
-        <h1 className="page-title">YT Intelligence</h1>
-        <p className="text-white/35 mt-3 text-[15px]">Necesitás un workspace activo.</p>
+        <h1 className="page-title">{t("pageTitle")}</h1>
+        <p className="text-white/35 mt-3 text-[15px]">{t("needWorkspace")}</p>
       </div>
     );
   }
@@ -36,9 +38,9 @@ export default async function YouTubePage({ searchParams }: { searchParams: Prom
     return (
       <div className="px-8 py-10">
         <div className="mb-8">
-          <h1 className="page-title tracking-[-0.04em]">YT Intelligence</h1>
+          <h1 className="page-title tracking-[-0.04em]">{t("pageTitle")}</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">
-            Análisis profundo de tu canal de YouTube.
+            {t("pageSubtitle")}
           </p>
         </div>
         <YouTubeConnect workspaceId={workspaceId} />
@@ -99,9 +101,9 @@ export default async function YouTubePage({ searchParams }: { searchParams: Prom
       {/* Header */}
       <div className="flex items-center justify-between relative">
         <div>
-          <h1 className="page-title tracking-[-0.04em]">YT Intelligence</h1>
+          <h1 className="page-title tracking-[-0.04em]">{t("pageTitle")}</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">
-            Análisis profundo de tu canal de YouTube.
+            {t("pageSubtitle")}
           </p>
         </div>
         <Suspense fallback={null}>

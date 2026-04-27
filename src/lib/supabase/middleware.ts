@@ -113,21 +113,34 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    // Cache role for admin checks
-    if (!request.cookies.get('arko_user_role')) {
+    // Cache role + language for admin checks and i18n
+    if (!request.cookies.get('arko_user_role') || !request.cookies.get('NEXT_LOCALE')) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, language')
         .eq('id', user.id)
         .maybeSingle()
       if (profile) {
-        supabaseResponse.cookies.set('arko_user_role', profile.role, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60, // 1 hour
-          path: '/',
-        })
+        if (!request.cookies.get('arko_user_role')) {
+          supabaseResponse.cookies.set('arko_user_role', profile.role, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60, // 1 hour
+            path: '/',
+          })
+        }
+        if (!request.cookies.get('NEXT_LOCALE')) {
+          const lang = profile.language === 'en' ? 'en' : 'es'
+          supabaseResponse.cookies.set('NEXT_LOCALE', lang, {
+            // Readable from client (next-intl reads via document.cookie on client transitions)
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 365, // 1 year
+            path: '/',
+          })
+        }
       }
     }
 

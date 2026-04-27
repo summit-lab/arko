@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { InviteRegisterForm } from "./InviteRegisterForm";
 
@@ -8,6 +9,7 @@ interface Props {
 export default async function InvitePage({ params }: Props) {
   const { token } = await params;
   const supabase = await createClient();
+  const t = await getTranslations("auth.invite");
 
   // Validate the invitation token via RPC
   const { data, error } = await supabase.rpc("validate_invitation", {
@@ -38,10 +40,10 @@ export default async function InvitePage({ params }: Props) {
         <>
           <div className="text-center">
             <h1 className="text-[22px] font-light text-foreground tracking-tight">
-              Bienvenido a Moka
+              {t("welcomeTitle")}
             </h1>
             <p className="text-muted-foreground mt-2 text-[14px] font-light">
-              Creá tu cuenta para comenzar.
+              {t("welcomeSubtitle")}
             </p>
           </div>
           <InviteRegisterForm email={invitation.email} token={token} />
@@ -54,10 +56,10 @@ export default async function InvitePage({ params }: Props) {
             </svg>
           </div>
           <h1 className="text-[20px] font-light text-foreground tracking-tight">
-            Invitación no válida
+            {t("invalidTitle")}
           </h1>
           <p className="text-muted-foreground mt-2 text-[14px] font-light">
-            Este link de invitación es inválido, ya fue usado o expiró.
+            {t("invalidDescription")}
           </p>
         </div>
       )}

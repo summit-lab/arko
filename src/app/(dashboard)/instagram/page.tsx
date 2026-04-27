@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Zap } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
@@ -19,6 +20,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const activeTab = (params.tab as TabKey) || "dashboard";
   const dateRange = parseDateParams(params, "90d");
+  const t = await getTranslations("instagram");
   const periodDays = dateRange.days;
   const periodStartIso = toISOStart(dateRange.from);
   // Upper bound exclusivo: para filtrar `published_at` entre dateRange.from y
@@ -418,11 +420,11 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="page-title tracking-[-0.04em]">IG Intelligence</h1>
+          <h1 className="page-title tracking-[-0.04em]">{t("pageTitle")}</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">
-            Análisis profundo de tu cuenta de Instagram.
+            {t("pageSubtitle")}
             {!hasRealData && connectionStatus !== "active" && (
-              <span className="ml-2 text-amber-400/50 text-[12px]">(Conectá tu cuenta Meta para ver data real)</span>
+              <span className="ml-2 text-amber-400/50 text-[12px]">{t("connectMetaHint")}</span>
             )}
           </p>
         </div>
@@ -437,7 +439,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
               style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}
             >
               <Zap className="h-4 w-4" />
-              Conectar Instagram
+              {t("connectButton")}
             </Link>
           )}
           {workspaceId && connectionStatus === "active" && (

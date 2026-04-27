@@ -1,0 +1,122 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "processing": "Processing…",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "yes": "Yes",
+    "no": "No",
+    "error": "Error",
+    "retry": "Retry"
+  },
+  "settings": {
+    "language": {
+      "label": "Language",
+      "description": "Interface language and language for AI generations triggered by you.",
+      "es": "Spanish",
+      "en": "English",
+      "saved": "Language updated"
+    }
+  },
+  "nav": {
+    "ventas": "Sales",
+    "settingsHeader": "Settings",
+    "branding": "Branding",
+    "adn": "Brand DNA",
+    "metas": "Goals",
+    "integrations": "Integrations",
+    "backToApp": "Back to app",
+    "admin": "Admin",
+    "settings": "Settings",
+    "logout": "Log out",
+    "subtitleDefault": "Intelligence Suite",
+    "subtitlePoweredBy": "powered by Moka"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Global overview of your personal brand.",
+    "vsPrevious": "vs previous",
+    "noPrevious": "no previous data",
+    "periodSubLabel": "last {days} days",
+    "kpis": {
+      "totalViews": "Total Views",
+      "conversations": "Conversations generated",
+      "comments": "Comments",
+      "storyReplies": "Story replies"
+    },
+    "quickStats": {
+      "title": "Quick Summary",
+      "totalReach": "Total Reach",
+      "engagementRate": "Engagement Rate",
+      "engagementSub": "interactions / reach",
+      "bestReel": "Best Reel",
+      "bestReelSub": "views",
+      "newFollows": "New Follows",
+      "totalSales": "Total Sales",
+      "salesSub": "from reels"
+    },
+    "sales": {
+      "billing": "Billing",
+      "collected": "Cash collected",
+      "topSources": "Top revenue sources",
+      "topSourcesPeriod": "Selected period",
+      "noSales": "No sales in this period",
+      "topSales": "Top Sales",
+      "fromReels": "from reels",
+      "saleCount": "{count, plural, one {# sale} other {# sales}}"
+    },
+    "calendar": {
+      "postUntitled": "Untitled post",
+      "reelUntitled": "Untitled reel",
+      "story": "Story",
+      "storyOf": "Story from {date}",
+      "noCaption": "No caption"
+    }
+  },
+  "instagram": {
+    "pageTitle": "IG Intelligence",
+    "pageSubtitle": "Deep analysis of your Instagram account.",
+    "connectMetaHint": "(Connect your Meta account to see real data)",
+    "connectButton": "Connect Instagram"
+  },
+  "youtube": {
+    "pageTitle": "YT Intelligence",
+    "pageSubtitle": "Deep analysis of your YouTube channel.",
+    "needWorkspace": "You need an active workspace."
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome",
+      "subtitle": "Sign in to your account",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@email.com",
+      "passwordLabel": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "inviteOnly": "Invitation-only access."
+    },
+    "invite": {
+      "welcomeTitle": "Welcome to Moka",
+      "welcomeSubtitle": "Create your account to get started.",
+      "invalidTitle": "Invalid invitation",
+      "invalidDescription": "This invitation link is invalid, has already been used, or has expired.",
+      "fullNameLabel": "Full name",
+      "fullNamePlaceholder": "Your name",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 6 characters",
+      "submit": "Create account",
+      "submitting": "Creating account…"
+    },
+    "errors": {
+      "invitationInvalid": "Invalid or expired invitation",
+      "emailMismatch": "Email doesn't match the invitation"
+    }
+  }
+}
