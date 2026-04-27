@@ -139,6 +139,15 @@
       "noCaption": "No caption"
     }
   },
+  "onboarding": {
+    "thinking": "Moka is thinking...",
+    "complete": "Communication DNA complete",
+    "completeHint": "You can ask Moka to update any field.",
+    "placeholder": "Type your answer...",
+    "placeholderComplete": "Ask Moka to update something...",
+    "shiftEnterHint": "Shift + Enter for new line",
+    "errorMessage": "Something went wrong processing your message. Can you try again?"
+  },
   "agents": {
     "title": "Moka AI",
     "subtitle": "Your marketing consultant with access to all your workspace data.",
