@@ -450,6 +450,38 @@
       "link_bio": "Bio link",
       "cta_bio": "Bio CTA",
       "otro": "Other"
+    },
+    "addPaymentModal": {
+      "title": "Add payment",
+      "remainingHint": "{amount} pending",
+      "amountLabel": "Payment amount",
+      "dateLabel": "Payment date",
+      "newCollected": "New collected: {amount}",
+      "willBeFullyPaid": "Will be fully paid",
+      "willRemain": "{amount} will remain",
+      "cancel": "Cancel",
+      "submit": "Add payment",
+      "saving": "Saving…",
+      "errorInvalidAmount": "Enter a valid amount",
+      "errorExceedsRemaining": "Amount exceeds what's pending ({amount})",
+      "errorAddPayment": "Error adding payment"
+    },
+    "installmentsModal": {
+      "title": "Sale installments",
+      "noClient": "No client",
+      "summaryCollected": "Collected",
+      "summaryPending": "Pending",
+      "summaryNext": "Next",
+      "loading": "Loading installments…",
+      "empty": "This sale has no scheduled installments.",
+      "overdue": "overdue",
+      "paid": "Paid",
+      "pending": "Pending",
+      "togglePaid": "Mark as paid",
+      "togglePending": "Mark as pending",
+      "footerNote": "Installments are automatically marked as paid when their due date arrives. If a client didn't pay, you can uncheck the installment and the pending total will update.",
+      "errorLoad": "Error loading installments",
+      "errorUpdate": "Error updating"
     }
   },
   "adnBanner": {

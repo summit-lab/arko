@@ -450,6 +450,38 @@
       "link_bio": "Link en Bio",
       "cta_bio": "CTA Bio",
       "otro": "Otro"
+    },
+    "addPaymentModal": {
+      "title": "Agregar pago",
+      "remainingHint": "Falta cobrar {amount}",
+      "amountLabel": "Monto del pago",
+      "dateLabel": "Fecha del pago",
+      "newCollected": "Nuevo cobrado: {amount}",
+      "willBeFullyPaid": "Quedará saldado",
+      "willRemain": "Restarán {amount}",
+      "cancel": "Cancelar",
+      "submit": "Agregar pago",
+      "saving": "Guardando…",
+      "errorInvalidAmount": "Ingresá un monto válido",
+      "errorExceedsRemaining": "El monto excede lo que falta cobrar ({amount})",
+      "errorAddPayment": "Error al agregar pago"
+    },
+    "installmentsModal": {
+      "title": "Cuotas de la venta",
+      "noClient": "Sin cliente",
+      "summaryCollected": "Cobrado",
+      "summaryPending": "Por cobrar",
+      "summaryNext": "Próxima",
+      "loading": "Cargando cuotas…",
+      "empty": "Esta venta no tiene cuotas programadas.",
+      "overdue": "vencida",
+      "paid": "Cobrada",
+      "pending": "Pendiente",
+      "togglePaid": "Marcar como cobrada",
+      "togglePending": "Marcar como pendiente",
+      "footerNote": "Las cuotas se marcan automáticamente como cobradas cuando llega su fecha de vencimiento. Si un cliente no pagó, podés desmarcar la cuota y el total por cobrar se actualiza.",
+      "errorLoad": "Error al cargar cuotas",
+      "errorUpdate": "Error al actualizar"
     }
   },
   "adnBanner": {
