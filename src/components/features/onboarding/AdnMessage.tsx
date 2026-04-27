@@ -1,6 +1,7 @@
 "use client";
 
 import { Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
 
 interface AdnMessageProps {
@@ -75,6 +76,7 @@ function CompetitorFormCard({
   onClick?: () => void;
   competitorCount: number;
 }) {
+  const t = useTranslations("onboarding.competitorCard");
   const hasSaved = competitorCount > 0;
 
   return (
@@ -86,20 +88,20 @@ function CompetitorFormCard({
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-light text-white/70">
             {hasSaved
-              ? `${competitorCount} competidor${competitorCount !== 1 ? "es" : ""} cargado${competitorCount !== 1 ? "s" : ""}`
-              : "Cargá tus competidores principales"}
+              ? t("savedCount", { count: competitorCount })
+              : t("emptyTitle")}
           </p>
           <p className="text-[11px] text-white/30 font-light mt-0.5">
             {hasSaved
-              ? "Podés editarlos en cualquier momento"
-              : "Nombre, Instagram y qué te gusta de ellos"}
+              ? t("savedHint")
+              : t("emptyHint")}
           </p>
         </div>
         <button
           onClick={onClick}
           className="shrink-0 px-4 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-[12px] font-medium text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 transition-all cursor-pointer"
         >
-          {hasSaved ? "Editar" : "Agregar competidores"}
+          {hasSaved ? t("edit") : t("add")}
         </button>
       </div>
     </div>

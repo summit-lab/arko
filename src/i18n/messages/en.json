@@ -146,7 +146,23 @@
     "placeholder": "Type your answer...",
     "placeholderComplete": "Ask Moka to update something...",
     "shiftEnterHint": "Shift + Enter for new line",
-    "errorMessage": "Something went wrong processing your message. Can you try again?"
+    "errorMessage": "Something went wrong processing your message. Can you try again?",
+    "competitorCard": {
+      "savedCount": "{count, plural, one {# competitor saved} other {# competitors saved}}",
+      "savedHint": "You can edit them anytime",
+      "emptyTitle": "Add your main competitors",
+      "emptyHint": "Name, Instagram, and what you like about them",
+      "edit": "Edit",
+      "add": "Add competitors"
+    },
+    "progress": {
+      "header": "Progress",
+      "section1": "Your Business",
+      "section2": "Your Content",
+      "section3": "Your Market",
+      "section4": "Your Brand",
+      "pauseHint": "You can pause and resume whenever you want."
+    }
   },
   "agents": {
     "title": "Moka AI",
