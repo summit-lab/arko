@@ -496,7 +496,80 @@
     "pageTitle": "IG Intelligence",
     "pageSubtitle": "Deep analysis of your Instagram account.",
     "connectMetaHint": "(Connect your Meta account to see real data)",
-    "connectButton": "Connect Instagram"
+    "connectButton": "Connect Instagram",
+    "detail": {
+      "openInInstagram": "Open in Instagram",
+      "trialReel": "Trial Reel",
+      "promoted": "Promoted",
+      "publishedOn": "Published on {date}",
+      "previewAlt": "Reel preview",
+      "kpis": {
+        "likes": "Likes",
+        "saves": "Saves",
+        "shares": "Shares",
+        "comments": "Comments",
+        "sales": "Sales",
+        "attributed": "Attributed",
+        "noData": "No data",
+        "ofViews": "{pct}% of views"
+      },
+      "sparkline": {
+        "title": "Views Evolution",
+        "empty": "No evolution data yet. Accumulates with each sync."
+      },
+      "core": {
+        "views": "Views",
+        "reach": "Reach",
+        "engagement": "Engagement",
+        "watchTime": "Watch Time",
+        "retention": "Retention",
+        "performance": "Performance",
+        "orgPrefix": "Org: {value}",
+        "paidPrefix": "Paid: {value}",
+        "totalReach": "total reach",
+        "intPerViews": "int / views",
+        "ofReel": "{pct}% of reel",
+        "average": "average",
+        "estimated": "estimated",
+        "vsBenchmark": "vs 90d benchmark"
+      },
+      "retentionPanel": {
+        "title": "Estimated retention",
+        "subtitle": "avg watch time / duration — not a real per-second curve",
+        "watchTime": "Watch Time",
+        "duration": "Duration",
+        "abandonment": "Drop-off",
+        "avgPerDuration": "avg / duration",
+        "average": "average",
+        "apifyOrDb": "Apify / DB",
+        "notAvailable": "Not available"
+      },
+      "breakdowns": {
+        "interactionsTitle": "Interactions vs 90d Benchmark",
+        "interactionsSubtitle": "% of views — vs your account average",
+        "current": "Current",
+        "benchmark": "Benchmark",
+        "ratiosTitle": "Key ratios",
+        "ratiosSubtitle": "Proportions with real denominators",
+        "ofWord": "of",
+        "paidMetrics": "Paid metrics",
+        "splitTitle": "Organic / Paid Split",
+        "splitSubtitle": "Real distribution of views and reach",
+        "retentionMini": "Retention"
+      },
+      "sales": {
+        "title": "Sales generated",
+        "perView": "${value} per view"
+      },
+      "benchmark": {
+        "noData": "No benchmark",
+        "muchHigher": "{ratio}x higher",
+        "higher": "{pct}% higher",
+        "average": "Near average",
+        "lower": "{pct}% lower"
+      },
+      "daysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    }
   },
   "youtube": {
     "pageTitle": "YT Intelligence",
