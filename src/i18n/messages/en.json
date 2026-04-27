@@ -139,6 +139,36 @@
       "noCaption": "No caption"
     }
   },
+  "customerVoice": {
+    "title": "Your Identity",
+    "subtitle": "Your brand's complete DNA and competitor analysis.",
+    "editAdn": "Edit DNA",
+    "tabs": {
+      "adn": "Brand DNA",
+      "competencia": "Competitors",
+      "calendario": "Calendar",
+      "metas": "Goals"
+    },
+    "adnEmpty": {
+      "title": "Your brand profile is empty",
+      "description": "Complete your Communication DNA so Moka knows your business, audience, competitors, and brand.",
+      "cta": "Complete DNA"
+    },
+    "adn": {
+      "edit": "Edit",
+      "identity": "Identity",
+      "identitySub": "Who you are and what you do",
+      "fields": {
+        "business": "Business",
+        "mainOffer": "Main Offer",
+        "brandPersona": "Brand Persona"
+      },
+      "avatar": "Your Avatar",
+      "audience": "Audience",
+      "whyChoose": "Why they choose you",
+      "differentiator": "Differentiator"
+    }
+  },
   "ads": {
     "title": "Ads Intelligence",
     "subtitle": "Meta Ads analysis: quantitative and qualitative data.",

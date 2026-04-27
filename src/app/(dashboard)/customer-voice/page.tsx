@@ -3,6 +3,7 @@ import {
   ThumbsUp, Flame, TrendingUp, Star, Eye,
   Swords, Instagram, Youtube, Fingerprint, Zap, Pencil,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { IGGoals } from "@/components/instagram/IGGoals";
@@ -83,6 +84,7 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
   const params = await searchParams;
   const activeTab = params.tab === "competencia" ? "competencia" : params.tab === "calendario" ? "calendario" : params.tab === "metas" ? "metas" : "adn";
   const currentMonth = params.month ?? new Date().toISOString().slice(0, 7);
+  const t = await getTranslations("customerVoice");
 
   const workspaceId = await getWorkspaceId();
   let goals: { metric: string; target_value: number }[] = [];
@@ -314,16 +316,16 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         <Fingerprint className="h-6 w-6 text-amber-400" />
       </div>
       <p className="text-[16px] text-white/60 font-light mb-1.5">
-        Tu perfil de marca todavía no tiene datos
+        {t("adnEmpty.title")}
       </p>
       <p className="text-[13px] text-white/30 font-light mb-6 max-w-md mx-auto">
-        Completá tu ADN de Comunicación para que Moka conozca tu negocio, audiencia, competencia y marca.
+        {t("adnEmpty.description")}
       </p>
       <Link
         href="/onboarding/adn"
         className="inline-flex text-[13px] font-medium text-amber-300 hover:text-amber-200 transition-colors px-5 py-2.5 rounded-xl bg-amber-500/[0.1] hover:bg-amber-500/[0.18] border border-amber-500/25"
       >
-        Completar ADN
+        {t("adnEmpty.cta")}
       </Link>
     </div>
   ) : (
@@ -587,16 +589,16 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
       <div className="animate-slide-up mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="page-title">Tu Identidad</h1>
+            <h1 className="page-title">{t("title")}</h1>
             <p className="text-white/35 mt-3 text-[15px] font-light">
-              El ADN completo de tu marca y el análisis de tu competencia.
+              {t("subtitle")}
             </p>
           </div>
           <Link
             href="/onboarding/adn"
             className="text-[12px] font-medium text-white/40 hover:text-white/70 transition-colors px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.06] border border-white/[0.08]"
           >
-            Editar ADN
+            {t("editAdn")}
           </Link>
         </div>
       </div>

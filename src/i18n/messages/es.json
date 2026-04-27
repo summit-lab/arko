@@ -139,6 +139,36 @@
       "noCaption": "Sin caption"
     }
   },
+  "customerVoice": {
+    "title": "Tu Identidad",
+    "subtitle": "El ADN completo de tu marca y el análisis de tu competencia.",
+    "editAdn": "Editar ADN",
+    "tabs": {
+      "adn": "ADN de Marca",
+      "competencia": "Competencia",
+      "calendario": "Calendario",
+      "metas": "Metas"
+    },
+    "adnEmpty": {
+      "title": "Tu perfil de marca todavía no tiene datos",
+      "description": "Completá tu ADN de Comunicación para que Moka conozca tu negocio, audiencia, competencia y marca.",
+      "cta": "Completar ADN"
+    },
+    "adn": {
+      "edit": "Editar",
+      "identity": "Identidad",
+      "identitySub": "Quién sos y qué hacés",
+      "fields": {
+        "business": "Negocio",
+        "mainOffer": "Oferta Principal",
+        "brandPersona": "Personalidad de Marca"
+      },
+      "avatar": "Tu Avatar",
+      "audience": "Audiencia",
+      "whyChoose": "Por qué te eligen",
+      "differentiator": "Diferenciador"
+    }
+  },
   "ads": {
     "title": "Ads Intelligence",
     "subtitle": "Análisis de Meta Ads: data cuantitativa y cualitativa.",
