@@ -17,12 +17,71 @@
     "retry": "Retry"
   },
   "settings": {
+    "title": "Settings",
+    "subtitle": "Your account and workspace configuration.",
     "language": {
       "label": "Language",
       "description": "Interface language and language for AI generations triggered by you.",
       "es": "Spanish",
       "en": "English",
       "saved": "Language updated"
+    },
+    "profile": {
+      "title": "Profile",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "memberSince": "Member since"
+    },
+    "workspace": {
+      "title": "Workspace",
+      "name": "Name",
+      "slug": "Slug",
+      "plan": "Plan",
+      "empty": "No workspace configured."
+    },
+    "admin": {
+      "title": "Admin Panel",
+      "description": "Manage customers, invitations, and global stats",
+      "cta": "Go to panel →"
+    },
+    "branding": {
+      "title": "Workspace branding",
+      "description": "Customize how your brand appears in the sidebar.",
+      "brandNameLabel": "Brand name",
+      "brandNamePlaceholder": "e.g. My Company",
+      "saveBrandName": "Save name"
+    },
+    "logo": {
+      "label": "Workspace logo",
+      "preview": "Logo preview",
+      "uploading": "Uploading…",
+      "updated": "Logo updated",
+      "dropHint": "Drag an image or",
+      "chooseFile": "choose a file",
+      "constraints": "PNG, JPG, WebP or SVG · Max 2MB",
+      "errorInvalidType": "Only PNG, JPG, WebP or SVG.",
+      "errorTooLarge": "File must be under 2MB.",
+      "errorUpload": "Error uploading logo. Please try again."
+    },
+    "meta": {
+      "title": "Meta / Instagram connection",
+      "status": "Status",
+      "connected": "connected",
+      "igAccount": "IG Account",
+      "igAccountId": "IG Account ID",
+      "lastValidated": "Last validated",
+      "reconnectQuestion": "Want to connect a different account?",
+      "reconnectHint": "You can disconnect this account and restart the flow whenever you want.",
+      "noConnection": "No Instagram account connected.",
+      "lastFailed": "The last connection didn't complete. You can try again.",
+      "enableHint": "Connect your account to enable Instagram Intelligence.",
+      "retry": "Retry connection",
+      "connect": "Connect account",
+      "disconnect": "Disconnect account",
+      "disconnecting": "Disconnecting…",
+      "disconnectConfirm": "Disconnect this Instagram account? You can reconnect it whenever you want.",
+      "disconnectError": "We couldn't disconnect the account."
     }
   },
   "nav": {
@@ -79,6 +138,14 @@
       "storyOf": "Story from {date}",
       "noCaption": "No caption"
     }
+  },
+  "adnBanner": {
+    "pendingPrefix": "Your",
+    "pendingTitle": "Communication DNA",
+    "pendingSuffix": "is pending. Complete it so Moka AI can give you personalized analysis and recommendations.",
+    "completeCta": "Complete DNA",
+    "blockedTitle": "Moka AI needs your DNA",
+    "blockedDescription": "To give you personalized analysis and recommendations, first complete your Communication DNA."
   },
   "instagram": {
     "pageTitle": "IG Intelligence",

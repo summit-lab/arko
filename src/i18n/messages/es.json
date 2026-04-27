@@ -17,12 +17,71 @@
     "retry": "Reintentar"
   },
   "settings": {
+    "title": "Settings",
+    "subtitle": "Configuración de tu cuenta y workspace.",
     "language": {
       "label": "Idioma",
       "description": "Idioma de la interfaz y de las generaciones de IA disparadas por vos.",
       "es": "Español",
       "en": "Inglés",
       "saved": "Idioma actualizado"
+    },
+    "profile": {
+      "title": "Perfil",
+      "name": "Nombre",
+      "email": "Email",
+      "role": "Rol",
+      "memberSince": "Miembro desde"
+    },
+    "workspace": {
+      "title": "Workspace",
+      "name": "Nombre",
+      "slug": "Slug",
+      "plan": "Plan",
+      "empty": "No hay workspace configurado."
+    },
+    "admin": {
+      "title": "Admin Panel",
+      "description": "Gestionar clientes, invitaciones y estadísticas globales",
+      "cta": "Ir al panel →"
+    },
+    "branding": {
+      "title": "Branding del workspace",
+      "description": "Personaliza cómo aparece tu marca en el sidebar.",
+      "brandNameLabel": "Nombre de marca",
+      "brandNamePlaceholder": "Ej: Mi Empresa",
+      "saveBrandName": "Guardar nombre"
+    },
+    "logo": {
+      "label": "Logo del workspace",
+      "preview": "Vista previa del logo",
+      "uploading": "Subiendo…",
+      "updated": "Logo actualizado",
+      "dropHint": "Arrastrá una imagen o",
+      "chooseFile": "elegí un archivo",
+      "constraints": "PNG, JPG, WebP o SVG · Máx 2MB",
+      "errorInvalidType": "Solo PNG, JPG, WebP o SVG.",
+      "errorTooLarge": "El archivo debe pesar menos de 2MB.",
+      "errorUpload": "Error al subir el logo. Intentá de nuevo."
+    },
+    "meta": {
+      "title": "Conexión Meta / Instagram",
+      "status": "Estado",
+      "connected": "conectada",
+      "igAccount": "Cuenta IG",
+      "igAccountId": "IG Account ID",
+      "lastValidated": "Última validación",
+      "reconnectQuestion": "¿Querés volver a conectar otra cuenta?",
+      "reconnectHint": "Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.",
+      "noConnection": "No hay cuenta de Instagram conectada.",
+      "lastFailed": "La última conexión no se completó. Podés volver a intentarlo.",
+      "enableHint": "Conectá tu cuenta para habilitar Instagram Intelligence.",
+      "retry": "Reintentar conexión",
+      "connect": "Conectar cuenta",
+      "disconnect": "Desconectar cuenta",
+      "disconnecting": "Desconectando…",
+      "disconnectConfirm": "¿Querés desconectar esta cuenta de Instagram? Vas a poder volver a conectarla cuando quieras.",
+      "disconnectError": "No pudimos desconectar la cuenta."
     }
   },
   "nav": {
@@ -79,6 +138,14 @@
       "storyOf": "Historia del {date}",
       "noCaption": "Sin caption"
     }
+  },
+  "adnBanner": {
+    "pendingPrefix": "Tu",
+    "pendingTitle": "ADN de Comunicación",
+    "pendingSuffix": "está pendiente. Completalo para que Moka AI pueda darte análisis y recomendaciones personalizadas.",
+    "completeCta": "Completar ADN",
+    "blockedTitle": "Moka AI necesita tu ADN",
+    "blockedDescription": "Para darte análisis y recomendaciones personalizadas, primero completá tu ADN de Comunicación."
   },
   "instagram": {
     "pageTitle": "IG Intelligence",

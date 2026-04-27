@@ -2,6 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import { Upload, X, Loader2, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { updateLogoUrl } from "@/app/(dashboard)/settings/actions";
 
@@ -14,6 +15,7 @@ const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
 export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
+  const t = useTranslations("settings.logo");
   const [preview, setPreview] = useState<string | null>(currentLogoUrl);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +24,8 @@ export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function validate(file: File): string | null {
-    if (!ACCEPTED.includes(file.type)) return "Solo PNG, JPG, WebP o SVG.";
-    if (file.size > MAX_SIZE) return "El archivo debe pesar menos de 2MB.";
+    if (!ACCEPTED.includes(file.type)) return t("errorInvalidType");
+    if (file.size > MAX_SIZE) return t("errorTooLarge");
     return null;
   }
 
@@ -61,7 +63,7 @@ export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
         .upload(path, file, { upsert: true, contentType: file.type });
 
       if (uploadError) {
-        setError("Error al subir el logo. Intentá de nuevo.");
+        setError(t("errorUpload"));
         setPreview(currentLogoUrl);
         return;
       }
@@ -111,7 +113,7 @@ export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
   return (
     <div className="space-y-3">
       <label className="block text-[10px] text-muted-foreground uppercase tracking-wider">
-        Logo del workspace
+        {t("label")}
       </label>
 
       <div className="flex items-start gap-4">
@@ -122,7 +124,7 @@ export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={preview}
-                alt="Logo preview"
+                alt={t("preview")}
                 className="w-16 h-16 rounded-xl object-cover border border-white/[0.08]"
               />
               <button
@@ -169,19 +171,19 @@ export function LogoUpload({ workspaceId, currentLogoUrl }: LogoUploadProps) {
           {isUploading ? (
             <div className="flex items-center justify-center gap-2 py-1">
               <Loader2 className="h-4 w-4 text-white/40 animate-spin" />
-              <span className="text-[12px] text-white/40">Subiendo...</span>
+              <span className="text-[12px] text-white/40">{t("uploading")}</span>
             </div>
           ) : success ? (
             <div className="flex items-center justify-center gap-2 py-1">
               <Check className="h-4 w-4 text-emerald-400" />
-              <span className="text-[12px] text-emerald-400">Logo actualizado</span>
+              <span className="text-[12px] text-emerald-400">{t("updated")}</span>
             </div>
           ) : (
             <>
               <p className="text-[12px] text-white/40">
-                Arrastrá una imagen o <span className="text-white/60 underline underline-offset-2">elegí un archivo</span>
+                {t("dropHint")} <span className="text-white/60 underline underline-offset-2">{t("chooseFile")}</span>
               </p>
-              <p className="text-[10px] text-white/20 mt-1">PNG, JPG, WebP o SVG · Máx 2MB</p>
+              <p className="text-[10px] text-white/20 mt-1">{t("constraints")}</p>
             </>
           )}
         </div>
