@@ -339,18 +339,18 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
               <Fingerprint className="h-5 w-5 text-violet-400" />
             </div>
             <div className="flex-1">
-              <h2 className="text-[17px] font-medium text-white/90 tracking-wide">Identidad</h2>
-              <p className="text-[11px] text-white/25 font-light">Quién sos y qué hacés</p>
+              <h2 className="text-[17px] font-medium text-white/90 tracking-wide">{t("adn.identity")}</h2>
+              <p className="text-[11px] text-white/25 font-light">{t("adn.identitySub")}</p>
             </div>
             <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/30 hover:text-white/70 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-              <Pencil className="h-3 w-3" />Editar
+              <Pencil className="h-3 w-3" />{t("adn.edit")}
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-            <Field icon={Briefcase} label="Negocio" value={profile?.business_description} />
-            <Field icon={Sparkles} label="Oferta Principal" value={profile?.main_offer} />
+            <Field icon={Briefcase} label={t("adn.fields.business")} value={profile?.business_description} />
+            <Field icon={Sparkles} label={t("adn.fields.mainOffer")} value={profile?.main_offer} />
             <div className="col-span-2">
-              <Field icon={Megaphone} label="Personalidad de Marca" value={profile?.brand_persona} />
+              <Field icon={Megaphone} label={t("adn.fields.brandPersona")} value={profile?.brand_persona} />
             </div>
           </div>
         </div>
@@ -359,16 +359,16 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Target className="h-4 w-4 text-cyan-400" />
-              <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Tu Avatar</span>
+              <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">{t("adn.avatar")}</span>
               <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-                <Pencil className="h-2.5 w-2.5" />Editar
+                <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
               </Link>
             </div>
             <p className="text-[14px] text-white/75 font-light leading-[1.7] mb-4">{profile?.avatar_description || "—"}</p>
           </div>
           {profile?.target_audience && (
             <div className="pt-4 border-t border-white/[0.06]">
-              <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium">Audiencia</span>
+              <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium">{t("adn.audience")}</span>
               <p className="text-[12px] text-white/50 font-light leading-[1.6] mt-1">{profile.target_audience}</p>
             </div>
           )}
@@ -381,9 +381,9 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
           <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #34d399 0%, transparent 70%)" }} />
           <div className="flex items-center gap-2 mb-4">
             <ThumbsUp className="h-4 w-4 text-emerald-400" />
-            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Por qué te eligen</span>
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">{t("adn.whyChoose")}</span>
             <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-              <Pencil className="h-2.5 w-2.5" />Editar
+              <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
             </Link>
           </div>
           <p className="text-[14px] text-white/70 font-light leading-[1.7]">{brand?.why_clients_choose || "—"}</p>
@@ -392,9 +392,9 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
           <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #fbbf24 0%, transparent 70%)" }} />
           <div className="flex items-center gap-2 mb-4">
             <Shield className="h-4 w-4 text-amber-400" />
-            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Diferenciador</span>
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">{t("adn.differentiator")}</span>
             <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-              <Pencil className="h-2.5 w-2.5" />Editar
+              <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
             </Link>
           </div>
           <p className="text-[14px] text-white/70 font-light leading-[1.7]">{market?.differentiator || "—"}</p>
@@ -403,9 +403,9 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
           <div className="absolute -top-10 -left-10 w-32 h-32 rounded-full pointer-events-none opacity-[0.05]" style={{ background: "radial-gradient(circle, #c084fc 0%, transparent 70%)" }} />
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb className="h-4 w-4 text-purple-400" />
-            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">Mecanismos Nuevos</span>
+            <span className="text-[11px] text-white/25 uppercase tracking-[0.12em] font-medium flex-1">{t("adn.newMechanisms")}</span>
             <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-              <Pencil className="h-2.5 w-2.5" />Editar
+              <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
             </Link>
           </div>
           <p className="text-[14px] text-white/70 font-light leading-[1.7]">{brand?.new_mechanisms || "—"}</p>
@@ -419,44 +419,44 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
             <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/10">
               <TrendingUp className="h-4.5 w-4.5 text-amber-400" />
             </div>
-            <h3 className="text-[15px] font-medium text-white/85 tracking-wide flex-1">Mercado e Industria</h3>
+            <h3 className="text-[15px] font-medium text-white/85 tracking-wide flex-1">{t("adn.marketIndustry")}</h3>
             <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/30 hover:text-white/70 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-              <Pencil className="h-3 w-3" />Editar
+              <Pencil className="h-3 w-3" />{t("adn.edit")}
             </Link>
           </div>
           <div className="space-y-5">
-            <Field icon={TrendingUp} label="Estado de la Industria" value={market?.industry_state} accent="amber" />
-            <Field icon={Eye} label="Exposición del Avatar" value={market?.audience_exposure} accent="amber" />
-            <Field icon={Eye} label="Creencias del Mercado" value={market?.market_beliefs} accent="amber" />
-            <Field icon={Flame} label="Temas Quemados" value={market?.burned_topics} accent="amber" />
-            <Field icon={Sparkles} label="Tendencias Actuales" value={market?.current_trends} accent="amber" />
-            <Field icon={Swords} label="Competitividad" value={market?.competitiveness} accent="amber" />
+            <Field icon={TrendingUp} label={t("adn.industryState")} value={market?.industry_state} accent="amber" />
+            <Field icon={Eye} label={t("adn.audienceExposure")} value={market?.audience_exposure} accent="amber" />
+            <Field icon={Eye} label={t("adn.marketBeliefs")} value={market?.market_beliefs} accent="amber" />
+            <Field icon={Flame} label={t("adn.burnedTopics")} value={market?.burned_topics} accent="amber" />
+            <Field icon={Sparkles} label={t("adn.currentTrends")} value={market?.current_trends} accent="amber" />
+            <Field icon={Swords} label={t("adn.competitiveness")} value={market?.competitiveness} accent="amber" />
           </div>
         </div>
         <div className="flex-[4] space-y-6">
           <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center gap-2 mb-5">
               <Globe className="h-4 w-4 text-cyan-400" />
-              <h3 className="text-[14px] font-medium text-white/80 tracking-wide flex-1">ADN del Nicho</h3>
+              <h3 className="text-[14px] font-medium text-white/80 tracking-wide flex-1">{t("adn.nicheDna")}</h3>
               <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-                <Pencil className="h-2.5 w-2.5" />Editar
+                <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
               </Link>
             </div>
             {brand?.niche_language && (
               <div className="mb-4">
-                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">Lenguaje</span>
+                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">{t("adn.nicheLanguage")}</span>
                 <div className="flex flex-wrap gap-1.5">{brand.niche_language.split(",").map((w, i) => <Tag key={i}>{w.trim()}</Tag>)}</div>
               </div>
             )}
             {brand?.niche_tools && (
               <div className="mb-4">
-                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">Herramientas</span>
+                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">{t("adn.nicheTools")}</span>
                 <div className="flex flex-wrap gap-1.5">{brand.niche_tools.split(",").map((w, i) => <Tag key={i}>{w.trim()}</Tag>)}</div>
               </div>
             )}
             {brand?.filtering_words && (
               <div>
-                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">Palabras Filtro</span>
+                <span className="text-[10px] text-white/20 uppercase tracking-[0.12em] font-medium block mb-2">{t("adn.filteringWords")}</span>
                 <div className="flex flex-wrap gap-1.5">{brand.filtering_words.split(",").map((w, i) => <Tag key={i}>{w.trim()}</Tag>)}</div>
               </div>
             )}
@@ -466,7 +466,7 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Swords className="h-4 w-4 text-rose-400" />
-                  <h3 className="text-[14px] font-medium text-white/80 tracking-wide">Competidores</h3>
+                  <h3 className="text-[14px] font-medium text-white/80 tracking-wide">{t("adn.competitors")}</h3>
                 </div>
                 <span className="text-[11px] text-white/20 font-light">{competitors.length}</span>
               </div>
@@ -504,19 +504,19 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
                     </div>
                     <div className="flex-1">
                       <h3 className="text-[14px] font-medium text-white/85 tracking-wide capitalize">{s.platform}</h3>
-                      <p className="text-[10px] text-white/20 font-light">Estrategia de contenido</p>
+                      <p className="text-[10px] text-white/20 font-light">{t("adn.contentStrategy")}</p>
                     </div>
                     <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all">
-                      <Pencil className="h-2.5 w-2.5" />Editar
+                      <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
                     </Link>
                   </div>
                   <div className="space-y-4">
-                    <Field icon={Eye} label="Qué probó" value={s.what_tested} />
-                    <Field icon={TrendingUp} label="Resultados" value={s.test_results} />
-                    <Field icon={Lightbulb} label="Conclusiones" value={s.conclusions} />
-                    <Field icon={Target} label="Estrategia Actual" value={s.current_strategy} />
-                    <Field icon={Zap} label="Formatos y Cantidad" value={s.formats_and_quantity} />
-                    <Field icon={ThumbsUp} label="Por qué va a funcionar" value={s.why_it_will_work} />
+                    <Field icon={Eye} label={t("adn.whatTested")} value={s.what_tested} />
+                    <Field icon={TrendingUp} label={t("adn.testResults")} value={s.test_results} />
+                    <Field icon={Lightbulb} label={t("adn.conclusions")} value={s.conclusions} />
+                    <Field icon={Target} label={t("adn.currentStrategy")} value={s.current_strategy} />
+                    <Field icon={Zap} label={t("adn.formatsAndQuantity")} value={s.formats_and_quantity} />
+                    <Field icon={ThumbsUp} label={t("adn.whyItWillWork")} value={s.why_it_will_work} />
                   </div>
                 </div>
               );
@@ -530,10 +530,10 @@ export default async function CustomerVoicePage({ searchParams }: { searchParams
         <div className="animate-slide-up">
           <div className="flex items-center gap-2 mb-4">
             <Star className="h-4 w-4 text-yellow-400" />
-            <h3 className="text-[14px] font-medium text-white/80 tracking-wide flex-1">Marcas de Referencia</h3>
+            <h3 className="text-[14px] font-medium text-white/80 tracking-wide flex-1">{t("adn.references")}</h3>
             <span className="text-[11px] text-white/20 font-light">({references.length})</span>
             <Link href="/onboarding/adn" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-white/25 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all ml-2">
-              <Pencil className="h-2.5 w-2.5" />Editar
+              <Pencil className="h-2.5 w-2.5" />{t("adn.edit")}
             </Link>
           </div>
           <div className="flex gap-4">
