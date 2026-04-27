@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
 import {
   DollarSign, Plus, TrendingUp, Clock,
   Trash2, Wallet, Pencil,
@@ -29,32 +30,15 @@ interface VentasClientProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtMoney(n: number): string {
-  return `$${n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+function fmtMoney(n: number, locale: string): string {
+  const fmtLocale = locale === "en" ? "en-US" : "es-AR";
+  return `$${n.toLocaleString(fmtLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  collected: "Cobrado",
-  cancelled: "Cancelado",
-  pending: "Pendiente",
-};
 const STATUS_COLOR: Record<string, string> = {
   collected: "text-teal-300 bg-teal-400/10",
   cancelled: "text-red-400 bg-red-400/10",
   pending: "text-amber-400 bg-amber-400/10",
-};
-const PAYMENT_LABEL: Record<string, string> = {
-  full: "Pago completo",
-  cuotas: "Cuotas",
-  deposito: "Depósito/Seña",
-};
-const SOURCE_LABEL: Record<string, string> = {
-  reel: "Reel",
-  historia: "Historia",
-  post: "Post",
-  link_bio: "Link en Bio",
-  cta_bio: "CTA Bio",
-  otro: "Otro",
 };
 const SOURCE_HEX: Record<string, string> = {
   reel: "#7A86E0",
@@ -77,11 +61,12 @@ const PALETTE = ["#7A86E0", "#AF6EC7", "#4BCEAF", "#EB6991", "#A5ADEE"];
 
 // ─── Chart tooltip ────────────────────────────────────────────────────────────
 
-function SalesTooltip({ active, payload, label, ct }: {
+function SalesTooltip({ active, payload, label, ct, locale }: {
   active?: boolean;
   payload?: Array<{ value: number; dataKey?: string; name?: string; color?: string }>;
   label?: string;
   ct: ChartTheme;
+  locale: string;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -96,7 +81,7 @@ function SalesTooltip({ active, payload, label, ct }: {
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
             {p.name ?? p.dataKey}
           </span>
-          <span className="font-medium" style={{ color: p.color }}>{fmtMoney(p.value)}</span>
+          <span className="font-medium" style={{ color: p.color }}>{fmtMoney(p.value, locale)}</span>
         </div>
       ))}
     </div>
@@ -107,6 +92,26 @@ function SalesTooltip({ active, payload, label, ct }: {
 
 export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }: VentasClientProps) {
   const ct = useChartTheme();
+  const t = useTranslations("ventas");
+  const locale = useLocale();
+  const SOURCE_LABEL: Record<string, string> = {
+    reel: t("source.reel"),
+    historia: t("source.historia"),
+    post: t("source.post"),
+    link_bio: t("source.link_bio"),
+    cta_bio: t("source.cta_bio"),
+    otro: t("source.otro"),
+  };
+  const STATUS_LABEL: Record<string, string> = {
+    collected: t("status.collected"),
+    cancelled: t("status.cancelled"),
+    pending: t("status.pending"),
+  };
+  const PAYMENT_LABEL: Record<string, string> = {
+    full: t("paymentType.full"),
+    cuotas: t("paymentType.cuotas"),
+    deposito: t("paymentType.deposito"),
+  };
   const [sales, setSales] = useState<Sale[]>(initialSales);
   const [showModal, setShowModal] = useState(false);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
@@ -172,7 +177,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
       const [y, m] = month.split("-");
       const d = new Date(parseInt(y), parseInt(m) - 1, 1);
       return {
-        label: d.toLocaleString("es", { month: "short" }).replace(".", ""),
+        label: d.toLocaleString(locale === "en" ? "en" : "es", { month: "short" }).replace(".", ""),
         facturado: v.facturado,
         recolectado: v.recolectado,
       };
@@ -208,7 +213,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar esta venta?")) return;
+    if (!confirm(t("table.deleteConfirm"))) return;
     await fetch(`/api/sales/${id}`, { method: "DELETE" });
     setSales(prev => prev.filter(s => s.id !== id));
   };
@@ -218,8 +223,8 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
       {/* ── Header ── */}
       <div className="animate-slide-up mb-6 flex items-start justify-between">
         <div>
-          <h1 className="page-title">Ventas</h1>
-          <p className="text-white/35 mt-3 text-[15px] font-light">Facturación generada desde tu contenido.</p>
+          <h1 className="page-title">{t("title")}</h1>
+          <p className="text-white/35 mt-3 text-[15px] font-light">{t("subtitle")}</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -227,7 +232,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
           style={{ background: "rgba(122,134,224,0.1)", border: "1px solid rgba(122,134,224,0.22)" }}
         >
           <Plus className="h-4 w-4" style={{ color: "#7A86E0" }} />
-          Nueva venta
+          {t("newSale")}
         </button>
       </div>
 
@@ -249,25 +254,25 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
       <div className="grid grid-cols-3 gap-5 mb-8 animate-slide-up stagger-1">
         {([
           {
-            label: "Facturación",
-            value: fmtMoney(totalRevenue),
-            sub: `${activeSales.length} venta${activeSales.length !== 1 ? "s" : ""}`,
+            label: t("kpis.billing"),
+            value: fmtMoney(totalRevenue, locale),
+            sub: t("kpis.billingSub", { count: activeSales.length }),
             icon: DollarSign,
             hex: "#7A86E0",
             bg: "rgba(122,134,224,0.08)",
           },
           {
-            label: "Efectivo Recolectado",
-            value: fmtMoney(totalCollected),
-            sub: totalRevenue > 0 ? `${Math.round((totalCollected / totalRevenue) * 100)}% del total` : "—",
+            label: t("kpis.collected"),
+            value: fmtMoney(totalCollected, locale),
+            sub: totalRevenue > 0 ? t("kpis.collectedSub", { pct: Math.round((totalCollected / totalRevenue) * 100) }) : "—",
             icon: TrendingUp,
             hex: "#4BCEAF",
             bg: "rgba(75,206,175,0.08)",
           },
           {
-            label: "Por Cobrar",
-            value: fmtMoney(totalPending),
-            sub: "pendiente de cobro",
+            label: t("kpis.pending"),
+            value: fmtMoney(totalPending, locale),
+            sub: t("kpis.pendingSub"),
             icon: Clock,
             hex: "#EB6991",
             bg: "rgba(235,105,145,0.08)",
@@ -295,15 +300,15 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
           {chartData.length > 0 && (
             <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-[13px] font-light text-white/80">Facturación mensual</h3>
+                <h3 className="text-[13px] font-light text-white/80">{t("chart.title")}</h3>
                 <div className="flex items-center gap-4 text-[10px] text-white/40">
                   <span className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full" style={{ background: "#7A86E0" }} />
-                    Facturación
+                    {t("chart.billing")}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full" style={{ background: "#34d399" }} />
-                    Efectivo recolectado
+                    {t("chart.collected")}
                   </span>
                 </div>
               </div>
@@ -323,9 +328,9 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                       axisLine={false}
                       tickFormatter={(v: number) => `$${v >= 1000 ? `${Math.round(v / 1000)}K` : v}`}
                     />
-                    <Tooltip content={<SalesTooltip ct={ct} />} cursor={{ fill: ct.cursor }} />
-                    <Bar dataKey="facturado" name="Facturación" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={56} />
-                    <Bar dataKey="recolectado" name="Efectivo recolectado" fill="#34d399" radius={[4, 4, 0, 0]} barSize={56} />
+                    <Tooltip content={<SalesTooltip ct={ct} locale={locale} />} cursor={{ fill: ct.cursor }} />
+                    <Bar dataKey="facturado" name={t("chart.billing")} fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={56} />
+                    <Bar dataKey="recolectado" name={t("chart.collected")} fill="#34d399" radius={[4, 4, 0, 0]} barSize={56} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -334,17 +339,17 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
 
           {/* Sales table */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
-            <h3 className="text-[13px] font-light text-white/80 mb-5">Historial de ventas</h3>
+            <h3 className="text-[13px] font-light text-white/80 mb-5">{t("table.title")}</h3>
             {filteredSales.length === 0 ? (
               <div className="py-14 text-center">
                 <DollarSign className="h-10 w-10 text-white/[0.07] mx-auto mb-3" />
-                <p className="text-[13px] text-white/25 font-light">No hay ventas registradas aún</p>
+                <p className="text-[13px] text-white/25 font-light">{t("table.empty")}</p>
                 <button
                   onClick={() => setShowModal(true)}
                   className="mt-4 text-[12px] cursor-pointer transition-opacity hover:opacity-80"
                   style={{ color: "rgba(122,134,224,0.7)" }}
                 >
-                  + Nueva venta
+                  {t("table.newSaleCta")}
                 </button>
               </div>
             ) : (
@@ -353,12 +358,12 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                 <div
                   className="grid grid-cols-12 gap-2 text-[10px] text-white/25 uppercase tracking-[0.1em] pb-2.5 px-2 border-b border-white/[0.05]"
                 >
-                  <div className="col-span-3">Fuente / Cliente</div>
-                  <div className="col-span-1">Fecha</div>
-                  <div className="col-span-2 text-right">Facturación</div>
-                  <div className="col-span-2 text-right">Recolectado</div>
-                  <div className="col-span-2 text-center">Tipo</div>
-                  <div className="col-span-2 text-center">Estado</div>
+                  <div className="col-span-3">{t("table.headerSource")}</div>
+                  <div className="col-span-1">{t("table.headerDate")}</div>
+                  <div className="col-span-2 text-right">{t("table.headerBilling")}</div>
+                  <div className="col-span-2 text-right">{t("table.headerCollected")}</div>
+                  <div className="col-span-2 text-center">{t("table.headerType")}</div>
+                  <div className="col-span-2 text-center">{t("table.headerStatus")}</div>
                 </div>
 
                 {filteredSales.map((s) => {
@@ -398,7 +403,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                             {s.reels?.caption?.slice(0, 40) ||
                               s.source_label?.slice(0, 40) ||
                               SOURCE_LABEL[s.source_type] ||
-                              "Venta"}
+                              t("table.fallbackSale")}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span
@@ -419,18 +424,18 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
 
                       {/* Fecha */}
                       <div className="col-span-1 text-[10px] text-white/35 leading-snug">
-                        {new Date(s.sale_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }).replace(".", "")}
+                        {new Date(s.sale_date + "T12:00:00").toLocaleDateString(locale === "en" ? "en-US" : "es-AR", { day: "numeric", month: "short" }).replace(".", "")}
                       </div>
 
                       {/* Revenue */}
                       <div className="col-span-2 text-right text-[13px] font-light text-white">
-                        {fmtMoney(s.amount_total)}
+                        {fmtMoney(s.amount_total, locale)}
                       </div>
 
                       {/* Collected + progress bar for cuotas */}
                       <div className="col-span-2 text-right">
                         <div className="text-[12px] font-light" style={{ color: "#4BCEAF" }}>
-                          {fmtMoney(s.amount_collected)}
+                          {fmtMoney(s.amount_collected, locale)}
                         </div>
                         {hasPending && (
                           <>
@@ -441,7 +446,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                               />
                             </div>
                             <p className="text-[9px] text-white/30 mt-0.5">
-                              falta {fmtMoney(remaining)}
+                              {t("table.missing", { amount: fmtMoney(remaining, locale) })}
                             </p>
                           </>
                         )}
@@ -462,7 +467,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                         {hasPending && (
                           <button
                             onClick={() => setPaymentSale(s)}
-                            title="Agregar pago"
+                            title={t("table.addPayment")}
                             className="cursor-pointer transition-colors shrink-0"
                             style={{ color: "rgba(75,206,175,0.75)" }}
                           >
@@ -471,14 +476,14 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                         )}
                         <button
                           onClick={() => setEditingSale(s)}
-                          title="Editar venta"
+                          title={t("table.edit")}
                           className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white/25 hover:text-white/70 shrink-0"
                         >
                           <Pencil className="h-3 w-3" />
                         </button>
                         <button
                           onClick={() => handleDelete(s.id)}
-                          title="Eliminar venta"
+                          title={t("table.delete")}
                           className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white/20 hover:text-red-400 shrink-0"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -499,7 +504,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
             {/* Attribution: Fuentes de revenue */}
             {sourceData.length > 0 && (
               <div className="glass-panel rounded-xl p-5">
-                <h3 className="text-[11px] font-medium text-white/35 uppercase tracking-[0.1em] mb-5">Fuentes de facturación</h3>
+                <h3 className="text-[11px] font-medium text-white/35 uppercase tracking-[0.1em] mb-5">{t("sidebar.sources")}</h3>
                 <div className="space-y-4">
                   {sourceData.map((s, i) => (
                     <div key={s.key}>
@@ -511,7 +516,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                           />
                           <span className="text-[11px] text-white/60">{s.label}</span>
                         </div>
-                        <span className="text-[11px] font-light text-white">{fmtMoney(s.amount)}</span>
+                        <span className="text-[11px] font-light text-white">{fmtMoney(s.amount, locale)}</span>
                       </div>
                       <div className="h-[3px] rounded-full overflow-hidden bg-white/[0.05]">
                         <div
@@ -529,7 +534,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
             {/* Top contenido */}
             {activeSales.filter(s => s.reels).length > 0 && (
               <div className="glass-panel rounded-xl p-5">
-                <h3 className="text-[11px] font-medium text-white/35 uppercase tracking-[0.1em] mb-4">Top contenido</h3>
+                <h3 className="text-[11px] font-medium text-white/35 uppercase tracking-[0.1em] mb-4">{t("sidebar.topContent")}</h3>
                 <div className="space-y-3">
                   {activeSales
                     .filter(s => s.reels)
@@ -545,11 +550,11 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-light text-white/55 truncate leading-snug">
-                            {s.reels?.caption?.slice(0, 40) || "Sin título"}
+                            {s.reels?.caption?.slice(0, 40) || t("table.noTitle")}
                           </p>
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-[11px] font-light" style={{ color: "#4BCEAF" }}>
-                              {fmtMoney(s.amount_total)}
+                              {fmtMoney(s.amount_total, locale)}
                             </span>
                             <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${STATUS_COLOR[s.payment_status] ?? ""}`}>
                               {STATUS_LABEL[s.payment_status]}

@@ -139,6 +139,64 @@
       "noCaption": "Sin caption"
     }
   },
+  "ventas": {
+    "title": "Ventas",
+    "subtitle": "Facturación generada desde tu contenido.",
+    "newSale": "Nueva venta",
+    "kpis": {
+      "billing": "Facturación",
+      "billingSub": "{count, plural, one {# venta} other {# ventas}}",
+      "collected": "Efectivo Recolectado",
+      "collectedSub": "{pct}% del total",
+      "pending": "Por Cobrar",
+      "pendingSub": "pendiente de cobro"
+    },
+    "chart": {
+      "title": "Facturación mensual",
+      "billing": "Facturación",
+      "collected": "Efectivo recolectado"
+    },
+    "table": {
+      "title": "Historial de ventas",
+      "empty": "No hay ventas registradas aún",
+      "newSaleCta": "+ Nueva venta",
+      "headerSource": "Fuente / Cliente",
+      "headerDate": "Fecha",
+      "headerBilling": "Facturación",
+      "headerCollected": "Recolectado",
+      "headerType": "Tipo",
+      "headerStatus": "Estado",
+      "missing": "falta {amount}",
+      "fallbackSale": "Venta",
+      "addPayment": "Agregar pago",
+      "edit": "Editar venta",
+      "delete": "Eliminar venta",
+      "deleteConfirm": "¿Eliminar esta venta?",
+      "noTitle": "Sin título"
+    },
+    "sidebar": {
+      "sources": "Fuentes de facturación",
+      "topContent": "Top contenido"
+    },
+    "status": {
+      "collected": "Cobrado",
+      "cancelled": "Cancelado",
+      "pending": "Pendiente"
+    },
+    "paymentType": {
+      "full": "Pago completo",
+      "cuotas": "Cuotas",
+      "deposito": "Depósito/Seña"
+    },
+    "source": {
+      "reel": "Reel",
+      "historia": "Historia",
+      "post": "Post",
+      "link_bio": "Link en Bio",
+      "cta_bio": "CTA Bio",
+      "otro": "Otro"
+    }
+  },
   "adnBanner": {
     "pendingPrefix": "Tu",
     "pendingTitle": "ADN de Comunicación",

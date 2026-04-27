@@ -139,6 +139,64 @@
       "noCaption": "No caption"
     }
   },
+  "ventas": {
+    "title": "Sales",
+    "subtitle": "Revenue generated from your content.",
+    "newSale": "New sale",
+    "kpis": {
+      "billing": "Billing",
+      "billingSub": "{count, plural, one {# sale} other {# sales}}",
+      "collected": "Cash Collected",
+      "collectedSub": "{pct}% of total",
+      "pending": "Pending",
+      "pendingSub": "pending collection"
+    },
+    "chart": {
+      "title": "Monthly billing",
+      "billing": "Billing",
+      "collected": "Cash collected"
+    },
+    "table": {
+      "title": "Sales history",
+      "empty": "No sales recorded yet",
+      "newSaleCta": "+ New sale",
+      "headerSource": "Source / Client",
+      "headerDate": "Date",
+      "headerBilling": "Billing",
+      "headerCollected": "Collected",
+      "headerType": "Type",
+      "headerStatus": "Status",
+      "missing": "{amount} missing",
+      "fallbackSale": "Sale",
+      "addPayment": "Add payment",
+      "edit": "Edit sale",
+      "delete": "Delete sale",
+      "deleteConfirm": "Delete this sale?",
+      "noTitle": "Untitled"
+    },
+    "sidebar": {
+      "sources": "Revenue sources",
+      "topContent": "Top content"
+    },
+    "status": {
+      "collected": "Collected",
+      "cancelled": "Cancelled",
+      "pending": "Pending"
+    },
+    "paymentType": {
+      "full": "Full payment",
+      "cuotas": "Installments",
+      "deposito": "Deposit"
+    },
+    "source": {
+      "reel": "Reel",
+      "historia": "Story",
+      "post": "Post",
+      "link_bio": "Bio link",
+      "cta_bio": "Bio CTA",
+      "otro": "Other"
+    }
+  },
   "adnBanner": {
     "pendingPrefix": "Your",
     "pendingTitle": "Communication DNA",
