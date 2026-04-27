@@ -11,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { LLMTool } from './llm.service';
 import { getAdnData } from './adn-progress.service';
 import { callSpecialist, SPECIALIST_DESCRIPTIONS, type SpecialistDomain, type SpecialistResult } from './arko-ai-specialists';
+import type { PromptLocale } from './arko-ai-prompts';
 
 // ─── Workspace snapshot cache ────────────────────────────────────────────────
 // Caches ADN + benchmarks + top topic clusters so we don't re-query on every message.
@@ -385,7 +386,8 @@ export async function executeArkoTool(
   workspaceId: string,
   toolName: string,
   input: Record<string, unknown>,
-  adnContext?: string
+  adnContext?: string,
+  locale: PromptLocale = 'es'
 ): Promise<ArkoToolResult> {
   switch (toolName) {
     case 'query_reels': {
@@ -427,7 +429,8 @@ export async function executeArkoTool(
         specialist,
         question,
         contextData,
-        adnContext ?? '_ADN no disponible._'
+        adnContext ?? (locale === 'en' ? '_DNA not available._' : '_ADN no disponible._'),
+        locale
       );
       return {
         result: JSON.stringify({

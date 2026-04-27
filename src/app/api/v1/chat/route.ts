@@ -456,7 +456,7 @@ export async function POST(request: Request) {
 
             const toolResults = await Promise.all(
               toolCalls.map(async (tc) => {
-                const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext);
+                const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext, userLocale);
                 // Emit tool_done when each tool finishes
                 controller.enqueue(sseEvent({
                   type: 'tool_done',
