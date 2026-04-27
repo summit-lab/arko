@@ -1,0 +1,28 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "processing": "Processing…",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "yes": "Yes",
+    "no": "No",
+    "error": "Error",
+    "retry": "Retry"
+  },
+  "settings": {
+    "language": {
+      "label": "Language",
+      "description": "Interface language and language for AI generations triggered by you.",
+      "es": "Spanish",
+      "en": "English",
+      "saved": "Language updated"
+    }
+  }
+}

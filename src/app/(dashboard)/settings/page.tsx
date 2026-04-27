@@ -3,6 +3,7 @@ import Link from "next/link";
 import { User, Building2, Shield, Instagram, Mail, Calendar, Globe, Palette } from "lucide-react";
 import { DisconnectMetaButton } from "@/components/meta/DisconnectMetaButton";
 import { LogoUpload } from "@/components/settings/LogoUpload";
+import { LanguageToggle } from "@/components/settings/LanguageToggle";
 import { updateBranding } from "./actions";
 import { cookies } from "next/headers";
 
@@ -140,6 +141,9 @@ export default async function SettingsPage() {
           <span className="text-xs text-muted-foreground group-hover:text-amber-500/70 dark:group-hover:text-amber-400/70 transition-colors">Ir al panel →</span>
         </Link>
       )}
+
+      {/* Language */}
+      <LanguageToggle />
 
       {/* Branding */}
       <div className="glass-panel rounded-xl p-6 space-y-5">

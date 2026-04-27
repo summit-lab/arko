@@ -1,0 +1,28 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "processing": "Procesando…",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "search": "Buscar",
+    "yes": "Sí",
+    "no": "No",
+    "error": "Error",
+    "retry": "Reintentar"
+  },
+  "settings": {
+    "language": {
+      "label": "Idioma",
+      "description": "Idioma de la interfaz y de las generaciones de IA disparadas por vos.",
+      "es": "Español",
+      "en": "Inglés",
+      "saved": "Idioma actualizado"
+    }
+  }
+}
