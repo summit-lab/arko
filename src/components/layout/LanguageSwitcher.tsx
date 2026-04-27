@@ -25,7 +25,18 @@ const FLAGS: Record<Locale, { src: string; alt: string }> = {
 };
 
 function writeCookieClientSide(next: Locale) {
-  document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+  // Build conditionally — Secure only on HTTPS contexts. On http://localhost,
+  // setting Secure would cause the browser to silently reject the cookie.
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  const parts = [
+    `${LOCALE_COOKIE}=${next}`,
+    `path=/`,
+    `max-age=${60 * 60 * 24 * 365}`,
+    `SameSite=Lax`,
+  ];
+  if (isHttps) parts.push("Secure");
+  document.cookie = parts.join("; ");
+  console.log("[i18n] cookie written client-side:", document.cookie);
 }
 
 export function LanguageSwitcher({ mode = "app" }: LanguageSwitcherProps) {
@@ -36,24 +47,27 @@ export function LanguageSwitcher({ mode = "app" }: LanguageSwitcherProps) {
 
   function setLocale(next: Locale) {
     if (next === active || isPending) return;
+    console.log(`[i18n] setLocale start — current=${currentLocale}, next=${next}, mode=${mode}`);
     setOptimistic(next);
 
+    // Write cookie FIRST so it's definitely in the browser before any reload.
+    writeCookieClientSide(next);
+
     if (mode === "auth") {
-      writeCookieClientSide(next);
+      console.log("[i18n] auth mode — reloading without server action");
       window.location.reload();
       return;
     }
 
     startTransition(async () => {
+      console.log("[i18n] calling updateUserLocale server action");
       const res = await updateUserLocale(next);
+      console.log("[i18n] server action returned:", res);
       if (!res.ok) {
         setOptimistic(null);
         return;
       }
-      // Write the cookie client-side too — belt-and-suspenders, see comment
-      // on LanguageSwitcherProps. Then hard reload to ensure getRequestConfig
-      // reads the new cookie on the next request.
-      writeCookieClientSide(next);
+      console.log("[i18n] cookie before reload:", document.cookie);
       window.location.reload();
     });
   }
