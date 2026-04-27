@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Mail, Copy, Check, Loader2 } from "lucide-react";
 import { createInvitation } from "./actions";
+import type { Locale } from "@/i18n/config";
 
 export function InvitationForm() {
   const t = useTranslations("admin.invitations.form");
@@ -11,6 +12,7 @@ export function InvitationForm() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [defaultLanguage, setDefaultLanguage] = useState<Locale>("es");
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -42,31 +44,64 @@ export function InvitationForm() {
         {t("title")}
       </h3>
 
-      <form action={handleSubmit} className="flex items-end gap-4">
-        <div className="flex-1">
-          <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
-            {t("emailLabel")}
-          </label>
-          <div className="relative">
-            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-            <input
-              name="email"
-              type="email"
-              required
-              placeholder={t("emailPlaceholder")}
-              autoComplete="off"
-              className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-muted-foreground outline-none focus:border-amber-400/30 transition-colors autofill-dark"
-            />
+      <form action={handleSubmit} className="space-y-4">
+        <div className="flex items-end gap-4">
+          <div className="flex-1">
+            <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
+              {t("emailLabel")}
+            </label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+              <input
+                name="email"
+                type="email"
+                required
+                placeholder={t("emailPlaceholder")}
+                autoComplete="off"
+                className="w-full h-[42px] pl-10 pr-4 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] text-white/80 placeholder:text-muted-foreground outline-none focus:border-amber-400/30 transition-colors autofill-dark"
+              />
+            </div>
           </div>
+          <div>
+            <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
+              {t("languageLabel")}
+            </label>
+            <input type="hidden" name="default_language" value={defaultLanguage} />
+            <div className="inline-flex items-center h-[42px] rounded-lg bg-white/[0.04] border border-white/[0.08] p-0.5">
+              <button
+                type="button"
+                onClick={() => setDefaultLanguage("es")}
+                className={`h-[34px] px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer ${
+                  defaultLanguage === "es"
+                    ? "bg-white/[0.08] text-white"
+                    : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                🇦🇷 ES
+              </button>
+              <button
+                type="button"
+                onClick={() => setDefaultLanguage("en")}
+                className={`h-[34px] px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer ${
+                  defaultLanguage === "en"
+                    ? "bg-white/[0.08] text-white"
+                    : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                🇬🇧 EN
+              </button>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="h-[42px] px-6 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-[13px] font-medium hover:bg-amber-400/15 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+            {t("submit")}
+          </button>
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="h-[42px] px-6 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-[13px] font-medium hover:bg-amber-400/15 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-          {t("submit")}
-        </button>
+        <p className="text-[11px] text-white/30">{t("languageHint")}</p>
       </form>
 
       {error && (

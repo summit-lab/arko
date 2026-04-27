@@ -187,6 +187,8 @@
         "title": "Generar Invitación",
         "emailLabel": "Email del cliente",
         "emailPlaceholder": "cliente@ejemplo.com",
+        "languageLabel": "Idioma por defecto",
+        "languageHint": "El usuario lo puede cambiar después desde Settings.",
         "submit": "Generar Link",
         "copy": "Copiar",
         "copied": "Copiado"

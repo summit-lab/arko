@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, User, Wifi, Cpu, DollarSign, Zap, Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { AdnDetailPanel } from "./AdnDetailPanel";
+import { ClientLanguagePicker } from "./ClientLanguagePicker";
+import { isLocale, type Locale } from "@/i18n/config";
 
 interface UsageRow {
   id: string;
@@ -71,7 +73,7 @@ export default async function ClientDetailPage({
     { data: integrationRows },
   ] = await Promise.all([
     supabase.from("meta_connections").select("status, ig_username, page_name, created_at").eq("workspace_id", id).limit(1),
-    supabase.from("profiles").select("id, email, full_name, role, created_at").eq("id", workspace.owner_id).single(),
+    supabase.from("profiles").select("id, email, full_name, role, created_at, language").eq("id", workspace.owner_id).single(),
     supabase.from("workspace_profile").select("business_description, brand_persona, avatar_description, target_audience, main_offer").eq("workspace_id", id).maybeSingle(),
     supabase.from("workspace_strategies").select("platform, what_tested, test_results, conclusions, current_strategy, formats_and_quantity, why_it_will_work").eq("workspace_id", id),
     supabase.from("workspace_market").select("industry_state, audience_exposure, market_beliefs, burned_topics, current_trends, competitiveness, differentiator").eq("workspace_id", id).maybeSingle(),
@@ -437,6 +439,12 @@ export default async function ClientDetailPage({
               <p className="text-[10px] text-white/20 mt-1">
                 Registrado {profile ? new Date(profile.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
               </p>
+              {profile?.id && (
+                <ClientLanguagePicker
+                  userId={profile.id}
+                  initialLanguage={(isLocale(profile.language) ? profile.language : "es") as Locale}
+                />
+              )}
             </div>
 
             {/* Meta connection */}
