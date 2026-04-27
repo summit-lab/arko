@@ -2,15 +2,22 @@
  * adn-prompts.ts
  * System prompt and tool definitions for the ADN de Comunicación onboarding chat.
  * Arko AI guides the user through 4 sections, extracting structured data via tool_use.
+ *
+ * Like the main Moka prompt, the framework body stays in Spanish (canonical
+ * source content) and only the output voice + welcome message are localized.
  */
 
 import type { LLMTool } from './llm.service';
 import type { AdnProgress } from './adn-progress.service';
+import type { PromptLocale } from './arko-ai-prompts';
 
 // ─── System Prompt Builder ───────────────────────────────────────────────────
 
-export function buildAdnSystemPrompt(progress: AdnProgress): string {
-  return `Sos Moka, el asistente de inteligencia de marketing de Arko Intelligence Suite. Estás guiando al usuario a través del onboarding para construir su "ADN de Comunicación" — un perfil profundo de su marca, estrategia y mercado que vas a usar para darle insights personalizados.
+export function buildAdnSystemPrompt(progress: AdnProgress, locale: PromptLocale = 'es'): string {
+  const langDirective = locale === 'en'
+    ? `## Output language\n**You MUST conduct this onboarding in clear, natural English.** All your messages to the user must be in English. The framework below is written in Spanish (canonical source); translate every concept on the fly when speaking to the user. Tool calls and stored field values MUST also be in English (so the user's DNA records are stored in their language).\n\n---\n\n`
+    : '';
+  return `${langDirective}Sos Moka, el asistente de inteligencia de marketing de Arko Intelligence Suite. Estás guiando al usuario a través del onboarding para construir su "ADN de Comunicación" — un perfil profundo de su marca, estrategia y mercado que vas a usar para darle insights personalizados.
 
 ## Tu personalidad
 - Profesional pero cercano, como un consultor de marketing senior
@@ -163,7 +170,7 @@ function formatProgress(progress: AdnProgress): string {
 
 // ─── Welcome Message ─────────────────────────────────────────────────────────
 
-export const ADN_WELCOME_MESSAGE = `¡Hola! 👋 Soy Moka, tu asistente de inteligencia de marketing.
+export const ADN_WELCOME_MESSAGE_ES = `¡Hola! 👋 Soy Moka, tu asistente de inteligencia de marketing.
 
 Antes de que puedas acceder a todas las herramientas de análisis, necesito conocer a fondo tu marca, tu estrategia y tu mercado. A esto le llamamos tu **ADN de Comunicación**.
 
@@ -175,6 +182,26 @@ Vamos a hacer esto como una conversación — yo te pregunto, vos me contestás,
 4. **Tu Marca** — Lo que te hace único
 
 ¿Arrancamos? Contame: **¿a qué te dedicás?**`;
+
+export const ADN_WELCOME_MESSAGE_EN = `Hi! 👋 I'm Moka, your marketing intelligence assistant.
+
+Before you can access the full analysis toolkit, I need to get to know your brand, strategy, and market in depth. We call this your **Communication DNA**.
+
+We'll do this as a conversation — I ask, you answer, and if I need more detail I'll ask. There are 4 sections:
+
+1. **Your Business** — your business, brand, and offer
+2. **Your Content** — strategy on Instagram and YouTube
+3. **Your Market** — your industry and competition
+4. **Your Brand** — what makes you unique
+
+Ready? Tell me: **what do you do?**`;
+
+/** Backwards-compatible alias — points to the Spanish welcome message. */
+export const ADN_WELCOME_MESSAGE = ADN_WELCOME_MESSAGE_ES;
+
+export function getAdnWelcomeMessage(locale: PromptLocale): string {
+  return locale === 'en' ? ADN_WELCOME_MESSAGE_EN : ADN_WELCOME_MESSAGE_ES;
+}
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
 
