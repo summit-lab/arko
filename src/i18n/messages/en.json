@@ -139,6 +139,99 @@
       "noCaption": "No caption"
     }
   },
+  "ads": {
+    "title": "Ads Intelligence",
+    "subtitle": "Meta Ads analysis: quantitative and qualitative data.",
+    "noWorkspace": "Workspace not found.",
+    "sync": {
+      "button": "Sync Ads",
+      "syncing": "Syncing…",
+      "starting": "Syncing Meta Ads data…",
+      "completed": "Sync completed. Refreshing…",
+      "error": "Sync error. Please try again.",
+      "connectionError": "Connection error."
+    },
+    "connection": {
+      "connected": "Meta Ads connected",
+      "notConnected": "Meta Ads not connected",
+      "lastSync": "Last sync:",
+      "never": "Never",
+      "justNow": "Just now",
+      "minutesAgo": "{n}m ago",
+      "hoursAgo": "{n}h ago",
+      "daysAgo": "{n}d ago"
+    },
+    "banners": {
+      "noData": "No data — sync to load metrics",
+      "needsSync": "Sync to enable date filtering and trends"
+    },
+    "kpis": {
+      "spendTotal": "Total Spend",
+      "impressions": "Impressions",
+      "clicks": "Clicks",
+      "ctrAvg": "Avg CTR",
+      "cpmAvg": "Avg CPM",
+      "videoPlays": "Video Plays"
+    },
+    "performance": {
+      "title": "Performance over time",
+      "subtitle": "Spend, clicks, and CPM",
+      "subtitleNoData": "Spend, clicks, and CPM — sync to see the chart",
+      "loading": "Loading…",
+      "noDailyData": "No daily data available. Sync to generate the chart."
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "count": "{n} campaigns",
+      "headerCampaign": "Campaign",
+      "headerSpend": "Spend",
+      "headerImpressions": "Impressions",
+      "headerClicks": "Clicks",
+      "headerCtr": "CTR",
+      "headerCpm": "CPM",
+      "headerPlays": "Plays",
+      "empty": "No campaigns in this period",
+      "campaignNamed": "Campaign {n} · {name}",
+      "campaignFallback": "Campaign {id}",
+      "adsAndSets": "{ads} ads · {sets} ad sets"
+    },
+    "campaignDetail": {
+      "clicksPerAd": "Clicks per ad",
+      "conversionFunnel": "Conversion funnel",
+      "keyMetrics": "Key metrics",
+      "adsInCampaign": "Ads in this campaign",
+      "impressions": "Impressions",
+      "clicks": "Clicks",
+      "videoPlays": "Video plays",
+      "ctrLabel": "{ctr}% CTR",
+      "videoFromClicks": "{pct}% of clicks watch the video",
+      "metricCpm": "CPM",
+      "metricCtr": "CTR",
+      "metricReach": "Reach",
+      "metricVideoPlays": "Video Plays"
+    },
+    "geo": {
+      "title": "CTR by campaign",
+      "noData": "No data",
+      "summary": "Period summary",
+      "reachTotal": "Total Reach",
+      "spendTotal": "Total Spend",
+      "ctrAvg": "Avg CTR",
+      "cpmAvg": "Avg CPM"
+    },
+    "ranking": {
+      "title": "Creative ranking",
+      "subtitle": "Sorted by CTR · all ads",
+      "ctrHigh": "CTR ≥ 4%",
+      "ctrMid": "CTR 2.5–4%",
+      "ctrLow": "CTR < 2.5%",
+      "topBadge": "Top",
+      "metricCtr": "CTR",
+      "metricClicks": "Clicks",
+      "metricPlays": "Plays",
+      "spend": "Spend"
+    }
+  },
   "ventas": {
     "title": "Sales",
     "subtitle": "Revenue generated from your content.",
