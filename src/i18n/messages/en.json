@@ -486,6 +486,80 @@
       "errorUpdate": "Error updating"
     }
   },
+  "dashboardCharts": {
+    "reachTitle": "Reach & Visibility",
+    "reachLegend": "Reach",
+    "impressionsLegend": "Impressions",
+    "engagementTitle": "Interactions",
+    "likesLegend": "Likes",
+    "savesLegend": "Saves",
+    "commentsLegend": "Comments",
+    "noReachData": "No reach data",
+    "noEngagementData": "No engagement data"
+  },
+  "contentCalendar": {
+    "title": "Content Calendar",
+    "subtitleSingular": "{count} post in {month}",
+    "subtitlePlural": "{count} posts in {month}",
+    "totalSingular": "{count} post in {month}",
+    "totalPlural": "{count} posts in {month}",
+    "filters": {
+      "all": "All",
+      "reels": "Reels",
+      "posts": "Posts",
+      "historias": "Stories"
+    },
+    "filterDisabled": "No content of this type in the last 90 days",
+    "story": "Story",
+    "noTitle": "Untitled",
+    "publicationsOn": "{day} {month} {year} — {count} posts",
+    "views": "views",
+    "legend": {
+      "organicReel": "Organic reel",
+      "adsReel": "Reel with ads",
+      "post": "Post/Carousel",
+      "story": "Story"
+    },
+    "type": {
+      "story": "Story",
+      "post": "Post",
+      "adsReel": "Reel with ads",
+      "organicReel": "Organic reel"
+    },
+    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "daysShort": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+  },
+  "dateFilter": {
+    "presets": {
+      "ayer": "Yesterday",
+      "7d": "7 days",
+      "14d": "14 days",
+      "30d": "30 days",
+      "90d": "90 days",
+      "este_mes": "This month",
+      "mes_anterior": "Last month",
+      "custom": "Custom"
+    },
+    "rangeLabel": {
+      "ayer": "Yesterday",
+      "7d": "Last 7 days",
+      "14d": "Last 14 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days",
+      "este_mes": "This month",
+      "mes_anterior": "Last month"
+    },
+    "calendar": {
+      "back": "Back",
+      "fromLabel": "Start",
+      "toLabel": "End",
+      "cancel": "Cancel",
+      "apply": "Apply",
+      "selectFrom": "Select start date",
+      "selectTo": "Select end date",
+      "daysShort": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    }
+  },
   "adnBanner": {
     "pendingPrefix": "Your",
     "pendingTitle": "Communication DNA",

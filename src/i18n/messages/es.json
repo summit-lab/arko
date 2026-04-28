@@ -486,6 +486,80 @@
       "errorUpdate": "Error al actualizar"
     }
   },
+  "dashboardCharts": {
+    "reachTitle": "Alcance & Visibilidad",
+    "reachLegend": "Alcance",
+    "impressionsLegend": "Impresiones",
+    "engagementTitle": "Interacciones",
+    "likesLegend": "Me gusta",
+    "savesLegend": "Guardados",
+    "commentsLegend": "Comentarios",
+    "noReachData": "Sin datos de alcance",
+    "noEngagementData": "Sin datos de engagement"
+  },
+  "contentCalendar": {
+    "title": "Calendario de Contenido",
+    "subtitleSingular": "{count} publicación en {month}",
+    "subtitlePlural": "{count} publicaciones en {month}",
+    "totalSingular": "{count} publicación en {month}",
+    "totalPlural": "{count} publicaciones en {month}",
+    "filters": {
+      "all": "Todo",
+      "reels": "Reels",
+      "posts": "Posts",
+      "historias": "Historias"
+    },
+    "filterDisabled": "No hay contenido de este tipo en los últimos 90 días",
+    "story": "Historia",
+    "noTitle": "Sin título",
+    "publicationsOn": "{day} de {month} {year} — {count} publicaciones",
+    "views": "vistas",
+    "legend": {
+      "organicReel": "Reel orgánico",
+      "adsReel": "Reel con ads",
+      "post": "Post/Carrusel",
+      "story": "Historia"
+    },
+    "type": {
+      "story": "Historia",
+      "post": "Post",
+      "adsReel": "Reel con ads",
+      "organicReel": "Reel orgánico"
+    },
+    "months": ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
+    "daysShort": ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"]
+  },
+  "dateFilter": {
+    "presets": {
+      "ayer": "Ayer",
+      "7d": "7 días",
+      "14d": "14 días",
+      "30d": "30 días",
+      "90d": "90 días",
+      "este_mes": "Este mes",
+      "mes_anterior": "Mes anterior",
+      "custom": "Personalizado"
+    },
+    "rangeLabel": {
+      "ayer": "Ayer",
+      "7d": "Últimos 7 días",
+      "14d": "Últimos 14 días",
+      "30d": "Últimos 30 días",
+      "90d": "Últimos 90 días",
+      "este_mes": "Este mes",
+      "mes_anterior": "Mes anterior"
+    },
+    "calendar": {
+      "back": "Volver",
+      "fromLabel": "Inicio",
+      "toLabel": "Fin",
+      "cancel": "Cancelar",
+      "apply": "Aplicar",
+      "selectFrom": "Seleccioná fecha inicio",
+      "selectTo": "Seleccioná fecha fin",
+      "daysShort": ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"]
+    }
+  },
   "adnBanner": {
     "pendingPrefix": "Tu",
     "pendingTitle": "ADN de Comunicación",

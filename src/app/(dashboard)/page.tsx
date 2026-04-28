@@ -1089,10 +1089,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                       <span className={`text-[12px] font-medium ${salesMetrics.billing.change.up ? "text-emerald-400" : "text-red-400"}`}>
                         {salesMetrics.billing.change.text}
                       </span>
-                      <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
+                      <span className="text-[11px] text-white/25 ml-1">{t("vsPrevious")}</span>
                     </>
                   ) : (
-                    <span className="text-[11px] text-white/20">sin datos previos</span>
+                    <span className="text-[11px] text-white/20">{t("noPrevious")}</span>
                   )}
                 </div>
               </div>
@@ -1117,10 +1117,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                       <span className={`text-[12px] font-medium ${salesMetrics.collected.change.up ? "text-emerald-400" : "text-red-400"}`}>
                         {salesMetrics.collected.change.text}
                       </span>
-                      <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
+                      <span className="text-[11px] text-white/25 ml-1">{t("vsPrevious")}</span>
                     </>
                   ) : (
-                    <span className="text-[11px] text-white/20">sin datos previos</span>
+                    <span className="text-[11px] text-white/20">{t("noPrevious")}</span>
                   )}
                 </div>
               </div>
