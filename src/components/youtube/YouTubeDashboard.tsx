@@ -10,7 +10,7 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import {
-  Eye, ThumbsUp, MessageSquare, Clock, ChevronRight, Play,
+  Eye, ThumbsUp, MessageSquare, Clock, ChevronRight, ChevronDown, Play,
   RefreshCw, TrendingUp, Users, LayoutDashboard, Video,
   ArrowUpRight, ArrowDownRight, ExternalLink,
 } from "lucide-react";
@@ -1337,16 +1337,19 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
           <h3 className="text-[14px] font-light text-foreground/70">
             {t("videosTab.tableTitle")} <span className="text-muted-foreground ml-1 text-[12px]">{videos.length}</span>
           </h3>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="bg-popover text-popover-foreground border border-border rounded-lg px-3 py-1.5 text-[11px] outline-none cursor-pointer"
-          >
-            <option value="recent">{t("videosTab.sort.recent")}</option>
-            <option value="views">{t("videosTab.sort.views")}</option>
-            <option value="likes">{t("videosTab.sort.likes")}</option>
-            <option value="engagement">{t("videosTab.sort.engagement")}</option>
-          </select>
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="appearance-none bg-accent/60 text-foreground border border-border rounded-lg pl-3 pr-8 py-1.5 text-[11px] outline-none cursor-pointer hover:bg-accent transition-colors focus:border-foreground/30"
+            >
+              <option value="recent">{t("videosTab.sort.recent")}</option>
+              <option value="views">{t("videosTab.sort.views")}</option>
+              <option value="likes">{t("videosTab.sort.likes")}</option>
+              <option value="engagement">{t("videosTab.sort.engagement")}</option>
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+          </div>
         </div>
 
         {/* Column headers */}

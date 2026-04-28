@@ -2,9 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import Image from "next/image";
 import { Check, Loader2, Languages } from "lucide-react";
 import { updateUserLocale } from "@/i18n/actions";
 import { LOCALES, type Locale } from "@/i18n/config";
+
+const LOCALE_FLAGS: Record<Locale, string> = {
+  es: "/Bandera_de_España.svg.png",
+  en: "/usaflag.png",
+};
 
 export function LanguageToggle() {
   const t = useTranslations("settings.language");
@@ -53,10 +59,19 @@ export function LanguageToggle() {
               aria-pressed={isActive}
               className={`flex-1 px-4 py-2.5 rounded-lg text-sm transition-all border cursor-pointer disabled:cursor-default flex items-center justify-center gap-2 ${
                 isActive
-                  ? "bg-white/[0.10] border-white/[0.18] text-foreground"
-                  : "bg-white/[0.04] border-white/[0.08] text-muted-foreground hover:bg-white/[0.06] hover:border-white/[0.12]"
+                  ? "bg-white/[0.10] border-border text-foreground"
+                  : "bg-white/[0.04] border-border/60 text-muted-foreground hover:bg-white/[0.06] hover:border-border"
               }`}
             >
+              <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full ring-1 ring-border">
+                <Image
+                  src={LOCALE_FLAGS[loc]}
+                  alt=""
+                  fill
+                  sizes="20px"
+                  className="object-cover"
+                />
+              </span>
               {isPending && !isActive ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : isActive ? (

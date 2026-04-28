@@ -89,14 +89,14 @@ export function LanguageSwitcher({ mode = "app" }: LanguageSwitcherProps) {
         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
       ) : (
         <>
-          <span className="relative h-3.5 w-3.5 rounded-full overflow-hidden shrink-0">
+          <span className="relative h-4 w-4 rounded-full overflow-hidden shrink-0 ring-1 ring-border/40">
             <Image
               src={flag.src}
               alt=""
               fill
-              sizes="14px"
+              sizes="16px"
+              quality={95}
               className="object-cover"
-              unoptimized
             />
           </span>
           <span className="text-[10px] font-semibold tracking-wide text-foreground">

@@ -235,6 +235,136 @@
       "pauseHint": "You can pause and resume whenever you want."
     }
   },
+  "settingsAdn": {
+    "title": "Brand DNA",
+    "subtitle": "Your communication profile and strategy. Edit each section directly.",
+    "complete": "Complete",
+    "inProgress": "In progress"
+  },
+  "settingsMetas": {
+    "title": "Goals",
+    "subtitle": "Monthly content and growth targets — {month}",
+    "metricLabels": {
+      "views": "Monthly views",
+      "followers": "New followers",
+      "engagement_rate": "Engagement Rate",
+      "likes": "Monthly likes",
+      "saves": "Monthly saves",
+      "reach": "Monthly reach"
+    },
+    "editor": {
+      "active": "Active goals",
+      "empty": "No goals configured for this month",
+      "addGoal": "Add goal",
+      "save": "Save",
+      "targetPlaceholder": "Target",
+      "selectMetric": "Select metric...",
+      "noMetricsAvailable": "No metrics available"
+    }
+  },
+  "settingsIntegrations": {
+    "title": "Integrations",
+    "subtitle": "Connect your Instagram and YouTube accounts.",
+    "instagram": {
+      "header": "Instagram",
+      "noUsername": "(no username)",
+      "connectedSince": "Connected since {date}",
+      "igIdLabel": "IG ID",
+      "noAccount": "No Instagram account connected.",
+      "connectAccount": "Connect account"
+    },
+    "youtube": {
+      "header": "YouTube",
+      "noTitle": "(untitled channel)",
+      "connectedSince": "Connected since {date}",
+      "syncing": "syncing",
+      "subscribers": "{count} subscribers",
+      "noChannel": "No YouTube channel connected.",
+      "connectChannel": "Connect channel"
+    }
+  },
+  "adnEditor": {
+    "saving": "Saving…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "emptyValue": "Empty — click to edit",
+    "clickToEdit": "Click to edit",
+    "completeWithMoka": "Complete with Moka AI →",
+    "addCompetitorsWithMoka": "Add competitors with Moka AI →",
+    "noStrategies": "No strategies yet. Complete the DNA chat to add them.",
+    "noCompetitors": "No competitors yet.",
+    "noReferences": "No references yet.",
+    "sections": {
+      "profile": "Brand Profile",
+      "platforms": "Platform Strategy",
+      "market": "Market & Competition",
+      "brand": "Brand & Language",
+      "competitors": "Competitors",
+      "references": "Brand References"
+    },
+    "fields": {
+      "businessDescription": {
+        "label": "Business description",
+        "placeholder": "What do you do and who do you help?"
+      },
+      "brandPersona": {
+        "label": "Brand persona",
+        "placeholder": "What's your brand voice and tone?"
+      },
+      "avatar": {
+        "label": "Ideal customer avatar",
+        "placeholder": "Who's your ideal customer? Describe them in detail."
+      },
+      "mainOffer": {
+        "label": "Main offer",
+        "placeholder": "What's your main product or service?"
+      },
+      "targetAudience": {
+        "label": "Target audience",
+        "placeholder": "Who's your content for?"
+      },
+      "industryState": {
+        "label": "Market state",
+        "placeholder": "What's the state of your industry?"
+      },
+      "differentiator": {
+        "label": "Differentiator",
+        "placeholder": "What sets you apart from competitors?"
+      },
+      "marketBeliefs": {
+        "label": "Market beliefs",
+        "placeholder": "What does your audience believe about your industry?"
+      },
+      "burnedTopics": {
+        "label": "Burned topics",
+        "placeholder": "What topics no longer work in your niche?"
+      },
+      "currentTrends": {
+        "label": "Current trends",
+        "placeholder": "What trends are working right now?"
+      },
+      "whyChosen": {
+        "label": "Why they choose you",
+        "placeholder": "Why do your clients choose you over competitors?"
+      },
+      "nicheLanguage": {
+        "label": "Niche language",
+        "placeholder": "Words and phrases specific to your community"
+      },
+      "nicheTools": {
+        "label": "Niche tools",
+        "placeholder": "What tools does your audience use?"
+      },
+      "filteringWords": {
+        "label": "Filtering words",
+        "placeholder": "Words you use to attract or repel your audience"
+      },
+      "newMechanisms": {
+        "label": "New mechanisms",
+        "placeholder": "What new or unique approach do you have?"
+      }
+    }
+  },
   "arkoChat": {
     "thinking": "Thinking...",
     "errors": {
@@ -869,7 +999,7 @@
     "video": {"untitled": "Untitled","viewsCount": "{count} views","backToVideos": "Back to videos","publishedOn": "Published {date}","rankInPeriod": "#{rank} in the period","viewOnYouTube": "View on YouTube","tabs": {"overview": "Overview","alcance": "Reach","engagement": "Engagement"},"kpi": {"watchTimeEst": "Watch time est.","watchTimeFormula": "duration × views / 3600","hoursValue": "{hours} hrs","viewsAboveAvg": "+{delta} vs average","viewsBelowAvg": "-{delta} vs average","percentOfViews": "{pct}% of views","likeRate": "Like rate","commentRate": "Comment rate"},"compareTitle": "This video vs. top of the period","barHighlight": "Highlighted bar = this video","performanceVsAvg": "Performance vs. channel average","vsAvg": "{pct}% vs avg","avgLabel": "avg","viewsEvolution": {"title": "Views evolution","subtitle": "{count} days of data · since publication","total": "{count} total views"}},
     "alcance": {"funnelTitle": "Audience conversion","totalEngagement": "Total engagement","likeRateConnector": "{pct}% like rate","commentRateConnector": "{pct}% comment rate","engagementConnector": "{pct}% engagement","vsAvg": "vs {pct}% average"},
     "engagement": {"rateTitle": "Engagement rate","formula": "(Likes + Comments) / Views","deltaVsAvg": "{pp}pp vs channel average ({avg}%)","breakdownTitle": "Interaction breakdown","metricsVsAvg": "Metrics vs. channel average","channelAverage": "Channel average: {pct}%","ppAbove": "▲ {pp}pp above","ppBelow": "▼ {pp}pp below","rankByViews": "Ranking by views","rankByEngagement": "Ranking by engagement","outOfVideos": "of {count} videos in the period","outOfVideosWithViews": "of {count} videos with views"},
-    "videosTab": {"tableTitle": "Videos","summary": {"videos": "Videos","avgViews": "Average views","totalLikes": "Total likes"},"sort": {"recent": "Most recent","views": "Most views","likes": "Most likes","engagement": "Best engagement"},"columns": {"video": "Video","views": "Views","likes": "Likes","commentsShort": "Com.","engPct": "Eng%","durationShort": "Dur."},"emptyTable": "No synced videos. Click Sync to fetch your videos."},
+    "videosTab": {"tableTitle": "All videos","summary": {"videos": "Videos","avgViews": "Average views","totalLikes": "Total likes"},"sort": {"recent": "Most recent","views": "Most views","likes": "Most likes","engagement": "Best engagement"},"columns": {"video": "Video","views": "Views","likes": "Likes","commentsShort": "Com.","engPct": "Eng%","durationShort": "Dur."},"emptyTable": "No synced videos. Click Sync to fetch your videos."},
     "timeAgo": {"today": "Today","yesterday": "Yesterday","days": "{count} days ago","weeks": "{count} wk ago","months": "{count, plural, one {# month ago} other {# months ago}}","years": "{count, plural, one {# year ago} other {# years ago}}"},
     "connect": {"title": "Connect your YouTube channel","body": "Link your Google account to access full YouTube Studio metrics: retention, CTR, watch time, traffic sources and more.","connecting": "Connecting...","connectWithGoogle": "Connect with Google","footnote": "You need a Google account with a YouTube channel. We only request read permissions.","errors": {"cantStart": "Couldn't start the connection","connection": "Connection error"}}
   },
