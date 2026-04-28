@@ -235,6 +235,16 @@
       "pauseHint": "You can pause and resume whenever you want."
     }
   },
+  "arkoChat": {
+    "thinking": "Thinking...",
+    "errors": {
+      "send": "Error sending message",
+      "generate": "Error generating response.",
+      "server": "Server error",
+      "timeout": "The response was cut off (possible server timeout). Try a shorter question or try again.",
+      "processing": "Something went wrong processing your message. Can you try again?"
+    }
+  },
   "agents": {
     "title": "Moka AI",
     "subtitle": "Your marketing consultant with access to all your workspace data.",

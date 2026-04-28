@@ -235,6 +235,16 @@
       "pauseHint": "Podés pausar y retomar cuando quieras."
     }
   },
+  "arkoChat": {
+    "thinking": "Pensando...",
+    "errors": {
+      "send": "Error al enviar mensaje",
+      "generate": "Error al generar respuesta.",
+      "server": "Error del servidor",
+      "timeout": "La respuesta se cortó (posible timeout del servidor). Intentá con una pregunta más corta o volvé a intentar.",
+      "processing": "Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?"
+    }
+  },
   "agents": {
     "title": "Moka AI",
     "subtitle": "Tu consultor de marketing con acceso a toda la data de tu workspace.",
