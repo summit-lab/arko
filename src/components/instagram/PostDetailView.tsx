@@ -7,6 +7,7 @@ import {
   Images, ChevronLeft, ChevronRight, ExternalLink,
   Grid2X2,
 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 
 // ─── Types ───
 
@@ -53,6 +54,7 @@ function pctOf(part: number, total: number): string {
 // ─── Carousel Gallery ───
 
 function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fallbackUrl: string | null }) {
+  const t = useTranslations("igGrids");
   const [current, setCurrent] = useState(0);
 
   // If no slides, show single image
@@ -71,7 +73,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
         {images[current] ? (
           <Image
             src={images[current]!}
-            alt={`Slide ${current + 1}`}
+            alt={`${t("postDetail.slide")} ${current + 1}`}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 400px"
@@ -125,7 +127,7 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
               }`}
             >
               {url ? (
-                <Image src={url} alt={`Thumb ${i + 1}`} fill className="object-cover" sizes="56px" />
+                <Image src={url} alt={`${t("postDetail.thumb")} ${i + 1}`} fill className="object-cover" sizes="56px" />
               ) : (
                 <div className="flex items-center justify-center h-full bg-white/[0.03]">
                   <Grid2X2 className="h-3 w-3 text-white/20" />
@@ -142,6 +144,8 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
 // ─── Main Component ───
 
 export function PostDetailView({ post }: { post: PostDetailData }) {
+  const t = useTranslations("igGrids");
+  const locale = useLocale();
   const isCarousel = post.media_type === "CAROUSEL_ALBUM";
   const totalInteractions = post.likes + (post.saves ?? 0) + post.comments + post.shares;
   // Posts don't have "views" — use impressions or reach as denominator
@@ -168,7 +172,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/60 transition-all cursor-pointer hover:text-white hover:bg-white/[0.06] border border-white/[0.08]"
             >
               <ExternalLink className="h-3 w-3" />
-              Abrir en Instagram
+              {t("postDetail.openInInstagram")}
             </a>
           </div>
         )}
@@ -188,17 +192,17 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
               }}
             >
               {isCarousel ? <Images className="h-2.5 w-2.5" /> : <Grid2X2 className="h-2.5 w-2.5" />}
-              {isCarousel ? `Carrusel · ${post.carousel_slides.length} slides` : "Post"}
+              {isCarousel ? t("postDetail.carouselWithSlides", { count: post.carousel_slides.length }) : t("postDetail.postBadge")}
             </span>
           </div>
 
           <p className="text-base leading-relaxed text-white/90 whitespace-pre-wrap">
-            {post.caption || "Sin descripción"}
+            {post.caption || t("postDetail.noDescription")}
           </p>
 
           <p className="mt-3 text-xs text-white/40">
             {post.published_at
-              ? new Date(post.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+              ? new Date(post.published_at).toLocaleDateString(locale === "en" ? "en-US" : "es-AR", { day: "numeric", month: "long", year: "numeric" })
               : "—"}
           </p>
         </div>
@@ -206,10 +210,10 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
-            { label: "Likes", value: post.likes, icon: Heart, color: "text-rose-400" },
-            { label: "Guardados", value: post.saves ?? 0, icon: Bookmark, color: "text-amber-400", unavailable: post.saves === null },
-            { label: "Comentarios", value: post.comments, icon: MessageCircle, color: "text-emerald-400" },
-            { label: "Compartidos", value: post.shares, icon: Share2, color: "text-blue-400" },
+            { label: t("common.likes"), value: post.likes, icon: Heart, color: "text-rose-400" },
+            { label: t("common.saves"), value: post.saves ?? 0, icon: Bookmark, color: "text-amber-400", unavailable: post.saves === null },
+            { label: t("common.comments"), value: post.comments, icon: MessageCircle, color: "text-emerald-400" },
+            { label: t("common.shares"), value: post.shares, icon: Share2, color: "text-blue-400" },
           ].map((kpi) => (
             <div key={kpi.label} className="glass-panel rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -218,7 +222,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
               </div>
               <p className="text-[28px] font-light text-white leading-none tracking-tight">{"unavailable" in kpi && kpi.unavailable ? "—" : fmt(kpi.value)}</p>
               {engDenominator > 0 && !("unavailable" in kpi && kpi.unavailable) && (
-                <p className="mt-1.5 text-[11px] text-white/30">{pctOf(kpi.value, engDenominator)} de {post.impressions > 0 ? "impresiones" : "alcance"}</p>
+                <p className="mt-1.5 text-[11px] text-white/30">{t("postDetail.pctOf", { pct: pctOf(kpi.value, engDenominator), basis: post.impressions > 0 ? t("postDetail.impressions") : t("postDetail.reach") })}</p>
               )}
             </div>
           ))}
@@ -226,14 +230,14 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
 
         {/* Engagement Overview */}
         <div className="glass-section rounded-xl p-5">
-          <p className="text-[11px] font-medium text-white/40 uppercase tracking-[0.1em] mb-4">Resumen</p>
+          <p className="text-[11px] font-medium text-white/40 uppercase tracking-[0.1em] mb-4">{t("postDetail.summary")}</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: "Views", value: fmt(post.views_total), icon: Eye },
-              { label: "Reach", value: fmt(post.reach), icon: Eye },
-              { label: "Impresiones", value: fmt(post.impressions), icon: Eye },
-              { label: "Eng. Rate", value: `${engRate}%`, icon: Heart },
+              { label: t("postDetail.views"), value: fmt(post.views_total), icon: Eye },
+              { label: t("postDetail.reach"), value: fmt(post.reach), icon: Eye },
+              { label: t("postDetail.impressions"), value: fmt(post.impressions), icon: Eye },
+              { label: t("postDetail.engRate"), value: `${engRate}%`, icon: Heart },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">{stat.label}</p>
@@ -245,7 +249,7 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
           {/* Interaction breakdown bar */}
           {totalInteractions > 0 && (
             <div className="mt-5 pt-4 border-t border-white/[0.06]">
-              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Distribución de interacciones</p>
+              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">{t("postDetail.interactionsDistribution")}</p>
               <div className="flex h-2.5 overflow-hidden rounded-full bg-white/[0.05]">
                 {[
                   { value: post.likes, color: "bg-rose-400/80" },
@@ -261,10 +265,10 @@ export function PostDetailView({ post }: { post: PostDetailData }) {
                 ))}
               </div>
               <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-white/40">
-                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400/80 mr-1" />Likes {pctOf(post.likes, totalInteractions)}</span>
-                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400/80 mr-1" />Guardados {pctOf(post.saves ?? 0, totalInteractions)}</span>
-                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400/80 mr-1" />Comentarios {pctOf(post.comments, totalInteractions)}</span>
-                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400/80 mr-1" />Compartidos {pctOf(post.shares, totalInteractions)}</span>
+                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400/80 mr-1" />{t("common.likes")} {pctOf(post.likes, totalInteractions)}</span>
+                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400/80 mr-1" />{t("common.saves")} {pctOf(post.saves ?? 0, totalInteractions)}</span>
+                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400/80 mr-1" />{t("common.comments")} {pctOf(post.comments, totalInteractions)}</span>
+                <span><span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400/80 mr-1" />{t("common.shares")} {pctOf(post.shares, totalInteractions)}</span>
               </div>
             </div>
           )}

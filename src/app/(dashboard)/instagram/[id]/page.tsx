@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemini-analysis-persistence.service";
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
@@ -46,13 +47,15 @@ function pctOf(part: number, total: number): string {
   return `${((part / total) * 100).toFixed(2)}%`;
 }
 
-function compareToBenchmark(value: number, benchmark: number | null): { label: string; color: string; barClass: string } {
-  if (benchmark == null || benchmark <= 0) return { label: "Sin benchmark", color: "text-muted-foreground", barClass: "bg-white/[0.1]" };
+type BenchmarkTranslator = (key: string, vals?: Record<string, string | number>) => string;
+
+function compareToBenchmark(value: number, benchmark: number | null, t: BenchmarkTranslator): { label: string; color: string; barClass: string } {
+  if (benchmark == null || benchmark <= 0) return { label: t("noData"), color: "text-muted-foreground", barClass: "bg-white/[0.1]" };
   const ratio = value / benchmark;
-  if (ratio >= 2) return { label: `${ratio.toFixed(1)}x más alto`, color: "text-emerald-400", barClass: "bg-gradient-to-r from-emerald-500 to-green-300" };
-  if (ratio >= 1.15) return { label: `${((ratio - 1) * 100).toFixed(0)}% más alto`, color: "text-emerald-400", barClass: "bg-gradient-to-r from-emerald-500 to-lime-300" };
-  if (ratio >= 0.9) return { label: "Cerca del promedio", color: "text-amber-300", barClass: "bg-gradient-to-r from-amber-500 to-lime-300" };
-  return { label: `${((1 - ratio) * 100).toFixed(0)}% más bajo`, color: "text-rose-400", barClass: "bg-gradient-to-r from-rose-500 to-amber-400" };
+  if (ratio >= 2) return { label: t("muchHigher", { ratio: ratio.toFixed(1) }), color: "text-emerald-400", barClass: "bg-gradient-to-r from-emerald-500 to-green-300" };
+  if (ratio >= 1.15) return { label: t("higher", { pct: ((ratio - 1) * 100).toFixed(0) }), color: "text-emerald-400", barClass: "bg-gradient-to-r from-emerald-500 to-lime-300" };
+  if (ratio >= 0.9) return { label: t("average"), color: "text-amber-300", barClass: "bg-gradient-to-r from-amber-500 to-lime-300" };
+  return { label: t("lower", { pct: ((1 - ratio) * 100).toFixed(0) }), color: "text-rose-400", barClass: "bg-gradient-to-r from-rose-500 to-amber-400" };
 }
 
 function clampPercentage(value: number): number {
@@ -237,6 +240,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
+  const t = await getTranslations("instagram.detail");
+  const benchT = await getTranslations("instagram.detail.benchmark");
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
 
   // ─── First: detect if this is a Post/Carousel or a Reel ───
   if (workspaceId && !id.startsWith("demo")) {
@@ -574,32 +581,32 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   const commentsPct = reel.views_total > 0 ? (reel.comments / reel.views_total) * 100 : 0;
   const sharesPct = reel.views_total > 0 ? (reel.shares / reel.views_total) * 100 : 0;
 
-  const likesComp = compareToBenchmark(likesPct, reel.benchmark.avg_likes_pct);
-  const savesComp = compareToBenchmark(savesPct, reel.benchmark.avg_saves_pct);
-  const commentsComp = compareToBenchmark(commentsPct, reel.benchmark.avg_comments_pct);
-  const sharesComp = compareToBenchmark(sharesPct, reel.benchmark.avg_shares_pct);
+  const likesComp = compareToBenchmark(likesPct, reel.benchmark.avg_likes_pct, benchT);
+  const savesComp = compareToBenchmark(savesPct, reel.benchmark.avg_saves_pct, benchT);
+  const commentsComp = compareToBenchmark(commentsPct, reel.benchmark.avg_comments_pct, benchT);
+  const sharesComp = compareToBenchmark(sharesPct, reel.benchmark.avg_shares_pct, benchT);
   const explicitRatioMetrics = [
     {
-      label: "Interacciones / Views",
+      label: locale === "en" ? "Interactions / Views" : "Interacciones / Views",
       numerator: reel.total_interactions,
       denominator: reel.views_total,
       color: "bg-emerald-400/80",
-      helper: "engagement bruto observado",
+      helper: locale === "en" ? "raw engagement observed" : "engagement bruto observado",
     },
     {
-      label: "Views Paid / Views Totales",
+      label: locale === "en" ? "Views Paid / Total Views" : "Views Paid / Views Totales",
       numerator: reel.views_paid,
       denominator: reel.views_total,
       color: "bg-purple-400/80",
-      helper: "parte de las reproducciones atribuida a ads",
+      helper: locale === "en" ? "share of plays attributed to ads" : "parte de las reproducciones atribuida a ads",
       paidOnly: true,
     },
     {
-      label: "Reach Paid / Reach Total",
+      label: locale === "en" ? "Reach Paid / Total Reach" : "Reach Paid / Reach Total",
       numerator: reel.reach_paid,
       denominator: reel.reach_total,
       color: "bg-fuchsia-400/80",
-      helper: "parte del alcance generada por ads",
+      helper: locale === "en" ? "share of reach generated by ads" : "parte del alcance generada por ads",
       paidOnly: true,
     },
     {
@@ -607,15 +614,16 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       numerator: reel.saves,
       denominator: reel.views_total,
       color: "bg-amber-400/80",
-      helper: "guardados sobre reproducciones",
+      helper: locale === "en" ? "saves over plays" : "guardados sobre reproducciones",
     },
   ].filter((metric) => metric.denominator > 0 && (!metric.paidOnly || hasPaidBreakdown));
+  const splitOrgLabel = locale === "en" ? "Organic" : "Orgánico";
   const splitMetrics = [
     {
       label: "Views",
       total: reel.views_total,
       segments: [
-        { label: "Orgánico", value: reel.views_org, color: "bg-emerald-400/80" },
+        { label: splitOrgLabel, value: reel.views_org, color: "bg-emerald-400/80" },
         ...(hasPaidSignals ? [{ label: "Paid", value: reel.views_paid, color: "bg-purple-400/80" }] : []),
       ],
     },
@@ -623,22 +631,22 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       label: "Reach",
       total: reel.reach_total,
       segments: [
-        { label: "Orgánico", value: reel.reach_org, color: "bg-sky-400/80" },
+        { label: splitOrgLabel, value: reel.reach_org, color: "bg-sky-400/80" },
         ...(hasPaidSignals ? [{ label: "Paid", value: reel.reach_paid, color: "bg-fuchsia-400/80" }] : []),
       ],
     },
   ].filter((metric) => hasPaidBreakdown && metric.segments.some((segment) => segment.label === "Paid" && segment.value > 0));
   const interactionMetrics = [
-    { label: "Me gusta", count: reel.likes, ratio: likesPct, benchmark: reel.benchmark.avg_likes_pct, color: "bg-rose-400/80" },
-    { label: "Guardados", count: reel.saves, ratio: savesPct, benchmark: reel.benchmark.avg_saves_pct, color: "bg-amber-400/80" },
-    { label: "Comentarios", count: reel.comments, ratio: commentsPct, benchmark: reel.benchmark.avg_comments_pct, color: "bg-emerald-400/80" },
-    { label: "Compartidos", count: reel.shares, ratio: sharesPct, benchmark: reel.benchmark.avg_shares_pct, color: "bg-blue-400/80" },
+    { label: t("kpis.likes"), count: reel.likes, ratio: likesPct, benchmark: reel.benchmark.avg_likes_pct, color: "bg-rose-400/80" },
+    { label: t("kpis.saves"), count: reel.saves, ratio: savesPct, benchmark: reel.benchmark.avg_saves_pct, color: "bg-amber-400/80" },
+    { label: t("kpis.comments"), count: reel.comments, ratio: commentsPct, benchmark: reel.benchmark.avg_comments_pct, color: "bg-emerald-400/80" },
+    { label: t("kpis.shares"), count: reel.shares, ratio: sharesPct, benchmark: reel.benchmark.avg_shares_pct, color: "bg-blue-400/80" },
   ];
   const retentionRows = hasRetentionInputs
     ? [
-        { label: "Inicio del Reel", value: 100, detail: "Base de reproducciones" },
-        ...(averageWatchPct == null ? [] : [{ label: "Viewer promedio llega hasta", value: averageWatchPct, detail: `${formatTime(reel.avg_watch_time_seconds)} de ${durationStr}` }]),
-        ...(retentionRate != null ? [{ label: "Retención estimada", value: retentionRate, detail: `${retentionRate.toFixed(1)}% del Reel visto en promedio` }] : []),
+        { label: t("retentionPanel.rows.reelStart"), value: 100, detail: t("retentionPanel.rows.reelStartDetail") },
+        ...(averageWatchPct == null ? [] : [{ label: t("retentionPanel.rows.avgViewerReaches"), value: averageWatchPct, detail: t("retentionPanel.rows.avgViewerDetail", { watch: formatTime(reel.avg_watch_time_seconds), duration: durationStr }) }]),
+        ...(retentionRate != null ? [{ label: t("retentionPanel.rows.estimatedRetention"), value: retentionRate, detail: t("retentionPanel.rows.estimatedRetentionDetail", { pct: retentionRate.toFixed(1) }) }] : []),
       ]
     : [];
   const reelPlaybackUrl = reel.media_url || null;
@@ -646,7 +654,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
 
   // Day-of-week views distribution for radar
   // reel_metrics_daily stores cumulative snapshots → compute delta per day first
-  const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const DAYS_ES = t.raw("daysShort") as string[];
   const dowViews: number[] = Array(7).fill(0);
   const sortedDaily = [...(dailyMetricsData ?? [])].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
   sortedDaily.forEach((d, i) => {
@@ -678,7 +686,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                 <source src={reelPlaybackUrl} />
               </video>
             ) : reelPosterUrl ? (
-              <img src={reelPosterUrl} alt="Preview del Reel" className="h-full w-full object-cover" />
+              <img src={reelPosterUrl} alt={t("previewAlt")} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <Play className="h-12 w-12 text-white/20" />
@@ -705,7 +713,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                 className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-medium text-white/50 transition-all cursor-pointer hover:text-white/80 hover:bg-white/[0.06]"
                 style={{ border: "1px solid var(--border)" }}>
                 <ExternalLink className="h-3 w-3" />
-                Abrir en Instagram
+                {t("openInInstagram")}
               </a>
             </div>
           )}
@@ -718,12 +726,12 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {reel.reel_type === "trial_likely" && (
                 <span className="flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">
-                  <AlertTriangle className="h-2.5 w-2.5" /> Trial Reel
+                  <AlertTriangle className="h-2.5 w-2.5" /> {t("trialReel")}
                 </span>
               )}
               {hasPaidSignals && (
                 <span className="flex items-center gap-1 rounded border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-200">
-                  <Megaphone className="h-2.5 w-2.5" /> Promocionado
+                  <Megaphone className="h-2.5 w-2.5" /> {t("promoted")}
                 </span>
               )}
             </div>
@@ -732,18 +740,20 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               <p className="text-[12px] leading-relaxed text-white/40">{reel.caption}</p>
             )}
             <p className="mt-3 text-[12px] text-white/35">
-              Publicado el {reel.published_at ? new Date(reel.published_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "--"}
+              {reel.published_at
+                ? t("publishedOn", { date: new Date(reel.published_at).toLocaleDateString(dateLocale, { day: "numeric", month: "long", year: "numeric" }) })
+                : "--"}
             </p>
           </div>
 
           {/* 5 KPI cards */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
-              { label: "Me gusta",     pct: likesPct,    raw: reel.likes,    icon: Heart,         comp: likesComp    },
-              { label: "Guardados",    pct: savesPct,    raw: reel.saves,    icon: Bookmark,      comp: savesComp    },
-              { label: "Compartidos",  pct: sharesPct,   raw: reel.shares,   icon: Share2,        comp: sharesComp   },
-              { label: "Comentarios",  pct: commentsPct, raw: reel.comments, icon: MessageSquare, comp: commentsComp },
-              { label: "Ventas",       pct: null,        raw: reel.sales_amount ?? 0, icon: DollarSign, comp: { label: reel.sales_amount != null && reel.sales_amount > 0 ? "Atribuidas" : "Sin datos", color: reel.sales_amount != null && reel.sales_amount > 0 ? "text-emerald-400" : "text-white/25" }, isMoney: true },
+              { label: t("kpis.likes"),    pct: likesPct,    raw: reel.likes,    icon: Heart,         comp: likesComp    },
+              { label: t("kpis.saves"),    pct: savesPct,    raw: reel.saves,    icon: Bookmark,      comp: savesComp    },
+              { label: t("kpis.shares"),   pct: sharesPct,   raw: reel.shares,   icon: Share2,        comp: sharesComp   },
+              { label: t("kpis.comments"), pct: commentsPct, raw: reel.comments, icon: MessageSquare, comp: commentsComp },
+              { label: t("kpis.sales"),    pct: null,        raw: reel.sales_amount ?? 0, icon: DollarSign, comp: { label: reel.sales_amount != null && reel.sales_amount > 0 ? t("kpis.attributed") : t("kpis.noData"), color: reel.sales_amount != null && reel.sales_amount > 0 ? "text-emerald-400" : "text-white/25" }, isMoney: true },
             ].map((m) => (
               <div key={m.label} className="glass-panel rounded-xl p-4 flex flex-col">
                 <div className="flex items-center gap-1.5 mb-3">
@@ -754,7 +764,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                   {(m as { isMoney?: boolean }).isMoney ? (m.raw > 0 ? `$${formatNumber(m.raw)}` : "—") : formatNumber(m.raw)}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  {m.pct != null && <span className="text-[11px] text-white/30">{m.pct.toFixed(2)}% de vistas</span>}
+                  {m.pct != null && <span className="text-[11px] text-white/30">{t("kpis.ofViews", { pct: m.pct.toFixed(2) })}</span>}
                   <span className={`text-[10px] font-medium ${m.comp.color}`}>{m.comp.label}</span>
                 </div>
               </div>
@@ -765,12 +775,12 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           <div className="glass-panel rounded-xl p-5 flex-1">
             <div className="flex items-center gap-2 mb-1">
               <Eye className="h-3.5 w-3.5 text-white/30" />
-              <span className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em]">Evolución de Vistas</span>
+              <span className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em]">{t("sparkline.title")}</span>
             </div>
             {dailyViews.length >= 2 ? (
               <ReelDailySparkline data={dailyViews} />
             ) : (
-              <p className="text-[12px] text-white/25 font-light mt-4 pb-2">Sin datos de evolución aún. Se acumula con cada sync.</p>
+              <p className="text-[12px] text-white/25 font-light mt-4 pb-2">{t("sparkline.empty")}</p>
             )}
           </div>
         </div>
@@ -779,12 +789,12 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
       {/* ── Section 2: Core Metrics Strip ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: "Vistas",         value: formatNumber(reel.views_total),              sub: `Org: ${formatNumber(reel.views_org)}` },
-          { label: "Alcance",        value: formatNumber(reel.reach_total),               sub: hasPaidSignals ? `Pago: ${formatNumber(reel.reach_paid)}` : "alcance total" },
-          { label: "Engagement",     value: `${engagementRate.toFixed(1)}%`,              sub: "int / vistas" },
-          { label: "T. de Vista",    value: formatTime(reel.avg_watch_time_seconds),      sub: watchPct != null ? `${watchPct}% del reel` : "promedio" },
-          { label: "Retención",      value: formatOptionalPercent(retentionRate),         sub: "estimada" },
-          { label: "Rendimiento",    value: reel.performer_multiple >= 0.01 ? `${reel.performer_multiple.toFixed(1)}x` : "—", sub: "vs benchmark 90d" },
+          { label: t("core.views"),       value: formatNumber(reel.views_total),              sub: t("core.orgPrefix", { value: formatNumber(reel.views_org) }) },
+          { label: t("core.reach"),       value: formatNumber(reel.reach_total),               sub: hasPaidSignals ? t("core.paidPrefix", { value: formatNumber(reel.reach_paid) }) : t("core.totalReach") },
+          { label: t("core.engagement"),  value: `${engagementRate.toFixed(1)}%`,              sub: t("core.intPerViews") },
+          { label: t("core.watchTime"),   value: formatTime(reel.avg_watch_time_seconds),      sub: watchPct != null ? t("core.ofReel", { pct: watchPct }) : t("core.average") },
+          { label: t("core.retention"),   value: formatOptionalPercent(retentionRate),         sub: t("core.estimated") },
+          { label: t("core.performance"), value: reel.performer_multiple >= 0.01 ? `${reel.performer_multiple.toFixed(1)}x` : "—", sub: t("core.vsBenchmark") },
         ].map((kpi, i) => (
           <div key={kpi.label} className="glass-panel rounded-xl p-4">
             <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.07em] mb-2">{kpi.label}</p>
@@ -814,8 +824,8 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             <ReelDayRadar data={dayRadarData} />
           ) : (
             <div>
-              <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Retención estimada</p>
-              <p className="text-[10px] text-white/20 mb-5">avg watch time / duración — no es curva real por segundo</p>
+              <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">{t("retentionPanel.title")}</p>
+              <p className="text-[10px] text-white/20 mb-5">{t("retentionPanel.subtitle")}</p>
               {retentionRows.length > 0 ? (
                 <div className="space-y-5">
                   {retentionRows.map((row) => (
@@ -839,10 +849,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
               {/* Retention mini KPIs */}
               <div className="grid grid-cols-2 gap-2 mt-5">
                 {[
-                  { label: "Retención",     value: formatOptionalPercent(retentionRate),          sub: "avg / duración" },
-                  { label: "Watch Time",    value: formatTime(reel.avg_watch_time_seconds),        sub: "promedio" },
-                  { label: "Duración",      value: durationStr,                                    sub: effectiveDuration ? "Apify / DB" : "No disponible" },
-                  { label: "Abandono",      value: formatTime(avgDropoffSeconds),                  sub: "promedio" },
+                  { label: t("core.retention"),               value: formatOptionalPercent(retentionRate),     sub: t("retentionPanel.avgPerDuration") },
+                  { label: t("retentionPanel.watchTime"),     value: formatTime(reel.avg_watch_time_seconds), sub: t("retentionPanel.average") },
+                  { label: t("retentionPanel.duration"),      value: durationStr,                              sub: effectiveDuration ? t("retentionPanel.apifyOrDb") : t("retentionPanel.notAvailable") },
+                  { label: t("retentionPanel.abandonment"),   value: formatTime(avgDropoffSeconds),            sub: t("retentionPanel.average") },
                 ].map((kpi) => (
                   <div key={kpi.label} className="rounded-lg p-3 bg-white/[0.03] border border-white/[0.06]">
                     <p className="text-[10px] text-white/30 mb-0.5">{kpi.label}</p>
@@ -866,11 +876,11 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         {/* Interacciones vs Benchmark */}
         {hasInteractionBenchmark && (
           <div className="glass-panel rounded-xl p-5">
-            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Interacciones vs Benchmark 90d</p>
-            <p className="text-[10px] text-white/20 mb-5">% sobre views — vs promedio de tu cuenta</p>
+            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">{t("breakdowns.interactionsTitle")}</p>
+            <p className="text-[10px] text-white/20 mb-5">{t("breakdowns.interactionsSubtitle")}</p>
             <div className="space-y-4">
               {interactionMetrics.map((metric, i) => {
-                const comparison = compareToBenchmark(metric.ratio, metric.benchmark);
+                const comparison = compareToBenchmark(metric.ratio, metric.benchmark, benchT);
                 const width = metric.benchmark != null && metric.benchmark > 0
                   ? clampPercentage((metric.ratio / metric.benchmark) * 100)
                   : 0;
@@ -884,10 +894,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                       <div className="h-full rounded-full" style={{ width: `${width}%`, background: PALETTE[i % 4] }} />
                     </div>
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-white/25">Actual {metric.ratio.toFixed(2)}%</span>
+                      <span className="text-white/25">{t("breakdowns.current")} {metric.ratio.toFixed(2)}%</span>
                       <span className={comparison.color}>{comparison.label}</span>
                     </div>
-                    <p className="text-[10px] text-white/20">Benchmark {metric.benchmark?.toFixed(2)}%</p>
+                    <p className="text-[10px] text-white/20">{t("breakdowns.benchmark")} {metric.benchmark?.toFixed(2)}%</p>
                   </div>
                 );
               })}
@@ -898,8 +908,8 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         {/* Ratios explícitos */}
         {explicitRatioMetrics.length > 0 && (
           <div className="glass-panel rounded-xl p-5">
-            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Ratios clave</p>
-            <p className="text-[10px] text-white/20 mb-5">Proporciones con denominador real</p>
+            <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">{t("breakdowns.ratiosTitle")}</p>
+            <p className="text-[10px] text-white/20 mb-5">{t("breakdowns.ratiosSubtitle")}</p>
             <div className="space-y-4">
               {explicitRatioMetrics.map((metric, i) => {
                 const ratio = metric.denominator > 0 ? (metric.numerator / metric.denominator) * 100 : 0;
@@ -913,7 +923,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
                       <div className="h-full rounded-full" style={{ width: `${clampPercentage(ratio)}%`, background: PALETTE[i % 4] }} />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-white/25">
-                      <span>{formatNumber(metric.numerator)} de {formatNumber(metric.denominator)}</span>
+                      <span>{formatNumber(metric.numerator)} {t("breakdowns.ofWord")} {formatNumber(metric.denominator)}</span>
                       <span>{metric.helper}</span>
                     </div>
                   </div>
@@ -924,7 +934,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             {/* Paid details */}
             {hasPaidSignals && (
               <div className="mt-5 pt-4 border-t border-white/[0.05]">
-                <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.08em] mb-3">Métricas pagas</p>
+                <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.08em] mb-3">{t("breakdowns.paidMetrics")}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: "CTR",    value: formatOptionalPercent(paidCtr) },
@@ -950,8 +960,8 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           <div className="glass-panel rounded-xl p-5">
             {splitMetrics.length > 0 && (
               <>
-                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">Split Orgánico / Pagado</p>
-                <p className="text-[10px] text-white/20 mb-5">Distribución real de views y alcance</p>
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-0.5">{t("breakdowns.splitTitle")}</p>
+                <p className="text-[10px] text-white/20 mb-5">{t("breakdowns.splitSubtitle")}</p>
                 <div className="space-y-4">
                   {splitMetrics.map((metric) => (
                     <div key={metric.label} className="space-y-1.5">
@@ -983,7 +993,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
             {dayRadarData.some((d) => d.views > 0) && (
               <>
                 {splitMetrics.length > 0 && <div className="mt-5 pt-4 border-t border-white/[0.05]" />}
-                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-3">Retención</p>
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.08em] mb-3">{t("breakdowns.retentionMini")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: "Retención",  value: formatOptionalPercent(retentionRate),      sub: "avg / duración" },
@@ -1010,10 +1020,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" style={{ color: PALETTE[2] }} />
-              <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(75,206,175,0.7)" }}>Ventas generadas</span>
+              <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(75,206,175,0.7)" }}>{t("sales.title")}</span>
             </div>
             {reel.views_total > 0 && (
-              <span className="text-[11px] text-white/25">${(reel.sales_amount / reel.views_total).toFixed(2)} por view</span>
+              <span className="text-[11px] text-white/25">{t("sales.perView", { value: (reel.sales_amount / reel.views_total).toFixed(2) })}</span>
             )}
           </div>
           <p className="text-[44px] font-light leading-none tracking-tight" style={{ color: PALETTE[2] }}>

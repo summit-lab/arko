@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { X, Check, Clock, Calendar } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 import type { Sale } from "./SaleForm";
@@ -20,8 +21,9 @@ interface InstallmentsModalProps {
   onSaved: (updated: Sale) => void;
 }
 
-function fmtMoney(n: number): string {
-  return `$${n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+function fmtMoney(n: number, locale: string): string {
+  const fmtLocale = locale === "en" ? "en-US" : "es-AR";
+  return `$${n.toLocaleString(fmtLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function fmtDate(d: string): string {
@@ -36,6 +38,8 @@ function isOverdue(dueDate: string): boolean {
 
 export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalProps) {
   const ct = useChartTheme();
+  const t = useTranslations("ventas.installmentsModal");
+  const locale = useLocale();
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -46,15 +50,15 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
     setLoading(true);
     try {
       const res = await fetch(`/api/sales/${sale.id}/installments`);
-      if (!res.ok) throw new Error("Error al cargar cuotas");
+      if (!res.ok) throw new Error(t("errorLoad"));
       const data = await res.json() as Installment[];
       setInstallments(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errorLoad"));
     } finally {
       setLoading(false);
     }
-  }, [sale.id]);
+  }, [sale.id, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -77,7 +81,7 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
       });
       if (!res.ok) {
         const e = await res.json() as { error?: string };
-        throw new Error(e.error ?? "Error al actualizar");
+        throw new Error(e.error ?? t("errorUpdate"));
       }
       const payload = await res.json() as {
         installment: Installment;
@@ -90,7 +94,7 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
         payment_status: payload.sale.payment_status,
       }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errorUpdate"));
     } finally {
       setTogglingId(null);
     }
@@ -124,9 +128,9 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07] shrink-0">
           <div>
-            <h3 className="text-[15px] font-light text-white">Cuotas de la venta</h3>
+            <h3 className="text-[15px] font-light text-white">{t("title")}</h3>
             <p className="text-[11px] text-white/30 mt-0.5">
-              {sale.client_name ?? "Sin cliente"} — {fmtMoney(sale.amount_total)}
+              {sale.client_name ?? t("noClient")} — {fmtMoney(sale.amount_total, locale)}
             </p>
           </div>
           <button onClick={handleClose} className="text-white/25 hover:text-white/60 cursor-pointer transition-colors">
@@ -137,15 +141,15 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
         {/* Summary */}
         <div className="px-6 py-4 border-b border-white/[0.06] shrink-0 grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-[9px] text-white/30 uppercase tracking-[0.1em]">Cobrado</p>
-            <p className="text-[14px] font-light mt-1" style={{ color: "#4BCEAF" }}>{fmtMoney(paidTotal)}</p>
+            <p className="text-[9px] text-white/30 uppercase tracking-[0.1em]">{t("summaryCollected")}</p>
+            <p className="text-[14px] font-light mt-1" style={{ color: "#4BCEAF" }}>{fmtMoney(paidTotal, locale)}</p>
           </div>
           <div>
-            <p className="text-[9px] text-white/30 uppercase tracking-[0.1em]">Por cobrar</p>
-            <p className="text-[14px] font-light mt-1" style={{ color: remaining > 0 ? "#EB6991" : "#4BCEAF" }}>{fmtMoney(remaining)}</p>
+            <p className="text-[9px] text-white/30 uppercase tracking-[0.1em]">{t("summaryPending")}</p>
+            <p className="text-[14px] font-light mt-1" style={{ color: remaining > 0 ? "#EB6991" : "#4BCEAF" }}>{fmtMoney(remaining, locale)}</p>
           </div>
           <div>
-            <p className="text-[9px] text-white/30 uppercase tracking-[0.1em]">Próxima</p>
+            <p className="text-[9px] text-white/30 uppercase tracking-[0.1em]">{t("summaryNext")}</p>
             <p className="text-[14px] font-light mt-1 text-white/70">
               {nextPending ? fmtDate(nextPending.due_date) : "—"}
             </p>
@@ -154,10 +158,10 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
 
         {/* List */}
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
-          {loading && <p className="text-[11px] text-white/25 text-center py-6">Cargando cuotas…</p>}
+          {loading && <p className="text-[11px] text-white/25 text-center py-6">{t("loading")}</p>}
           {!loading && installments.length === 0 && (
             <p className="text-[11px] text-white/25 text-center py-6">
-              Esta venta no tiene cuotas programadas.
+              {t("empty")}
             </p>
           )}
           {!loading && installments.length > 0 && (
@@ -197,12 +201,12 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
                         <span className="text-[12px] text-white/75">{fmtDate(inst.due_date)}</span>
                         {overdue && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(235,105,145,0.12)", color: "#EB6991" }}>
-                            vencida
+                            {t("overdue")}
                           </span>
                         )}
                       </div>
                       <p className="text-[13px] font-light mt-0.5" style={{ color: paid ? "#4BCEAF" : "rgba(255,255,255,0.7)" }}>
-                        {fmtMoney(Number(inst.amount))}
+                        {fmtMoney(Number(inst.amount), locale)}
                       </p>
                     </div>
                     <button
@@ -213,13 +217,13 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
                         ? { background: "rgba(75,206,175,0.15)", color: "#4BCEAF", border: "1px solid rgba(75,206,175,0.3)" }
                         : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)" }
                       }
-                      title={paid ? "Marcar como pendiente" : "Marcar como cobrada"}
+                      title={paid ? t("togglePending") : t("togglePaid")}
                     >
                       {togglingId === inst.id
                         ? "…"
                         : paid
-                        ? (<span className="flex items-center gap-1.5"><Check className="h-3 w-3" /> Cobrada</span>)
-                        : (<span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> Pendiente</span>)
+                        ? (<span className="flex items-center gap-1.5"><Check className="h-3 w-3" /> {t("paid")}</span>)
+                        : (<span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {t("pending")}</span>)
                       }
                     </button>
                   </div>
@@ -233,8 +237,7 @@ export function InstallmentsModal({ sale, onClose, onSaved }: InstallmentsModalP
         {/* Footer */}
         <div className="px-6 py-4 border-t border-white/[0.07] shrink-0">
           <p className="text-[10px] text-white/30 leading-relaxed">
-            Las cuotas se marcan automáticamente como cobradas cuando llega su fecha de vencimiento.
-            Si un cliente no pagó, podés desmarcar la cuota y el total por cobrar se actualiza.
+            {t("footerNote")}
           </p>
         </div>
       </div>

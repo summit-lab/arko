@@ -6,6 +6,7 @@ import {
   Heart, Bookmark, MessageCircle, Share2, Eye,
   Images, Grid2X2, ExternalLink, TrendingUp, Check, ChevronDown,
 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   AreaChart, Area, XAxis, CartesianGrid,
@@ -65,44 +66,45 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-function timeAgo(date: string): string {
+function timeAgo(date: string, t: (k: string) => string): string {
   const diff = Date.now() - new Date(date).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Hoy";
-  if (days === 1) return "Ayer";
-  if (days < 7) return `${days}d`;
-  if (days < 30) return `${Math.floor(days / 7)}sem`;
-  return `${Math.floor(days / 30)}mes`;
+  if (days === 0) return t("timeAgo.today");
+  if (days === 1) return t("timeAgo.yesterday");
+  if (days < 7) return `${days}${t("timeAgo.daySuffix")}`;
+  if (days < 30) return `${Math.floor(days / 7)}${t("timeAgo.weekSuffix")}`;
+  return `${Math.floor(days / 30)}${t("timeAgo.monthSuffix")}`;
 }
 
-function fmtDateShort(date: string): string {
+function fmtDateShort(date: string, locale: string): string {
   const d = new Date(date);
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
+  return d.toLocaleDateString(dateLocale, { day: "numeric", month: "short" });
 }
 
 // ─── Sort dropdown ────────────────────────────────────────────────────────────
 
 type SortKey = "published_at" | "likes" | "comments" | "saves" | "shares";
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "published_at", label: "Fecha" },
-  { value: "likes",        label: "Likes" },
-  { value: "comments",     label: "Comentarios" },
-  { value: "saves",        label: "Guardados" },
-  { value: "shares",       label: "Compartidos" },
-];
-
 function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  const t = useTranslations("igGrids");
+  const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+    { value: "published_at", label: t("posts.sort.date") },
+    { value: "likes",        label: t("common.likes") },
+    { value: "comments",     label: t("common.comments") },
+    { value: "saves",        label: t("common.saves") },
+    { value: "shares",       label: t("common.shares") },
+  ];
   const [open, setOpen] = useState(false);
   const selected = SORT_OPTIONS.find((o) => o.value === value);
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/[0.1] hover:bg-white/[0.08] cursor-pointer"
+        className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-foreground/80 transition-colors hover:border-white/[0.1] hover:bg-white/[0.08] cursor-pointer"
       >
         <span>{selected?.label}</span>
-        <ChevronDown size={11} className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={11} className={`text-foreground/50 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-2xl">
@@ -111,11 +113,11 @@ function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey
               key={o.value}
               onClick={() => { onChange(o.value); setOpen(false); }}
               className={`flex w-full items-center justify-between gap-6 px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.08] cursor-pointer ${
-                o.value === value ? "text-white" : "text-zinc-400 hover:text-zinc-200"
+                o.value === value ? "text-foreground" : "text-foreground/50 hover:text-foreground/80"
               }`}
             >
               <span>{o.label}</span>
-              {o.value === value && <Check size={11} className="text-white" />}
+              {o.value === value && <Check size={11} className="text-foreground" />}
             </button>
           ))}
         </div>
@@ -141,19 +143,21 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ n
 
 function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: PostsSummary }) {
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
+  const locale = useLocale();
   const totalEngagement = summary.totalLikes + summary.totalSaves + summary.totalComments;
 
   // Distribución donut
   const distData = [
-    ...(summary.totalCarruseles > 0 ? [{ name: "Carruseles", value: summary.totalCarruseles, color: PALETTE.indigo }] : []),
-    ...(summary.totalPosts > 0      ? [{ name: "Posts",      value: summary.totalPosts,      color: PALETTE.purple }] : []),
+    ...(summary.totalCarruseles > 0 ? [{ name: t("posts.carousels"), value: summary.totalCarruseles, color: PALETTE.indigo }] : []),
+    ...(summary.totalPosts > 0      ? [{ name: t("posts.posts"),     value: summary.totalPosts,      color: PALETTE.purple }] : []),
   ];
 
   // Engagement breakdown donut
   const engData = [
-    { name: "Likes",       value: summary.totalLikes,    color: PALETTE.pink   },
-    { name: "Guardados",   value: summary.totalSaves,    color: PALETTE.purple },
-    { name: "Comentarios", value: summary.totalComments, color: PALETTE.teal   },
+    { name: t("common.likes"),       value: summary.totalLikes,    color: PALETTE.pink   },
+    { name: t("common.saves"),   value: summary.totalSaves,    color: PALETTE.purple },
+    { name: t("common.comments"), value: summary.totalComments, color: PALETTE.teal   },
   ].filter((d) => d.value > 0);
 
   // Timeline: likes per post chronologically (last 15)
@@ -163,8 +167,8 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
     .slice(-15)
     .map((p, i) => ({
       idx: i + 1,
-      date: fmtDateShort(p.published_at!),
-      caption: p.caption?.slice(0, 28) ?? "Sin descripción",
+      date: fmtDateShort(p.published_at!, locale),
+      caption: p.caption?.slice(0, 28) ?? t("posts.noDescription"),
       likes: p.likes,
     }));
 
@@ -185,7 +189,7 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
       {/* ── Panel: Resumen ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.12em] mb-4">
-          Resumen · {posts.length} publicaciones
+          {t("posts.summaryTitle", { count: posts.length })}
         </p>
 
         {/* Type breakdown — text only, no chart */}
@@ -204,11 +208,11 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
         {/* Totals */}
         <div className="space-y-2">
           {[
-            { label: "Total likes",        value: fmt(summary.totalLikes)    },
-            { label: "Total guardados",    value: fmt(summary.totalSaves)    },
-            { label: "Total comentarios",  value: fmt(summary.totalComments) },
-            { label: "Total compartidos",  value: fmt(summary.totalShares)   },
-            { label: "Prom. likes / post", value: fmt(summary.avgLikes)      },
+            { label: t("posts.totals.likes"),       value: fmt(summary.totalLikes)    },
+            { label: t("posts.totals.saves"),       value: fmt(summary.totalSaves)    },
+            { label: t("posts.totals.comments"),    value: fmt(summary.totalComments) },
+            { label: t("posts.totals.shares"),      value: fmt(summary.totalShares)   },
+            { label: t("posts.totals.avgPerPost"),  value: fmt(summary.avgLikes)      },
           ].map(({ label, value }) => (
             <div key={label} className="flex items-center justify-between">
               <span className="text-[10px] text-white/30">{label}</span>
@@ -221,7 +225,7 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
       {/* ── Panel: Engagement ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Engagement</p>
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">{t("posts.engagement")}</p>
           <TrendingUp size={13} className="text-violet-400" />
         </div>
         <div className="flex items-center gap-4">
@@ -241,23 +245,23 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
           </div>
           <div className="flex-1 space-y-2.5">
             {[
-              { icon: Heart,         value: summary.totalLikes,    label: "Likes",       avg: summary.avgLikes,    color: PALETTE.pink   },
-              { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   avg: summary.avgSaves,    color: PALETTE.purple },
-              { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", avg: summary.avgComments, color: PALETTE.teal   },
+              { icon: Heart,         value: summary.totalLikes,    label: t("common.likes"),       avg: summary.avgLikes,    color: PALETTE.pink   },
+              { icon: Bookmark,      value: summary.totalSaves,    label: t("common.saves"),   avg: summary.avgSaves,    color: PALETTE.purple },
+              { icon: MessageCircle, value: summary.totalComments, label: t("common.comments"), avg: summary.avgComments, color: PALETTE.teal   },
             ].map(({ icon: Icon, value, label, avg, color }) => (
               <div key={label} className="flex items-center gap-2">
                 <Icon size={12} strokeWidth={1.5} style={{ color }} />
                 <span className="text-[11px] text-white/35 flex-1">{label}</span>
                 <div className="text-right">
                   <p className="text-[13px] font-light text-white leading-none">{fmt(value)}</p>
-                  <p className="text-[9px] text-white/20">~{fmt(avg)} prom.</p>
+                  <p className="text-[9px] text-white/20">~{fmt(avg)} {t("posts.avgShort")}</p>
                 </div>
               </div>
             ))}
             {summary.totalShares > 0 && (
               <div className="flex items-center gap-2">
                 <Share2 size={12} strokeWidth={1.5} style={{ color: PALETTE.indigo }} />
-                <span className="text-[11px] text-white/35 flex-1">Compartidos</span>
+                <span className="text-[11px] text-white/35 flex-1">{t("common.shares")}</span>
                 <p className="text-[13px] font-light text-white">{fmt(summary.totalShares)}</p>
               </div>
             )}
@@ -268,8 +272,8 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
       {/* ── Panel: Evolución de likes ── */}
       {trendData.length >= 2 && (
         <div className="glass-panel rounded-xl px-5 py-4">
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">Evolución de Likes</p>
-          <p className="text-[9px] text-white/20 mb-3">Cronológico · últimas {trendData.length} publicaciones</p>
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">{t("posts.likesTrend")}</p>
+          <p className="text-[9px] text-white/20 mb-3">{t("posts.likesTrendSubtitle", { count: trendData.length })}</p>
           <div style={{ height: 90 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -289,7 +293,7 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
                     return (
                       <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] backdrop-blur-xl shadow-xl" style={{ maxWidth: 180 }}>
                         <p className="text-muted-foreground mb-1 leading-snug">{d.caption}</p>
-                        <p className="text-popover-foreground font-medium">{fmt(d.likes)} likes</p>
+                        <p className="text-popover-foreground font-medium">{fmt(d.likes)} {t("common.likes").toLowerCase()}</p>
                         <p className="text-muted-foreground text-[10px]">{d.date}</p>
                       </div>
                     );
@@ -307,11 +311,11 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
       {/* ── Panel: Top 5 por likes ── */}
       {top5.length > 0 && (
         <div className="glass-panel rounded-xl px-5 py-4">
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-4">Top 5 por Likes</p>
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-4">{t("posts.top5Likes")}</p>
           <div className="space-y-3">
             {top5.map((p, i) => {
               const pct = Math.round((p.likes / maxLikes) * 88);
-              const label = p.caption ? p.caption.slice(0, 28) + (p.caption.length > 28 ? "…" : "") : "Sin título";
+              const label = p.caption ? p.caption.slice(0, 28) + (p.caption.length > 28 ? "…" : "") : t("posts.noTitle");
               return (
                 <div key={p.id}>
                   <div className="flex items-center gap-2 mb-1">
@@ -335,6 +339,7 @@ function PublicacionesSidebar({ posts, summary }: { posts: Post[]; summary: Post
 // ─── Post card ───────────────────────────────────────────────────────────────
 
 function PostCard({ post }: { post: Post }) {
+  const t = useTranslations("igGrids");
   const isCarrusel = post.media_type === "CAROUSEL_ALBUM";
 
   return (
@@ -350,7 +355,7 @@ function PostCard({ post }: { post: Post }) {
         {post.thumbnail_url ? (
           <Image
             src={post.thumbnail_url}
-            alt={post.caption?.slice(0, 30) || "Post"}
+            alt={post.caption?.slice(0, 30) || t("posts.postAlt")}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
             sizes="200px"
@@ -370,14 +375,14 @@ function PostCard({ post }: { post: Post }) {
             ? <Images className="h-2.5 w-2.5" style={{ color: PALETTE.indigo }} />
             : <Grid2X2 className="h-2.5 w-2.5" style={{ color: PALETTE.purple }} />
           }
-          <span style={{ color: "rgba(255,255,255,0.80)" }}>{isCarrusel ? "Carrusel" : "Post"}</span>
+          <span style={{ color: "rgba(255,255,255,0.80)" }}>{isCarrusel ? t("posts.carouselSingular") : t("posts.postSingular")}</span>
         </div>
 
         {/* Time badge */}
         {post.published_at && (
           <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[9px]"
             style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.80)" }}>
-            {timeAgo(post.published_at)}
+            {timeAgo(post.published_at, t)}
           </div>
         )}
 
@@ -396,12 +401,12 @@ function PostCard({ post }: { post: Post }) {
       {/* Caption + stats */}
       <div className="p-3 space-y-2">
         <p className="text-[11px] font-light text-white/55 group-hover:text-white/75 transition-colors line-clamp-2 leading-relaxed">
-          {post.caption?.slice(0, 80) || "Sin descripción"}
+          {post.caption?.slice(0, 80) || t("posts.noDescription")}
         </p>
         {post.impressions > 0 && (
           <div className="flex items-center gap-1 text-[10px] text-white/45">
             <Eye className="h-2.5 w-2.5 text-white/30" />
-            <span>{fmt(post.impressions)} impresiones</span>
+            <span>{fmt(post.impressions)} {t("posts.impressionsLower")}</span>
           </div>
         )}
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -432,6 +437,7 @@ function PostCard({ post }: { post: Post }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
+  const t = useTranslations("igGrids");
   const [typeFilter, setTypeFilter] = useState<"all" | "post" | "carrusel">("all");
   const [sortKey, setSortKey] = useState<SortKey>("published_at");
 
@@ -453,9 +459,9 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
         <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4 bg-white/[0.04]">
           <Grid2X2 className="h-6 w-6 text-white/20" />
         </div>
-        <h3 className="text-[15px] font-light text-white/50">Sin publicaciones en el período</h3>
+        <h3 className="text-[15px] font-light text-white/50">{t("posts.empty.title")}</h3>
         <p className="mt-2 text-[12px] text-white/25 font-light">
-          Sincronizá tu cuenta de Instagram para ver posts y carruseles.
+          {t("posts.empty.description")}
         </p>
       </div>
     );
@@ -470,9 +476,9 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
           {/* Type pills */}
           <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/[0.06]">
             {([
-              { key: "all"      as const, label: "Todos"     },
-              { key: "post"     as const, label: "Posts"     },
-              { key: "carrusel" as const, label: "Carruseles"},
+              { key: "all"      as const, label: t("posts.typeFilter.all")       },
+              { key: "post"     as const, label: t("posts.typeFilter.posts")     },
+              { key: "carrusel" as const, label: t("posts.typeFilter.carousels") },
             ]).map(({ key, label }) => (
               <button
                 key={key}
@@ -489,7 +495,7 @@ export function PublicacionesGrid({ posts, summary }: PublicacionesGridProps) {
           {/* Sort */}
           <SortSelect value={sortKey} onChange={setSortKey} />
 
-          <span className="text-[11px] text-white/25">{filtered.length} publicaciones</span>
+          <span className="text-[11px] text-white/25">{t("posts.count", { count: filtered.length })}</span>
         </div>
 
         {/* Grid */}

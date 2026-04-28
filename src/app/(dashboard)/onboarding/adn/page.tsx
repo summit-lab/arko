@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdnChat } from "@/components/features/onboarding/AdnChat";
 import { getAdnProgress, getOrCreateAdnSession, getAdnData } from "@/services/adn-progress.service";
-import { ADN_WELCOME_MESSAGE } from "@/services/adn-prompts";
+import { getAdnWelcomeMessage } from "@/services/adn-prompts";
+import { getUserLanguage } from "@/i18n/server";
+import type { PromptLocale } from "@/services/arko-ai-prompts";
 
 export const metadata = {
   title: "ADN de Comunicación | Moka",
@@ -24,10 +26,11 @@ export default async function AdnOnboardingPage() {
     redirect("/login");
   }
 
-  const [progress, sessionId, adnData] = await Promise.all([
+  const [progress, sessionId, adnData, locale] = await Promise.all([
     getAdnProgress(supabase, workspaceId),
     getOrCreateAdnSession(supabase, workspaceId, user.id),
     getAdnData(supabase, workspaceId),
+    getUserLanguage(user.id) as Promise<PromptLocale>,
   ]);
 
   const { data: messages } = await supabase
@@ -41,7 +44,7 @@ export default async function AdnOnboardingPage() {
       initialMessages={messages ?? []}
       initialProgress={progress}
       initialData={adnData}
-      welcomeMessage={ADN_WELCOME_MESSAGE}
+      welcomeMessage={getAdnWelcomeMessage(locale)}
       sessionId={sessionId}
       workspaceId={workspaceId}
     />

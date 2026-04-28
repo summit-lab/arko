@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -70,12 +71,12 @@ function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
 
 // Metric → display config. Order here = order in UI.
 const METRIC_CONFIG = [
-  { key: "views", label: "Views", color: "#7A86E0", unit: undefined as string | undefined },
-  { key: "followers", label: "Seguidores", color: "#4BCEAF", unit: undefined },
-  { key: "engagement_rate", label: "Eng. Rate", color: "#AF6EC7", unit: "%" },
-  { key: "reach", label: "Alcance", color: "#EB6991", unit: undefined },
-  { key: "likes", label: "Likes", color: "#E0A86E", unit: undefined },
-  { key: "saves", label: "Guardados", color: "#6EC7C7", unit: undefined },
+  { key: "views", labelKey: "views", color: "#7A86E0", unit: undefined as string | undefined },
+  { key: "followers", labelKey: "followers", color: "#4BCEAF", unit: undefined },
+  { key: "engagement_rate", labelKey: "engagementRate", color: "#AF6EC7", unit: "%" },
+  { key: "reach", labelKey: "reach", color: "#EB6991", unit: undefined },
+  { key: "likes", labelKey: "likes", color: "#E0A86E", unit: undefined },
+  { key: "saves", labelKey: "saves", color: "#6EC7C7", unit: undefined },
 ] as const;
 
 type MetricKey = typeof METRIC_CONFIG[number]["key"];
@@ -86,6 +87,7 @@ interface MetasDonutProps {
 }
 
 export function MetasDonut({ goals, actuals }: MetasDonutProps) {
+  const t = useTranslations("igShell");
   const items: DonutProps[] = METRIC_CONFIG
     .filter((m) => {
       const g = goals[m.key];
@@ -97,7 +99,7 @@ export function MetasDonut({ goals, actuals }: MetasDonutProps) {
       return {
         pct: (actual / goal) * 100,
         color: m.color,
-        label: m.label,
+        label: t(`metas.metricLabels.${m.labelKey}`),
         current: fmtCompact(actual, m.unit),
         goal: fmtCompact(goal, m.unit),
       };
@@ -106,21 +108,21 @@ export function MetasDonut({ goals, actuals }: MetasDonutProps) {
   return (
     <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Metas del Mes</h3>
+        <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">{t("metas.title")}</h3>
         <a href="/settings/metas" className="text-[10px] text-white/20 hover:text-white/50 transition-colors tracking-wider">
-          Configurar →
+          {t("metas.configureArrow")}
         </a>
       </div>
 
       {items.length === 0 ? (
         <div className="py-6 text-center">
-          <p className="text-[12px] text-white/25 font-light">No hay metas configuradas</p>
+          <p className="text-[12px] text-white/25 font-light">{t("metas.empty")}</p>
           <a
             href="/settings/metas"
             className="inline-block mt-2 text-[11px] font-medium transition-colors hover:text-white/60"
             style={{ color: "rgba(122,134,224,0.7)" }}
           >
-            + Configurar metas
+            {t("metas.configureGoals")}
           </a>
         </div>
       ) : (

@@ -5,6 +5,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface ReelPoint {
@@ -35,19 +36,20 @@ function ScatterTooltip({ active, payload }: {
   active?: boolean;
   payload?: Array<{ payload: { id: string; caption: string | null; views: number; date: number; multiple: number | null } }>;
 }) {
+  const t = useTranslations("igGrids");
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] pointer-events-none backdrop-blur-xl shadow-xl" style={{ maxWidth: 220 }}>
       <p className="text-muted-foreground text-[10px] mb-1">{fmtDate(d.date)}</p>
-      <p className="text-popover-foreground font-medium">{fmt(d.views)} views</p>
+      <p className="text-popover-foreground font-medium">{fmt(d.views)} {t("scatter.views")}</p>
       {d.multiple != null && (
-        <p className="text-amber-400 text-[10px]">×{d.multiple.toFixed(1)} vs promedio</p>
+        <p className="text-amber-400 text-[10px]">{t("scatter.vsAverage", { multiplier: d.multiple.toFixed(1) })}</p>
       )}
       <p className="text-muted-foreground mt-1 leading-snug">
-        {d.caption ? (d.caption.length > 50 ? d.caption.slice(0, 50) + "…" : d.caption) : "Sin caption"}
+        {d.caption ? (d.caption.length > 50 ? d.caption.slice(0, 50) + "…" : d.caption) : t("scatter.noCaption")}
       </p>
-      <p className="text-indigo-400 text-[10px] mt-1">Click para ver el reel →</p>
+      <p className="text-indigo-400 text-[10px] mt-1">{t("scatter.clickToView")}</p>
     </div>
   );
 }
@@ -55,6 +57,7 @@ function ScatterTooltip({ active, payload }: {
 export function ReelsScatterPlot({ reels, avgViews }: Props) {
   const router = useRouter();
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
 
   if (reels.length < 3) return null;
 
@@ -82,10 +85,10 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
   return (
     <div className="glass-panel rounded-xl px-5 py-4">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Views por Reel</p>
-        <span className="text-[9px] text-white/20">promedio: {fmt(avgViews)} views</span>
+        <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">{t("scatter.title")}</p>
+        <span className="text-[9px] text-white/20">{t("scatter.averageLabel", { value: fmt(avgViews) })}</span>
       </div>
-      <p className="text-[9px] text-white/20 mb-4">Cada punto es un reel · click para verlo · línea = promedio</p>
+      <p className="text-[9px] text-white/20 mb-4">{t("scatter.subtitle")}</p>
 
       <div style={{ height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -158,7 +161,7 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
       <div className="flex items-center gap-4 mt-3 text-[9px] text-white/25">
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-[#818cf8]/70" />
-          <span>Normal</span>
+          <span>{t("scatter.legend.normal")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-[#60a5fa]" />
@@ -170,11 +173,11 @@ export function ReelsScatterPlot({ reels, avgViews }: Props) {
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-[#fbbf24]" />
-          <span>×8+ outlier</span>
+          <span>{t("scatter.legend.outlier")}</span>
         </div>
         <div className="flex items-center gap-1.5 ml-2">
           <div className="h-[1px] w-6 border-t border-dashed border-[#818cf8]/50" />
-          <span>promedio</span>
+          <span>{t("scatter.legend.average")}</span>
         </div>
       </div>
     </div>

@@ -1,36 +1,17 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { AdnProgress } from "@/services/adn-progress.service";
 
 interface AdnSectionProgressProps {
   progress: AdnProgress;
 }
 
-const sections = [
-  {
-    number: 1,
-    title: "Tu Negocio",
-    keys: ["profile"] as const,
-    totalFields: 5, // business_description, brand_persona, avatar_description, target_audience, main_offer
-  },
-  {
-    number: 2,
-    title: "Tu Contenido",
-    keys: ["strategies"] as const,
-    totalFields: 2, // instagram + youtube platforms
-  },
-  {
-    number: 3,
-    title: "Tu Mercado",
-    keys: ["market", "competitors"] as const,
-    totalFields: 8, // 7 market fields + 1 competitor min
-  },
-  {
-    number: 4,
-    title: "Tu Marca",
-    keys: ["brand", "references"] as const,
-    totalFields: 6, // 5 brand fields + 1 reference min
-  },
+const sectionShape = [
+  { number: 1, key: "section1", keys: ["profile"] as const,                  totalFields: 5 },
+  { number: 2, key: "section2", keys: ["strategies"] as const,               totalFields: 2 },
+  { number: 3, key: "section3", keys: ["market", "competitors"] as const,    totalFields: 8 },
+  { number: 4, key: "section4", keys: ["brand", "references"] as const,      totalFields: 6 },
 ];
 
 function getSectionFieldCount(
@@ -65,9 +46,10 @@ function isSectionActive(progress: AdnProgress, sectionNumber: number): boolean 
 }
 
 export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
+  const t = useTranslations("onboarding.progress");
   // Calculate overall % — if a section is complete, count it as fully filled
-  const totalPossible = sections.reduce((sum, s) => sum + s.totalFields, 0); // 21
-  const totalFilled = sections.reduce(
+  const totalPossible = sectionShape.reduce((sum, s) => sum + s.totalFields, 0); // 21
+  const totalFilled = sectionShape.reduce(
     (sum, s) => {
       const complete = isSectionComplete(progress, s.keys);
       return sum + (complete ? s.totalFields : Math.min(getSectionFieldCount(progress, s.keys), s.totalFields));
@@ -82,7 +64,7 @@ export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
       <div className="mb-5">
         <div className="flex items-baseline justify-between mb-2">
           <p className="text-[11px] font-medium text-white/35 tracking-[0.06em] uppercase">
-            Progreso
+            {t("header")}
           </p>
           <p className="text-[20px] font-light text-white/80 tracking-[-0.02em]">
             {percent}%
@@ -103,7 +85,7 @@ export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
 
       {/* Sections */}
       <div className="space-y-1 flex-1">
-        {sections.map((section) => {
+        {sectionShape.map((section) => {
           const complete = isSectionComplete(progress, section.keys);
           const active = isSectionActive(progress, section.number);
 
@@ -145,7 +127,7 @@ export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
                     : "font-light text-white/20"
                 }`}
               >
-                {section.title}
+                {t(section.key)}
               </p>
 
               {/* Active dot */}
@@ -160,7 +142,7 @@ export function AdnSectionProgress({ progress }: AdnSectionProgressProps) {
       {/* Hint */}
       <div className="mt-4 pt-3 border-t border-white/[0.04]">
         <p className="text-[10px] text-white/15 font-light leading-relaxed">
-          Podés pausar y retomar cuando quieras.
+          {t("pauseHint")}
         </p>
       </div>
     </div>

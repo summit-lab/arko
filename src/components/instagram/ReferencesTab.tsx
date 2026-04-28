@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useTranslations } from "next-intl";
 import {
   Plus, ExternalLink, X, Loader2, Sparkles, RefreshCw, Users,
   CheckCircle2, Search, Copy, Check, Eye, Heart, BookMarked,
   MessageCircleQuestion, List, Zap, Megaphone, GitCompare,
   BookOpen, AlertTriangle, Languages, Type, ArrowUpDown, Play,
-  Brain, Target, Lightbulb, Wand2,
+  Brain, Target, Lightbulb, Wand2, ChevronDown,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -144,14 +145,15 @@ function extractHook(caption: string): string {
 
 // ─── Pattern meta ─────────────────────────────────────────────────────────────
 
-const PATTERN_META: Record<HookPattern, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
-  pregunta:   { label: "Pregunta",   color: "#38bdf8", bg: "rgba(56,189,248,0.12)",  border: "rgba(56,189,248,0.28)",  icon: MessageCircleQuestion },
-  lista:      { label: "Lista",      color: "#c4b5fd", bg: "rgba(196,181,253,0.12)", border: "rgba(196,181,253,0.3)",  icon: List },
-  contraste:  { label: "Contraste",  color: "#fbbf24", bg: "rgba(251,191,36,0.12)",  border: "rgba(251,191,36,0.3)",   icon: GitCompare },
-  cta:        { label: "CTA",        color: "#34d399", bg: "rgba(52,211,153,0.12)",  border: "rgba(52,211,153,0.3)",   icon: Megaphone },
-  historia:   { label: "Historia",   color: "#fb7185", bg: "rgba(251,113,133,0.12)", border: "rgba(251,113,133,0.3)",  icon: BookOpen },
-  shock:      { label: "Shock",      color: "#f472b6", bg: "rgba(244,114,182,0.12)", border: "rgba(244,114,182,0.3)",  icon: AlertTriangle },
-  afirmacion: { label: "Afirmación", color: "#a78bfa", bg: "rgba(167,139,250,0.12)", border: "rgba(167,139,250,0.3)",  icon: Zap },
+// Pattern meta — labels translated at consumer site via t("references.patterns.<key>")
+const PATTERN_META: Record<HookPattern, { color: string; bg: string; border: string; icon: React.ElementType }> = {
+  pregunta:   { color: "#38bdf8", bg: "rgba(56,189,248,0.12)",  border: "rgba(56,189,248,0.28)",  icon: MessageCircleQuestion },
+  lista:      { color: "#c4b5fd", bg: "rgba(196,181,253,0.12)", border: "rgba(196,181,253,0.3)",  icon: List },
+  contraste:  { color: "#fbbf24", bg: "rgba(251,191,36,0.12)",  border: "rgba(251,191,36,0.3)",   icon: GitCompare },
+  cta:        { color: "#34d399", bg: "rgba(52,211,153,0.12)",  border: "rgba(52,211,153,0.3)",   icon: Megaphone },
+  historia:   { color: "#fb7185", bg: "rgba(251,113,133,0.12)", border: "rgba(251,113,133,0.3)",  icon: BookOpen },
+  shock:      { color: "#f472b6", bg: "rgba(244,114,182,0.12)", border: "rgba(244,114,182,0.3)",  icon: AlertTriangle },
+  afirmacion: { color: "#a78bfa", bg: "rgba(167,139,250,0.12)", border: "rgba(167,139,250,0.3)",  icon: Zap },
 };
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
@@ -206,6 +208,7 @@ function ReferenceChip({
   workspaceId: string;
 }) {
   void workspaceId;
+  const t = useTranslations("igAdvanced");
   const [scraping, setScraping] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -213,7 +216,7 @@ function ReferenceChip({
 
   const name = reference.scraped_data?.ig_username
     ? `@${reference.scraped_data.ig_username}`
-    : extractHandle(reference.brand_url) ?? reference.brand_name ?? "Sin nombre";
+    : extractHandle(reference.brand_url) ?? reference.brand_name ?? t("references.unnamed");
 
   async function handleScrape(e: React.MouseEvent) {
     e.stopPropagation();
@@ -257,28 +260,28 @@ function ReferenceChip({
         <button
           onClick={handleScrape}
           disabled={scraping}
-          title="Escanear perfil y reels"
+          title={t("references.chip.scanTitle")}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-violet-500/20 border border-violet-500/40 text-violet-800 dark:text-violet-200 hover:bg-violet-500/30 transition-all disabled:opacity-40"
         >
           {scraping ? <Loader2 size={9} className="animate-spin" /> : <RefreshCw size={9} />}
-          {scraping ? "Escaneando" : "Escanear"}
+          {scraping ? t("references.chip.scanning") : t("references.chip.scan")}
         </button>
       )}
       {hasReels && analyzedCount < reelsCount && (
         <button
           onClick={handleAnalyzeAll}
           disabled={analyzing}
-          title={`Analizar los ${Math.min(5, reelsCount - analyzedCount)} reels top con IA`}
+          title={t("references.chip.analyzeTitle", { count: Math.min(5, reelsCount - analyzedCount) })}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-violet-500/20 border border-violet-500/40 text-violet-800 dark:text-violet-200 hover:bg-violet-500/30 transition-all disabled:opacity-40"
         >
           {analyzing ? <Loader2 size={9} className="animate-spin" /> : <Wand2 size={9} />}
-          {analyzing ? "Analizando" : "Analizar"}
+          {analyzing ? t("references.chip.analyzing") : t("references.chip.analyze")}
         </button>
       )}
       <button
         onClick={handleDelete}
         disabled={deleting}
-        title={confirmDel ? "Click de nuevo para confirmar" : "Eliminar referencia"}
+        title={confirmDel ? t("references.chip.confirmDelete") : t("references.chip.deleteRef")}
         className={`h-5 w-5 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${
           confirmDel ? "bg-rose-500/25 text-rose-300 opacity-100" : "hover:bg-white/[0.08] text-white/25 hover:text-white/60"
         }`}
@@ -322,6 +325,7 @@ function AnalysisModal({
   onClose: () => void;
   onAnalyze: () => void;
 }) {
+  const t = useTranslations("igAdvanced");
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -337,7 +341,7 @@ function AnalysisModal({
           <div className="flex items-center gap-2">
             <Brain size={14} className="text-violet-600 dark:text-violet-300" />
             <p className="text-[13px] font-light">
-              Análisis del reel
+              {t("references.modal.title")}
               <span className="text-muted-foreground ml-2">
                 · {hook.referenceHandle ?? hook.referenceName}
               </span>
@@ -369,19 +373,19 @@ function AnalysisModal({
             {analyzing ? (
               <>
                 <Loader2 size={16} className="animate-spin text-violet-600 dark:text-violet-300" />
-                <p className="text-[12px] text-muted-foreground">Analizando con Gemini…</p>
+                <p className="text-[12px] text-muted-foreground">{t("references.modal.analyzingWithGemini")}</p>
               </>
             ) : (
               <>
                 <p className="text-[12px] text-muted-foreground max-w-md">
-                  Este reel todavía no fue analizado. Moka va a usar el framework de Fran para detectar hook, estructura, CTA, fortalezas y debilidades.
+                  {t("references.modal.notAnalyzedYet")}
                 </p>
                 <button
                   onClick={onAnalyze}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer text-violet-800 dark:text-violet-200"
                   style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.4)" }}
                 >
-                  <Wand2 size={12} /> Analizar ahora
+                  <Wand2 size={12} /> {t("references.modal.analyzeNow")}
                 </button>
               </>
             )}
@@ -389,43 +393,43 @@ function AnalysisModal({
         ) : (
           <div className="space-y-4 text-[12px]">
             {analysis.ai_summary && (
-              <Section icon={Brain} title="Resumen">{analysis.ai_summary}</Section>
+              <Section icon={Brain} title={t("references.modal.summary")}>{analysis.ai_summary}</Section>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {analysis.hook_type && (
-                <MetaItem icon={Target} label="Tipo de hook" value={analysis.hook_type} />
+                <MetaItem icon={Target} label={t("references.modal.hookType")} value={analysis.hook_type} />
               )}
               {analysis.content_type && (
-                <MetaItem icon={Lightbulb} label="Tipo de contenido" value={analysis.content_type} />
+                <MetaItem icon={Lightbulb} label={t("references.modal.contentType")} value={analysis.content_type} />
               )}
               {analysis.topic_cluster && (
-                <MetaItem icon={BookOpen} label="Tema" value={analysis.topic_cluster} />
+                <MetaItem icon={BookOpen} label={t("references.modal.topic")} value={analysis.topic_cluster} />
               )}
               {analysis.cta_type && analysis.cta_type !== "ninguno" && (
-                <MetaItem icon={Megaphone} label="CTA" value={analysis.cta_type} />
+                <MetaItem icon={Megaphone} label={t("references.modal.cta")} value={analysis.cta_type} />
               )}
             </div>
             {analysis.narrative_structure && (
-              <Section icon={BookOpen} title="Estructura narrativa">{analysis.narrative_structure}</Section>
+              <Section icon={BookOpen} title={t("references.modal.narrativeStructure")}>{analysis.narrative_structure}</Section>
             )}
             {analysis.cta_text && (
-              <Section icon={Megaphone} title="CTA textual">{analysis.cta_text}</Section>
+              <Section icon={Megaphone} title={t("references.modal.ctaText")}>{analysis.cta_text}</Section>
             )}
             {analysis.strengths && (
-              <Section icon={CheckCircle2} title="Fortalezas" tone="positive">{analysis.strengths}</Section>
+              <Section icon={CheckCircle2} title={t("references.modal.strengths")} tone="positive">{analysis.strengths}</Section>
             )}
             {analysis.weaknesses && (
-              <Section icon={AlertTriangle} title="Debilidades" tone="negative">{analysis.weaknesses}</Section>
+              <Section icon={AlertTriangle} title={t("references.modal.weaknesses")} tone="negative">{analysis.weaknesses}</Section>
             )}
             <div className="flex items-center justify-between pt-2">
-              <p className="text-[10px] text-muted-foreground">Modelo: {analysis.model_used ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground">{t("references.modal.model")}: {analysis.model_used ?? "—"}</p>
               <button
                 onClick={onAnalyze}
                 disabled={analyzing}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-medium transition-all cursor-pointer bg-white/[0.05] border border-white/[0.1] text-foreground/70 hover:bg-white/[0.1] disabled:opacity-40"
               >
                 {analyzing ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
-                {analyzing ? "Re-analizando…" : "Re-analizar"}
+                {analyzing ? t("references.modal.reanalyzing") : t("references.modal.reanalyze")}
               </button>
             </div>
           </div>
@@ -471,6 +475,7 @@ function HookCard({
   workspaceId: string | null;
   onAnalysisUpdate: (referenceId: string, analysis: ReelAnalysis) => void;
 }) {
+  const t = useTranslations("igAdvanced");
   const [copied, setCopied] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -534,7 +539,7 @@ function HookCard({
             style={{ color: meta.color, background: meta.bg, border: `1px solid ${meta.border}` }}
           >
             <PatternIcon size={9} />
-            {meta.label}
+            {t(`references.patterns.${hook.pattern}`)}
           </span>
           <span className="text-[10px] text-muted-foreground/70 truncate max-w-[140px]">
             {hook.referenceHandle ?? hook.referenceName}
@@ -556,16 +561,16 @@ function HookCard({
             className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer bg-white/[0.05] border border-white/[0.1] text-foreground/70 hover:bg-white/[0.08] hover:text-foreground"
           >
             {copied ? <Check size={11} /> : <Copy size={11} />}
-            {copied ? "Copiado" : "Copiar"}
+            {copied ? t("references.card.copied") : t("references.card.copy")}
           </button>
           {canAnalyze && (
             <button
               onClick={() => setModalOpen(true)}
               className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all cursor-pointer text-violet-800 dark:text-violet-200"
               style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}
-              title={hasAnalysis ? "Ver análisis del reel" : "Analizar este reel con IA"}
+              title={hasAnalysis ? t("references.card.viewAnalysisTitle") : t("references.card.analyzeTitle")}
             >
-              <Brain size={11} /> {hasAnalysis ? "Ver análisis" : "Analizar"}
+              <Brain size={11} /> {hasAnalysis ? t("references.card.viewAnalysis") : t("references.card.analyze")}
             </button>
           )}
           {hook.permalink && (
@@ -574,7 +579,7 @@ function HookCard({
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center h-[28px] w-[28px] rounded-lg transition-all cursor-pointer bg-white/[0.04] border border-white/[0.08] text-muted-foreground hover:text-foreground"
-              title="Ver reel original"
+              title={t("references.card.viewOriginal")}
             >
               <ExternalLink size={11} />
             </a>
@@ -602,6 +607,7 @@ function AddModal({ onClose, onSave, workspaceId }: {
   onSave: (ref: Reference) => void;
   workspaceId: string;
 }) {
+  const t = useTranslations("igAdvanced");
   const [brandName, setBrandName]       = useState("");
   const [brandUrl, setBrandUrl]         = useState("");
   const [whatTheyLike, setWhatTheyLike] = useState("");
@@ -616,7 +622,7 @@ function AddModal({ onClose, onSave, workspaceId }: {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!brandName.trim()) { setError("El nombre es obligatorio"); return; }
+    if (!brandName.trim()) { setError(t("references.add.errors.nameRequired")); return; }
     setSaving(true); setError(null);
     try {
       const res = await fetch(`/api/v1/references?workspace_id=${workspaceId}`, {
@@ -625,10 +631,10 @@ function AddModal({ onClose, onSave, workspaceId }: {
         body: JSON.stringify({ brand_name: brandName, brand_url: brandUrl || null, what_they_like: whatTheyLike || null }),
       });
       const json = await res.json() as { data?: { reference: Reference }; message?: string };
-      if (!res.ok) { setError(json.message ?? "Error guardando"); return; }
+      if (!res.ok) { setError(json.message ?? t("references.add.errors.saving")); return; }
       onSave(json.data!.reference);
       onClose();
-    } catch { setError("Error de conexión"); }
+    } catch { setError(t("references.add.errors.connection")); }
     finally { setSaving(false); }
   }
 
@@ -646,7 +652,7 @@ function AddModal({ onClose, onSave, workspaceId }: {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles size={14} className="text-violet-400" />
-            <p className="text-[14px] text-white/80 font-light">Agregar referencia</p>
+            <p className="text-[14px] text-white/80 font-light">{t("references.add.title")}</p>
           </div>
           <button onClick={onClose} className="h-7 w-7 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-all">
             <X size={13} />
@@ -655,16 +661,16 @@ function AddModal({ onClose, onSave, workspaceId }: {
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Nombre</label>
-            <input type="text" value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Nombre de la marca / creador" style={inputStyle} autoFocus />
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">{t("references.add.fields.name")}</label>
+            <input type="text" value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder={t("references.add.placeholders.name")} style={inputStyle} autoFocus />
           </div>
           <div>
-            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">URL de Instagram</label>
-            <input type="text" value={brandUrl} onChange={(e) => setBrandUrl(e.target.value)} placeholder="@usuario o https://instagram.com/usuario" style={inputStyle} />
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">{t("references.add.fields.url")}</label>
+            <input type="text" value={brandUrl} onChange={(e) => setBrandUrl(e.target.value)} placeholder={t("references.add.placeholders.url")} style={inputStyle} />
           </div>
           <div>
-            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Por qué te inspira <span className="text-white/20 normal-case">(opcional)</span></label>
-            <textarea value={whatTheyLike} onChange={(e) => setWhatTheyLike(e.target.value)} placeholder="Sus hooks, su formato, su estética…" rows={3} style={{ ...inputStyle, resize: "vertical" as const, minHeight: 80 }} />
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">{t("references.add.fields.inspiration")} <span className="text-white/20 normal-case">{t("references.add.fields.optional")}</span></label>
+            <textarea value={whatTheyLike} onChange={(e) => setWhatTheyLike(e.target.value)} placeholder={t("references.add.placeholders.inspiration")} rows={3} style={{ ...inputStyle, resize: "vertical" as const, minHeight: 80 }} />
           </div>
 
           {error && (
@@ -676,12 +682,12 @@ function AddModal({ onClose, onSave, workspaceId }: {
           <div className="flex items-center gap-2 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 h-10 rounded-xl text-[12px] font-medium transition-all cursor-pointer bg-white/[0.04] border border-white/[0.08] text-white/50">
-              Cancelar
+              {t("references.add.cancel")}
             </button>
             <button type="submit" disabled={saving || !brandName.trim()}
               className="flex-1 h-10 rounded-xl text-[12px] font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-40 text-violet-800 dark:text-violet-200"
               style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.4)" }}>
-              {saving ? <><Loader2 size={11} className="animate-spin" /> Guardando…</> : <><Plus size={11} /> Agregar</>}
+              {saving ? <><Loader2 size={11} className="animate-spin" /> {t("references.add.saving")}</> : <><Plus size={11} /> {t("references.add.add")}</>}
             </button>
           </div>
         </form>
@@ -693,6 +699,7 @@ function AddModal({ onClose, onSave, workspaceId }: {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId: string | null; initialReferences?: Reference[] }) {
+  const t = useTranslations("igAdvanced");
   const [references, setReferences] = useState<Reference[]>(initialReferences ?? []);
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -700,8 +707,18 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
   const [referenceFilter, setReferenceFilter] = useState<string | "all">("all");
   const [tierFilter, setTierFilter] = useState<"top" | "mid" | "all">("all");
   const [sortBy, setSortBy] = useState<"views" | "likes" | "engagement" | "recent">("views");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
   const [classifications, setClassifications] = useState<Map<string, ClassificationResponse>>(new Map());
   const [classifying, setClassifying] = useState(false);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   function handleSave(ref: Reference) {
     setReferences((prev) => [...prev, ref]);
@@ -758,7 +775,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
       const topThreshold = sortedByViews[Math.floor(sortedByViews.length * 0.25)]?.views_count ?? 0;
       const lowThreshold = sortedByViews[Math.floor(sortedByViews.length * 0.75)]?.views_count ?? 0;
 
-      const refName = ref.brand_name ?? ref.scraped_data?.ig_username ?? "Sin nombre";
+      const refName = ref.brand_name ?? ref.scraped_data?.ig_username ?? t("references.unnamed");
       const refHandle = ref.scraped_data?.ig_username
         ? `@${ref.scraped_data.ig_username}`
         : extractHandle(ref.brand_url);
@@ -813,11 +830,23 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
       }
       return b.views - a.views;
     });
-  }, [references]);
+  }, [references, t]);
+
+  // Stable signature of classifiable hooks — only changes when reels are
+  // added/removed/edited, NOT when an analysis is attached to an existing reel.
+  // Without this, `rawHooks` is a new reference on every analyze (the useMemo
+  // re-runs) and would re-classify every hook of every reference.
+  const classifyKey = useMemo(() => {
+    return rawHooks
+      .filter((h) => !h.shortCode.startsWith("anon-"))
+      .map((h) => `${h.referenceId}:${h.shortCode}:${h.text}`)
+      .sort()
+      .join("|");
+  }, [rawHooks]);
 
   // Fetch AI classifications
   useEffect(() => {
-    if (!workspaceId || rawHooks.length === 0) return;
+    if (!workspaceId || !classifyKey) return;
     const byRef = new Map<string, { reel_short_code: string; text: string }[]>();
     for (const h of rawHooks) {
       if (!h.shortCode.startsWith("anon-")) {
@@ -855,7 +884,8 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
     }
     classifyAll();
     return () => { cancelled = true; };
-  }, [rawHooks, workspaceId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classifyKey, workspaceId]);
 
   // Merge AI classifications
   const hooks = useMemo<Hook[]>(() => {
@@ -933,17 +963,17 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p className="text-[13px] text-white/60 font-light flex items-center gap-2">
-              Referencias
+              {t("references.headerTitle")}
               {classifying && (
                 <span className="flex items-center gap-1 text-[10px] text-violet-700 dark:text-violet-300/70">
                   <Loader2 size={10} className="animate-spin" />
-                  clasificando con IA…
+                  {t("references.classifying")}
                 </span>
               )}
             </p>
             <p className="text-[11px] text-white/25 mt-0.5">
-              {references.length} referencia{references.length !== 1 ? "s" : ""}
-              {totalHooks > 0 && ` · ${totalHooks} hook${totalHooks !== 1 ? "s" : ""}`}
+              {t("references.refCount", { count: references.length })}
+              {totalHooks > 0 && ` · ${t("references.hookCount", { count: totalHooks })}`}
             </p>
           </div>
           <button
@@ -951,7 +981,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer text-violet-800 dark:text-violet-200"
             style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}
           >
-            <Plus size={13} /> Agregar
+            <Plus size={13} /> {t("references.addBtn")}
           </button>
         </div>
 
@@ -961,16 +991,16 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
             <div className="h-12 w-12 rounded-full flex items-center justify-center mb-4 bg-white/[0.04]">
               <BookMarked className="h-5 w-5 text-white/30" />
             </div>
-            <p className="text-[14px] text-white/60 font-light">Sin referencias todavía</p>
+            <p className="text-[14px] text-white/60 font-light">{t("references.empty.title")}</p>
             <p className="text-[12px] text-white/30 mt-1.5 max-w-sm font-light">
-              Agregá marcas o creadores que te inspiren — Moka va a extraer y clasificar sus hooks automáticamente.
+              {t("references.empty.body")}
             </p>
             <button
               onClick={() => setShowModal(true)}
               className="mt-5 flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer text-violet-800 dark:text-violet-200"
               style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}
             >
-              <Plus size={13} /> Agregar primera referencia
+              <Plus size={13} /> {t("references.empty.cta")}
             </button>
           </div>
         )}
@@ -986,7 +1016,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
                   : "bg-white/[0.04] border-transparent text-white/40 hover:text-white/70"
               }`}
             >
-              Todas · {totalHooks}
+              {t("references.filters.all")} · {totalHooks}
             </button>
             {references.map((ref) => (
               <ReferenceChip
@@ -1009,10 +1039,12 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
         {references.length > 0 && totalHooks === 0 && (
           <div className="py-16 text-center rounded-xl border border-dashed border-white/[0.08]">
             <p className="text-[13px] text-white/40 font-light">
-              Ninguna referencia tiene reels escaneados todavía.
+              {t("references.noScrapedReels.title")}
             </p>
             <p className="text-[11px] text-white/25 mt-1.5 font-light">
-              Clickeá <span className="text-violet-700 dark:text-violet-300 font-medium">Escanear</span> en cada chip para traer sus hooks.
+              {t.rich("references.noScrapedReels.hint", {
+                scan: (chunks) => <span className="text-violet-700 dark:text-violet-300 font-medium">{chunks}</span>,
+              })}
             </p>
           </div>
         )}
@@ -1026,7 +1058,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
                 <Search size={12} className="text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Buscar en hooks..."
+                  placeholder={t("references.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent outline-none text-[11px] text-foreground placeholder:text-muted-foreground"
@@ -1045,7 +1077,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
                 }`}
               >
                 <Type size={11} />
-                Todos
+                {t("references.filters.allPatterns")}
               </button>
               {(Object.keys(PATTERN_META) as HookPattern[]).map((p) => {
                 const meta = PATTERN_META[p];
@@ -1071,7 +1103,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
                     }
                   >
                     <Icon size={11} />
-                    {meta.label} · {count}
+                    {t(`references.patterns.${p}`)} · {count}
                   </button>
                 );
               })}
@@ -1080,37 +1112,59 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
 
               {/* Tier */}
               {([
-                { key: "all", label: "Todos" },
-                { key: "mid", label: "Mid+Top" },
-                { key: "top", label: "🔥 Top" },
-              ] as { key: "all" | "mid" | "top"; label: string }[]).map((t) => (
+                { key: "all", label: t("references.tier.all") },
+                { key: "mid", label: t("references.tier.midTop") },
+                { key: "top", label: t("references.tier.top") },
+              ] as { key: "all" | "mid" | "top"; label: string }[]).map((tier) => (
                 <button
-                  key={t.key}
-                  onClick={() => setTierFilter(t.key)}
+                  key={tier.key}
+                  onClick={() => setTierFilter(tier.key)}
                   className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
-                    tierFilter === t.key
+                    tierFilter === tier.key
                       ? "bg-white/[0.1] text-white border border-white/[0.15]"
                       : "bg-white/[0.04] text-white/40 border border-transparent hover:text-white/70"
                   }`}
                 >
-                  {t.label}
+                  {tier.label}
                 </button>
               ))}
 
               <div className="h-4 w-px bg-white/[0.08] mx-1" />
 
               {/* Sort */}
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08]">
-                <ArrowUpDown size={11} className="text-muted-foreground" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="bg-transparent outline-none text-[11px] font-medium text-foreground/80 cursor-pointer pr-1"
+              <div ref={sortRef} className="relative">
+                <button
+                  onClick={() => setSortOpen((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-medium text-foreground/80 hover:bg-white/[0.08] transition-colors cursor-pointer"
                 >
-                  <option value="views">Más vistas</option>
-                  <option value="likes">Más likes</option>
-                  <option value="engagement">Mejor engagement</option>
-                </select>
+                  <ArrowUpDown size={11} className="text-muted-foreground" />
+                  <span>
+                    {sortBy === "views" && t("references.sort.views")}
+                    {sortBy === "likes" && t("references.sort.likes")}
+                    {sortBy === "engagement" && t("references.sort.engagement")}
+                  </span>
+                  <ChevronDown size={11} className={`text-foreground/50 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
+                </button>
+                {sortOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-1.5 min-w-[140px] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-2xl">
+                    {([
+                      { value: "views", label: t("references.sort.views") },
+                      { value: "likes", label: t("references.sort.likes") },
+                      { value: "engagement", label: t("references.sort.engagement") },
+                    ] as { value: typeof sortBy; label: string }[]).map((o) => (
+                      <button
+                        key={o.value}
+                        onClick={() => { setSortBy(o.value); setSortOpen(false); }}
+                        className={`flex w-full items-center justify-between gap-6 px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.08] cursor-pointer ${
+                          o.value === sortBy ? "text-foreground" : "text-foreground/50 hover:text-foreground/80"
+                        }`}
+                      >
+                        <span>{o.label}</span>
+                        {o.value === sortBy && <Check size={11} className="text-foreground" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1118,7 +1172,7 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
             {filtered.length === 0 ? (
               <div className="py-16 text-center">
                 <p className="text-[13px] text-white/30 font-light">
-                  No hay hooks que coincidan con los filtros
+                  {t("references.noMatch")}
                 </p>
               </div>
             ) : (

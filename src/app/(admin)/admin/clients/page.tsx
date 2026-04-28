@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 interface UsageRow {
@@ -8,6 +9,9 @@ interface UsageRow {
 
 export default async function AdminClientsPage() {
   const supabase = await createClient();
+  const t = await getTranslations("admin.clients");
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
 
   // Fetch workspaces with meta_connections
   const { data: workspaces, error: wsError } = await supabase
@@ -61,9 +65,9 @@ export default async function AdminClientsPage() {
   return (
     <div className="px-8 py-10 space-y-8">
       <div>
-        <h1 className="page-title">Usuarios</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <p className="text-white/35 mt-3 text-[15px] font-light">
-          Todos los workspaces registrados en la plataforma.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -71,17 +75,17 @@ export default async function AdminClientsPage() {
         <div className="space-y-1">
           {/* Header */}
           <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-            <div className="col-span-3">Workspace</div>
-            <div className="col-span-2">Owner</div>
-            <div className="col-span-2 text-center">Conexión</div>
-            <div className="col-span-1 text-center">ADN</div>
-            <div className="col-span-1 text-center">Estado</div>
-            <div className="col-span-1 text-right">Uso $</div>
-            <div className="col-span-2 text-right">Creado</div>
+            <div className="col-span-3">{t("headerWorkspace")}</div>
+            <div className="col-span-2">{t("headerOwner")}</div>
+            <div className="col-span-2 text-center">{t("headerConnection")}</div>
+            <div className="col-span-1 text-center">{t("headerAdn")}</div>
+            <div className="col-span-1 text-center">{t("headerStatus")}</div>
+            <div className="col-span-1 text-right">{t("headerUsage")}</div>
+            <div className="col-span-2 text-right">{t("headerCreated")}</div>
           </div>
 
           {clients.length === 0 && (
-            <p className="text-white/25 text-[13px] py-4 text-center">No hay clientes registrados.</p>
+            <p className="text-white/25 text-[13px] py-4 text-center">{t("empty")}</p>
           )}
 
           {clients.map((c) => (
@@ -109,14 +113,14 @@ export default async function AdminClientsPage() {
                     @{c.ig_username}
                   </span>
                 ) : (
-                  <span className="text-[12px] text-white/25">Sin conexión</span>
+                  <span className="text-[12px] text-white/25">{t("noConnection")}</span>
                 )}
               </div>
               <div className="col-span-1 text-center">
                 {c.onboarding_completed ? (
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
                 ) : (
-                  <span className="text-[10px] text-amber-400/60">Pendiente</span>
+                  <span className="text-[10px] text-amber-400/60">{t("pending")}</span>
                 )}
               </div>
               <div className="col-span-1 text-center">
@@ -128,7 +132,7 @@ export default async function AdminClientsPage() {
                 </span>
               </div>
               <div className="col-span-2 text-right text-[12px] text-white/30">
-                {new Date(c.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                {new Date(c.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short", year: "numeric" })}
               </div>
             </Link>
           ))}

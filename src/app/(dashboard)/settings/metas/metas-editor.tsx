@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Target, Pencil, Trash2, Plus, Check, X, ChevronDown } from "lucide-react";
 import { upsertGoal, deleteGoal } from "@/app/(dashboard)/customer-voice/actions";
 
@@ -9,7 +10,7 @@ function MetricSelect({
   onChange,
   options,
   labels,
-  placeholder = "Elegir métrica...",
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -17,6 +18,8 @@ function MetricSelect({
   labels: Record<string, string>;
   placeholder?: string;
 }) {
+  const t = useTranslations("settingsMetas.editor");
+  const ph = placeholder ?? t("selectMetric");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -28,7 +31,7 @@ function MetricSelect({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const selectedLabel = value ? (labels[value] ?? value) : placeholder;
+  const selectedLabel = value ? (labels[value] ?? value) : ph;
 
   return (
     <div ref={ref} className="relative flex-1 min-w-0">
@@ -47,7 +50,7 @@ function MetricSelect({
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-xl">
           {options.length === 0 ? (
-            <div className="px-3 py-2 text-[12px] text-muted-foreground">Sin métricas disponibles</div>
+            <div className="px-3 py-2 text-[12px] text-muted-foreground">{t("noMetricsAvailable")}</div>
           ) : (
             options.map((opt) => (
               <button
@@ -85,6 +88,8 @@ const METRIC_STEP: Record<string, number> = {
 };
 
 export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
+  const t = useTranslations("settingsMetas.editor");
+  const locale = useLocale();
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [adding, setAdding] = useState(false);
@@ -130,7 +135,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
   function fmtValue(metric: string, value: number): string {
     const unit = METRIC_UNITS[metric];
     if (unit === "%") return `${value}%`;
-    return value.toLocaleString("es-AR");
+    return value.toLocaleString(locale === "en" ? "en-US" : "es-AR");
   }
 
   return (
@@ -138,7 +143,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
       {/* Configured goals */}
       <div className="glass-panel rounded-xl p-6 space-y-1">
         <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-4">
-          Metas activas
+          {t("active")}
         </h3>
 
         {configuredMetrics.length === 0 && !adding && (
@@ -146,7 +151,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
             <div className="h-12 w-12 rounded-full bg-white/[0.04] flex items-center justify-center mx-auto mb-3">
               <Target className="h-6 w-6 text-white/20" />
             </div>
-            <p className="text-[13px] text-white/30 font-light">No hay metas configuradas para este mes</p>
+            <p className="text-[13px] text-white/30 font-light">{t("empty")}</p>
           </div>
         )}
 
@@ -227,7 +232,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
               type="number"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
-              placeholder="Objetivo"
+              placeholder={t("targetPlaceholder")}
               step={newMetric ? (METRIC_STEP[newMetric] ?? 1) : 1}
               min={0}
               className="w-28 px-2 py-1.5 rounded-md text-[13px] text-white font-light bg-white/[0.06] border border-white/[0.1] outline-none focus:border-ring"
@@ -242,7 +247,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
               className="h-8 px-3 rounded-md flex items-center gap-1.5 text-[12px] font-medium bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Check className="h-3.5 w-3.5" />
-              Guardar
+              {t("save")}
             </button>
             <button
               onClick={() => { setAdding(false); setNewMetric(""); setNewValue(""); }}
@@ -259,7 +264,7 @@ export function MetasEditor({ goals, metricLabels }: MetasEditorProps) {
               style={{ color: "rgba(122,134,224,0.8)" }}
             >
               <Plus className="h-3.5 w-3.5" />
-              Agregar meta
+              {t("addGoal")}
             </button>
           )
         )}

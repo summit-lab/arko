@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import type { ReelsSummary } from "./ReelsGrid";
 import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked } from "lucide-react";
 
@@ -179,14 +180,14 @@ export interface InstagramShellProps {
 
 // ─── Tab definitions ───
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "dashboard",     label: "Dashboard",     icon: LayoutDashboard },
-  { key: "reels",         label: "Reels",         icon: Clapperboard },
-  { key: "historias",     label: "Historias",     icon: BookImage },
-  { key: "publicaciones", label: "Publicaciones", icon: Grid2X2 },
-  { key: "competencia",   label: "Competencia",   icon: Swords },
-  { key: "referencias",   label: "Referencias",   icon: BookMarked },
-  { key: "metrics",       label: "Demografía",    icon: BarChart3 },
+const TABS: { key: TabKey; labelKey: string; icon: React.ElementType }[] = [
+  { key: "dashboard",     labelKey: "dashboard",     icon: LayoutDashboard },
+  { key: "reels",         labelKey: "reels",         icon: Clapperboard },
+  { key: "historias",     labelKey: "stories",       icon: BookImage },
+  { key: "publicaciones", labelKey: "publications",  icon: Grid2X2 },
+  { key: "competencia",   labelKey: "competition",   icon: Swords },
+  { key: "referencias",   labelKey: "references",    icon: BookMarked },
+  { key: "metrics",       labelKey: "demographics",  icon: BarChart3 },
 ];
 
 // ─── Component ───
@@ -208,6 +209,7 @@ export function InstagramShell({
   initialCompetitors,
   initialReferences,
 }: InstagramShellProps) {
+  const t = useTranslations("igShell");
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const searchParams = useSearchParams();
 
@@ -252,7 +254,7 @@ export function InstagramShell({
               }`}
             >
               <tab.icon size={14} strokeWidth={active ? 2.2 : 1.6} />
-              {tab.label}
+              {t(`tabs.${tab.labelKey}`)}
             </button>
           );
         })}

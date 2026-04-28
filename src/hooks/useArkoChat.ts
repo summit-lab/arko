@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type { ChatMessage, ToolStep } from "@/components/chat/ChatShared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ export function useArkoChat({
   workspaceId,
   context,
 }: UseArkoChatOptions): UseArkoChatReturn {
+  const t = useTranslations("arkoChat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -88,7 +90,7 @@ export function useArkoChat({
       };
       setMessages((prev) => [...prev, userMsg]);
       setIsLoading(true);
-      setStatusLabel("Pensando...");
+      setStatusLabel(t("thinking"));
       setToolSteps([]);
 
       let streamCompleted = false;
@@ -114,7 +116,7 @@ export function useArkoChat({
           body: JSON.stringify(body),
         });
 
-        if (!res.ok || !res.body) throw new Error("Error al enviar mensaje");
+        if (!res.ok || !res.body) throw new Error(t("errors.send"));
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -173,7 +175,7 @@ export function useArkoChat({
                     id: event.message?.id ?? `resp-${Date.now()}`,
                     role: "assistant",
                     content:
-                      event.message?.content ?? "Error al generar respuesta.",
+                      event.message?.content ?? t("errors.generate"),
                     created_at:
                       event.message?.created_at ?? new Date().toISOString(),
                   };
@@ -185,7 +187,7 @@ export function useArkoChat({
                 }
 
                 case "error":
-                  throw new Error(event.message || "Error del servidor");
+                  throw new Error(event.message || t("errors.server"));
               }
             } catch (parseErr) {
               if (
@@ -203,8 +205,7 @@ export function useArkoChat({
           const errorMsg: ChatMessage = {
             id: `err-${Date.now()}`,
             role: "assistant",
-            content:
-              "La respuesta se cortó (posible timeout del servidor). Intentá con una pregunta más corta o volvé a intentar.",
+            content: t("errors.timeout"),
             created_at: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, errorMsg]);
@@ -216,8 +217,7 @@ export function useArkoChat({
         const errorMsg: ChatMessage = {
           id: `err-${Date.now()}`,
           role: "assistant",
-          content:
-            "Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?",
+          content: t("errors.processing"),
           created_at: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -226,7 +226,7 @@ export function useArkoChat({
         setToolSteps([]);
       }
     },
-    [isLoading, workspaceId, context, updateSessionId],
+    [isLoading, workspaceId, context, updateSessionId, t],
   );
 
   return {

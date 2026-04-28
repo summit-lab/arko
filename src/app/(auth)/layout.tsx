@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+
 export default function AuthLayout({
   children,
 }: {
@@ -34,6 +36,11 @@ export default function AuthLayout({
 
       {/* Vinneta sutil para legibilidad del panel */}
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-background/5 to-background/20 dark:via-black/10 dark:to-black/40" />
+
+      {/* Pre-login language toggle — sets NEXT_LOCALE cookie client-side. */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher mode="auth" />
+      </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
         {children}

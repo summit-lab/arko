@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface ReelPoint {
@@ -21,7 +22,6 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 // Convert a timestamptz string to a YYYY-MM-DD key in the viewer's LOCAL timezone.
 // A reel published at 2026-04-06T01:00:00Z should bucket as 2026-04-05 for a
@@ -45,6 +45,8 @@ function dateToLocalKey(d: Date): string {
 export function ReelsHeatmap({ reels }: Props) {
   const [hovered, setHovered] = useState<{ reel: ReelPoint; x: number; y: number } | null>(null);
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
+  const DAYS_ES = t.raw("daysShort") as string[];
   const emptyCell = chart.trackFill;
 
   if (reels.length === 0) return null;
@@ -117,8 +119,8 @@ export function ReelsHeatmap({ reels }: Props) {
 
   return (
     <div className="glass-panel rounded-xl px-5 py-4 relative">
-      <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">Heatmap de Publicación</p>
-      <p className="text-[9px] text-white/20 mb-4">Intensidad de views por día · click para ver el reel</p>
+      <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">{t("heatmap.title")}</p>
+      <p className="text-[9px] text-white/20 mb-4">{t("heatmap.subtitle")}</p>
 
       <div className="flex gap-2">
         {/* Y-axis day labels */}
@@ -168,11 +170,11 @@ export function ReelsHeatmap({ reels }: Props) {
 
       {/* Legend */}
       <div className="flex items-center gap-2 mt-3">
-        <span className="text-[9px] text-white/20">Menos</span>
+        <span className="text-[9px] text-white/20">{t("heatmap.less")}</span>
         {[emptyCell, ...heatScale].map((c, i) => (
           <div key={i} className="rounded-[2px]" style={{ width: 12, height: 12, background: c }} />
         ))}
-        <span className="text-[9px] text-white/20">Más</span>
+        <span className="text-[9px] text-white/20">{t("heatmap.more")}</span>
       </div>
 
       {/* Tooltip */}
@@ -186,9 +188,9 @@ export function ReelsHeatmap({ reels }: Props) {
           }}
         >
           <p className="text-muted-foreground text-[10px] mb-0.5">{hovered.reel.published_at ? localDateKey(hovered.reel.published_at) : ""}</p>
-          <p className="text-popover-foreground leading-snug">{fmt(hovered.reel.views_total)} views</p>
+          <p className="text-popover-foreground leading-snug">{fmt(hovered.reel.views_total)} {t("heatmap.views")}</p>
           <p className="text-muted-foreground mt-0.5 leading-snug truncate">
-            {hovered.reel.caption?.slice(0, 40) ?? "Sin caption"}
+            {hovered.reel.caption?.slice(0, 40) ?? t("heatmap.noCaption")}
           </p>
         </div>
       )}

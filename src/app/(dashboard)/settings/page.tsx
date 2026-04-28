@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { User, Building2, Shield, Instagram, Mail, Calendar, Globe, Palette } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
 import { DisconnectMetaButton } from "@/components/meta/DisconnectMetaButton";
 import { LogoUpload } from "@/components/settings/LogoUpload";
 import { LanguageToggle } from "@/components/settings/LanguageToggle";
@@ -10,6 +11,9 @@ import { cookies } from "next/headers";
 export default async function SettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const t = await getTranslations("settings");
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
 
   let profile: { full_name: string | null; role: string; email: string; created_at: string } | null = null;
   let workspace: { id: string; name: string; slug: string; plan: string; created_at: string; settings: Record<string, unknown> } | null = null;
@@ -49,8 +53,8 @@ export default async function SettingsPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="page-title">Settings</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Configuración de tu cuenta y workspace.</p>
+        <h1 className="page-title">{t("title")}</h1>
+        <p className="text-muted-foreground mt-1 text-sm">{t("subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -58,22 +62,22 @@ export default async function SettingsPage() {
         <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
-            Perfil
+            {t("profile.title")}
           </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nombre</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("profile.name")}</span>
               <span className="text-sm text-foreground">{profile?.full_name || "--"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Email</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("profile.email")}</span>
               <div className="flex items-center gap-2">
                 <Mail className="h-3 w-3 text-muted-foreground" />
                 <span className="text-sm text-foreground">{profile?.email || user?.email || "--"}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Rol</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("profile.role")}</span>
               <div className="flex items-center gap-1.5">
                 {isAdmin && <Shield className="h-3 w-3 text-amber-500 dark:text-amber-400" />}
                 <span className={`text-xs font-medium px-2 py-0.5 rounded ${isAdmin ? "text-amber-500 dark:text-amber-400 bg-amber-400/10" : "text-muted-foreground bg-muted"}`}>
@@ -82,11 +86,11 @@ export default async function SettingsPage() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Miembro desde</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("profile.memberSince")}</span>
               <div className="flex items-center gap-2">
                 <Calendar className="h-3 w-3 text-muted-foreground" />
                 <span className="text-sm text-foreground">
-                  {profile?.created_at ? new Date(profile.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "--"}
+                  {profile?.created_at ? new Date(profile.created_at).toLocaleDateString(dateLocale, { day: "numeric", month: "long", year: "numeric" }) : "--"}
                 </span>
               </div>
             </div>
@@ -97,28 +101,28 @@ export default async function SettingsPage() {
         <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
-            Workspace
+            {t("workspace.title")}
           </h3>
           {workspace ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nombre</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("workspace.name")}</span>
                 <span className="text-sm text-foreground">{workspace.name}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Slug</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("workspace.slug")}</span>
                 <div className="flex items-center gap-2">
                   <Globe className="h-3 w-3 text-muted-foreground" />
                   <code className="text-xs text-muted-foreground">{workspace.slug}</code>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Plan</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("workspace.plan")}</span>
                 <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded capitalize">{workspace.plan}</span>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No hay workspace configurado.</p>
+            <p className="text-sm text-muted-foreground">{t("workspace.empty")}</p>
           )}
         </div>
       </div>
@@ -134,11 +138,11 @@ export default async function SettingsPage() {
               <Shield className="h-5 w-5 text-amber-500 dark:text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-amber-500 dark:text-amber-400">Admin Panel</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Gestionar clientes, invitaciones y estadísticas globales</p>
+              <h3 className="text-sm font-semibold text-amber-500 dark:text-amber-400">{t("admin.title")}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("admin.description")}</p>
             </div>
           </div>
-          <span className="text-xs text-muted-foreground group-hover:text-amber-500/70 dark:group-hover:text-amber-400/70 transition-colors">Ir al panel →</span>
+          <span className="text-xs text-muted-foreground group-hover:text-amber-500/70 dark:group-hover:text-amber-400/70 transition-colors">{t("admin.cta")}</span>
         </Link>
       )}
 
@@ -150,9 +154,9 @@ export default async function SettingsPage() {
         <div>
           <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
             <Palette className="h-4 w-4 text-muted-foreground" />
-            Branding del workspace
+            {t("branding.title")}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">Personaliza cómo aparece tu marca en el sidebar.</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("branding.description")}</p>
         </div>
 
         {/* Logo upload (client component) */}
@@ -167,13 +171,13 @@ export default async function SettingsPage() {
         <form action={updateBranding} className="space-y-3">
           <div>
             <label className="block text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">
-              Nombre de marca
+              {t("branding.brandNameLabel")}
             </label>
             <input
               name="brand_name"
               type="text"
               defaultValue={(workspace?.settings?.brand_name as string) ?? workspace?.name ?? ""}
-              placeholder="Ej: Mi Empresa"
+              placeholder={t("branding.brandNamePlaceholder")}
               maxLength={40}
               className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:bg-white/[0.06] transition-all"
             />
@@ -183,7 +187,7 @@ export default async function SettingsPage() {
               type="submit"
               className="px-4 py-2 rounded-lg bg-white/[0.06] border border-white/[0.10] text-sm text-foreground hover:bg-white/[0.10] hover:border-white/[0.16] transition-all cursor-pointer"
             >
-              Guardar nombre
+              {t("branding.saveBrandName")}
             </button>
           </div>
         </form>
@@ -193,29 +197,29 @@ export default async function SettingsPage() {
       <div className="glass-panel rounded-xl p-6">
         <h3 className="text-sm font-semibold text-foreground/80 mb-4 flex items-center gap-2">
           <Instagram className="h-4 w-4 text-muted-foreground" />
-          Conexión Meta / Instagram
+          {t("meta.title")}
         </h3>
         {hasActiveConnection && connection ? (
           <div className="space-y-5">
             <div className="grid grid-cols-4 gap-4">
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1">Estado</p>
+                <p className="text-[10px] text-muted-foreground mb-1">{t("meta.status")}</p>
                 <span className="text-xs font-medium px-2 py-0.5 rounded text-emerald-600 dark:text-emerald-400 bg-emerald-400/10">
-                  conectada
+                  {t("meta.connected")}
                 </span>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1">Cuenta IG</p>
+                <p className="text-[10px] text-muted-foreground mb-1">{t("meta.igAccount")}</p>
                 <p className="text-sm text-foreground">@{connection.ig_username || "--"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1">IG Account ID</p>
+                <p className="text-[10px] text-muted-foreground mb-1">{t("meta.igAccountId")}</p>
                 <code className="text-[10px] text-muted-foreground">{connection.ig_business_account_id || "--"}</code>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1">Última validación</p>
+                <p className="text-[10px] text-muted-foreground mb-1">{t("meta.lastValidated")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleDateString("es-AR") : "--"}
+                  {connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleDateString(dateLocale) : "--"}
                 </p>
               </div>
             </div>
@@ -223,8 +227,8 @@ export default async function SettingsPage() {
             {workspace ? (
               <div className="flex items-center justify-between gap-4 rounded-xl border border-border dark:border-white/[0.08] bg-white/[0.025] px-4 py-4">
                 <div>
-                  <p className="text-sm text-foreground">¿Querés volver a conectar otra cuenta?</p>
-                  <p className="text-xs text-muted-foreground mt-1">Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.</p>
+                  <p className="text-sm text-foreground">{t("meta.reconnectQuestion")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("meta.reconnectHint")}</p>
                 </div>
                 <DisconnectMetaButton workspaceId={workspace.id} />
               </div>
@@ -233,18 +237,18 @@ export default async function SettingsPage() {
         ) : (
           <div className="text-center py-6">
             <Instagram className="h-8 w-8 text-muted-foreground/60 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground mb-2">No hay cuenta de Instagram conectada.</p>
+            <p className="text-sm text-muted-foreground mb-2">{t("meta.noConnection")}</p>
             {connection?.last_error ? (
-              <p className="text-xs text-red-500 dark:text-red-400 mb-4">La última conexión no se completó. Podés volver a intentarlo.</p>
+              <p className="text-xs text-red-500 dark:text-red-400 mb-4">{t("meta.lastFailed")}</p>
             ) : (
-              <p className="text-xs text-muted-foreground mb-4">Conectá tu cuenta para habilitar Instagram Intelligence.</p>
+              <p className="text-xs text-muted-foreground mb-4">{t("meta.enableHint")}</p>
             )}
             <Link
               href="/onboarding"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-sm text-pink-600 dark:text-pink-300 px-5 py-2.5 rounded-lg hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
             >
               <Instagram className="h-4 w-4" />
-              {connection ? "Reintentar conexión" : "Conectar cuenta"}
+              {connection ? t("meta.retry") : t("meta.connect")}
             </Link>
           </div>
         )}

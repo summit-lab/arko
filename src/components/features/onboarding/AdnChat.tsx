@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { AdnMessage } from "./AdnMessage";
 import { AdnDocsPanel } from "./AdnDocsPanel";
 import { AdnCompetitorModal, type CompetitorEntry } from "./AdnCompetitorModal";
@@ -45,6 +46,7 @@ export function AdnChat({
   sessionId,
   workspaceId,
 }: AdnChatProps) {
+  const t = useTranslations("onboarding");
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [progress, setProgress] = useState<AdnProgress>(initialProgress);
   const [adnData, setAdnData] = useState<AdnData>(initialData);
@@ -153,7 +155,7 @@ export function AdnChat({
         body: JSON.stringify({ message: trimmed }),
       });
 
-      if (!res.ok) throw new Error("Error al enviar mensaje");
+      if (!res.ok) throw new Error("send_failed");
 
       const data = await res.json();
 
@@ -179,7 +181,7 @@ export function AdnChat({
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: "assistant",
-        content: "Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?",
+        content: t("errorMessage"),
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -222,7 +224,7 @@ export function AdnChat({
                     <span className="h-1.5 w-1.5 rounded-full bg-foreground/25 animate-pulse" style={{ animationDelay: "150ms" }} />
                     <span className="h-1.5 w-1.5 rounded-full bg-foreground/25 animate-pulse" style={{ animationDelay: "300ms" }} />
                   </div>
-                  <span className="text-[11px] text-white/25 font-light">Moka está pensando...</span>
+                  <span className="text-[11px] text-white/25 font-light">{t("thinking")}</span>
                 </div>
               </div>
             )}
@@ -235,8 +237,8 @@ export function AdnChat({
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <p className="text-[16px] font-light text-white/90 mb-1">ADN de Comunicación completo</p>
-                  <p className="text-[12px] text-white/40 font-light">Podés pedirle a Moka que modifique cualquier dato.</p>
+                  <p className="text-[16px] font-light text-white/90 mb-1">{t("complete")}</p>
+                  <p className="text-[12px] text-white/40 font-light">{t("completeHint")}</p>
                 </div>
               </div>
             )}
@@ -257,7 +259,7 @@ export function AdnChat({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isComplete ? "Pedile a Moka que modifique algo..." : "Escribí tu respuesta..."}
+                placeholder={isComplete ? t("placeholderComplete") : t("placeholder")}
                 disabled={isLoading}
                 rows={1}
                 className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
@@ -274,7 +276,7 @@ export function AdnChat({
               </button>
             </form>
             <p className="text-[10px] text-white/15 mt-2 text-center font-light">
-              Shift + Enter para nueva línea
+              {t("shiftEnterHint")}
             </p>
           </div>
         </div>

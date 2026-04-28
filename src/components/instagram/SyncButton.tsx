@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { RefreshCw, Check, AlertCircle } from "lucide-react";
 
 interface SyncButtonProps {
@@ -13,6 +14,7 @@ type SyncPhase = "idle" | "quick" | "done" | "error";
 
 export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
   const router = useRouter();
+  const t = useTranslations("igAdvanced");
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -32,9 +34,9 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
       if (!quickRes.ok || quickJson.data?.status === "error") {
         setPhase("error");
         if (quickJson.error === "TOKEN_EXPIRED") {
-          setErrorMsg("Conexión con Meta expirada. Reconectá tu cuenta.");
+          setErrorMsg(t("sync.tokenExpired"));
         } else {
-          setErrorMsg(quickJson.message || quickJson.data?.error || "Error en sync rápido");
+          setErrorMsg(quickJson.message || quickJson.data?.error || t("sync.quickError"));
         }
         return;
       }
@@ -56,17 +58,17 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
       router.refresh();
     } catch {
       setPhase("error");
-      setErrorMsg("Error de red");
+      setErrorMsg(t("sync.networkError"));
     }
-  }, [workspaceId, currentTab, router]);
+  }, [workspaceId, currentTab, router, t]);
 
   const isLoading = phase === "quick";
 
   const label = {
-    idle: "Sincronizar",
-    quick: "Actualizando...",
-    done: "Listo",
-    error: "Sincronizar",
+    idle: t("sync.button.idle"),
+    quick: t("sync.button.quick"),
+    done: t("sync.button.done"),
+    error: t("sync.button.idle"),
   }[phase];
 
   const Icon = phase === "done" ? Check : phase === "error" ? AlertCircle : RefreshCw;

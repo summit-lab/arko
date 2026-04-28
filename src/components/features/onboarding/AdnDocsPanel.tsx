@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type { AdnProgress, AdnData } from "@/services/adn-progress.service";
 
 interface AdnDocsPanelProps {
@@ -11,57 +12,21 @@ interface AdnDocsPanelProps {
   onEditCompetitors?: () => void;
 }
 
-// ─── Field label mapping ─────────────────────────────────────────────────────
-
-const FIELD_LABELS: Record<string, string> = {
-  // Profile
-  business_description: "Negocio",
-  brand_persona: "Personaje de marca",
-  avatar_description: "Avatar / Cliente ideal",
-  target_audience: "Audiencia objetivo",
-  main_offer: "Oferta principal",
-  // Market
-  industry_state: "Estado de la industria",
-  audience_exposure: "Exposición del avatar",
-  market_beliefs: "Creencias del mercado",
-  burned_topics: "Temas quemados",
-  current_trends: "Tendencias",
-  competitiveness: "Competitividad",
-  differentiator: "Diferenciador",
-  // Brand
-  why_clients_choose: "Por qué te eligen",
-  niche_language: "Lenguaje de nicho",
-  niche_tools: "Herramientas del nicho",
-  filtering_words: "Palabras filtro",
-  new_mechanisms: "Mecanismos nuevos",
-  // Strategy
-  what_tested: "Qué probaste",
-  test_results: "Resultados",
-  conclusions: "Conclusiones",
-  current_strategy: "Estrategia actual",
-  formats_and_quantity: "Formatos y cantidad",
-  why_it_will_work: "Por qué va a funcionar",
-};
-
-function fieldLabel(key: string): string {
-  return FIELD_LABELS[key] ?? key.replace(/_/g, " ");
-}
-
 // ─── Section config ──────────────────────────────────────────────────────────
 
 interface SectionConfig {
   number: number;
-  title: string;
+  titleKey: string;
   icon: string;
   progressKeys: readonly string[];
   totalFields: number;
 }
 
 const SECTIONS: SectionConfig[] = [
-  { number: 1, title: "Tu Negocio", icon: "1", progressKeys: ["profile"], totalFields: 5 },
-  { number: 2, title: "Tu Contenido", icon: "2", progressKeys: ["strategies"], totalFields: 2 },
-  { number: 3, title: "Tu Mercado", icon: "3", progressKeys: ["market", "competitors"], totalFields: 8 },
-  { number: 4, title: "Tu Marca", icon: "4", progressKeys: ["brand", "references"], totalFields: 6 },
+  { number: 1, titleKey: "section1Title", icon: "1", progressKeys: ["profile"], totalFields: 5 },
+  { number: 2, titleKey: "section2Title", icon: "2", progressKeys: ["strategies"], totalFields: 2 },
+  { number: 3, titleKey: "section3Title", icon: "3", progressKeys: ["market", "competitors"], totalFields: 8 },
+  { number: 4, titleKey: "section4Title", icon: "4", progressKeys: ["brand", "references"], totalFields: 6 },
 ];
 
 function getSectionFieldCount(progress: AdnProgress, keys: readonly string[]): number {
@@ -90,6 +55,7 @@ function EditableField({
   value: string | null;
   onSave: (newValue: string) => void;
 }) {
+  const t = useTranslations("onboardingDeep.docs");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
 
@@ -108,7 +74,7 @@ function EditableField({
           onClick={() => setEditing(true)}
           className="text-[10px] text-white/15 hover:text-white/40 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
         >
-          + agregar
+          {t("addAction")}
         </button>
       </div>
     );
@@ -169,8 +135,42 @@ function EditableField({
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEditCompetitors }: AdnDocsPanelProps) {
+  const t = useTranslations("onboardingDeep.docs");
   const [expandedSection, setExpandedSection] = useState<number | null>(
     progress.current_section
+  );
+
+  const fieldLabel = useCallback(
+    (key: string): string => {
+      const FIELD_KEYS = new Set([
+        "business_description",
+        "brand_persona",
+        "avatar_description",
+        "target_audience",
+        "main_offer",
+        "industry_state",
+        "audience_exposure",
+        "market_beliefs",
+        "burned_topics",
+        "current_trends",
+        "competitiveness",
+        "differentiator",
+        "why_clients_choose",
+        "niche_language",
+        "niche_tools",
+        "filtering_words",
+        "new_mechanisms",
+        "what_tested",
+        "test_results",
+        "conclusions",
+        "current_strategy",
+        "formats_and_quantity",
+        "why_it_will_work",
+      ]);
+      if (FIELD_KEYS.has(key)) return t(`fields.${key}`);
+      return key.replace(/_/g, " ");
+    },
+    [t]
   );
 
   const totalPossible = SECTIONS.reduce((sum, s) => sum + s.totalFields, 0);
@@ -227,13 +227,13 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
           <div className="space-y-3">
             {data.strategies.length === 0 ? (
               <p className="text-[11px] text-white/20 font-light italic">
-                Sin datos todavía
+                {t("noDataYet")}
               </p>
             ) : (
               data.strategies.map((strategy, i) => (
                 <div key={i}>
                   <p className="text-[10px] font-medium text-white/40 uppercase tracking-wide mb-1">
-                    {(strategy.platform as string) ?? "Plataforma"}
+                    {(strategy.platform as string) ?? t("platform")}
                   </p>
                   {["what_tested", "test_results", "conclusions", "current_strategy", "formats_and_quantity", "why_it_will_work"].map(
                     (field) =>
@@ -269,13 +269,13 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
             <div className="pt-2 border-t border-white/[0.04]">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] font-medium text-white/30 uppercase tracking-wide">
-                  Competidores ({data.competitors.length})
+                  {t("competitorsHeading", { count: data.competitors.length })}
                 </p>
                 <button
                   onClick={onEditCompetitors}
                   className="text-[10px] text-violet-400/60 hover:text-violet-400 transition-colors cursor-pointer"
                 >
-                  {data.competitors.length > 0 ? "editar" : "+ agregar"}
+                  {data.competitors.length > 0 ? t("editAction") : t("addAction")}
                 </button>
               </div>
               {data.competitors.length > 0 ? (
@@ -296,7 +296,7 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
                 ))
               ) : (
                 <p className="text-[11px] text-white/20 font-light italic py-1">
-                  Sin competidores cargados
+                  {t("noCompetitors")}
                 </p>
               )}
             </div>
@@ -316,7 +316,7 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
             {data.references.length > 0 && (
               <div className="pt-2 border-t border-white/[0.04]">
                 <p className="text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">
-                  Referencias ({data.references.length})
+                  {t("referencesHeading", { count: data.references.length })}
                 </p>
                 {data.references.map((r, i) => (
                   <div key={i} className="py-1">
@@ -348,7 +348,7 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
     if (!hasAnyData && !row) {
       return (
         <p className="text-[11px] text-white/20 font-light italic">
-          Sin datos todavía
+          {t("noDataYet")}
         </p>
       );
     }
@@ -373,7 +373,7 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
       <div className="mb-4">
         <div className="flex items-baseline justify-between mb-2.5">
           <p className="text-[11px] font-medium text-white/35 tracking-[0.06em] uppercase">
-            ADN
+            {t("title")}
           </p>
           <p className="text-[22px] font-light text-white/80 tracking-[-0.02em]">
             {percent}
@@ -441,11 +441,11 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
                         : "font-light text-white/25"
                     }`}
                   >
-                    {section.title}
+                    {t(section.titleKey)}
                   </p>
                   {fieldCount > 0 && (
                     <p className="text-[10px] text-white/20 font-light">
-                      {fieldCount} campo{fieldCount !== 1 ? "s" : ""}
+                      {t("fieldCount", { count: fieldCount })}
                     </p>
                   )}
                 </div>
@@ -482,7 +482,7 @@ export function AdnDocsPanel({ progress, data, workspaceId, onDataUpdate, onEdit
       {/* Bottom hint */}
       <div className="mt-3 pt-3 border-t border-white/[0.04]">
         <p className="text-[10px] text-white/15 font-light leading-relaxed">
-          Hacé click en una sección para ver y editar los datos capturados.
+          {t("bottomHint")}
         </p>
       </div>
     </div>

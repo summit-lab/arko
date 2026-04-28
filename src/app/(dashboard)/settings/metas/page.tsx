@@ -1,22 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { MetasEditor } from "./metas-editor";
-
-const METRIC_LABELS: Record<string, string> = {
-  views: "Views mensuales",
-  followers: "Seguidores nuevos",
-  engagement_rate: "Engagement Rate",
-  likes: "Likes mensuales",
-  saves: "Guardados mensuales",
-  reach: "Alcance mensual",
-};
 
 export default async function MetasSettingsPage() {
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) redirect("/login");
 
   const supabase = await createClient();
+  const t = await getTranslations("settingsMetas");
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
+
+  const METRIC_LABELS: Record<string, string> = {
+    views: t("metricLabels.views"),
+    followers: t("metricLabels.followers"),
+    engagement_rate: t("metricLabels.engagement_rate"),
+    likes: t("metricLabels.likes"),
+    saves: t("metricLabels.saves"),
+    reach: t("metricLabels.reach"),
+  };
 
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
@@ -32,14 +36,14 @@ export default async function MetasSettingsPage() {
     goalsMap[g.metric] = Number(g.target_value);
   }
 
-  const monthLabel = now.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  const monthLabel = now.toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="page-title">Metas</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Objetivos mensuales de contenido y crecimiento — {monthLabel}
+          {t("subtitle", { month: monthLabel })}
         </p>
       </div>
 

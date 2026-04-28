@@ -32,7 +32,8 @@ import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/s
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
 import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity } from '@/services/arko-ai-context';
-import { buildArkoSystemPrompt, buildReelContextPrompt } from '@/services/arko-ai-prompts';
+import { buildArkoSystemPrompt, buildReelContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
+import { getUserLanguage } from '@/i18n/server';
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -128,21 +129,84 @@ async function callLLMWithResilience(
   throw lastErr;
 }
 
-/** Human-readable labels for each tool */
-const TOOL_LABELS: Record<string, string> = {
-  query_reels: 'Analizando reels',
-  get_reel_details: 'Cargando detalle del reel',
-  get_account_insights: 'Consultando métricas de cuenta',
-  get_content_calendar: 'Analizando frecuencia de publicación',
-  get_audience_demographics: 'Cargando datos demográficos',
-  compare_periods: 'Comparando períodos',
-  get_benchmarks: 'Consultando benchmarks',
-  get_goals: 'Revisando metas',
-  search_reels_by_topic: 'Buscando por tema',
-  get_top_hooks: 'Analizando mejores hooks',
-  get_topic_clusters: 'Mapeando clusters de temas',
-  get_competitor_analysis: 'Analizando competencia',
-  consult_specialist: 'Consultando especialista',
+/** Human-readable labels for each tool, per locale. */
+const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
+  es: {
+    query_reels: 'Analizando reels',
+    get_reel_details: 'Cargando detalle del reel',
+    get_account_insights: 'Consultando métricas de cuenta',
+    get_content_calendar: 'Analizando frecuencia de publicación',
+    get_audience_demographics: 'Cargando datos demográficos',
+    compare_periods: 'Comparando períodos',
+    get_benchmarks: 'Consultando benchmarks',
+    get_goals: 'Revisando metas',
+    search_reels_by_topic: 'Buscando por tema',
+    get_top_hooks: 'Analizando mejores hooks',
+    get_topic_clusters: 'Mapeando clusters de temas',
+    get_competitor_analysis: 'Analizando competencia',
+    consult_specialist: 'Consultando especialista',
+  },
+  en: {
+    query_reels: 'Analyzing reels',
+    get_reel_details: 'Loading reel details',
+    get_account_insights: 'Querying account metrics',
+    get_content_calendar: 'Analyzing posting cadence',
+    get_audience_demographics: 'Loading demographics',
+    compare_periods: 'Comparing periods',
+    get_benchmarks: 'Querying benchmarks',
+    get_goals: 'Reviewing goals',
+    search_reels_by_topic: 'Searching by topic',
+    get_top_hooks: 'Analyzing top hooks',
+    get_topic_clusters: 'Mapping topic clusters',
+    get_competitor_analysis: 'Analyzing competitors',
+    consult_specialist: 'Consulting specialist',
+  },
+};
+
+const STATUS_LABELS: Record<PromptLocale, { thinking: string; analyzing: string; processing: string; generating: string; synthesizing: string }> = {
+  es: {
+    thinking: 'Pensando...',
+    analyzing: 'Analizando tu pregunta...',
+    processing: 'Procesando datos...',
+    generating: 'Generando respuesta...',
+    synthesizing: 'Sintetizando respuesta...',
+  },
+  en: {
+    thinking: 'Thinking...',
+    analyzing: 'Analyzing your question...',
+    processing: 'Processing data...',
+    generating: 'Generating response...',
+    synthesizing: 'Synthesizing response...',
+  },
+};
+
+const ERROR_MESSAGES: Record<PromptLocale, {
+  fallback: string;
+  tooManyTools: string;
+  generic: string;
+  contextTooLong: string;
+  rateLimit: string;
+  overloaded: string;
+  billing: string;
+}> = {
+  es: {
+    fallback: 'Disculpá, no pude generar una respuesta. ¿Podés intentar de nuevo?',
+    tooManyTools: 'Disculpá, necesité demasiadas consultas para responder. ¿Podés reformular tu pregunta?',
+    generic: 'Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?',
+    contextTooLong: 'La conversación es demasiado larga. Por favor iniciá una nueva sesión para continuar.',
+    rateLimit: 'Estamos procesando muchas consultas. Esperá unos segundos y volvé a intentar.',
+    overloaded: 'El servicio de IA está sobrecargado. Intentá de nuevo en un momento.',
+    billing: 'Hay un problema de configuración del servicio. Contactá soporte.',
+  },
+  en: {
+    fallback: "Sorry, I couldn't generate a response. Can you try again?",
+    tooManyTools: 'Sorry, I needed too many queries to answer. Can you rephrase your question?',
+    generic: 'Something went wrong processing your message. Can you try again?',
+    contextTooLong: 'The conversation is too long. Please start a new session to continue.',
+    rateLimit: "We're processing many queries. Wait a few seconds and try again.",
+    overloaded: 'The AI service is overloaded. Try again in a moment.',
+    billing: "There's a service configuration issue. Please contact support.",
+  },
 };
 
 export async function POST(request: Request) {
@@ -155,6 +219,8 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Hoisted so the catch block can localize error messages.
+      let userLocale: PromptLocale = 'es';
       try {
         const auth = await authenticateRequest(request);
         if (isAuthError(auth)) {
@@ -246,8 +312,7 @@ export async function POST(request: Request) {
           console.error('[chat] Save user message error:', userMsgError);
         }
 
-        // Send initial thinking status
-        controller.enqueue(sseEvent({ type: 'status', label: 'Pensando...' }));
+        // Send initial thinking status — locale resolved a few lines below.
 
         // Load chat history (last 30 messages — will be token-truncated below)
         const { data: history } = await supabase
@@ -259,7 +324,13 @@ export async function POST(request: Request) {
 
         // Load workspace snapshot (ADN + benchmarks + top topics — cached 30min)
         const snapshot = await loadWorkspaceSnapshot(supabase, auth.workspaceId);
-        let systemPrompt = buildArkoSystemPrompt(snapshot.adnContext, snapshot.benchmarksContext, snapshot.topTopicsContext);
+        // Forward-only language: each new generation uses the language stored
+        // on the user that triggered this turn (profiles.language).
+        userLocale = (await getUserLanguage(auth.userId)) as PromptLocale;
+        const status = STATUS_LABELS[userLocale];
+        const tools = TOOL_LABELS[userLocale];
+        controller.enqueue(sseEvent({ type: 'status', label: status.thinking }));
+        let systemPrompt = buildArkoSystemPrompt(snapshot.adnContext, snapshot.benchmarksContext, snapshot.topTopicsContext, userLocale);
 
         // Append reel-specific context if this is a reel session
         if (isReelSession && reelContextData) {
@@ -303,7 +374,7 @@ export async function POST(request: Request) {
           const lightConfig = getLLMConfig('ai-agents-light');
           featureUsed = 'ai-agents-light';
 
-          controller.enqueue(sseEvent({ type: 'status', label: 'Generando respuesta...' }));
+          controller.enqueue(sseEvent({ type: 'status', label: status.generating }));
 
           const llmStart = Date.now();
           const lightOptions: LLMOptions = {
@@ -320,7 +391,7 @@ export async function POST(request: Request) {
           totalOutputTokens = response.outputTokens;
           totalLatency = llmLatency;
           lastModel = response.model;
-          assistantContent = response.text || 'Disculpá, no pude generar una respuesta. ¿Podés intentar de nuevo?';
+          assistantContent = response.text || ERROR_MESSAGES[userLocale].fallback;
 
           logLLMUsage(supabase, {
             workspaceId: auth.workspaceId,
@@ -336,7 +407,7 @@ export async function POST(request: Request) {
           for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
             controller.enqueue(sseEvent({
               type: 'status',
-              label: i === 0 ? 'Analizando tu pregunta...' : 'Procesando datos...',
+              label: i === 0 ? status.analyzing : status.processing,
             }));
 
             const llmStart = Date.now();
@@ -366,7 +437,7 @@ export async function POST(request: Request) {
 
             // If Claude returned text and no tool calls → done
             if (response.toolCalls.length === 0) {
-              assistantContent = response.text || 'Disculpá, no pude generar una respuesta. ¿Podés intentar de nuevo?';
+              assistantContent = response.text || ERROR_MESSAGES[userLocale].fallback;
               break;
             }
 
@@ -379,18 +450,18 @@ export async function POST(request: Request) {
               controller.enqueue(sseEvent({
                 type: 'tool_start',
                 tool: tc.name,
-                label: TOOL_LABELS[tc.name] || tc.name,
+                label: tools[tc.name] || tc.name,
               }));
             }
 
             const toolResults = await Promise.all(
               toolCalls.map(async (tc) => {
-                const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext);
+                const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext, userLocale);
                 // Emit tool_done when each tool finishes
                 controller.enqueue(sseEvent({
                   type: 'tool_done',
                   tool: tc.name,
-                  label: TOOL_LABELS[tc.name] || tc.name,
+                  label: tools[tc.name] || tc.name,
                 }));
                 return result;
               })
@@ -421,11 +492,11 @@ export async function POST(request: Request) {
             });
 
             if (i === MAX_TOOL_ITERATIONS - 1 && !assistantContent) {
-              assistantContent = 'Disculpá, necesité demasiadas consultas para responder. ¿Podés reformular tu pregunta?';
+              assistantContent = ERROR_MESSAGES[userLocale].tooManyTools;
             }
 
             // Show "synthesizing" status before next iteration or final response
-            controller.enqueue(sseEvent({ type: 'status', label: 'Sintetizando respuesta...' }));
+            controller.enqueue(sseEvent({ type: 'status', label: status.synthesizing }));
           }
         }
 
@@ -483,17 +554,18 @@ export async function POST(request: Request) {
         const errStack = err instanceof Error ? err.stack : undefined;
         console.error('[chat] POST error:', { message: errMsg, stack: errStack, error: err });
 
-        // Map known error patterns to user-friendly messages
-        let userMessage = 'Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?';
+        // Map known error patterns to user-friendly messages.
+        const errCopy = ERROR_MESSAGES[userLocale];
+        let userMessage = errCopy.generic;
         const lowerErr = errMsg.toLowerCase();
         if (lowerErr.includes('context') && (lowerErr.includes('length') || lowerErr.includes('window') || lowerErr.includes('too long'))) {
-          userMessage = 'La conversación es demasiado larga. Por favor iniciá una nueva sesión para continuar.';
+          userMessage = errCopy.contextTooLong;
         } else if (lowerErr.includes('rate') && lowerErr.includes('limit')) {
-          userMessage = 'Estamos procesando muchas consultas. Esperá unos segundos y volvé a intentar.';
+          userMessage = errCopy.rateLimit;
         } else if (lowerErr.includes('overloaded') || lowerErr.includes('503')) {
-          userMessage = 'El servicio de IA está sobrecargado. Intentá de nuevo en un momento.';
+          userMessage = errCopy.overloaded;
         } else if (lowerErr.includes('credit') || lowerErr.includes('billing') || lowerErr.includes('quota')) {
-          userMessage = 'Hay un problema de configuración del servicio. Contactá soporte.';
+          userMessage = errCopy.billing;
         }
 
         controller.enqueue(sseEvent({ type: 'error', message: userMessage }));

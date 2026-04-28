@@ -11,6 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface GrowthDataPoint {
@@ -61,6 +62,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export function DashboardCharts({ growthData = [], engagementData = [], salesData = [] }: DashboardChartsProps) {
+  const t = useTranslations("dashboardCharts");
   const hasGrowth = growthData.length > 0;
   const hasEngagement = engagementData.length > 0;
   const chart = useChartTheme();
@@ -71,15 +73,15 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
       {/* Reach & Impressions — Area Chart */}
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[15px] font-light text-white tracking-wide">Alcance & Visibilidad</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">{t("reachTitle")}</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#7A86E0]" />
-              <span>Alcance</span>
+              <span>{t("reachLegend")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#AF6EC7]" />
-              <span>Impresiones</span>
+              <span>{t("impressionsLegend")}</span>
             </div>
           </div>
         </div>
@@ -120,7 +122,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                 <Area
                   type="monotone"
                   dataKey="reach"
-                  name="Alcance"
+                  name={t("reachLegend")}
                   stroke="#7A86E0"
                   strokeWidth={2}
                   fill="url(#gradReach)"
@@ -132,7 +134,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                 <Area
                   type="monotone"
                   dataKey="impressions"
-                  name="Impresiones"
+                  name={t("impressionsLegend")}
                   stroke="#AF6EC7"
                   strokeWidth={2}
                   fill="url(#gradImpressions)"
@@ -145,7 +147,7 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex items-center justify-center">
-              <p className="text-[13px] text-white/20 font-light">Sin datos de alcance</p>
+              <p className="text-[13px] text-white/20 font-light">{t("noReachData")}</p>
             </div>
           )}
         </div>
@@ -154,19 +156,19 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
       {/* Engagement — Bar Chart */}
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[15px] font-light text-white tracking-wide">Interacciones</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">{t("engagementTitle")}</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#7A86E0" }} />
-              <span>Me gusta</span>
+              <span>{t("likesLegend")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#AF6EC7" }} />
-              <span>Guardados</span>
+              <span>{t("savesLegend")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#4BCEAF" }} />
-              <span>Comentarios</span>
+              <span>{t("commentsLegend")}</span>
             </div>
           </div>
         </div>
@@ -194,14 +196,14 @@ export function DashboardCharts({ growthData = [], engagementData = [], salesDat
                   tickFormatter={(v: number) => formatCompactValue(v)}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: chart.cursorFill }} />
-                <Bar dataKey="likes" name="Me gusta" fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
-                <Bar dataKey="saves" name="Guardados" fill="#AF6EC7" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
-                <Bar dataKey="comments" name="Comentarios" fill="#4BCEAF" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="likes" name={t("likesLegend")} fill="#7A86E0" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={200} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="saves" name={t("savesLegend")} fill="#AF6EC7" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={400} animationDuration={800} animationEasing="ease-out" />
+                <Bar dataKey="comments" name={t("commentsLegend")} fill="#4BCEAF" radius={[4, 4, 0, 0]} barSize={8} fillOpacity={0.85} isAnimationActive={true} animationBegin={600} animationDuration={800} animationEasing="ease-out" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex items-center justify-center">
-              <p className="text-[13px] text-white/20 font-light">Sin datos de engagement</p>
+              <p className="text-[13px] text-white/20 font-light">{t("noEngagementData")}</p>
             </div>
           )}
         </div>

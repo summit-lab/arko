@@ -1,8 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, User, Wifi, Cpu, DollarSign, Zap, Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { AdnDetailPanel } from "./AdnDetailPanel";
+import { ClientLanguagePicker } from "./ClientLanguagePicker";
+import { isLocale, type Locale } from "@/i18n/config";
 
 interface UsageRow {
   id: string;
@@ -49,6 +52,9 @@ export default async function ClientDetailPage({
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const supabase = await createClient();
+  const t = await getTranslations("adminDeep");
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
 
   // Fetch workspace
   const { data: workspace, error: wsError } = await supabase
@@ -71,7 +77,7 @@ export default async function ClientDetailPage({
     { data: integrationRows },
   ] = await Promise.all([
     supabase.from("meta_connections").select("status, ig_username, page_name, created_at").eq("workspace_id", id).limit(1),
-    supabase.from("profiles").select("id, email, full_name, role, created_at").eq("id", workspace.owner_id).single(),
+    supabase.from("profiles").select("id, email, full_name, role, created_at, language").eq("id", workspace.owner_id).single(),
     supabase.from("workspace_profile").select("business_description, brand_persona, avatar_description, target_audience, main_offer").eq("workspace_id", id).maybeSingle(),
     supabase.from("workspace_strategies").select("platform, what_tested, test_results, conclusions, current_strategy, formats_and_quantity, why_it_will_work").eq("workspace_id", id),
     supabase.from("workspace_market").select("industry_state, audience_exposure, market_beliefs, burned_topics, current_trends, competitiveness, differentiator").eq("workspace_id", id).maybeSingle(),
@@ -85,12 +91,12 @@ export default async function ClientDetailPage({
   const connection = metaConnections?.[0] ?? null;
 
   const adnSections = [
-    { name: "Perfil", done: !!profileRes.data?.main_offer },
-    { name: "Estrategias", done: (strategiesRes.data?.length ?? 0) > 0 },
-    { name: "Mercado", done: !!marketRes.data?.industry_state },
-    { name: "Competidores", done: (competitorsRes.data?.length ?? 0) > 0 },
-    { name: "Marca", done: !!brandRes.data?.why_clients_choose },
-    { name: "Referencias", done: (referencesRes.data?.length ?? 0) > 0 },
+    { key: "profile" as const, done: !!profileRes.data?.main_offer },
+    { key: "strategies" as const, done: (strategiesRes.data?.length ?? 0) > 0 },
+    { key: "market" as const, done: !!marketRes.data?.industry_state },
+    { key: "competitors" as const, done: (competitorsRes.data?.length ?? 0) > 0 },
+    { key: "brand" as const, done: !!brandRes.data?.why_clients_choose },
+    { key: "references" as const, done: (referencesRes.data?.length ?? 0) > 0 },
   ];
 
   const adnData = {
@@ -181,17 +187,20 @@ export default async function ClientDetailPage({
           className="inline-flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/60 transition-colors"
         >
           <ArrowLeft size={14} />
-          Volver a Clientes
+          {t("client.backToClients")}
         </Link>
         <div className="flex items-center gap-4 mt-3">
           <h1 className="text-[28px] font-extralight tracking-[-0.02em] text-white/90">{workspace.name}</h1>
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${workspace.is_active ? "bg-emerald-400" : "bg-red-400"}`} />
-            <span className="text-[11px] text-white/40 font-light">{workspace.is_active ? "Activo" : "Inactivo"}</span>
+            <span className="text-[11px] text-white/40 font-light">{workspace.is_active ? t("client.active") : t("client.inactive")}</span>
           </div>
         </div>
         <p className="text-white/35 mt-1 text-[13px] font-light">
-          {workspace.slug} · Creado {new Date(workspace.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}
+          {t("client.slugCreated", {
+            slug: workspace.slug,
+            date: new Date(workspace.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "long", year: "numeric" }),
+          })}
         </p>
       </div>
 
@@ -204,43 +213,43 @@ export default async function ClientDetailPage({
             <div className="glass-card px-5 py-4">
               <div className="flex items-center gap-2 mb-2">
                 <DollarSign size={14} className="text-emerald-400" />
-                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Costo Total</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("client.totalCost")}</p>
               </div>
               <p className="text-[22px] font-light text-emerald-400/90 tracking-tight">
                 ${combinedCost.toFixed(4)}
               </p>
               <p className="text-[10px] text-white/20 mt-1">
-                IA ${totalCost.toFixed(4)} · Integ. ${intTotalCost.toFixed(4)}
+                {t("client.costSplit", { ai: totalCost.toFixed(4), integ: intTotalCost.toFixed(4) })}
               </p>
             </div>
             <div className="glass-card px-5 py-4">
               <div className="flex items-center gap-2 mb-2">
                 <Zap size={14} className="text-blue-400" />
-                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Llamadas IA</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("client.aiCalls")}</p>
               </div>
               <p className="text-[22px] font-light text-blue-400/90 tracking-tight">
                 {totalCalls}
               </p>
               <p className="text-[10px] text-white/20 mt-1">
-                {formatNumber(totalTokens)} tokens
+                {t("client.tokensCount", { count: formatNumber(totalTokens) })}
               </p>
             </div>
             <div className="glass-card px-5 py-4">
               <div className="flex items-center gap-2 mb-2">
                 <Globe size={14} className="text-amber-400" />
-                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Integraciones</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("client.integrations")}</p>
               </div>
               <p className="text-[22px] font-light text-amber-400/90 tracking-tight">
                 {intTotalCalls}
               </p>
               <p className="text-[10px] text-white/20 mt-1">
-                ${intTotalCost.toFixed(4)} · {intSuccessCount} ok · {intTotalCalls - intSuccessCount} err
+                {t("client.integSummary", { cost: intTotalCost.toFixed(4), ok: intSuccessCount, err: intTotalCalls - intSuccessCount })}
               </p>
             </div>
             <div className="glass-card px-5 py-4">
               <div className="flex items-center gap-2 mb-2">
                 <Cpu size={14} className="text-violet-400" />
-                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Tipos</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("client.types")}</p>
               </div>
               <p className="text-[22px] font-light text-violet-400/90 tracking-tight">
                 {typeUsage.length}
@@ -257,21 +266,21 @@ export default async function ClientDetailPage({
             <div className="glass-panel rounded-xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Calendar size={14} className="text-amber-400" />
-                <h3 className="text-[14px] font-light text-white tracking-wide">Uso por Mes</h3>
+                <h3 className="text-[14px] font-light text-white tracking-wide">{t("client.usageByMonth")}</h3>
               </div>
               <div className="space-y-1">
                 <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-2.5 border-b border-white/[0.06] px-2">
-                  <div className="col-span-4">Mes</div>
-                  <div className="col-span-2 text-right">Calls</div>
-                  <div className="col-span-3 text-right">Tokens</div>
-                  <div className="col-span-3 text-right">Costo</div>
+                  <div className="col-span-4">{t("client.month")}</div>
+                  <div className="col-span-2 text-right">{t("client.calls")}</div>
+                  <div className="col-span-3 text-right">{t("client.tokens")}</div>
+                  <div className="col-span-3 text-right">{t("client.cost")}</div>
                 </div>
                 {monthlyUsage.length === 0 && (
-                  <p className="text-white/25 text-[12px] py-3 text-center">Sin uso.</p>
+                  <p className="text-white/25 text-[12px] py-3 text-center">{t("client.noUsage")}</p>
                 )}
                 {monthlyUsage.map((m) => (
                   <div key={m.month} className="grid grid-cols-12 gap-2 items-center py-2 rounded-lg hover:bg-white/[0.03] transition-all px-2">
-                    <div className="col-span-4 text-[12px] font-light text-white/60">{formatMonth(m.month)}</div>
+                    <div className="col-span-4 text-[12px] font-light text-white/60">{formatMonth(m.month, locale)}</div>
                     <div className="col-span-2 text-right text-[12px] font-light text-white/40">{m.calls}</div>
                     <div className="col-span-3 text-right text-[12px] font-light text-white/40">{formatNumber(m.tokens)}</div>
                     <div className="col-span-3 text-right text-[12px] font-medium text-emerald-400/80">${m.cost.toFixed(4)}</div>
@@ -284,17 +293,17 @@ export default async function ClientDetailPage({
             <div className="glass-panel rounded-xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Cpu size={14} className="text-violet-400" />
-                <h3 className="text-[14px] font-light text-white tracking-wide">Uso por Tipo</h3>
+                <h3 className="text-[14px] font-light text-white tracking-wide">{t("client.usageByType")}</h3>
               </div>
               <div className="space-y-1">
                 <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-2.5 border-b border-white/[0.06] px-2">
-                  <div className="col-span-5">Tipo</div>
-                  <div className="col-span-2 text-right">Calls</div>
-                  <div className="col-span-2 text-right">Tokens</div>
-                  <div className="col-span-3 text-right">Costo</div>
+                  <div className="col-span-5">{t("client.type")}</div>
+                  <div className="col-span-2 text-right">{t("client.calls")}</div>
+                  <div className="col-span-2 text-right">{t("client.tokens")}</div>
+                  <div className="col-span-3 text-right">{t("client.cost")}</div>
                 </div>
                 {typeUsage.length === 0 && (
-                  <p className="text-white/25 text-[12px] py-3 text-center">Sin uso.</p>
+                  <p className="text-white/25 text-[12px] py-3 text-center">{t("client.noUsage")}</p>
                 )}
                 {typeUsage.map((m) => (
                   <div key={m.label} className="grid grid-cols-12 gap-2 items-center py-2 rounded-lg hover:bg-white/[0.03] transition-all px-2">
@@ -313,7 +322,7 @@ export default async function ClientDetailPage({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Zap size={14} className="text-blue-400" />
-                <h3 className="text-[14px] font-light text-white tracking-wide">Últimas Llamadas</h3>
+                <h3 className="text-[14px] font-light text-white tracking-wide">{t("client.recentCalls")}</h3>
                 <span className="text-[11px] text-white/20 font-light ml-1">({totalCalls})</span>
               </div>
               {totalPages > 1 && (
@@ -352,15 +361,15 @@ export default async function ClientDetailPage({
             </div>
             <div className="space-y-1">
               <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-2.5 border-b border-white/[0.06] px-2">
-                <div className="col-span-2">Feature</div>
-                <div className="col-span-3">Modelo</div>
-                <div className="col-span-2 text-right">Input</div>
-                <div className="col-span-2 text-right">Output</div>
-                <div className="col-span-1 text-right">Costo</div>
-                <div className="col-span-2 text-right">Fecha</div>
+                <div className="col-span-2">{t("client.feature")}</div>
+                <div className="col-span-3">{t("client.model")}</div>
+                <div className="col-span-2 text-right">{t("client.input")}</div>
+                <div className="col-span-2 text-right">{t("client.output")}</div>
+                <div className="col-span-1 text-right">{t("client.cost")}</div>
+                <div className="col-span-2 text-right">{t("client.date")}</div>
               </div>
               {paginatedCalls.length === 0 && (
-                <p className="text-white/25 text-[12px] py-3 text-center">Sin llamadas todavía.</p>
+                <p className="text-white/25 text-[12px] py-3 text-center">{t("client.noCallsYet")}</p>
               )}
               {paginatedCalls.map((r) => (
                 <div key={r.id} className="grid grid-cols-12 gap-2 items-center py-2 rounded-lg hover:bg-white/[0.03] transition-all px-2">
@@ -372,8 +381,8 @@ export default async function ClientDetailPage({
                   <div className="col-span-2 text-right text-[12px] font-light text-white/40">{formatNumber(r.output_tokens)}</div>
                   <div className="col-span-1 text-right text-[12px] font-medium text-emerald-400/70">${Number(r.cost_usd).toFixed(4)}</div>
                   <div className="col-span-2 text-right text-[11px] text-white/25">
-                    {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}{" "}
-                    {new Date(r.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(r.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}{" "}
+                    {new Date(r.created_at).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
               ))}
@@ -384,17 +393,17 @@ export default async function ClientDetailPage({
             <div className="glass-panel rounded-xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Globe size={14} className="text-amber-400" />
-                <h3 className="text-[14px] font-light text-white tracking-wide">Últimas Integraciones</h3>
+                <h3 className="text-[14px] font-light text-white tracking-wide">{t("client.recentIntegrations")}</h3>
                 <span className="text-[11px] text-white/20 font-light ml-1">({intTotalCalls})</span>
               </div>
               <div className="space-y-1">
                 <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-2.5 border-b border-white/[0.06] px-2">
-                  <div className="col-span-3">Feature</div>
-                  <div className="col-span-2">Operación</div>
-                  <div className="col-span-1 text-right">Items</div>
-                  <div className="col-span-2 text-right">Costo</div>
-                  <div className="col-span-1 text-center">Status</div>
-                  <div className="col-span-3 text-right">Fecha</div>
+                  <div className="col-span-3">{t("client.feature")}</div>
+                  <div className="col-span-2">{t("client.operation")}</div>
+                  <div className="col-span-1 text-right">{t("client.items")}</div>
+                  <div className="col-span-2 text-right">{t("client.cost")}</div>
+                  <div className="col-span-1 text-center">{t("client.status")}</div>
+                  <div className="col-span-3 text-right">{t("client.date")}</div>
                 </div>
                 {intRows.slice(0, 30).map((r) => (
                   <div key={r.id} className="grid grid-cols-12 gap-2 items-center py-2 rounded-lg hover:bg-white/[0.03] transition-all px-2">
@@ -408,8 +417,8 @@ export default async function ClientDetailPage({
                       <span className={`inline-block h-1.5 w-1.5 rounded-full ${r.status === "success" ? "bg-emerald-400" : "bg-red-400"}`} />
                     </div>
                     <div className="col-span-3 text-right text-[11px] text-white/25">
-                      {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}{" "}
-                      {new Date(r.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(r.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}{" "}
+                      {new Date(r.created_at).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
                 ))}
@@ -425,40 +434,50 @@ export default async function ClientDetailPage({
             <div className="glass-card px-5 py-4">
               <div className="flex items-center gap-2 mb-3">
                 <User size={14} className="text-blue-400" />
-                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Owner</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("client.owner")}</p>
               </div>
               <div className="flex items-center gap-1.5">
                 <p className="text-[13px] font-light text-white/70">{profile?.full_name ?? "—"}</p>
                 {profile?.role === "admin" && (
-                  <span className="text-[9px] font-medium text-amber-400/70 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">admin</span>
+                  <span className="text-[9px] font-medium text-amber-400/70 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{t("client.adminBadge")}</span>
                 )}
               </div>
               <p className="text-[11px] text-white/30 mt-0.5">{profile?.email ?? "—"}</p>
               <p className="text-[10px] text-white/20 mt-1">
-                Registrado {profile ? new Date(profile.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                {t("client.registered", {
+                  date: profile ? new Date(profile.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short", year: "numeric" }) : "—",
+                })}
               </p>
+              {profile?.id && (
+                <ClientLanguagePicker
+                  userId={profile.id}
+                  initialLanguage={(isLocale(profile.language) ? profile.language : "es") as Locale}
+                />
+              )}
             </div>
 
             {/* Meta connection */}
             <div className="glass-card px-5 py-4">
               <div className="flex items-center gap-2 mb-3">
                 <Wifi size={14} className={connection?.status === "active" ? "text-emerald-400" : "text-white/20"} />
-                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Conexión Meta</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("client.metaConnection")}</p>
               </div>
               {connection?.status === "active" ? (
                 <>
                   <p className="text-[13px] font-light text-emerald-400">@{connection.ig_username}</p>
                   <p className="text-[11px] text-white/30 mt-0.5">{connection.page_name ?? "—"}</p>
                   <p className="text-[10px] text-white/20 mt-1">
-                    Conectado {new Date(connection.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}
+                    {t("client.connectedOn", {
+                      date: new Date(connection.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" }),
+                    })}
                   </p>
                 </>
               ) : connection ? (
                 <p className="text-[13px] font-light text-amber-400/60">
-                  {connection.status === "expired" ? "Token expirado" : connection.status}
+                  {connection.status === "expired" ? t("client.tokenExpired") : connection.status}
                 </p>
               ) : (
-                <p className="text-[13px] font-light text-white/25">No conectó Meta todavía</p>
+                <p className="text-[13px] font-light text-white/25">{t("client.notConnected")}</p>
               )}
             </div>
 
@@ -477,8 +496,10 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-function formatMonth(key: string): string {
+function formatMonth(key: string, locale: string): string {
   const [year, month] = key.split("-");
-  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const monthsEs = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = locale === "en" ? monthsEn : monthsEs;
   return `${months[parseInt(month) - 1]} ${year}`;
 }
