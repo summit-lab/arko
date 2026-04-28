@@ -618,7 +618,15 @@
         "avgPerDuration": "avg / duration",
         "average": "average",
         "apifyOrDb": "Apify / DB",
-        "notAvailable": "Not available"
+        "notAvailable": "Not available",
+        "rows": {
+          "reelStart": "Reel start",
+          "reelStartDetail": "Plays baseline",
+          "avgViewerReaches": "Average viewer reaches",
+          "avgViewerDetail": "{watch} of {duration}",
+          "estimatedRetention": "Estimated retention",
+          "estimatedRetentionDetail": "{pct}% of the Reel watched on average"
+        }
       },
       "breakdowns": {
         "interactionsTitle": "Interactions vs 90d Benchmark",

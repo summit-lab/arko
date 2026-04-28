@@ -618,7 +618,15 @@
         "avgPerDuration": "avg / duración",
         "average": "promedio",
         "apifyOrDb": "Apify / DB",
-        "notAvailable": "No disponible"
+        "notAvailable": "No disponible",
+        "rows": {
+          "reelStart": "Inicio del Reel",
+          "reelStartDetail": "Base de reproducciones",
+          "avgViewerReaches": "Viewer promedio llega hasta",
+          "avgViewerDetail": "{watch} de {duration}",
+          "estimatedRetention": "Retención estimada",
+          "estimatedRetentionDetail": "{pct}% del Reel visto en promedio"
+        }
       },
       "breakdowns": {
         "interactionsTitle": "Interacciones vs Benchmark 90d",
