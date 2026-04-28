@@ -161,9 +161,10 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
             <button
               onClick={handleAnalyze}
               disabled={!videoUrl}
-              className="on-color flex-shrink-0 flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-semibold text-white transition-colors"
+              style={{ color: "#ffffff" }}
+              className="flex-shrink-0 flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-semibold transition-colors"
             >
-              <Brain className="h-4 w-4" />
+              <Brain className="h-4 w-4" style={{ color: "#ffffff" }} />
               {t("ai.actions.analyzeDeep")}
             </button>
           </div>
