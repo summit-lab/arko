@@ -21,7 +21,7 @@ interface LanguageSwitcherProps {
 
 const FLAGS: Record<Locale, { src: string; alt: string }> = {
   es: { src: "/Bandera_de_España.svg.png", alt: "Español" },
-  en: { src: "/Flag_of_the_United_Kingdom_(3-5).svg.png", alt: "English" },
+  en: { src: "/usaflag.png", alt: "English" },
 };
 
 function writeCookieClientSide(next: Locale) {
