@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Plus, ExternalLink, X, Loader2, Sparkles, RefreshCw, Users,
   CheckCircle2, Search, Copy, Check, Eye, Heart, BookMarked,
   MessageCircleQuestion, List, Zap, Megaphone, GitCompare,
   BookOpen, AlertTriangle, Languages, Type, ArrowUpDown, Play,
-  Brain, Target, Lightbulb, Wand2,
+  Brain, Target, Lightbulb, Wand2, ChevronDown,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -707,8 +707,18 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
   const [referenceFilter, setReferenceFilter] = useState<string | "all">("all");
   const [tierFilter, setTierFilter] = useState<"top" | "mid" | "all">("all");
   const [sortBy, setSortBy] = useState<"views" | "likes" | "engagement" | "recent">("views");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
   const [classifications, setClassifications] = useState<Map<string, ClassificationResponse>>(new Map());
   const [classifying, setClassifying] = useState(false);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   function handleSave(ref: Reference) {
     setReferences((prev) => [...prev, ref]);
@@ -822,9 +832,21 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
     });
   }, [references, t]);
 
+  // Stable signature of classifiable hooks — only changes when reels are
+  // added/removed/edited, NOT when an analysis is attached to an existing reel.
+  // Without this, `rawHooks` is a new reference on every analyze (the useMemo
+  // re-runs) and would re-classify every hook of every reference.
+  const classifyKey = useMemo(() => {
+    return rawHooks
+      .filter((h) => !h.shortCode.startsWith("anon-"))
+      .map((h) => `${h.referenceId}:${h.shortCode}:${h.text}`)
+      .sort()
+      .join("|");
+  }, [rawHooks]);
+
   // Fetch AI classifications
   useEffect(() => {
-    if (!workspaceId || rawHooks.length === 0) return;
+    if (!workspaceId || !classifyKey) return;
     const byRef = new Map<string, { reel_short_code: string; text: string }[]>();
     for (const h of rawHooks) {
       if (!h.shortCode.startsWith("anon-")) {
@@ -862,7 +884,8 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
     }
     classifyAll();
     return () => { cancelled = true; };
-  }, [rawHooks, workspaceId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classifyKey, workspaceId]);
 
   // Merge AI classifications
   const hooks = useMemo<Hook[]>(() => {
@@ -1109,17 +1132,39 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
               <div className="h-4 w-px bg-white/[0.08] mx-1" />
 
               {/* Sort */}
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08]">
-                <ArrowUpDown size={11} className="text-muted-foreground" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="bg-transparent outline-none text-[11px] font-medium text-foreground/80 cursor-pointer pr-1"
+              <div ref={sortRef} className="relative">
+                <button
+                  onClick={() => setSortOpen((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-medium text-foreground/80 hover:bg-white/[0.08] transition-colors cursor-pointer"
                 >
-                  <option value="views">{t("references.sort.views")}</option>
-                  <option value="likes">{t("references.sort.likes")}</option>
-                  <option value="engagement">{t("references.sort.engagement")}</option>
-                </select>
+                  <ArrowUpDown size={11} className="text-muted-foreground" />
+                  <span>
+                    {sortBy === "views" && t("references.sort.views")}
+                    {sortBy === "likes" && t("references.sort.likes")}
+                    {sortBy === "engagement" && t("references.sort.engagement")}
+                  </span>
+                  <ChevronDown size={11} className={`text-foreground/50 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
+                </button>
+                {sortOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-1.5 min-w-[140px] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-2xl">
+                    {([
+                      { value: "views", label: t("references.sort.views") },
+                      { value: "likes", label: t("references.sort.likes") },
+                      { value: "engagement", label: t("references.sort.engagement") },
+                    ] as { value: typeof sortBy; label: string }[]).map((o) => (
+                      <button
+                        key={o.value}
+                        onClick={() => { setSortBy(o.value); setSortOpen(false); }}
+                        className={`flex w-full items-center justify-between gap-6 px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.08] cursor-pointer ${
+                          o.value === sortBy ? "text-foreground" : "text-foreground/50 hover:text-foreground/80"
+                        }`}
+                      >
+                        <span>{o.label}</span>
+                        {o.value === sortBy && <Check size={11} className="text-foreground" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -101,10 +101,10 @@ function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/[0.1] hover:bg-white/[0.08] cursor-pointer"
+        className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-foreground/80 transition-colors hover:border-white/[0.1] hover:bg-white/[0.08] cursor-pointer"
       >
         <span>{selected?.label}</span>
-        <ChevronDown size={11} className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={11} className={`text-foreground/50 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl backdrop-blur-2xl">
@@ -113,11 +113,11 @@ function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey
               key={o.value}
               onClick={() => { onChange(o.value); setOpen(false); }}
               className={`flex w-full items-center justify-between gap-6 px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.08] cursor-pointer ${
-                o.value === value ? "text-white" : "text-zinc-400 hover:text-zinc-200"
+                o.value === value ? "text-foreground" : "text-foreground/50 hover:text-foreground/80"
               }`}
             >
               <span>{o.label}</span>
-              {o.value === value && <Check size={11} className="text-white" />}
+              {o.value === value && <Check size={11} className="text-foreground" />}
             </button>
           ))}
         </div>

@@ -175,6 +175,7 @@ function ScatterTooltip({
   payload?: Array<{ payload: { title: string; duration: number; views: number } }>;
   ct: ChartTheme;
 }) {
+  const t = useTranslations("youtubeDeep");
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
@@ -182,11 +183,11 @@ function ScatterTooltip({
       <p className="text-[11px] mb-3 leading-snug" style={{ color: ct.tooltipText }}>{d.title}</p>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>Duración:</span>
-          <span className="text-cyan-400 font-medium">{d.duration} min</span>
+          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>{t("charts.durationVsViews.xName")}:</span>
+          <span className="text-cyan-400 font-medium">{d.duration} {t("charts.durationVsViews.minLabel")}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>Views:</span>
+          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>{t("metrics.views")}:</span>
           <span className="text-violet-400 font-medium">{fmt(d.views)}</span>
         </div>
       </div>
