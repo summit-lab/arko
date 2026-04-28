@@ -9,6 +9,7 @@ import {
   Eye, Users, TrendingUp, TrendingDown, Heart, MessageSquare,
   Bookmark, Share2, UserPlus, BarChart3, Activity, Zap, MapPin,
 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { CountUp } from "@/components/ui/CountUp";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
@@ -50,11 +51,12 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const [year, month, day] = dateStr.split("-").map(Number);
   if (!year || !month || !day) return dateStr;
   const d = new Date(Date.UTC(year, month - 1, day));
-  return `${day} ${d.toLocaleString("es", { month: "short", timeZone: "UTC" })}`;
+  const localeTag = locale === "en" ? "en-US" : "es";
+  return `${day} ${d.toLocaleString(localeTag, { month: "short", timeZone: "UTC" })}`;
 }
 
 function trendPct(values: number[]): { pct: string; up: boolean } {
@@ -76,13 +78,15 @@ interface TooltipEntry {
 }
 
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipEntry[]; label?: string }) {
+  const locale = useLocale();
+  const numLocale = locale === "en" ? "en-US" : "es-AR";
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl px-4 py-3 text-[12px] backdrop-blur-xl bg-popover text-popover-foreground border border-border shadow-xl">
       {label && <p className="mb-2 text-muted-foreground text-[11px] font-medium uppercase tracking-[0.08em]">{label}</p>}
       {payload.map((e) => (
         <p key={e.name} className="font-light" style={{ color: e.color }}>
-          {e.name}: <span className="text-popover-foreground">{e.value.toLocaleString("es-AR")}</span>
+          {e.name}: <span className="text-popover-foreground">{e.value.toLocaleString(numLocale)}</span>
         </p>
       ))}
     </div>
@@ -114,11 +118,13 @@ function TrendBadge({ pct, up }: { pct: string; up: boolean }) {
 
 const PIE_COLORS = ["#7A86E0", "#EB6991", "#4BCEAF", "#AF6EC7", "#A5ADEE", "#F0A0BB", "#7EE0CE", "#C89ED8"];
 const ENGAGEMENT_COLORS = { likes: "#EB6991", saves: "#AF6EC7", comments: "#4BCEAF", shares: "#7A86E0" };
-const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 // ─── Process gender+age demographics ─────────────────────────────────────────
 
-function processGenderAge(data: Record<string, number>) {
+function processGenderAge(
+  data: Record<string, number>,
+  labels: { male: string; female: string; other: string },
+) {
   const genderTotals: Record<string, number> = {};
   const ageGroups: Record<string, number> = {};
   const ageByGender: Record<string, { hombre: number; mujer: number }> = {};
@@ -126,7 +132,7 @@ function processGenderAge(data: Record<string, number>) {
   for (const [key, value] of Object.entries(data)) {
     if (key.startsWith("gender:")) {
       const raw = key.replace("gender:", "");
-      const label = raw === "M" || raw.toLowerCase() === "male" ? "Hombre" : raw === "F" || raw.toLowerCase() === "female" ? "Mujer" : "Otro";
+      const label = raw === "M" || raw.toLowerCase() === "male" ? labels.male : raw === "F" || raw.toLowerCase() === "female" ? labels.female : labels.other;
       genderTotals[label] = (genderTotals[label] || 0) + value;
       continue;
     }
@@ -137,7 +143,7 @@ function processGenderAge(data: Record<string, number>) {
     }
     const [gender, ageRange] = key.split(".");
     if (!gender || !ageRange) continue;
-    const label = gender === "M" ? "Hombre" : gender === "F" ? "Mujer" : "Otro";
+    const label = gender === "M" ? labels.male : gender === "F" ? labels.female : labels.other;
     genderTotals[label] = (genderTotals[label] || 0) + value;
     ageGroups[ageRange] = (ageGroups[ageRange] || 0) + value;
     if (!ageByGender[ageRange]) ageByGender[ageRange] = { hombre: 0, mujer: 0 };
@@ -164,21 +170,30 @@ function processGenderAge(data: Record<string, number>) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
+  const t = useTranslations("igShell");
+  const locale = useLocale();
+  const numLocale = locale === "en" ? "en-US" : "es-AR";
   const chart = useChartTheme();
   if (dailyInsights.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold text-foreground">Sin datos de cuenta</h3>
+        <h3 className="text-lg font-semibold text-foreground">{t("metrics.empty.title")}</h3>
         <p className="mt-2 text-sm text-muted-foreground max-w-md">
-          Sincroniza tu cuenta de Instagram para ver métricas de evolución, comunidad y demografía.
-          Asegurate de tener los permisos{" "}
-          <code className="text-xs bg-white/[0.06] px-1 py-0.5 rounded">instagram_basic</code> e{" "}
+          {t("metrics.empty.line1")}{" "}
+          {t("metrics.empty.permissionsBefore")}{" "}
+          <code className="text-xs bg-white/[0.06] px-1 py-0.5 rounded">instagram_basic</code> {t("metrics.empty.permissionsAnd")}{" "}
           <code className="text-xs bg-white/[0.06] px-1 py-0.5 rounded">instagram_manage_insights</code>.
         </p>
       </div>
     );
   }
+  const DAYS_LABELS = t.raw("metrics.daysShort") as string[];
+  const GENDER_LABELS = {
+    male: t("metrics.gender.male"),
+    female: t("metrics.gender.female"),
+    other: t("metrics.gender.other"),
+  };
 
   // ── Data preparation ────────────────────────────────────────────────────────
 
@@ -212,12 +227,12 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
   const totalFollowersGainedFromSnapshots = lastFt - firstFt;
 
   const followerCurveData = daysWithFollowers.map((d) => ({
-    date: formatDate(d.metric_date),
+    date: formatDate(d.metric_date, locale),
     total: d.followers_total,
   }));
 
   const chartData = sorted.map((d) => ({
-    date: formatDate(d.metric_date),
+    date: formatDate(d.metric_date, locale),
     impressions: d.impressions,
     reach: d.reach,
     profile_views: d.profile_views,
@@ -229,10 +244,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
 
   const engagementData = chartData.map((d) => ({
     date: d.date,
-    "Me gusta": d.likes,
-    Guardados: d.saves,
-    Comentarios: d.comments,
-    Compartidos: d.shares,
+    [t("common.likes")]: d.likes,
+    [t("common.saves")]: d.saves,
+    [t("common.comments")]: d.comments,
+    [t("common.shares")]: d.shares,
   }));
 
   // Day of week aggregation
@@ -244,7 +259,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
     dowAccum[dow].sum += d.total_interactions;
     dowAccum[dow].count += 1;
   });
-  const dayOfWeekData = DAYS_ES.map((label, i) => ({
+  const dayOfWeekData = DAYS_LABELS.map((label, i) => ({
     day: label,
     avg: dowAccum[i].count > 0 ? Math.round(dowAccum[i].sum / dowAccum[i].count) : 0,
   }));
@@ -275,10 +290,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
 
   // Engagement composition
   const engagementItems = [
-    { name: "Me gusta", value: totalLikes, color: ENGAGEMENT_COLORS.likes, icon: Heart },
-    { name: "Guardados", value: totalSaves, color: ENGAGEMENT_COLORS.saves, icon: Bookmark },
-    { name: "Comentarios", value: totalComments, color: ENGAGEMENT_COLORS.comments, icon: MessageSquare },
-    { name: "Compartidos", value: totalShares, color: ENGAGEMENT_COLORS.shares, icon: Share2 },
+    { name: t("common.likes"), value: totalLikes, color: ENGAGEMENT_COLORS.likes, icon: Heart },
+    { name: t("common.saves"), value: totalSaves, color: ENGAGEMENT_COLORS.saves, icon: Bookmark },
+    { name: t("common.comments"), value: totalComments, color: ENGAGEMENT_COLORS.comments, icon: MessageSquare },
+    { name: t("common.shares"), value: totalShares, color: ENGAGEMENT_COLORS.shares, icon: Share2 },
   ].filter((d) => d.value > 0);
   const totalEngPie = engagementItems.reduce((s, d) => s + d.value, 0) || 1;
 
@@ -288,7 +303,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
   // ── Demographics ────────────────────────────────────────────────────────────
 
   const genderData = demographics?.audience_gender_age
-    ? processGenderAge(demographics.audience_gender_age)
+    ? processGenderAge(demographics.audience_gender_age, GENDER_LABELS)
     : null;
   const countryData = demographics?.audience_country
     ? Object.entries(demographics.audience_country)
@@ -311,9 +326,9 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
-          { label: "Impresiones totales", value: fmt(totalImpressions), trend: impTrend, icon: Eye },
-          { label: "Alcance promedio / día", value: fmt(avgReach), trend: reachTrend, icon: Users },
-          { label: "Interacciones totales", value: fmt(totalInteractions), trend: intTrend, icon: Activity },
+          { label: t("metrics.kpis.totalImpressions"), value: fmt(totalImpressions), trend: impTrend, icon: Eye },
+          { label: t("metrics.kpis.avgReachPerDay"), value: fmt(avgReach), trend: reachTrend, icon: Users },
+          { label: t("metrics.kpis.totalInteractions"), value: fmt(totalInteractions), trend: intTrend, icon: Activity },
         ].map((k) => (
           <div key={k.label} className="glass-card px-6 py-5">
             <div className="flex items-center justify-between mb-3">
@@ -325,7 +340,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
             <CountUp value={k.value} className="stat-number-xl" />
             <div className="mt-2 flex items-center gap-1.5">
               <TrendBadge pct={k.trend.pct} up={k.trend.up} />
-              <span className="text-[11px] text-white/25">vs primera mitad del período</span>
+              <span className="text-[11px] text-white/25">{t("metrics.vsFirstHalf")}</span>
             </div>
           </div>
         ))}
@@ -334,11 +349,11 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       {/* ── Secondary KPIs ── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: "Tasa de engagement", value: `${engagementRate}%`, icon: Zap, desc: "Interacciones / Impresiones" },
-          { label: "Tasa de guardados", value: `${savesRate}%`, icon: Bookmark, desc: "Guardados / Alcance" },
-          { label: "Conv. perfil → seguidor", value: `${profileConvRate}%`, icon: UserPlus, desc: "Nuevos seguidores / Visitas" },
-          { label: "Visitas al perfil", value: fmt(totalProfileViews), icon: Eye, desc: "Total del período" },
-          { label: "Contenido publicado", value: `${lastDay?.media_count ?? 0}`, icon: BarChart3, desc: "Posts activos en la cuenta" },
+          { label: t("metrics.secondaryKpis.engagementRate.label"), value: `${engagementRate}%`, icon: Zap, desc: t("metrics.secondaryKpis.engagementRate.desc") },
+          { label: t("metrics.secondaryKpis.savesRate.label"), value: `${savesRate}%`, icon: Bookmark, desc: t("metrics.secondaryKpis.savesRate.desc") },
+          { label: t("metrics.secondaryKpis.profileConv.label"), value: `${profileConvRate}%`, icon: UserPlus, desc: t("metrics.secondaryKpis.profileConv.desc") },
+          { label: t("metrics.secondaryKpis.profileVisits.label"), value: fmt(totalProfileViews), icon: Eye, desc: t("metrics.secondaryKpis.profileVisits.desc") },
+          { label: t("metrics.secondaryKpis.contentPublished.label"), value: `${lastDay?.media_count ?? 0}`, icon: BarChart3, desc: t("metrics.secondaryKpis.contentPublished.desc") },
         ].map((s) => (
           <div key={s.label} className="glass-card px-4 py-4">
             <div className="flex items-center gap-2 mb-3">
@@ -352,7 +367,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       </div>
 
       {/* ── Alcance & Visibilidad — full width ── */}
-      <Section title="Alcance & Visibilidad" subtitle={`Impresiones, alcance y visitas al perfil — ${sorted.length} días`}>
+      <Section title={t("metrics.reach.title")} subtitle={t("metrics.reach.subtitle", { days: sorted.length })}>
         <div className="h-[340px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -396,17 +411,17 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} interval={xInterval} />
               <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={48} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
-              <Area type="monotone" dataKey="impressions" name="Impresiones" stroke="#7A86E0" fill="url(#m-imp)" strokeWidth={2.5} dot={false} animationDuration={1200} animationEasing="ease-out" style={{ filter: "url(#m-glow-v)" }} activeDot={{ r: 5, fill: "#7A86E0", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#m-dot)" }} />
-              <Area type="monotone" dataKey="reach" name="Alcance" stroke="#4BCEAF" fill="url(#m-reach)" strokeWidth={2.5} dot={false} animationDuration={1400} animationEasing="ease-out" style={{ filter: "url(#m-glow-c)" }} activeDot={{ r: 5, fill: "#4BCEAF", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#m-dot)" }} />
-              <Area type="monotone" dataKey="profile_views" name="Visitas perfil" stroke="#4BCEAF" fill="url(#m-pv)" strokeWidth={2} dot={false} animationDuration={1600} animationEasing="ease-out" style={{ filter: "url(#m-glow-e)" }} activeDot={{ r: 4, fill: "#4BCEAF", stroke: "#6ee7b7", strokeWidth: 2, filter: "url(#m-dot)" }} />
+              <Area type="monotone" dataKey="impressions" name={t("common.impressions")} stroke="#7A86E0" fill="url(#m-imp)" strokeWidth={2.5} dot={false} animationDuration={1200} animationEasing="ease-out" style={{ filter: "url(#m-glow-v)" }} activeDot={{ r: 5, fill: "#7A86E0", stroke: "#c4b5fd", strokeWidth: 2, filter: "url(#m-dot)" }} />
+              <Area type="monotone" dataKey="reach" name={t("common.reach")} stroke="#4BCEAF" fill="url(#m-reach)" strokeWidth={2.5} dot={false} animationDuration={1400} animationEasing="ease-out" style={{ filter: "url(#m-glow-c)" }} activeDot={{ r: 5, fill: "#4BCEAF", stroke: "#67e8f9", strokeWidth: 2, filter: "url(#m-dot)" }} />
+              <Area type="monotone" dataKey="profile_views" name={t("metrics.reach.profileVisits")} stroke="#4BCEAF" fill="url(#m-pv)" strokeWidth={2} dot={false} animationDuration={1600} animationEasing="ease-out" style={{ filter: "url(#m-glow-e)" }} activeDot={{ r: 4, fill: "#4BCEAF", stroke: "#6ee7b7", strokeWidth: 2, filter: "url(#m-dot)" }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
         <div className="flex items-center gap-6 mt-4 flex-wrap">
           {[
-            { color: "#7A86E0", label: "Impresiones" },
-            { color: "#4BCEAF", label: "Alcance" },
-            { color: "#4BCEAF", label: "Visitas al perfil" },
+            { color: "#7A86E0", label: t("common.impressions") },
+            { color: "#4BCEAF", label: t("common.reach") },
+            { color: "#4BCEAF", label: t("metrics.secondaryKpis.profileVisits.label") },
           ].map((l) => (
             <div key={l.label} className="flex items-center gap-2">
               <div className="h-0.5 w-5 rounded-full" style={{ backgroundColor: l.color, boxShadow: `0 0 6px ${l.color}` }} />
@@ -417,12 +432,12 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       </Section>
 
       {/* ── Radiografía del Engagement ── */}
-      <Section title="Radiografía del Engagement" subtitle="Qué tipo de interacciones generás — calidad vs cantidad">
+      <Section title={t("metrics.engagement.title")} subtitle={t("metrics.engagement.subtitle")}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
 
           {/* Stacked BarChart — daily breakdown */}
           <div>
-            <p className="text-[11px] text-white/30 mb-4 uppercase tracking-[0.08em] font-medium">Desglose diario</p>
+            <p className="text-[11px] text-white/30 mb-4 uppercase tracking-[0.08em] font-medium">{t("metrics.engagement.dailyBreakdown")}</p>
             <div className="h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={engagementData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -430,10 +445,10 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} interval={xInterval} />
                   <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={40} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
-                  <Bar dataKey="Me gusta" stackId="a" fill={ENGAGEMENT_COLORS.likes} radius={[0, 0, 0, 0]} animationDuration={900} />
-                  <Bar dataKey="Guardados" stackId="a" fill={ENGAGEMENT_COLORS.saves} radius={[0, 0, 0, 0]} animationDuration={1000} />
-                  <Bar dataKey="Comentarios" stackId="a" fill={ENGAGEMENT_COLORS.comments} radius={[0, 0, 0, 0]} animationDuration={1100} />
-                  <Bar dataKey="Compartidos" stackId="a" fill={ENGAGEMENT_COLORS.shares} radius={[4, 4, 0, 0]} animationDuration={1200} />
+                  <Bar dataKey={t("common.likes")} stackId="a" fill={ENGAGEMENT_COLORS.likes} radius={[0, 0, 0, 0]} animationDuration={900} />
+                  <Bar dataKey={t("common.saves")} stackId="a" fill={ENGAGEMENT_COLORS.saves} radius={[0, 0, 0, 0]} animationDuration={1000} />
+                  <Bar dataKey={t("common.comments")} stackId="a" fill={ENGAGEMENT_COLORS.comments} radius={[0, 0, 0, 0]} animationDuration={1100} />
+                  <Bar dataKey={t("common.shares")} stackId="a" fill={ENGAGEMENT_COLORS.shares} radius={[4, 4, 0, 0]} animationDuration={1200} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -442,7 +457,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 <div key={key} className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
                   <span className="text-[11px] text-white/35 capitalize">
-                    {key === "likes" ? "Me gusta" : key === "saves" ? "Guardados" : key === "comments" ? "Comentarios" : "Compartidos"}
+                    {key === "likes" ? t("common.likes") : key === "saves" ? t("common.saves") : key === "comments" ? t("common.comments") : t("common.shares")}
                   </span>
                 </div>
               ))}
@@ -451,7 +466,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
 
           {/* Engagement composition — donut + progress bars */}
           <div>
-            <p className="text-[11px] text-white/30 mb-4 uppercase tracking-[0.08em] font-medium">Composición</p>
+            <p className="text-[11px] text-white/30 mb-4 uppercase tracking-[0.08em] font-medium">{t("metrics.engagement.composition")}</p>
             <div className="flex items-center gap-5 mb-5">
               {/* Donut */}
               <div className="h-[150px] w-[150px] shrink-0">
@@ -516,12 +531,16 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 }}
               >
                 <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1" style={{ color: totalSaves > totalComments ? "rgba(251,191,36,0.7)" : "rgba(52,211,153,0.7)" }}>
-                  Insight
+                  {t("metrics.engagement.insightLabel")}
                 </p>
                 {totalSaves > totalComments ? (
-                  <p className="text-[11px] text-white/50 font-light">Más <span className="text-amber-300">guardados</span> que comentarios — tu contenido tiene valor educativo o inspiracional.</p>
+                  <p className="text-[11px] text-white/50 font-light">{t.rich("metrics.engagement.insightSaves", {
+                    highlight: (chunks) => <span className="text-amber-300">{chunks}</span>,
+                  })}</p>
                 ) : (
-                  <p className="text-[11px] text-white/50 font-light">Más <span className="text-emerald-300">comentarios</span> que guardados — tu contenido genera conversación y comunidad.</p>
+                  <p className="text-[11px] text-white/50 font-light">{t.rich("metrics.engagement.insightComments", {
+                    highlight: (chunks) => <span className="text-emerald-300">{chunks}</span>,
+                  })}</p>
                 )}
               </div>
             )}
@@ -530,16 +549,16 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
       </Section>
 
       {/* ── Comunidad & Crecimiento ── */}
-      <Section title="Comunidad" subtitle="Captación de seguidores y mejores momentos para publicar">
+      <Section title={t("metrics.community.title")} subtitle={t("metrics.community.subtitle")}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
           {/* Follower growth curve */}
           <div>
             <div className="grid grid-cols-3 gap-3 mb-5">
               {[
-                { label: "Nuevos seguidores", value: totalFollowersGained > 0 ? `+${fmt(totalFollowersGained)}` : (daysWithFollowers.length < 2 ? "—" : fmt(totalFollowersGained)) },
-                { label: "Promedio / día", value: daysWithFollowers.length < 2 ? "—" : fmt(avgFollowersGained) },
-                { label: "Total actual", value: fmt(lastFt || lastDay?.followers_total || 0) },
+                { label: t("metrics.community.newFollowers"), value: totalFollowersGained > 0 ? `+${fmt(totalFollowersGained)}` : (daysWithFollowers.length < 2 ? "—" : fmt(totalFollowersGained)) },
+                { label: t("metrics.community.avgPerDay"), value: daysWithFollowers.length < 2 ? "—" : fmt(avgFollowersGained) },
+                { label: t("metrics.community.currentTotal"), value: fmt(lastFt || lastDay?.followers_total || 0) },
               ].map((s) => (
                 <div key={s.label} className="glass-card px-4 py-3 text-center">
                   <p className="stat-label mb-1.5">{s.label}</p>
@@ -561,21 +580,21 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} interval={Math.max(0, Math.floor(followerCurveData.length / 7) - 1)} />
                     <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={45} domain={["dataMin - 10", "dataMax + 10"]} />
                     <Tooltip content={<ChartTooltip />} cursor={{ stroke: chart.grid }} />
-                    <Area type="monotone" dataKey="total" name="Seguidores" stroke="#4BCEAF" strokeWidth={2} fill="url(#followerGrad)" animationDuration={1200} />
+                    <Area type="monotone" dataKey="total" name={t("common.followers")} stroke="#4BCEAF" strokeWidth={2} fill="url(#followerGrad)" animationDuration={1200} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
               <div className="h-[200px] w-full flex items-center justify-center">
-                <p className="text-white/30 text-sm">Se necesitan al menos 2 días de datos para graficar la curva de seguidores</p>
+                <p className="text-white/30 text-sm">{t("metrics.community.needTwoDays")}</p>
               </div>
             )}
           </div>
 
           {/* Day of week radar */}
           <div>
-            <p className="text-[11px] text-white/30 mb-1 uppercase tracking-[0.08em] font-medium">Interacciones por día de semana</p>
-            <p className="text-[11px] text-white/20 mb-4">Promedio histórico del período — usalo para elegir cuándo publicar</p>
+            <p className="text-[11px] text-white/30 mb-1 uppercase tracking-[0.08em] font-medium">{t("metrics.community.interactionsByDay")}</p>
+            <p className="text-[11px] text-white/20 mb-4">{t("metrics.community.historicalAvg")}</p>
             <div className="h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={dayOfWeekData} margin={{ top: 8, right: 28, bottom: 8, left: 28 }}>
@@ -585,7 +604,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                     tick={{ fill: chart.axisTick, fontSize: 12 }}
                   />
                   <Radar
-                    name="Interacciones"
+                    name={t("metrics.community.interactions")}
                     dataKey="avg"
                     stroke="#7A86E0"
                     fill="#7A86E0"
@@ -601,10 +620,14 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
               className="rounded-xl px-4 py-3"
               style={{ background: "rgba(129,140,248,0.06)", border: "1px solid rgba(129,140,248,0.1)" }}
             >
-              <p className="text-[10px] text-indigo-300/70 font-medium uppercase tracking-[0.08em] mb-1">Mejor día para publicar</p>
+              <p className="text-[10px] text-indigo-300/70 font-medium uppercase tracking-[0.08em] mb-1">{t("metrics.community.bestDayToPost")}</p>
               <p className="text-[12px] text-white/50 font-light">
-                <span className="text-white">{bestDay.day}</span> — promedio de{" "}
-                <span className="text-indigo-300">{bestDay.avg.toLocaleString("es-AR")}</span> interacciones.
+                {t.rich("metrics.community.bestDayLine", {
+                  day: bestDay.day,
+                  avg: bestDay.avg.toLocaleString(numLocale),
+                  dayHighlight: (chunks) => <span className="text-white">{chunks}</span>,
+                  avgHighlight: (chunks) => <span className="text-indigo-300">{chunks}</span>,
+                })}
               </p>
             </div>
           </div>
@@ -613,7 +636,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
 
       {/* ── Demografía ── */}
       {demographics && (genderData || countryData || cityData) && (
-        <Section title="Demografía" subtitle="Distribución de tu audiencia (datos lifetime de la cuenta)">
+        <Section title={t("metrics.demographics.title")} subtitle={t("metrics.demographics.subtitle")}>
           <div className="space-y-6">
 
             {/* Row 1: Género + Edad por género */}
@@ -623,7 +646,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 {/* Género — donut + progress bars */}
                 {genderData.genderPie.length > 0 && (
                   <div className="glass-card p-6">
-                    <p className="stat-label mb-5">Género</p>
+                    <p className="stat-label mb-5">{t("metrics.demographics.gender")}</p>
                     <div className="flex items-center gap-8">
                       <div className="h-[160px] w-[160px] shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
@@ -686,7 +709,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 {(genderData.ageGenderBars.length > 0 || genderData.ageBars.length > 0) && (
                   <div className="glass-card p-6">
                     <p className="stat-label mb-5">
-                      {genderData.ageGenderBars.length > 0 ? "Edad por género" : "Distribución de edad"}
+                      {genderData.ageGenderBars.length > 0 ? t("metrics.demographics.ageByGender") : t("metrics.demographics.ageDistribution")}
                     </p>
                     <div className="h-[160px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
@@ -696,8 +719,8 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             <XAxis dataKey="range" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={35} />
                             <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
-                            <Bar dataKey="hombre" name="Hombre" fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
-                            <Bar dataKey="mujer" name="Mujer" fill="#EB6991" radius={[4, 4, 0, 0]} animationDuration={1400} />
+                            <Bar dataKey="hombre" name={t("metrics.gender.male")} fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
+                            <Bar dataKey="mujer" name={t("metrics.gender.female")} fill="#EB6991" radius={[4, 4, 0, 0]} animationDuration={1400} />
                           </BarChart>
                         ) : (
                           <BarChart data={genderData.ageBars} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -705,7 +728,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                             <XAxis dataKey="range" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={35} />
                             <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
-                            <Bar dataKey="value" name="Seguidores" fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
+                            <Bar dataKey="value" name={t("common.followers")} fill="#7A86E0" radius={[4, 4, 0, 0]} animationDuration={1200} />
                           </BarChart>
                         )}
                       </ResponsiveContainer>
@@ -714,11 +737,11 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                       <div className="flex items-center gap-4 mt-3">
                         <div className="flex items-center gap-1.5">
                           <div className="h-2 w-2 rounded-full bg-[#7A86E0]" />
-                          <span className="text-[11px] text-white/35">Hombre</span>
+                          <span className="text-[11px] text-white/35">{t("metrics.gender.male")}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <div className="h-2 w-2 rounded-full bg-[#EB6991]" />
-                          <span className="text-[11px] text-white/35">Mujer</span>
+                          <span className="text-[11px] text-white/35">{t("metrics.gender.female")}</span>
                         </div>
                       </div>
                     )}
@@ -734,7 +757,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 {/* Countries — horizontal BarChart */}
                 {countryData && countryData.length > 0 && (
                   <div className="glass-card p-6">
-                    <p className="stat-label mb-5">Seguidores por país</p>
+                    <p className="stat-label mb-5">{t("metrics.demographics.followersByCountry")}</p>
                     <div className="h-[240px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart layout="vertical" data={countryData} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
@@ -742,7 +765,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                           <XAxis type="number" tick={{ fontSize: 10, fill: chart.axisTick }} tickLine={false} axisLine={false} />
                           <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chart.axisTick }} tickLine={false} axisLine={false} width={90} />
                           <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursorFill }} />
-                          <Bar dataKey="value" name="Seguidores" radius={[0, 5, 5, 0]} animationDuration={1200}>
+                          <Bar dataKey="value" name={t("common.followers")} radius={[0, 5, 5, 0]} animationDuration={1200}>
                             {countryData.map((_, i) => (
                               <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                             ))}
@@ -756,7 +779,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                 {/* Cities — visual ranked list with glow bars */}
                 {cityData && cityData.length > 0 && (
                   <div className="glass-card p-6">
-                    <p className="stat-label mb-5">Seguidores por ciudad</p>
+                    <p className="stat-label mb-5">{t("metrics.demographics.followersByCity")}</p>
                     <div className="space-y-3">
                       {cityData.map(([city, count], i) => (
                         <div key={city}>
@@ -766,7 +789,7 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
                               <MapPin className="h-3 w-3 shrink-0" style={{ color: PIE_COLORS[i % PIE_COLORS.length] }} />
                               <span className="text-[13px] text-white/60 truncate max-w-[130px]">{city}</span>
                             </div>
-                            <span className="text-[14px] font-light text-white">{count.toLocaleString("es-AR")}</span>
+                            <span className="text-[14px] font-light text-white">{count.toLocaleString(numLocale)}</span>
                           </div>
                           <div className="h-1 rounded-full bg-white/[0.04]">
                             <div

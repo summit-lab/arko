@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ElementType, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   Brain, ChevronDown, ChevronUp, Mic, Eye, Zap, FileText,
   TrendingUp, AlertCircle, Loader2, Sparkles,
@@ -87,6 +88,7 @@ const viralColors: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis, onAnalysisComplete }: GeminiAnalysisProps) {
+  const t = useTranslations("igAdvanced");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
     initialAnalysis ? "done" : "idle",
   );
@@ -101,7 +103,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
 
   async function handleAnalyze() {
     if (!videoUrl) {
-      setErrorMsg("No hay URL de video disponible. Asegurate de haber sincronizado el reel via Apify.");
+      setErrorMsg(t("ai.errors.noVideoUrl"));
       setStatus("error");
       return;
     }
@@ -131,7 +133,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
       setStatus("done");
       onAnalysisComplete?.(newAnalysis);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Error desconocido");
+      setErrorMsg(err instanceof Error ? err.message : t("ai.errors.unknown"));
       setStatus(hasExistingAnalysis ? "done" : "error");
     }
   }
@@ -146,13 +148,13 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
               <Sparkles className="h-5 w-5 text-violet-500 dark:text-violet-400" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">Análisis profundo con MokaAI</p>
+              <p className="text-sm font-semibold text-foreground">{t("ai.idle.title")}</p>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                Transcripción con timestamps, narrativa, análisis visual, tono de voz, insights y potencial viral — todo en un solo análisis.
+                {t("ai.idle.body")}
               </p>
               {!videoUrl && (
                 <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                  No hay URL de video disponible. Sincronizá el reel via Apify primero.
+                  {t("ai.idle.noVideoHint")}
                 </p>
               )}
             </div>
@@ -162,7 +164,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
               className="on-color flex-shrink-0 flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-semibold text-white transition-colors"
             >
               <Brain className="h-4 w-4" />
-              Analizar en profundidad
+              {t("ai.actions.analyzeDeep")}
             </button>
           </div>
         </div>
@@ -178,8 +180,8 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
         <div className="flex items-center gap-4">
           <Loader2 className="h-5 w-5 animate-spin text-violet-500 dark:text-violet-400" />
           <div>
-            <p className="text-sm font-semibold text-foreground">Analizando con MokaAI</p>
-            <p className="text-xs text-muted-foreground">Descargando y procesando el video. Puede tardar entre 30 y 90 segundos.</p>
+            <p className="text-sm font-semibold text-foreground">{t("ai.loading.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("ai.loading.body")}</p>
           </div>
         </div>
       </div>
@@ -193,14 +195,14 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500 dark:text-red-400 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-red-700 dark:text-red-300">Error al analizar</p>
+            <p className="text-sm font-semibold text-red-700 dark:text-red-300">{t("ai.error.title")}</p>
             <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">{errorMsg}</p>
           </div>
           <button
             onClick={() => setStatus("idle")}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            Reintentar
+            {t("ai.actions.retry")}
           </button>
         </div>
       </div>
@@ -216,14 +218,14 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-violet-500 dark:text-violet-400" />
-          <h3 className="text-sm font-semibold text-foreground">Análisis MokaAI</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("ai.done.heading")}</h3>
         </div>
         <button
           onClick={handleAnalyze}
           disabled={!videoUrl}
           className="rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Re-analizar
+          {t("ai.actions.reanalyze")}
         </button>
       </div>
 
@@ -233,8 +235,8 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
         </div>
       )}
 
-      {/* Transcripción */}
-      <SectionCard icon={FileText} title="Transcripción" iconColor="text-sky-500 dark:text-sky-400">
+      {/* Transcript */}
+      <SectionCard icon={FileText} title={t("ai.sections.transcript")} iconColor="text-sky-500 dark:text-sky-400">
         {analysis.transcript ? (
           <div className="space-y-2">
             {analysis.transcript_lines.length > 0 ? (
@@ -263,28 +265,28 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
             )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground italic">No se detectó audio hablado.</p>
+          <p className="text-sm text-muted-foreground italic">{t("ai.transcript.noAudio")}</p>
         )}
       </SectionCard>
 
-      {/* Narrativa */}
-      <SectionCard icon={Brain} title="Narrativa y estructura" iconColor="text-violet-500 dark:text-violet-400">
+      {/* Narrative */}
+      <SectionCard icon={Brain} title={t("ai.sections.narrative")} iconColor="text-violet-500 dark:text-violet-400">
         <div className="space-y-3">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Hook</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.narrative.hook")}</p>
             <p className="text-sm text-foreground">{analysis.narrative.hook || "—"}</p>
           </div>
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Desarrollo</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.narrative.development")}</p>
             <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{analysis.narrative.development_summary || "—"}</p>
           </div>
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Promesa central</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.narrative.corePromise")}</p>
             <p className="text-sm text-foreground">{analysis.narrative.core_promise || "—"}</p>
           </div>
           {analysis.narrative.has_cta && analysis.narrative.cta_text && (
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">CTA detectado</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.narrative.ctaDetected")}</p>
               <p className="text-sm text-violet-600 dark:text-violet-300 font-medium">{analysis.narrative.cta_text}</p>
             </div>
           )}
@@ -294,7 +296,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
             </span>
             {!analysis.narrative.has_cta && (
               <span className="rounded border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                Sin CTA
+                {t("ai.narrative.noCta")}
               </span>
             )}
           </div>
@@ -302,15 +304,15 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
       </SectionCard>
 
       {/* Visual */}
-      <SectionCard icon={Eye} title="Análisis visual" iconColor="text-emerald-500 dark:text-emerald-400">
+      <SectionCard icon={Eye} title={t("ai.sections.visual")} iconColor="text-emerald-500 dark:text-emerald-400">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
-            { label: "Formato", value: analysis.visual.format_type },
-            { label: "Tipo de plano", value: analysis.visual.shot_type },
-            { label: "Escena", value: analysis.visual.scene_type },
-            { label: "Orientación", value: analysis.visual.orientation },
-            { label: "Personas", value: String(analysis.visual.people_count) },
-            { label: "Cara visible", value: analysis.visual.face_visible ? "Sí" : "No" },
+            { label: t("ai.visual.format"), value: analysis.visual.format_type },
+            { label: t("ai.visual.shotType"), value: analysis.visual.shot_type },
+            { label: t("ai.visual.scene"), value: analysis.visual.scene_type },
+            { label: t("ai.visual.orientation"), value: analysis.visual.orientation },
+            { label: t("ai.visual.people"), value: String(analysis.visual.people_count) },
+            { label: t("ai.visual.faceVisible"), value: analysis.visual.face_visible ? t("ai.common.yes") : t("ai.common.no") },
           ].map((item) => (
             <div key={item.label}>
               <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
@@ -320,24 +322,24 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
         </div>
         {analysis.visual.text_on_screen && (
           <div className="mt-3 rounded-lg border border-border bg-muted px-3 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Texto en pantalla</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.visual.onScreenText")}</p>
             <p className="text-xs text-foreground">{analysis.visual.text_on_screen}</p>
           </div>
         )}
         <div className="mt-3">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Primer frame</p>
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.visual.firstFrame")}</p>
           <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">{analysis.visual.first_frame_hook_context}</p>
         </div>
         {analysis.visual.background_context && (
           <div className="mt-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Fondo / entorno</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">{t("ai.visual.backgroundEnvironment")}</p>
             <p className="text-xs text-foreground/90 whitespace-pre-wrap">{analysis.visual.background_context}</p>
           </div>
         )}
       </SectionCard>
 
       {/* Audio / Delivery */}
-      <SectionCard icon={Mic} title="Tono de voz y delivery" iconColor="text-amber-500 dark:text-amber-400">
+      <SectionCard icon={Mic} title={t("ai.sections.audio")} iconColor="text-amber-500 dark:text-amber-400">
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <BadgePill value={analysis.audio.energy_level} colorMap={energyColors} />
@@ -354,18 +356,18 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Tipo de voz</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("ai.audio.voiceType")}</p>
               <p className="text-xs text-foreground mt-0.5">{analysis.audio.voice_type}</p>
             </div>
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Velocidad estimada</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("ai.audio.estimatedRate")}</p>
               <p className="text-xs text-foreground mt-0.5 font-semibold">{analysis.audio.estimated_wpm} WPM</p>
             </div>
           </div>
 
           {analysis.audio.filler_words_detected.length > 0 && (
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-1">Muletillas detectadas</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-1">{t("ai.audio.fillerWords")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {analysis.audio.filler_words_detected.map((word) => (
                   <span key={word} className="rounded border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[11px] text-rose-700 dark:text-rose-300">
@@ -379,17 +381,17 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
       </SectionCard>
 
       {/* Insights */}
-      <SectionCard icon={TrendingUp} title="Insights y potencial viral" iconColor="text-rose-500 dark:text-rose-400">
+      <SectionCard icon={TrendingUp} title={t("ai.sections.insights")} iconColor="text-rose-500 dark:text-rose-400">
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Potencial viral</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("ai.insights.viralPotential")}</p>
             <BadgePill value={analysis.insights.viral_potential} colorMap={viralColors} />
           </div>
           <p className="text-xs text-foreground/90 leading-relaxed -mt-1 whitespace-pre-wrap">{analysis.insights.viral_potential_reason}</p>
 
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-              <Zap className="h-3 w-3 text-emerald-500 dark:text-emerald-400" /> Fortalezas
+              <Zap className="h-3 w-3 text-emerald-500 dark:text-emerald-400" /> {t("ai.insights.strengths")}
             </p>
             <ul className="space-y-1.5">
               {analysis.insights.strengths.map((s, i) => (
@@ -402,7 +404,7 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
           </div>
 
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">Áreas de mejora</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">{t("ai.insights.improvements")}</p>
             <ul className="space-y-1.5">
               {analysis.insights.improvements.map((s, i) => (
                 <li key={i} className="flex gap-2 text-xs text-foreground/90">

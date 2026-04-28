@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Cpu, DollarSign, Zap, TrendingUp, Globe, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { UsageDailyChart } from "./UsageDailyChart";
 
 interface LLMRow {
@@ -58,20 +59,23 @@ interface TypeUsage {
   avg_latency: number;
 }
 
-/** Human-readable feature labels */
-const FEATURE_LABELS: Record<string, string> = {
-  'ai-agents': 'Moka AI Chat',
-  'onboarding-adn': 'Onboarding ADN',
-  'competitor-analysis': 'Análisis Competidores (IA)',
-  'competitor-scraping': 'Scraping Competidores',
-  'arkoai-video-analysis': 'Análisis Video (Reels)',
-  'reel-diagnostics': 'Diagnóstico Reels',
-  'metrics-analysis': 'Análisis Métricas',
-  'reel-scrape': 'Sync Reels (Meta)',
+/** Known feature keys mapped to translation suffixes */
+const FEATURE_KEYS: Record<string, string> = {
+  'ai-agents': 'aiAgents',
+  'onboarding-adn': 'onboardingAdn',
+  'competitor-analysis': 'competitorAnalysis',
+  'competitor-scraping': 'competitorScraping',
+  'arkoai-video-analysis': 'videoAnalysis',
+  'reel-diagnostics': 'reelDiagnostics',
+  'metrics-analysis': 'metricsAnalysis',
+  'reel-scrape': 'reelScrape',
 };
 
-function getFeatureLabel(feature: string): string {
-  return FEATURE_LABELS[feature] ?? feature;
+type Translator = (key: string) => string;
+
+function getFeatureLabel(feature: string, t: Translator): string {
+  const key = FEATURE_KEYS[feature];
+  return key ? t(`usage.feature.${key}`) : feature;
 }
 
 const CALLS_PER_PAGE = 30;
@@ -84,6 +88,9 @@ export default async function UsagePage({
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const supabase = await createClient();
+  const t = await getTranslations("adminDeep");
+  const locale = await getLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
 
   // Fetch both tables in parallel
   const [{ data: llmRows }, { data: integrationRows }] = await Promise.all([
@@ -112,7 +119,7 @@ export default async function UsagePage({
   // ── Aggregate by day (last 30 days) ──
   const dailyMap = new Map<string, { llm_cost: number; integration_cost: number; llm_calls: number; integration_calls: number }>();
   for (const r of rows) {
-    const day = new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+    const day = new Date(r.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" });
     const existing = dailyMap.get(day);
     if (existing) {
       existing.llm_cost += Number(r.cost_usd);
@@ -122,7 +129,7 @@ export default async function UsagePage({
     }
   }
   for (const r of intRows) {
-    const day = new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+    const day = new Date(r.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" });
     const existing = dailyMap.get(day);
     if (existing) {
       existing.integration_cost += Number(r.cost_usd);
@@ -276,18 +283,18 @@ export default async function UsagePage({
   const paginatedOps = unified.slice((safePage - 1) * CALLS_PER_PAGE, safePage * CALLS_PER_PAGE);
 
   const stats = [
-    { label: "Costo Total", value: `$${totalCost.toFixed(4)}`, sub: `IA $${llmCost.toFixed(4)} · Integ. $${intCost.toFixed(4)}`, icon: DollarSign, color: "text-emerald-400" },
-    { label: "Total Tokens", value: formatNumber(totalTokens), sub: `${rows.length} llamadas IA`, icon: Zap, color: "text-blue-400" },
-    { label: "Operaciones", value: totalOps.toString(), sub: `${rows.length} IA · ${intRows.length} integ.`, icon: Cpu, color: "text-violet-400" },
-    { label: "Latencia Prom.", value: `${avgLatency}ms`, sub: `${typeUsage.length} tipos distintos`, icon: TrendingUp, color: "text-amber-400" },
+    { label: t("usage.stats.totalCost"), value: `$${totalCost.toFixed(4)}`, sub: t("usage.stats.totalCostSub", { ai: llmCost.toFixed(4), integ: intCost.toFixed(4) }), icon: DollarSign, color: "text-emerald-400" },
+    { label: t("usage.stats.totalTokens"), value: formatNumber(totalTokens), sub: t("usage.stats.totalTokensSub", { count: rows.length }), icon: Zap, color: "text-blue-400" },
+    { label: t("usage.stats.operations"), value: totalOps.toString(), sub: t("usage.stats.operationsSub", { ai: rows.length, integ: intRows.length }), icon: Cpu, color: "text-violet-400" },
+    { label: t("usage.stats.avgLatency"), value: `${avgLatency}ms`, sub: t("usage.stats.avgLatencySub", { count: typeUsage.length }), icon: TrendingUp, color: "text-amber-400" },
   ];
 
   return (
     <div className="px-8 py-10 space-y-8">
       <div>
-        <h1 className="page-title">Usage</h1>
+        <h1 className="page-title">{t("usage.pageTitle")}</h1>
         <p className="text-white/35 mt-3 text-[15px] font-light">
-          Monitoreo de consumo: modelos IA, integraciones externas y costos por sección.
+          {t("usage.pageSubtitle")}
         </p>
       </div>
 
@@ -317,23 +324,23 @@ export default async function UsagePage({
         {/* By Type */}
         <div className="glass-panel rounded-xl p-6">
           <h3 className="text-[15px] font-light text-white tracking-wide mb-5">
-            Consumo por Modelo / Operación
+            {t("usage.byModelOp")}
           </h3>
           <div className="space-y-1">
             <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-              <div className="col-span-4">Tipo</div>
-              <div className="col-span-2 text-right">Calls</div>
-              <div className="col-span-3 text-right">Tokens</div>
-              <div className="col-span-3 text-right">Costo</div>
+              <div className="col-span-4">{t("usage.type")}</div>
+              <div className="col-span-2 text-right">{t("usage.calls")}</div>
+              <div className="col-span-3 text-right">{t("usage.tokens")}</div>
+              <div className="col-span-3 text-right">{t("usage.cost")}</div>
             </div>
             {typeUsage.length === 0 && (
-              <p className="text-white/25 text-[13px] py-4 text-center">Sin datos todavía.</p>
+              <p className="text-white/25 text-[13px] py-4 text-center">{t("usage.noData")}</p>
             )}
             {typeUsage.map((m) => (
               <div key={m.label} className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2">
                 <div className="col-span-4">
                   <p className="text-[12px] font-light text-white/70 truncate">{m.label}</p>
-                  <p className="text-[10px] text-white/25">{m.provider} · {m.avg_latency}ms avg</p>
+                  <p className="text-[10px] text-white/25">{m.provider} · {t("usage.avgLatencyShort", { ms: m.avg_latency })}</p>
                 </div>
                 <div className="col-span-2 text-right text-[13px] font-light text-white/50">{m.call_count}</div>
                 <div className="col-span-3 text-right text-[13px] font-light text-white/50">{m.total_tokens > 0 ? formatNumber(m.total_tokens) : "—"}</div>
@@ -348,17 +355,17 @@ export default async function UsagePage({
         {/* By Workspace */}
         <div className="glass-panel rounded-xl p-6">
           <h3 className="text-[15px] font-light text-white tracking-wide mb-5">
-            Consumo por Workspace
+            {t("usage.byWorkspace")}
           </h3>
           <div className="space-y-1">
             <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-              <div className="col-span-4">Workspace</div>
-              <div className="col-span-2 text-right">Ops</div>
-              <div className="col-span-3 text-right">Tokens</div>
-              <div className="col-span-3 text-right">Costo</div>
+              <div className="col-span-4">{t("usage.workspace")}</div>
+              <div className="col-span-2 text-right">{t("usage.ops")}</div>
+              <div className="col-span-3 text-right">{t("usage.tokens")}</div>
+              <div className="col-span-3 text-right">{t("usage.cost")}</div>
             </div>
             {workspaceUsage.length === 0 && (
-              <p className="text-white/25 text-[13px] py-4 text-center">Sin datos todavía.</p>
+              <p className="text-white/25 text-[13px] py-4 text-center">{t("usage.noData")}</p>
             )}
             {workspaceUsage.map((w) => (
               <div key={w.workspace_id} className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2">
@@ -380,7 +387,7 @@ export default async function UsagePage({
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-[15px] font-light text-white tracking-wide">
-            Últimas Operaciones
+            {t("usage.recentOps")}
             <span className="text-[11px] text-white/20 font-light ml-2">({unified.length})</span>
           </h3>
           {totalPages > 1 && (
@@ -417,15 +424,15 @@ export default async function UsagePage({
         </div>
         <div className="space-y-1">
           <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-            <div className="col-span-1">Tipo</div>
-            <div className="col-span-2">Sección</div>
-            <div className="col-span-3">Modelo / Op.</div>
-            <div className="col-span-2 text-right">Tokens</div>
-            <div className="col-span-2 text-right">Costo</div>
-            <div className="col-span-2 text-right">Fecha</div>
+            <div className="col-span-1">{t("usage.type")}</div>
+            <div className="col-span-2">{t("usage.section")}</div>
+            <div className="col-span-3">{t("usage.modelOp")}</div>
+            <div className="col-span-2 text-right">{t("usage.tokens")}</div>
+            <div className="col-span-2 text-right">{t("usage.cost")}</div>
+            <div className="col-span-2 text-right">{t("usage.date")}</div>
           </div>
           {paginatedOps.length === 0 && (
-            <p className="text-white/25 text-[13px] py-4 text-center">Sin operaciones todavía.</p>
+            <p className="text-white/25 text-[13px] py-4 text-center">{t("usage.noOps")}</p>
           )}
           {paginatedOps.map((r) => (
             <div key={r.id} className="grid grid-cols-12 gap-2 items-center py-2.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2">
@@ -437,7 +444,7 @@ export default async function UsagePage({
                 )}
               </div>
               <div className="col-span-2">
-                <span className="pill-badge">{getFeatureLabel(r.feature)}</span>
+                <span className="pill-badge">{getFeatureLabel(r.feature, t)}</span>
               </div>
               <div className="col-span-3 text-[11px] font-light text-white/50 truncate">{r.label}</div>
               <div className="col-span-2 text-right text-[12px] font-light text-white/40">
@@ -445,8 +452,8 @@ export default async function UsagePage({
               </div>
               <div className="col-span-2 text-right text-[12px] font-medium text-emerald-400/70">${r.cost.toFixed(4)}</div>
               <div className="col-span-2 text-right text-[11px] text-white/25">
-                {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}{" "}
-                {new Date(r.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                {new Date(r.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}{" "}
+                {new Date(r.created_at).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
               </div>
             </div>
           ))}

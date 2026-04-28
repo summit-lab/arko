@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
 import { Search, Check, X, Play, ArrowRight } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
@@ -63,29 +64,20 @@ export interface SaleFormProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtMoney(n: number): string {
-  return `$${n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+function fmtMoney(n: number, locale: string): string {
+  const fmtLocale = locale === "en" ? "en-US" : "es-AR";
+  return `$${n.toLocaleString(fmtLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function fmtDate(d: string): string {
+function fmtDate(d: string, locale: string): string {
   const [y, m, day] = d.split("-");
-  return `${day}/${m}/${y}`;
+  // en uses MM/DD/YYYY; es uses DD/MM/YYYY
+  return locale === "en" ? `${m}/${day}/${y}` : `${day}/${m}/${y}`;
 }
 
-const PAYMENT_LABEL: Record<string, string> = {
-  full: "Pago completo",
-  cuotas: "Cuotas",
-  deposito: "Depósito/Seña",
-};
+const PAYMENT_TYPE_KEYS: ReadonlyArray<"full" | "cuotas" | "deposito"> = ["full", "cuotas", "deposito"];
 
-const SOURCE_LABEL: Record<SaleSourceType, string> = {
-  reel: "Reel",
-  historia: "Historia",
-  post: "Post",
-  link_bio: "Link en Bio",
-  cta_bio: "CTA Bio",
-  otro: "Otro",
-};
+const SOURCE_TYPE_KEYS: ReadonlyArray<SaleSourceType> = ["reel", "historia", "post", "link_bio", "cta_bio", "otro"];
 
 const SOURCE_HEX: Record<SaleSourceType, string> = {
   reel: "#7A86E0",
@@ -153,6 +145,11 @@ function countDueByToday(firstDateStr: string, n: number): number {
 
 export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceType = "reel", sale }: SaleFormProps) {
   const ct = useChartTheme();
+  const t = useTranslations("salesForm");
+  const tPayment = useTranslations("ventas.paymentType");
+  const tSource = useTranslations("ventas.source");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const isEditing = Boolean(sale);
   const [form, setForm] = useState(() => (sale ? buildFormFromSale(sale) : buildEmptyForm(defaultSourceType)));
   const [search, setSearch] = useState("");
@@ -198,11 +195,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
   const buildNotes = (): string | null => {
     let base = form.notes.trim();
     if (form.payment_type === "cuotas" && amountTotal > 0) {
-      const info = `${nCuotas} cuota${nCuotas !== 1 ? "s" : ""} de ${fmtMoney(perCuota)}`;
+      const info = t("notesInstallments", { count: nCuotas, amount: fmtMoney(perCuota, locale) });
       base = base ? `${info} | ${base}` : info;
     }
     if (form.payment_type === "deposito" && form.expected_date) {
-      const info = `Cobro restante estimado: ${fmtDate(form.expected_date)}`;
+      const info = t("notesExpectedRemaining", { date: fmtDate(form.expected_date, locale) });
       base = base ? `${info} | ${base}` : info;
     }
     return base || null;
@@ -210,7 +207,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
   const handleSave = async () => {
     if (submittingRef.current) return;
-    if (!amountTotal || amountTotal <= 0) { setError("Ingresá un monto válido"); return; }
+    if (!amountTotal || amountTotal <= 0) { setError(t("errorInvalidAmount")); return; }
     submittingRef.current = true;
     setLoading(true);
     setError(null);
@@ -269,7 +266,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           : null,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al guardar");
+      setError(e instanceof Error ? e.message : t("errorSaving"));
     } finally {
       submittingRef.current = false;
       setLoading(false);
@@ -281,9 +278,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07] shrink-0">
         <div>
-          <h3 className="text-[15px] font-light text-white">{isEditing ? "Editar Venta" : "Nueva Venta"}</h3>
+          <h3 className="text-[15px] font-light text-white">{isEditing ? t("editSale") : t("newSale")}</h3>
           <p className="text-[11px] text-white/30 mt-0.5">
-            {`Paso ${step} de 2 — ${step === 1 ? "Información de la venta" : "Fuente & Cliente"}`}
+            {t("stepLabel", { step, total: 2, name: step === 1 ? t("step1Name") : t("step2Name") })}
           </p>
         </div>
         {onCancel && (
@@ -310,9 +307,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           <>
             {/* Payment type tabs */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Tipo de pago</label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("paymentTypeLabel")}</label>
               <div className="grid grid-cols-3 gap-1.5">
-                {Object.entries(PAYMENT_LABEL).map(([k, label]) => {
+                {PAYMENT_TYPE_KEYS.map((k) => {
                   const active = form.payment_type === k;
                   return (
                     <button
@@ -328,7 +325,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                           }
                         : { border: `1px solid ${ct.panelBorder}`, background: ct.subtleSurface }}
                     >
-                      {label}
+                      {tPayment(k)}
                     </button>
                   );
                 })}
@@ -339,7 +336,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             {form.payment_type === "full" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Monto cobrado</label>
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("amountCollectedLabel")}</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-[13px]">$</span>
                     <input
@@ -359,9 +356,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     <Check className="h-4 w-4 shrink-0" style={{ color: "#4BCEAF" }} />
                     <div>
                       <p className="text-[11px]" style={{ color: "#4BCEAF" }}>
-                        Pago completo — {fmtMoney(amountTotal)}
+                        {tPayment("full")} — {fmtMoney(amountTotal, locale)}
                       </p>
-                      <p className="text-[10px] text-white/30 mt-0.5">Facturación y efectivo recolectado coinciden</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">{t("billingAndCollectedMatch")}</p>
                     </div>
                   </div>
                 )}
@@ -372,7 +369,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             {form.payment_type === "cuotas" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Valor total del deal</label>
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("dealTotalLabel")}</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-[13px]">$</span>
                     <input
@@ -387,7 +384,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">
-                      N° de cuotas{isEditing && <span className="text-white/20 normal-case ml-1">(no cambia)</span>}
+                      {t("installmentsCountLabel")}{isEditing && <span className="text-white/20 normal-case ml-1">{t("locked")}</span>}
                     </label>
                     <input
                       type="number"
@@ -400,14 +397,14 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Valor por cuota</label>
+                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("perInstallmentLabel")}</label>
                     <div className="rounded-xl px-3 py-3 text-[15px] text-white/35 font-light bg-white/[0.02] border border-white/[0.05]">
-                      {perCuota > 0 ? fmtMoney(perCuota) : "—"}
+                      {perCuota > 0 ? fmtMoney(perCuota, locale) : "—"}
                     </div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fecha de la primera cuota</label>
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("firstInstallmentDateLabel")}</label>
                   <input
                     type="date"
                     value={form.first_installment_date}
@@ -426,7 +423,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-3 text-[12px] text-foreground outline-none focus:border-white/20 transition-colors"
                   />
                   <p className="text-[10px] text-white/30 leading-relaxed">
-                    Las siguientes cuotas se generan cada 30 días. La fecha de venta se sincroniza automáticamente con este valor (podés cambiarla después).
+                    {t("installmentsCadenceHint")}
                   </p>
                 </div>
                 {amountTotal > 0 && (
@@ -435,25 +432,25 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     style={{ background: "rgba(122,134,224,0.05)", border: "1px solid rgba(122,134,224,0.14)" }}
                   >
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-white/40">Facturación</span>
-                      <span className="text-white">{fmtMoney(amountTotal)}</span>
+                      <span className="text-white/40">{t("billing")}</span>
+                      <span className="text-white">{fmtMoney(amountTotal, locale)}</span>
                     </div>
                     <div className="flex justify-between text-[11px]">
                       <span className="text-white/40">
-                        Efectivo recolectado
+                        {t("cashCollected")}
                         {form.payment_type === "cuotas" && amountTotal > 0 && (
-                          <span className="text-white/25 ml-1.5">({paidCuotasCount}/{nCuotas} cuotas vencidas)</span>
+                          <span className="text-white/25 ml-1.5">{t("dueProgress", { paid: paidCuotasCount, total: nCuotas })}</span>
                         )}
                       </span>
-                      <span style={{ color: "#4BCEAF" }}>{fmtMoney(amountCollected)}</span>
+                      <span style={{ color: "#4BCEAF" }}>{fmtMoney(amountCollected, locale)}</span>
                     </div>
                     <div className="flex justify-between text-[11px] pt-2 border-t border-white/[0.06]">
-                      <span className="text-white/40">Por cobrar</span>
-                      <span style={{ color: "#EB6991" }}>{fmtMoney(amountPending)}</span>
+                      <span className="text-white/40">{t("pending")}</span>
+                      <span style={{ color: "#EB6991" }}>{fmtMoney(amountPending, locale)}</span>
                     </div>
                     {form.payment_type === "cuotas" && amountTotal > 0 && paidCuotasCount < nCuotas && (
                       <p className="text-[10px] text-white/40 leading-relaxed pt-1 border-t border-white/[0.06]">
-                        Las cuotas no vencidas quedan como pendientes. Si ya las cobraste, podés marcarlas después desde el detalle.
+                        {t("undueInstallmentsNote")}
                       </p>
                     )}
                   </div>
@@ -465,7 +462,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             {form.payment_type === "deposito" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Valor total del deal</label>
+                  <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("dealTotalLabel")}</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-[13px]">$</span>
                     <input
@@ -479,7 +476,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Seña / depósito</label>
+                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("depositLabel")}</label>
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-[13px]">$</span>
                       <input
@@ -492,7 +489,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Cobro restante estimado</label>
+                    <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("expectedRemainingLabel")}</label>
                     <input
                       type="date"
                       value={form.expected_date}
@@ -507,16 +504,16 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     style={{ background: "rgba(175,110,199,0.05)", border: "1px solid rgba(175,110,199,0.14)" }}
                   >
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-white/40">Facturación</span>
-                      <span className="text-white">{fmtMoney(amountTotal)}</span>
+                      <span className="text-white/40">{t("billing")}</span>
+                      <span className="text-white">{fmtMoney(amountTotal, locale)}</span>
                     </div>
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-white/40">Seña cobrada</span>
-                      <span style={{ color: "#4BCEAF" }}>{fmtMoney(amountCollected)}</span>
+                      <span className="text-white/40">{t("depositCollected")}</span>
+                      <span style={{ color: "#4BCEAF" }}>{fmtMoney(amountCollected, locale)}</span>
                     </div>
                     <div className="flex justify-between text-[11px] pt-2 border-t border-white/[0.06]">
-                      <span className="text-white/40">Por cobrar</span>
-                      <span style={{ color: "#EB6991" }}>{fmtMoney(amountPending)}</span>
+                      <span className="text-white/40">{t("pending")}</span>
+                      <span style={{ color: "#EB6991" }}>{fmtMoney(amountPending, locale)}</span>
                     </div>
                   </div>
                 )}
@@ -525,7 +522,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
             {/* Date + notes */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fecha de venta</label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("saleDateLabel")}</label>
               <input
                 type="date"
                 value={form.sale_date}
@@ -535,12 +532,12 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Comentario (opcional)</label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("notesLabel")}</label>
               <textarea
                 value={form.notes}
                 onChange={e => set("notes", e.target.value)}
                 rows={2}
-                placeholder="Detalles adicionales..."
+                placeholder={t("notesPlaceholder")}
                 className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-foreground placeholder:text-white/20 outline-none focus:border-white/20 transition-colors resize-none"
               />
             </div>
@@ -553,9 +550,9 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
           <>
             {/* Source type */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fuente de la venta</label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("sourceLabel")}</label>
               <div className="grid grid-cols-6 gap-1.5">
-                {(Object.entries(SOURCE_LABEL) as Array<[SaleSourceType, string]>).map(([k, label]) => {
+                {SOURCE_TYPE_KEYS.map((k) => {
                   const active = form.source_type === k;
                   return (
                     <button
@@ -571,7 +568,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                           }
                         : { border: `1px solid ${ct.panelBorder}`, background: ct.subtleSurface }}
                     >
-                      {label}
+                      {tSource(k)}
                     </button>
                   );
                 })}
@@ -580,13 +577,13 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
             {form.source_type === "reel" && (
               <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Reel que generó la venta</label>
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("reelSourceLabel")}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-white/25" />
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar por caption..."
+                    placeholder={t("searchByCaptionPlaceholder")}
                     className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-8 pr-3 py-2.5 text-[12px] text-foreground placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
@@ -605,13 +602,13 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                           : <Play className="h-3 w-3 text-white/20 m-auto mt-2" />}
                       </div>
                       <span className="text-[11px] font-light text-white/60 truncate flex-1 leading-snug">
-                        {r.caption?.slice(0, 65) || "Sin título"}
+                        {r.caption?.slice(0, 65) || t("untitled")}
                       </span>
                       {form.reel_id === r.id && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: "#4BCEAF" }} />}
                     </button>
                   ))}
                   {filtered.length === 0 && (
-                    <p className="text-[11px] text-white/25 text-center py-4">Sin resultados</p>
+                    <p className="text-[11px] text-white/25 text-center py-4">{t("noResults")}</p>
                   )}
                 </div>
               </div>
@@ -619,7 +616,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
             {form.source_type === "historia" && (
               <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Historia que generó la venta</label>
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("storySourceLabel")}</label>
                 {stories.length > 0 ? (
                   <div
                     className="space-y-0.5 max-h-[200px] overflow-y-auto rounded-xl border border-white/[0.05] bg-white/[0.02]"
@@ -627,13 +624,13 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                     {stories.map(seq => {
                       const selected = form.story_sequence_id === seq.id;
                       const date = new Date(seq.published_at);
-                      const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+                      const dateStr = date.toLocaleDateString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
                       return (
                         <button
                           key={seq.id}
                           onClick={() => {
                             set("story_sequence_id", seq.id);
-                            set("source_label", `Historia del ${dateStr}`);
+                            set("source_label", t("storyOf", { date: dateStr }));
                           }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all text-left ${selected ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                         >
@@ -650,7 +647,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                           <div className="flex-1 min-w-0">
                             <p className="text-[11px] font-light text-white/60 leading-snug">{dateStr}</p>
                             <p className="text-[9px] text-white/25 mt-0.5">
-                              {seq.slide_count} slide{seq.slide_count !== 1 ? "s" : ""} · {seq.total_impressions.toLocaleString()} imp. · {seq.total_reach.toLocaleString()} alcance
+                              {t("storyMetrics", {
+                                slides: seq.slide_count,
+                                impressions: seq.total_impressions.toLocaleString(dateLocale),
+                                reach: seq.total_reach.toLocaleString(dateLocale),
+                              })}
                             </p>
                           </div>
                           {selected && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: "#4BCEAF" }} />}
@@ -662,7 +663,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                   <input
                     value={form.source_label}
                     onChange={e => set("source_label", e.target.value)}
-                    placeholder="Describí la historia..."
+                    placeholder={t("describeStoryPlaceholder")}
                     className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-foreground placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
                   />
                 )}
@@ -672,11 +673,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             {/* Post: text */}
             {form.source_type === "post" && (
               <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Post que generó la venta</label>
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("postSourceLabel")}</label>
                 <input
                   value={form.source_label}
                   onChange={e => set("source_label", e.target.value)}
-                  placeholder="Describí el post..."
+                  placeholder={t("describePostPlaceholder")}
                   className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-foreground placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
                 />
               </div>
@@ -685,7 +686,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             {/* Link en Bio: platform select */}
             {form.source_type === "link_bio" && (
               <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Plataforma del link</label>
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("linkPlatformLabel")}</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {["YouTube", "Instagram"].map(p => {
                     const active = form.source_label === p;
@@ -714,11 +715,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
             {/* Otro: text */}
             {form.source_type === "otro" && (
               <div className="space-y-2">
-                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Describí la fuente</label>
+                <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("describeSourceLabel")}</label>
                 <input
                   value={form.source_label}
                   onChange={e => set("source_label", e.target.value)}
-                  placeholder="Referido, evento, DM directo..."
+                  placeholder={t("describeSourcePlaceholder")}
                   className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-foreground placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
                 />
               </div>
@@ -726,11 +727,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
 
             {/* Client */}
             <div className="space-y-2">
-              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Cliente (opcional)</label>
+              <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("clientLabel")}</label>
               <input
                 value={form.client_name}
                 onChange={e => set("client_name", e.target.value)}
-                placeholder="Nombre del cliente..."
+                placeholder={t("clientPlaceholder")}
                 className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-[12px] text-foreground placeholder:text-white/20 outline-none focus:border-white/20 transition-colors"
               />
             </div>
@@ -754,7 +755,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
             }}
           >
-            Siguiente <ArrowRight className="h-3.5 w-3.5" />
+            {t("next")} <ArrowRight className="h-3.5 w-3.5" />
           </button>
         )}
 
@@ -764,7 +765,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
               onClick={() => setStep(1)}
               className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
             >
-              ← Atrás
+              ← {t("back")}
             </button>
             <button
               onClick={handleSave}
@@ -777,7 +778,7 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
               }}
             >
-              {loading ? "Guardando..." : isEditing ? "Guardar cambios" : "Guardar venta"}
+              {loading ? t("saving") : isEditing ? t("saveChanges") : t("saveSale")}
             </button>
           </div>
         )}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { X, Plus, Trash2, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export interface CompetitorEntry {
   id?: string;
@@ -26,6 +27,7 @@ export function AdnCompetitorModal({
   onSave,
   initialCompetitors,
 }: AdnCompetitorModalProps) {
+  const t = useTranslations("onboardingDeep.competitorModal");
   const [entries, setEntries] = useState<CompetitorEntry[]>([
     { ...EMPTY_ENTRY },
     { ...EMPTY_ENTRY },
@@ -101,10 +103,10 @@ export function AdnCompetitorModal({
             </div>
             <div>
               <h2 className="text-[15px] font-light text-white/85 tracking-wide">
-                Competidores
+                {t("title")}
               </h2>
               <p className="text-[11px] text-white/30 font-light mt-0.5">
-                Agregá tus competidores principales y qué te gusta de ellos
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -125,7 +127,7 @@ export function AdnCompetitorModal({
             >
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-white/30 uppercase tracking-[0.08em]">
-                  Competidor {i + 1}
+                  {t("entryLabel", { num: i + 1 })}
                 </p>
                 {entries.length > 1 && (
                   <button
@@ -140,25 +142,25 @@ export function AdnCompetitorModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] text-white/25 font-medium mb-1 block">
-                    Nombre *
+                    {t("nameLabel")}
                   </label>
                   <input
                     type="text"
                     value={entry.name}
                     onChange={(e) => updateEntry(i, "name", e.target.value)}
-                    placeholder="Ej: Juan Pérez"
+                    placeholder={t("namePlaceholder")}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground focus:outline-none focus:border-ring transition-colors"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-white/25 font-medium mb-1 block">
-                    Instagram
+                    {t("instagramLabel")}
                   </label>
                   <input
                     type="text"
                     value={entry.ig_url}
                     onChange={(e) => updateEntry(i, "ig_url", e.target.value)}
-                    placeholder="@usuario o URL"
+                    placeholder={t("instagramPlaceholder")}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground focus:outline-none focus:border-ring transition-colors"
                   />
                 </div>
@@ -166,7 +168,7 @@ export function AdnCompetitorModal({
 
               <div>
                 <label className="text-[10px] text-white/25 font-medium mb-1 block">
-                  ¿Qué te gusta de su marca?
+                  {t("likesBrandLabel")}
                 </label>
                 <textarea
                   value={entry.likes_brand}
@@ -182,14 +184,14 @@ export function AdnCompetitorModal({
                     }
                   }}
                   rows={1}
-                  placeholder="Qué te llama la atención de su marca, posicionamiento, identidad..."
+                  placeholder={t("likesBrandPlaceholder")}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ring transition-colors overflow-hidden"
                 />
               </div>
 
               <div>
                 <label className="text-[10px] text-white/25 font-medium mb-1 block">
-                  ¿Qué te gusta de su contenido?
+                  {t("likesContentLabel")}
                 </label>
                 <textarea
                   value={entry.likes_content}
@@ -205,7 +207,7 @@ export function AdnCompetitorModal({
                     }
                   }}
                   rows={1}
-                  placeholder="Qué tipo de contenido hacen que te gusta, formatos, estilo..."
+                  placeholder={t("likesContentPlaceholder")}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/70 font-light placeholder:text-muted-foreground resize-none focus:outline-none focus:border-ring transition-colors overflow-hidden"
                 />
               </div>
@@ -219,7 +221,7 @@ export function AdnCompetitorModal({
           >
             <Plus size={14} className="text-white/25" />
             <span className="text-[12px] text-white/30 font-light">
-              Agregar otro competidor
+              {t("addAnother")}
             </span>
           </button>
         </div>
@@ -227,21 +229,21 @@ export function AdnCompetitorModal({
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06]">
           <p className="text-[11px] text-white/20 font-light">
-            {validCount} competidor{validCount !== 1 ? "es" : ""} con nombre
+            {t("validCount", { count: validCount })}
           </p>
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
               className="px-4 py-2 rounded-lg text-[12px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-all cursor-pointer"
             >
-              Cancelar
+              {t("cancel")}
             </button>
             <button
               onClick={handleSave}
               disabled={validCount === 0 || saving}
               className="px-5 py-2 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/20 text-[12px] font-medium text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
             >
-              {saving ? "Guardando..." : "Guardar competidores"}
+              {saving ? t("saving") : t("save")}
             </button>
           </div>
         </div>

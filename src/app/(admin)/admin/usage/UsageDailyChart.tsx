@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AreaChart,
   Area,
@@ -47,38 +48,34 @@ interface UsageDailyChartProps {
   featureData: FeatureData[];
 }
 
-/** Feature label map for readable names */
-const FEATURE_LABELS: Record<string, string> = {
-  'ai-agents': 'Moka AI Chat',
-  'onboarding-adn': 'Onboarding ADN',
-  'competitor-analysis': 'Análisis Competidores',
-  'competitor-scraping': 'Scraping Competidores',
-  'arkoai-video-analysis': 'Análisis Video (Reels)',
-  'reel-diagnostics': 'Diagnóstico Reels',
-  'metrics-analysis': 'Análisis Métricas',
-  'reel-scrape': 'Sync Reels (Meta)',
+/** Map of raw feature key -> translation suffix under "adminDeep.usage.feature" */
+const FEATURE_KEYS: Record<string, string> = {
+  'ai-agents': 'aiAgentsShort',
+  'onboarding-adn': 'onboardingAdn',
+  'competitor-analysis': 'competitorAnalysisShort',
+  'competitor-scraping': 'competitorScraping',
+  'arkoai-video-analysis': 'videoAnalysis',
+  'reel-diagnostics': 'reelDiagnostics',
+  'metrics-analysis': 'metricsAnalysis',
+  'reel-scrape': 'reelScrape',
 };
 
-/** Color map for features */
+/** Color map keyed by raw feature key (locale-agnostic) */
 const FEATURE_COLORS: Record<string, string> = {
-  'Moka AI Chat': '#818cf8',
-  'Onboarding ADN': '#c084fc',
-  'Análisis Competidores': '#f472b6',
-  'Scraping Competidores': '#fb923c',
-  'Análisis Video (Reels)': '#22d3ee',
-  'Diagnóstico Reels': '#34d399',
-  'Análisis Métricas': '#fbbf24',
-  'Sync Reels (Meta)': '#a78bfa',
+  'ai-agents': '#818cf8',
+  'onboarding-adn': '#c084fc',
+  'competitor-analysis': '#f472b6',
+  'competitor-scraping': '#fb923c',
+  'arkoai-video-analysis': '#22d3ee',
+  'reel-diagnostics': '#34d399',
+  'metrics-analysis': '#fbbf24',
+  'reel-scrape': '#a78bfa',
 };
 
 const DEFAULT_COLOR = '#64748b';
 
-function getFeatureLabel(feature: string): string {
-  return FEATURE_LABELS[feature] ?? feature;
-}
-
-function getFeatureColor(label: string): string {
-  return FEATURE_COLORS[label] ?? DEFAULT_COLOR;
+function getFeatureColor(featureKey: string): string {
+  return FEATURE_COLORS[featureKey] ?? DEFAULT_COLOR;
 }
 
 function CostTooltip({ active, payload, label }: {
@@ -101,9 +98,10 @@ function CostTooltip({ active, payload, label }: {
   );
 }
 
-function FeatureTooltip({ active, payload }: {
+function FeatureTooltip({ active, payload, opsLabel }: {
   active?: boolean;
   payload?: Array<{ payload: { feature: string; cost: number; calls: number } }>;
+  opsLabel: string;
 }) {
   if (!active || !payload?.[0]) return null;
   const data = payload[0].payload;
@@ -111,40 +109,50 @@ function FeatureTooltip({ active, payload }: {
     <div className="rounded-xl px-4 py-3 backdrop-blur-xl bg-popover text-popover-foreground border border-border shadow-lg">
       <p className="text-[12px] text-foreground font-medium mb-1">{data.feature}</p>
       <p className="text-[11px] text-emerald-600 dark:text-emerald-400">${data.cost.toFixed(4)}</p>
-      <p className="text-[11px] text-muted-foreground">{data.calls} operaciones</p>
+      <p className="text-[11px] text-muted-foreground">{data.calls} {opsLabel}</p>
     </div>
   );
 }
 
 export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps) {
+  const t = useTranslations("adminDeep");
   const isDark = useIsDark();
   const axisColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(17,17,17,0.6)";
   const axisColorStrong = isDark ? "rgba(255,255,255,0.5)" : "rgba(17,17,17,0.75)";
   const gridColor = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.08)";
 
-  // Transform feature data for display
+  // Transform feature data for display — colors keyed by raw feature key,
+  // labels translated.
   const chartFeatures = featureData
-    .map((f) => ({
-      ...f,
-      feature: getFeatureLabel(f.feature),
-      fill: getFeatureColor(getFeatureLabel(f.feature)),
-    }))
+    .map((f) => {
+      const transKey = FEATURE_KEYS[f.feature];
+      const label = transKey ? t(`usage.feature.${transKey}`) : f.feature;
+      return {
+        ...f,
+        feature: label,
+        fill: getFeatureColor(f.feature),
+      };
+    })
     .sort((a, b) => b.cost - a.cost);
+
+  const opsLabel = t("usage.opsWord");
+  const llmLegend = t("usage.llmLegend");
+  const integLegend = t("usage.integLegend");
 
   return (
     <div className="grid grid-cols-2 gap-6">
       {/* Daily cost trend — Area Chart */}
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[15px] font-light text-white tracking-wide">Costo Diario</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">{t("usage.dailyCost")}</h3>
           <div className="flex items-center gap-4 text-[10px] text-white/30">
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />
-              <span>IA (LLM)</span>
+              <span>{llmLegend}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full bg-[#fb923c]" />
-              <span>Integraciones</span>
+              <span>{integLegend}</span>
             </div>
           </div>
         </div>
@@ -178,7 +186,7 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
               <Area
                 type="monotone"
                 dataKey="llm_cost"
-                name="IA (LLM)"
+                name={llmLegend}
                 stroke="#818cf8"
                 strokeWidth={2}
                 fill="url(#gradLlm)"
@@ -190,7 +198,7 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
               <Area
                 type="monotone"
                 dataKey="integration_cost"
-                name="Integraciones"
+                name={integLegend}
                 stroke="#fb923c"
                 strokeWidth={2}
                 fill="url(#gradInteg)"
@@ -207,7 +215,7 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
       {/* Cost by feature — Bar Chart */}
       <div className="glass-panel rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[15px] font-light text-white tracking-wide">Costo por Sección</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">{t("usage.costBySection")}</h3>
         </div>
         <div className="h-[220px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -232,10 +240,10 @@ export function UsageDailyChart({ dailyData, featureData }: UsageDailyChartProps
                 tick={{ fill: axisColorStrong, fontSize: 10 }}
                 width={130}
               />
-              <Tooltip content={<FeatureTooltip />} />
+              <Tooltip content={<FeatureTooltip opsLabel={opsLabel} />} />
               <Bar
                 dataKey="cost"
-                name="Costo"
+                name={t("usage.cost")}
                 radius={[0, 6, 6, 0]}
                 barSize={18}
                 fillOpacity={0.85}

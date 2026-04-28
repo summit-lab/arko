@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   RefreshCw, Zap, ExternalLink, Users, Play, Heart, MessageCircle,
   Share2, CheckCircle2, Clock, AlertCircle, ChevronDown,
@@ -106,21 +107,24 @@ type SortKey = "views" | "likes" | "date";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const HOOK_TYPE_META: Record<string, { label: string; color: string; dot: string; hex: string }> = {
-  transformacion: { label: "Transformación", color: "text-violet-700 dark:text-violet-400",  dot: "bg-violet-400",  hex: "#a78bfa" },
-  enemigo:        { label: "Enemigo",         color: "text-rose-700 dark:text-rose-400",    dot: "bg-rose-400",    hex: "#fb7185" },
-  negativo:       { label: "Negativo",        color: "text-amber-700 dark:text-amber-400",   dot: "bg-amber-400",   hex: "#fbbf24" },
-  promesa:        { label: "Promesa",         color: "text-teal-700 dark:text-teal-400",    dot: "bg-teal-400",    hex: "#2dd4bf" },
-  curiosidad:     { label: "Curiosidad",      color: "text-sky-700 dark:text-sky-400",     dot: "bg-sky-400",     hex: "#38bdf8" },
-  desconocido:    { label: "Sin clasificar",  color: "text-muted-foreground",    dot: "bg-muted-foreground/40",    hex: "rgb(148,148,148)" },
+// Hook type meta — labels translated at consumer site via t("competitor.hookTypes.<key>")
+const HOOK_TYPE_META: Record<string, { color: string; dot: string; hex: string }> = {
+  transformacion: { color: "text-violet-700 dark:text-violet-400",  dot: "bg-violet-400",  hex: "#a78bfa" },
+  enemigo:        { color: "text-rose-700 dark:text-rose-400",      dot: "bg-rose-400",    hex: "#fb7185" },
+  negativo:       { color: "text-amber-700 dark:text-amber-400",    dot: "bg-amber-400",   hex: "#fbbf24" },
+  promesa:        { color: "text-teal-700 dark:text-teal-400",      dot: "bg-teal-400",    hex: "#2dd4bf" },
+  curiosidad:     { color: "text-sky-700 dark:text-sky-400",        dot: "bg-sky-400",     hex: "#38bdf8" },
+  desconocido:    { color: "text-muted-foreground",                 dot: "bg-muted-foreground/40", hex: "rgb(148,148,148)" },
 };
+
+const HOOK_TYPE_KEYS = ["transformacion", "enemigo", "negativo", "promesa", "curiosidad", "desconocido"] as const;
 
 const CHART_COLORS = { mine: "#7A86E0", competitor: "#AF6EC7" };
 
-const SORT_OPTIONS: { key: SortKey; label: string; icon: React.ElementType }[] = [
-  { key: "views", label: "Views",  icon: Eye },
-  { key: "likes", label: "Likes",  icon: Heart },
-  { key: "date",  label: "Fecha",  icon: Calendar },
+const SORT_OPTION_KEYS: { key: SortKey; icon: React.ElementType }[] = [
+  { key: "views", icon: Eye },
+  { key: "likes", icon: Heart },
+  { key: "date",  icon: Calendar },
 ];
 
 // ─── Glass styles ─────────────────────────────────────────────────────────────
@@ -155,9 +159,9 @@ function fmt(n: number | null | undefined): string {
   return String(n);
 }
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null, dateLocale: string): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  return new Date(iso).toLocaleDateString(dateLocale, { day: "numeric", month: "short" });
 }
 
 function extractUsername(igUrl: string | null): string {
@@ -251,11 +255,13 @@ function Avatar({ url, name, size = 40 }: { url?: string | null; name: string | 
 // ─── Hook badge ───────────────────────────────────────────────────────────────
 
 function HookBadge({ type, small = false }: { type: string | null; small?: boolean }) {
-  const meta = HOOK_TYPE_META[type ?? "desconocido"] ?? HOOK_TYPE_META.desconocido;
+  const t = useTranslations("igAdvanced");
+  const key = (type ?? "desconocido") in HOOK_TYPE_META ? (type ?? "desconocido") : "desconocido";
+  const meta = HOOK_TYPE_META[key]!;
   return (
     <span className={`flex items-center gap-1 font-semibold uppercase tracking-wider ${small ? "text-[9px]" : "text-[10px]"} ${meta.color}`}>
       <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${meta.dot}`} />
-      {meta.label}
+      {t(`competitor.hookTypes.${key}`)}
     </span>
   );
 }
@@ -278,16 +284,17 @@ function Pill({ icon: Icon, value, label }: { icon: React.ElementType; value: st
 // traduce a UI rica: paso actual, porcentaje, contador X/Y, checkpoints.
 
 const PROGRESS_PHASES = [
-  { key: "starting", label: "Iniciando", icon: Zap },
-  { key: "scraping_reels", label: "Scrapeando", icon: Download },
-  { key: "uploading_thumbs", label: "Portadas", icon: Layers },
-  { key: "saving", label: "Guardando", icon: Database },
-  { key: "analyzing", label: "Análisis IA", icon: Brain },
-  { key: "done", label: "Listo", icon: CheckCircle },
+  { key: "starting", icon: Zap },
+  { key: "scraping_reels", icon: Download },
+  { key: "uploading_thumbs", icon: Layers },
+  { key: "saving", icon: Database },
+  { key: "analyzing", icon: Brain },
+  { key: "done", icon: CheckCircle },
 ] as const;
 
 function ScrapeProgressOverlay({ competitor }: { competitor: Competitor }) {
-  const progress = competitor.scrape_progress ?? { phase: "starting", message: "Preparando scrape…" };
+  const t = useTranslations("igAdvanced");
+  const progress = competitor.scrape_progress ?? { phase: "starting", message: t("competitor.progress.preparing") };
   const currentIdx = Math.max(0, PROGRESS_PHASES.findIndex((p) => p.key === progress.phase));
   const pct = (() => {
     if (progress.total && progress.current != null) {
@@ -314,10 +321,10 @@ function ScrapeProgressOverlay({ competitor }: { competitor: Competitor }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-medium text-white/90 truncate">
-              {progress.message || "Trabajando…"}
+              {progress.message || t("competitor.progress.working")}
             </p>
             <p className="text-[10px] text-white/40 uppercase tracking-wider">
-              Analizando {competitor.name ?? "competidor"}
+              {t("competitor.progress.analyzingName", { name: competitor.name ?? t("competitor.fallbackName") })}
             </p>
           </div>
           <div className="shrink-0 text-right tabular-nums">
@@ -343,7 +350,7 @@ function ScrapeProgressOverlay({ competitor }: { competitor: Competitor }) {
               return (
                 <div
                   key={phase.key}
-                  title={phase.label}
+                  title={t(`competitor.progress.phases.${phase.key}`)}
                   className={`h-1.5 w-1.5 rounded-full transition-all ${
                     done
                       ? "bg-emerald-400"
@@ -369,6 +376,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
   competitor: Competitor;
   onClose: () => void;
 }) {
+  const t = useTranslations("igAdvanced");
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -376,7 +384,9 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const hookMeta = HOOK_TYPE_META[analysis.hook_type ?? "desconocido"] ?? HOOK_TYPE_META.desconocido;
+  const hookKey = (analysis.hook_type ?? "desconocido") in HOOK_TYPE_META ? (analysis.hook_type ?? "desconocido") : "desconocido";
+  const hookMeta = HOOK_TYPE_META[hookKey]!;
+  const hookLabel = t(`competitor.hookTypes.${hookKey}`);
 
   return (
     <div
@@ -398,10 +408,10 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
           <div className="p-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               {[
-                { icon: Eye,           v: fmt(reel.views_count),    l: "Views" },
-                { icon: Heart,         v: fmt(reel.likes_count),    l: "Likes" },
-                { icon: MessageCircle, v: fmt(reel.comments_count), l: "Comments" },
-                { icon: Share2,        v: fmt(reel.shares_count),   l: "Shares" },
+                { icon: Eye,           v: fmt(reel.views_count),    l: t("competitor.stats.views") },
+                { icon: Heart,         v: fmt(reel.likes_count),    l: t("competitor.stats.likes") },
+                { icon: MessageCircle, v: fmt(reel.comments_count), l: t("competitor.stats.comments") },
+                { icon: Share2,        v: fmt(reel.shares_count),   l: t("competitor.stats.shares") },
               ].map(({ icon: Icon, v, l }) => (
                 <div key={l} className="rounded-lg p-2 text-center bg-white/[0.04] border border-white/[0.06]">
                   <Icon size={11} className="text-white/25 mx-auto mb-0.5" />
@@ -420,7 +430,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                     ? "text-indigo-300 bg-indigo-500/10"
                     : "text-pink-300 bg-pink-500/10"
                 }`}>
-                  {analysis.content_type === "reputacion" ? "Reputación" : "Conexión"}
+                  {analysis.content_type === "reputacion" ? t("competitor.contentTypes.reputation") : t("competitor.contentTypes.connection")}
                 </span>
               )}
               {analysis.topic_cluster && (
@@ -435,7 +445,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               <a href={reel.permalink} target="_blank" rel="noopener noreferrer"
                 className="flex items-center justify-center gap-1.5 w-full h-8 rounded-xl text-[11px] text-white/40 hover:text-white/65 transition-all"
                 style={GLASS_SUBTLE}>
-                <ExternalLink size={11} /> Ver en Instagram
+                <ExternalLink size={11} /> {t("competitor.viewOnInstagram")}
               </a>
             )}
           </div>
@@ -448,7 +458,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
             <div>
               <p className="text-[10px] text-white/25 uppercase tracking-wider">{competitor.name}</p>
               <p className="text-[13px] text-white/70 font-light line-clamp-1 mt-0.5">
-                {reel.caption ?? "Sin caption"}
+                {reel.caption ?? t("competitor.noCaption")}
               </p>
             </div>
             <button onClick={onClose}
@@ -467,7 +477,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                 <div className="flex items-center gap-2 mb-2">
                   <Target size={12} style={{ color: hookMeta.hex }} />
                   <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: hookMeta.hex }}>
-                    Hook · {hookMeta.label}
+                    {t("competitor.modal.hookPrefix")} · {hookLabel}
                   </span>
                 </div>
                 <p className="text-[15px] text-white/80 font-light italic leading-relaxed">
@@ -481,7 +491,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Sparkles size={11} className="text-violet-400" />
-                  <p className="text-[10px] text-violet-700 dark:text-violet-300/60 uppercase tracking-wider font-medium">Análisis Moka</p>
+                  <p className="text-[10px] text-violet-700 dark:text-violet-300/60 uppercase tracking-wider font-medium">{t("competitor.modal.mokaAnalysis")}</p>
                 </div>
                 <AIMarkdown>{analysis.ai_summary}</AIMarkdown>
               </div>
@@ -492,7 +502,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Layers size={11} className="text-sky-400/70" />
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estructura narrativa</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("competitor.modal.narrativeStructure")}</p>
                 </div>
                 <AIMarkdown variant="compact">{analysis.narrative_structure}</AIMarkdown>
               </div>
@@ -506,7 +516,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                     style={{ background: "rgba(45,212,191,0.05)", border: "1px solid rgba(45,212,191,0.15)" }}>
                     <div className="flex items-center gap-1.5 mb-2">
                       <Shield size={11} className="text-teal-400" />
-                      <p className="text-[9px] text-teal-400/70 uppercase tracking-wider">Fortalezas</p>
+                      <p className="text-[9px] text-teal-400/70 uppercase tracking-wider">{t("competitor.modal.strengths")}</p>
                     </div>
                     <AIMarkdown variant="compact">{analysis.strengths}</AIMarkdown>
                   </div>
@@ -516,7 +526,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                     style={{ background: "rgba(251,113,133,0.05)", border: "1px solid rgba(251,113,133,0.15)" }}>
                     <div className="flex items-center gap-1.5 mb-2">
                       <AlertTriangle size={11} className="text-rose-400" />
-                      <p className="text-[9px] text-rose-400/70 uppercase tracking-wider">Oportunidades</p>
+                      <p className="text-[9px] text-rose-400/70 uppercase tracking-wider">{t("competitor.modal.opportunities")}</p>
                     </div>
                     <AIMarkdown variant="compact">{analysis.weaknesses}</AIMarkdown>
                   </div>
@@ -531,7 +541,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                   <div>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Palette size={11} className="text-white/25" />
-                      <p className="text-[9px] text-white/20 uppercase tracking-wider">Estilo visual</p>
+                      <p className="text-[9px] text-white/20 uppercase tracking-wider">{t("competitor.modal.visualStyle")}</p>
                     </div>
                     <AIMarkdown variant="compact">{analysis.style_notes}</AIMarkdown>
                   </div>
@@ -564,7 +574,7 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
             )}
 
             {analysis.model_used && (
-              <p className="text-[9px] text-white/12 pb-1">Analizado con {analysis.model_used}</p>
+              <p className="text-[9px] text-white/12 pb-1">{t("competitor.modal.analyzedWith", { model: analysis.model_used })}</p>
             )}
           </div>
         </div>
@@ -582,6 +592,9 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
   analyzing: boolean;
   onOpenAnalysis: (reel: CompetitorReel, analysis: ReelAnalysis) => void;
 }) {
+  const t = useTranslations("igAdvanced");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const analysis = getAnalysis(reel);
   const hasAnalysis = analysis !== null;
 
@@ -605,7 +618,7 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
         )}
         <div className="absolute top-2 right-2 text-[9px] text-white/50 z-10 font-light"
           style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
-          {fmtDate(reel.published_at)}
+          {fmtDate(reel.published_at, dateLocale)}
         </div>
 
         {/* External link (bottom-right corner of thumbnail) */}
@@ -623,10 +636,10 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-1">
           {[
-            { icon: Eye,           v: fmt(reel.views_count),    l: "Views" },
-            { icon: Heart,         v: fmt(reel.likes_count),    l: "Likes" },
-            { icon: MessageCircle, v: fmt(reel.comments_count), l: "Com." },
-            { icon: Share2,        v: fmt(reel.shares_count),   l: "Comp." },
+            { icon: Eye,           v: fmt(reel.views_count),    l: t("competitor.stats.views") },
+            { icon: Heart,         v: fmt(reel.likes_count),    l: t("competitor.stats.likes") },
+            { icon: MessageCircle, v: fmt(reel.comments_count), l: t("competitor.stats.commentsShort") },
+            { icon: Share2,        v: fmt(reel.shares_count),   l: t("competitor.stats.sharesShort") },
           ].map(({ icon: Icon, v, l }) => (
             <div key={l} className="flex flex-col items-center py-1.5 rounded-lg bg-white/[0.04]">
               <Icon size={10} className="text-white/25 mb-0.5" />
@@ -638,7 +651,7 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
 
         {/* Caption */}
         <p className="text-[10px] text-white/50 font-light leading-relaxed line-clamp-2 flex-1">
-          {reel.caption ?? <span className="italic text-white/20">Sin caption</span>}
+          {reel.caption ?? <span className="italic text-white/20">{t("competitor.noCaption")}</span>}
         </p>
 
         {/* Hook badge */}
@@ -653,7 +666,7 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
             style={GLASS_SUBTLE}
           >
             {analyzing ? <RefreshCw size={10} className="animate-spin" /> : <Brain size={10} />}
-            {analyzing ? "Analizando…" : "Analizar"}
+            {analyzing ? t("competitor.actions.analyzing") : t("competitor.actions.analyze")}
           </button>
         ) : (
           <button
@@ -662,7 +675,7 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
             style={GLASS_VIOLET}
           >
             <Zap size={10} />
-            Ver análisis
+            {t("competitor.actions.viewAnalysis")}
           </button>
         )}
       </div>
@@ -677,6 +690,7 @@ function CompetitorCard({ competitor, selected, onClick }: {
   selected: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("igAdvanced");
   const profile = competitor.scraped_data as ScrapedData;
   const total = competitor.competitor_reels.length;
   const analyzed = competitor.competitor_reels.filter((r) => getAnalysis(r) !== null).length;
@@ -695,7 +709,7 @@ function CompetitorCard({ competitor, selected, onClick }: {
         <Avatar url={profile?.ig_profile_pic_url} name={competitor.name} size={36} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <p className="text-[13px] text-white/80 font-light truncate">{competitor.name ?? "Sin nombre"}</p>
+            <p className="text-[13px] text-white/80 font-light truncate">{competitor.name ?? t("competitor.unnamed")}</p>
             {profile?.ig_is_verified && <CheckCircle2 size={11} className="text-sky-400 shrink-0" />}
           </div>
           <p className="text-[11px] text-white/25 truncate">{extractUsername(competitor.ig_url)}</p>
@@ -703,7 +717,7 @@ function CompetitorCard({ competitor, selected, onClick }: {
         <div className="shrink-0 text-right">
           {isAnalyzing ? (
             <span className="flex items-center gap-1 text-[10px] text-amber-400/70">
-              <RefreshCw size={8} className="animate-spin" /> Analizando
+              <RefreshCw size={8} className="animate-spin" /> {t("competitor.actions.analyzingShort")}
             </span>
           ) : total > 0 ? (
             <span className="text-[10px] text-white/25">{analyzed}/{total}</span>
@@ -728,6 +742,7 @@ function CompetitorCard({ competitor, selected, onClick }: {
 // ─── Comparison charts ────────────────────────────────────────────────────────
 
 function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myStats: MyStats }) {
+  const t = useTranslations("igAdvanced");
   const reels = competitor.competitor_reels;
   // NOTE: these filters (views_count > 0, likes_count > 0, comments_count > 0)
   // MUST stay in sync with the "Yo" side in InstagramShell.tsx (which filters
@@ -740,26 +755,26 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
   const theirFollowers   = (competitor.scraped_data as ScrapedData)?.ig_follower_count ?? 0;
 
   const metrics = [
-    { label: "Avg Views",  yo: myStats.avgViews,    ellos: theirAvgViews },
-    { label: "Avg Likes",  yo: myStats.avgLikes,    ellos: theirAvgLikes },
-    { label: "Avg Com.",   yo: myStats.avgComments, ellos: theirAvgComments },
-    { label: "Seguidores", yo: myStats.followers,   ellos: theirFollowers },
+    { label: t("competitor.compare.avgViews"),  yo: myStats.avgViews,    ellos: theirAvgViews },
+    { label: t("competitor.compare.avgLikes"),  yo: myStats.avgLikes,    ellos: theirAvgLikes },
+    { label: t("competitor.compare.avgCom"),    yo: myStats.avgComments, ellos: theirAvgComments },
+    { label: t("competitor.compare.followers"), yo: myStats.followers,   ellos: theirFollowers },
   ];
 
   return (
     <div className="glass-card rounded-xl p-3.5 space-y-3.5">
       <div className="flex items-center justify-between">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <BarChart3 size={9} /> Yo vs {competitor.name ?? "Competidor"}
+          <BarChart3 size={9} /> {t("competitor.compare.youVs", { name: competitor.name ?? t("competitor.unnamed") })}
         </p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.mine }} />
-            <span className="text-[9px] text-muted-foreground">Yo</span>
+            <span className="text-[9px] text-muted-foreground">{t("competitor.compare.you")}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.competitor }} />
-            <span className="text-[9px] text-muted-foreground">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
+            <span className="text-[9px] text-muted-foreground">{(competitor.name ?? t("competitor.compare.them")).split(" ")[0]}</span>
           </div>
         </div>
       </div>
@@ -780,7 +795,7 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[8px] text-white/15 w-4 text-right shrink-0">Yo</span>
+              <span className="text-[8px] text-white/15 w-4 text-right shrink-0">{t("competitor.compare.youShort")}</span>
               <div className="flex-1 h-4 rounded-md overflow-hidden bg-white/[0.04]">
                 <div className="h-full rounded-md flex items-center px-2 transition-all"
                   style={{ width: `${Math.max(yoPct, 6)}%`, background: `${CHART_COLORS.mine}55` }}>
@@ -789,7 +804,7 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[8px] text-white/15 w-4 text-right shrink-0">Ell.</span>
+              <span className="text-[8px] text-white/15 w-4 text-right shrink-0">{t("competitor.compare.themShort")}</span>
               <div className="flex-1 h-4 rounded-md overflow-hidden bg-white/[0.04]">
                 <div className="h-full rounded-md flex items-center px-2 transition-all"
                   style={{ width: `${Math.max(ellosPct, 6)}%`, background: `${CHART_COLORS.competitor}55` }}>
@@ -808,6 +823,9 @@ function ComparisonCharts({ competitor, myStats }: { competitor: Competitor; myS
 
 function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReels: MyReel[] }) {
   const chart = useChartTheme();
+  const t = useTranslations("igAdvanced");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const W = 260; const H = 140; const PAD = { t: 10, r: 6, b: 22, l: 38 };
   const CW = W - PAD.l - PAD.r;
   const CH = H - PAD.t - PAD.b;
@@ -866,7 +884,7 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
       : (my?.ms ?? their?.ms ?? ms);
 
     const d = new Date(refMs);
-    const dateStr = d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+    const dateStr = d.toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' });
 
     setTooltip({
       svgX: xScale(refMs),
@@ -883,19 +901,19 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
     <div className="glass-card rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <TrendingUp size={9} /> Views por reel · en el tiempo
+          <TrendingUp size={9} /> {t("competitor.charts.viewsTimeline")}
         </p>
         <div className="flex items-center gap-3">
           {myPts.length > 0 && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.mine }} />
-              <span className="text-[9px] text-muted-foreground">Yo</span>
+              <span className="text-[9px] text-muted-foreground">{t("competitor.compare.you")}</span>
             </div>
           )}
           {theirPts.length > 0 && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.competitor }} />
-              <span className="text-[9px] text-muted-foreground">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
+              <span className="text-[9px] text-muted-foreground">{(competitor.name ?? t("competitor.compare.them")).split(" ")[0]}</span>
             </div>
           )}
         </div>
@@ -950,8 +968,8 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
           const clampedTx = Math.min(tx, W - PAD.r - tooltipWidth / 2);
           const boxX = Math.max(PAD.l, clampedTx - tooltipWidth / 2);
           const rows: { label: string; val: string; color: string }[] = [];
-          if (tooltip.myV !== null) rows.push({ label: "Yo", val: fmtV(tooltip.myV), color: CHART_COLORS.mine });
-          if (tooltip.theirV !== null) rows.push({ label: (competitor.name ?? "Ellos").split(" ")[0]!, val: fmtV(tooltip.theirV), color: CHART_COLORS.competitor });
+          if (tooltip.myV !== null) rows.push({ label: t("competitor.compare.you"), val: fmtV(tooltip.myV), color: CHART_COLORS.mine });
+          if (tooltip.theirV !== null) rows.push({ label: (competitor.name ?? t("competitor.compare.them")).split(" ")[0]!, val: fmtV(tooltip.theirV), color: CHART_COLORS.competitor });
           const boxH = 14 + rows.length * 13;
           return (
             <g>
@@ -989,6 +1007,9 @@ function ViewsTimeline({ competitor, myReels }: { competitor: Competitor; myReel
 
 function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competitor; myFollowerHistory: MyFollowerPoint[] }) {
   const chart = useChartTheme();
+  const t = useTranslations("igAdvanced");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const W = 260; const H = 120; const PAD = { t: 10, r: 6, b: 22, l: 38 };
   const CW = W - PAD.l - PAD.r;
   const CH = H - PAD.t - PAD.b;
@@ -1047,7 +1068,7 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
       ? (Math.abs(my.ms - ms) < Math.abs(their.ms - ms) ? my.ms : their.ms)
       : (my?.ms ?? their?.ms ?? ms);
 
-    const dateStr = new Date(refMs).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+    const dateStr = new Date(refMs).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' });
     setTooltip({ svgX: xScale(refMs), myV: my?.v ?? null, theirV: their?.v ?? null, dateStr });
   };
 
@@ -1060,18 +1081,18 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
     <div className="glass-card rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Users size={9} /> Seguidores · crecimiento
+          <Users size={9} /> {t("competitor.charts.followerGrowth")}
         </p>
         <div className="flex items-center gap-3">
           {myPts.length > 0 && (
             <div className="flex items-center gap-1">
               <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.mine }} />
-              <span className="text-[9px] text-muted-foreground">Yo</span>
+              <span className="text-[9px] text-muted-foreground">{t("competitor.compare.you")}</span>
             </div>
           )}
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-3 rounded-full" style={{ background: CHART_COLORS.competitor }} />
-            <span className="text-[9px] text-muted-foreground">{(competitor.name ?? "Ellos").split(" ")[0]}</span>
+            <span className="text-[9px] text-muted-foreground">{(competitor.name ?? t("competitor.compare.them")).split(" ")[0]}</span>
           </div>
         </div>
       </div>
@@ -1140,8 +1161,8 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
           const tx = tooltip.svgX;
           const boxX = Math.max(PAD.l, Math.min(tx - tooltipWidth / 2, W - PAD.r - tooltipWidth));
           const rows: { label: string; val: string; color: string }[] = [];
-          if (tooltip.myV !== null) rows.push({ label: "Yo", val: fmtV(tooltip.myV), color: CHART_COLORS.mine });
-          if (tooltip.theirV !== null) rows.push({ label: (competitor.name ?? "Ellos").split(" ")[0]!, val: fmtV(tooltip.theirV), color: CHART_COLORS.competitor });
+          if (tooltip.myV !== null) rows.push({ label: t("competitor.compare.you"), val: fmtV(tooltip.myV), color: CHART_COLORS.mine });
+          if (tooltip.theirV !== null) rows.push({ label: (competitor.name ?? t("competitor.compare.them")).split(" ")[0]!, val: fmtV(tooltip.theirV), color: CHART_COLORS.competitor });
           if (rows.length === 0) return null;
           const boxH = 14 + rows.length * 13;
           return (
@@ -1171,7 +1192,7 @@ function FollowerGrowth({ competitor, myFollowerHistory }: { competitor: Competi
       {/* Hint when competitor has <2 snapshots */}
       {noTheirHistory && (
         <p className="text-[8px] text-white/20 font-light text-center pb-0.5">
-          El historial del competidor se acumula con cada re-análisis
+          {t("competitor.charts.historyAccumulates")}
         </p>
       )}
     </div>
@@ -1186,6 +1207,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
   myReels: MyReel[];
   myFollowerHistory: MyFollowerPoint[];
 }) {
+  const t = useTranslations("igAdvanced");
   const reels = competitor.competitor_reels;
   const analyzed = reels.filter((r) => getAnalysis(r) !== null);
 
@@ -1218,9 +1240,9 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
       {/* KPIs — 3D liquid glass */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { v: reels.length.toString(),    l: "Reels" },
-          { v: analyzed.length.toString(), l: "Analizados" },
-          { v: fmt(reels.filter(r=>r.views_count).length > 0 ? Math.round(reels.filter(r=>r.views_count).reduce((s,r)=>s+(r.views_count??0),0)/reels.filter(r=>r.views_count).length) : 0), l: "Avg views" },
+          { v: reels.length.toString(),    l: t("competitor.insights.reels") },
+          { v: analyzed.length.toString(), l: t("competitor.insights.analyzed") },
+          { v: fmt(reels.filter(r=>r.views_count).length > 0 ? Math.round(reels.filter(r=>r.views_count).reduce((s,r)=>s+(r.views_count??0),0)/reels.filter(r=>r.views_count).length) : 0), l: t("competitor.insights.avgViews") },
         ].map(({ v, l }) => (
           <div key={l} className="glass-card rounded-xl p-2.5 text-center">
             <p className="text-[15px] font-light text-white/80">{v}</p>
@@ -1239,12 +1261,12 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
           )}
           <div className="flex-1 min-w-0">
             <p className="text-[8px] text-teal-400/60 uppercase tracking-wider mb-0.5 flex items-center gap-1">
-              <TrendingUp size={8} /> Top reel
+              <TrendingUp size={8} /> {t("competitor.insights.topReel")}
             </p>
             <p className="text-[10px] text-white/55 font-light line-clamp-2 leading-snug">
-              {topReel.caption ?? "Sin caption"}
+              {topReel.caption ?? t("competitor.noCaption")}
             </p>
-            <p className="text-[9px] text-white/25 mt-1">{fmt(topReel.views_count)} views</p>
+            <p className="text-[9px] text-white/25 mt-1">{t("competitor.insights.viewsCount", { count: fmt(topReel.views_count) })}</p>
           </div>
         </div>
       )}
@@ -1259,15 +1281,16 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
       {hookCounts.filter(([k]) => k !== "desconocido").length > 0 && (
         <div className="rounded-xl p-3 space-y-2.5 bg-white/[0.03] border border-white/[0.06]">
           <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
-            <Zap size={9} /> Tipos de hook
+            <Zap size={9} /> {t("competitor.insights.hookTypes")}
           </p>
           {hookCounts.filter(([k]) => k !== "desconocido").map(([type, count]) => {
-            const meta = HOOK_TYPE_META[type] ?? HOOK_TYPE_META.desconocido;
+            const metaKey = type in HOOK_TYPE_META ? type : "desconocido";
+            const meta = HOOK_TYPE_META[metaKey]!;
             const pct = Math.round((count / analyzed.length) * 100);
             return (
               <div key={type} className="flex items-center gap-2">
                 <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${meta.dot}`} />
-                <p className={`text-[10px] w-20 shrink-0 ${meta.color}`}>{meta.label}</p>
+                <p className={`text-[10px] w-20 shrink-0 ${meta.color}`}>{t(`competitor.hookTypes.${metaKey}`)}</p>
                 <div className="flex-1 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: meta.hex }} />
                 </div>
@@ -1282,7 +1305,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
       {topTopics.length > 0 && (
         <div className="rounded-xl p-3 space-y-2 bg-white/[0.03] border border-white/[0.06]">
           <p className="text-[9px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
-            <BookOpen size={9} /> Temas frecuentes
+            <BookOpen size={9} /> {t("competitor.insights.frequentTopics")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {topTopics.map(([topic, count]) => (
@@ -1297,7 +1320,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
       {analyzed.length === 0 && (
         <div className="rounded-xl p-4 text-center bg-white/[0.02] border border-white/[0.06]">
           <Brain size={16} className="text-white/15 mx-auto mb-1.5" />
-          <p className="text-[10px] text-white/20 font-light">Analizá los reels para ver patrones</p>
+          <p className="text-[10px] text-white/20 font-light">{t("competitor.insights.analyzePrompt")}</p>
         </div>
       )}
     </div>
@@ -1307,6 +1330,7 @@ function InsightsPanel({ competitor, myStats, myReels, myFollowerHistory }: {
 // ─── Global insights ──────────────────────────────────────────────────────────
 
 function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
+  const t = useTranslations("igAdvanced");
   const allAnalyzed = useMemo(
     () => competitors.flatMap((c) => c.competitor_reels).filter((r) => getAnalysis(r) !== null),
     [competitors]
@@ -1315,8 +1339,8 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
   const hookCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const r of allAnalyzed) {
-      const t = getAnalysis(r)?.hook_type ?? "desconocido";
-      counts[t] = (counts[t] ?? 0) + 1;
+      const hk = getAnalysis(r)?.hook_type ?? "desconocido";
+      counts[hk] = (counts[hk] ?? 0) + 1;
     }
     return Object.entries(counts).filter(([k]) => k !== "desconocido").sort((a, b) => b[1] - a[1]);
   }, [allAnalyzed]);
@@ -1324,7 +1348,8 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
   if (allAnalyzed.length === 0 || hookCounts.length === 0) return null;
 
   const topHook = hookCounts[0];
-  const topMeta = HOOK_TYPE_META[topHook[0]] ?? HOOK_TYPE_META.desconocido;
+  const topKey = topHook[0] in HOOK_TYPE_META ? topHook[0] : "desconocido";
+  const topMeta = HOOK_TYPE_META[topKey]!;
 
   return (
     <div className="rounded-xl p-4 overflow-hidden relative"
@@ -1337,17 +1362,18 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
           <div className="flex items-center gap-2 mb-3">
             <Lightbulb size={12} className="text-violet-400 shrink-0" />
             <p className="text-[10px] text-violet-700 dark:text-violet-300/70 font-medium uppercase tracking-wider">
-              Patrones globales — {allAnalyzed.length} reels analizados
+              {t("competitor.global.patterns", { count: allAnalyzed.length })}
             </p>
           </div>
           <div className="space-y-2">
             {hookCounts.slice(0, 5).map(([type, count]) => {
-              const meta = HOOK_TYPE_META[type] ?? HOOK_TYPE_META.desconocido;
+              const metaKey = type in HOOK_TYPE_META ? type : "desconocido";
+              const meta = HOOK_TYPE_META[metaKey]!;
               const pct = Math.round((count / allAnalyzed.length) * 100);
               return (
                 <div key={type} className="flex items-center gap-2.5">
                   <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${meta.dot}`} />
-                  <p className={`text-[11px] w-[88px] shrink-0 font-light ${meta.color}`}>{meta.label}</p>
+                  <p className={`text-[11px] w-[88px] shrink-0 font-light ${meta.color}`}>{t(`competitor.hookTypes.${metaKey}`)}</p>
                   <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/[0.06]">
                     <div className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, background: meta.hex, opacity: 0.8 }} />
@@ -1362,8 +1388,8 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
         <div className="shrink-0 rounded-xl p-3 text-center min-w-[88px] bg-white/[0.04] border border-white/[0.07]">
           <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${topMeta.dot}`}
             style={{ boxShadow: `0 0 8px ${topMeta.hex}99` }} />
-          <p className="text-[8px] text-white/25 uppercase tracking-wider mb-0.5">Hook top</p>
-          <p className={`text-[11px] font-medium ${topMeta.color}`}>{topMeta.label}</p>
+          <p className="text-[8px] text-white/25 uppercase tracking-wider mb-0.5">{t("competitor.global.topHook")}</p>
+          <p className={`text-[11px] font-medium ${topMeta.color}`}>{t(`competitor.hookTypes.${topKey}`)}</p>
           <p className="text-[9px] text-white/20 mt-0.5">
             {Math.round((topHook[1] / allAnalyzed.length) * 100)}%
           </p>
@@ -1376,9 +1402,10 @@ function GlobalInsights({ competitors }: { competitors: Competitor[] }) {
 // ─── Sort dropdown ────────────────────────────────────────────────────────────
 
 function SortDropdown({ value, onChange }: { value: SortKey; onChange: (k: SortKey) => void }) {
+  const t = useTranslations("igAdvanced");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const current = SORT_OPTIONS.find((o) => o.key === value)!;
+  const current = SORT_OPTION_KEYS.find((o) => o.key === value)!;
 
   // Close on outside click
   useEffect(() => {
@@ -1394,18 +1421,18 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (k: SortK
         className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] text-white/50 hover:text-white/75 transition-all cursor-pointer bg-white/[0.08] border border-white/[0.1]">
         <ArrowUpDown size={10} />
         <current.icon size={10} />
-        {current.label}
+        {t(`competitor.sort.${current.key}`)}
         <ChevronDown size={10} />
       </button>
       {open && (
         <div className="absolute right-0 top-9 rounded-xl py-1 z-20 min-w-[120px] bg-popover text-popover-foreground border border-border shadow-xl backdrop-blur-xl">
-          {SORT_OPTIONS.map((opt) => (
+          {SORT_OPTION_KEYS.map((opt) => (
             <button key={opt.key} onClick={() => { onChange(opt.key); setOpen(false); }}
               className={`w-full text-left flex items-center gap-2 px-3 py-1.5 text-[11px] transition-colors cursor-pointer ${
                 value === opt.key ? "text-white/80" : "text-white/35 hover:text-white/60"
               }`}>
               <opt.icon size={10} />
-              {opt.label}
+              {t(`competitor.sort.${opt.key}`)}
               {value === opt.key && <span className="ml-auto text-violet-600 dark:text-violet-400 text-[10px]">✓</span>}
             </button>
           ))}
@@ -1424,6 +1451,9 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   myReels: MyReel[];
   myFollowerHistory: MyFollowerPoint[];
 }) {
+  const t = useTranslations("igAdvanced");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors ?? []);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialCompetitors?.[0]?.id ?? null);
@@ -1447,17 +1477,17 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/competitors", { headers });
-      if (!res.ok) throw new Error("Error cargando competidores");
+      if (!res.ok) throw new Error(t("competitor.errors.loading"));
       const json = await res.json() as { data: { competitors: Competitor[] } };
       const list = json.data.competitors;
       setCompetitors(list);
       setSelectedId((prev) => prev ?? list[0]?.id ?? null);
     } catch {
-      setError("No se pudieron cargar los competidores.");
+      setError(t("competitor.errors.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [headers]);
+  }, [headers, t]);
 
   const handleScrapeAndAnalyze = useCallback(async (competitorId: string) => {
     setScraping(competitorId);
@@ -1468,14 +1498,14 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
     // hasta que termine el scrape (60-90s) y load() traiga el status real.
     setCompetitors((prev) => prev.map((c) =>
       c.id === competitorId
-        ? { ...c, analysis_status: "analyzing", scrape_progress: { phase: "starting", message: "Preparando scrape…" } }
+        ? { ...c, analysis_status: "analyzing", scrape_progress: { phase: "starting", message: t("competitor.progress.preparing") } }
         : c,
     ));
     try {
       const scrapeRes = await fetch(`/api/v1/competitors/${competitorId}/scrape`, { method: "POST", headers });
       if (!scrapeRes.ok) {
         const err = await scrapeRes.json() as { error?: string };
-        throw new Error(err.error ?? "Error en scraping");
+        throw new Error(err.error ?? t("competitor.errors.scraping"));
       }
       const scrapeJson = await scrapeRes.json() as { data?: { reels_inserted?: number } };
       const newReels = scrapeJson.data?.reels_inserted ?? 0;
@@ -1504,7 +1534,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
       }
       return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al analizar");
+      setError(err instanceof Error ? err.message : t("competitor.errors.analyze"));
       // Reset optimistic state tras un error.
       setCompetitors((prev) => prev.map((c) =>
         c.id === competitorId
@@ -1514,7 +1544,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
     } finally {
       setScraping(null);
     }
-  }, [headers, load]);
+  }, [headers, load, t]);
 
   const handleAnalyzeReel = useCallback(async (competitorId: string, reelId: string) => {
     setAnalyzingReels((prev) => new Set(prev).add(reelId));
@@ -1522,7 +1552,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
       const res = await fetch(`/api/v1/competitors/${competitorId}/reels/${reelId}/analyze`, { method: "POST", headers });
       if (!res.ok) {
         const body = await res.json() as { message?: string; error?: string };
-        setError(body.message ?? body.error ?? "Error analizando reel");
+        setError(body.message ?? body.error ?? t("competitor.errors.analyzeReel"));
       } else {
         const body = await res.json() as { data?: { analysis?: ReelAnalysis } };
         const analysis = body.data?.analysis;
@@ -1543,11 +1573,11 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
         }
       }
     } catch {
-      setError("Error de red al analizar el reel");
+      setError(t("competitor.errors.analyzeReelNetwork"));
     } finally {
       setAnalyzingReels((prev) => { const n = new Set(prev); n.delete(reelId); return n; });
     }
-  }, [headers, load]);
+  }, [headers, load, t]);
 
   const selected = competitors.find((c) => c.id === selectedId) ?? null;
   const sortedReels = selected ? sortReels(selected.competitor_reels, sort) : [];
@@ -1630,15 +1660,15 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             <Swords size={22} className="text-white/25" />
           </div>
           <div>
-            <p className="text-white/60 font-light text-[15px] mb-1">No hay competidores configurados</p>
+            <p className="text-white/60 font-light text-[15px] mb-1">{t("competitor.empty.title")}</p>
             <p className="text-white/30 text-[13px] font-light leading-relaxed">
-              Agregá competidores en tu ADN de Comunicación para analizar su estrategia.
+              {t("competitor.empty.body")}
             </p>
           </div>
           <a href="/settings/adn"
             className="flex items-center gap-2 text-[13px] font-medium text-violet-700 dark:text-violet-300 px-5 py-2.5 rounded-full transition-all"
             style={GLASS_VIOLET}>
-            <BookMarked size={14} /> Ir al ADN de Comunicación
+            <BookMarked size={14} /> {t("competitor.empty.cta")}
           </a>
         </div>
       </div>
@@ -1678,7 +1708,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             ))}
             <a href="/settings/adn"
               className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[11px] text-white/20 hover:text-white/40 transition-colors border border-dashed border-white/[0.08]">
-              + Agregar competidor
+              {t("competitor.addCompetitor")}
             </a>
           </div>
 
@@ -1694,7 +1724,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                   <Avatar url={(selected.scraped_data as ScrapedData)?.ig_profile_pic_url} name={selected.name} size={48} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-[15px] font-light text-white/85">{selected.name ?? "Sin nombre"}</h2>
+                      <h2 className="text-[15px] font-light text-white/85">{selected.name ?? t("competitor.unnamed")}</h2>
                       {(selected.scraped_data as ScrapedData)?.ig_is_verified && <CheckCircle2 size={13} className="text-sky-400" />}
                       {selected.ig_url && (
                         <a href={selected.ig_url.startsWith("http") ? selected.ig_url : `https://instagram.com/${selected.ig_url}`}
@@ -1706,14 +1736,14 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     </div>
                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                       {(selected.scraped_data as ScrapedData)?.ig_follower_count && (
-                        <Pill icon={Users}    value={fmt((selected.scraped_data as ScrapedData).ig_follower_count)} label="seguidores" />
+                        <Pill icon={Users}    value={fmt((selected.scraped_data as ScrapedData).ig_follower_count)} label={t("competitor.profile.followers")} />
                       )}
                       {(selected.scraped_data as ScrapedData)?.ig_post_count && (
-                        <Pill icon={BookOpen} value={fmt((selected.scraped_data as ScrapedData).ig_post_count)}    label="posts" />
+                        <Pill icon={BookOpen} value={fmt((selected.scraped_data as ScrapedData).ig_post_count)}    label={t("competitor.profile.posts")} />
                       )}
                       {selected.last_scraped_at && (
                         <span className="flex items-center gap-1 text-[10px] text-white/20">
-                          <Clock size={9} /> Scrape: {fmtDate(selected.last_scraped_at)}
+                          <Clock size={9} /> {t("competitor.profile.scrape")}: {fmtDate(selected.last_scraped_at, dateLocale)}
                         </span>
                       )}
                     </div>
@@ -1724,7 +1754,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     )}
                     {selected.why_better && (
                       <p className="text-[11px] text-violet-700 dark:text-violet-300/50 font-light mt-1 leading-snug">
-                        Por qué son mejores: {selected.why_better}
+                        {t("competitor.profile.whyBetter")}: {selected.why_better}
                       </p>
                     )}
                   </div>
@@ -1739,13 +1769,13 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                       <>
                         <RefreshCw size={12} className="animate-spin text-white/40 shrink-0" />
                         <span className="text-white/50 truncate">
-                          {selected.scrape_progress?.message ?? "Analizando…"}
+                          {selected.scrape_progress?.message ?? t("competitor.actions.analyzing")}
                         </span>
                       </>
                     ) : selected.competitor_reels.length > 0 ? (
-                      <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">Re-analizar</span></>
+                      <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">{t("competitor.actions.reanalyze")}</span></>
                     ) : (
-                      <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">Scrape + Analizar</span></>
+                      <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">{t("competitor.actions.scrapeAndAnalyze")}</span></>
                     )}
                   </button>
                 </div>
@@ -1754,7 +1784,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
               {/* Reels header */}
               <div className="flex items-center justify-between">
                 <p className="text-[11px] text-white/25 uppercase tracking-wider">
-                  Reels ({selected.competitor_reels.length})
+                  {t("competitor.reelsHeader", { count: selected.competitor_reels.length })}
                 </p>
                 {selected.competitor_reels.length > 1 && (
                   <SortDropdown value={sort} onChange={setSort} />
@@ -1765,8 +1795,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
               {selected.competitor_reels.length === 0 ? (
                 <div className="py-12 text-center rounded-xl bg-white/[0.02] border border-white/[0.06]">
                   <Play size={18} className="text-white/12 mx-auto mb-2" />
-                  <p className="text-[12px] text-white/25 font-light">No hay reels scrapeados aún</p>
-                  <p className="text-[10px] text-white/15 mt-1">Hacé click en "Scrape + Analizar"</p>
+                  <p className="text-[12px] text-white/25 font-light">{t("competitor.noReels.title")}</p>
+                  <p className="text-[10px] text-white/15 mt-1">{t("competitor.noReels.hint")}</p>
                 </div>
               ) : (
                 <>
@@ -1787,11 +1817,11 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4 px-1">
                       <span className="text-[11px] text-white/30">
-                        {(currentPage - 1) * REELS_PAGE_SIZE + 1}
-                        {"–"}
-                        {Math.min(currentPage * REELS_PAGE_SIZE, sortedReels.length)}
-                        {" de "}
-                        {sortedReels.length}
+                        {t("competitor.pagination.range", {
+                          from: (currentPage - 1) * REELS_PAGE_SIZE + 1,
+                          to: Math.min(currentPage * REELS_PAGE_SIZE, sortedReels.length),
+                          total: sortedReels.length,
+                        })}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <button
@@ -1799,7 +1829,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                           disabled={currentPage === 1}
                           className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/60 border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          ← Anterior
+                          {t("competitor.pagination.previous")}
                         </button>
                         <span className="text-[11px] text-white/40 px-2 tabular-nums">
                           {currentPage} / {totalPages}
@@ -1809,7 +1839,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                           disabled={currentPage === totalPages}
                           className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/60 border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          Siguiente →
+                          {t("competitor.pagination.next")}
                         </button>
                       </div>
                     </div>
@@ -1823,7 +1853,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
           {selected && (
             <div className="sticky top-4 space-y-3">
               <p className="text-[10px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
-                <Brain size={10} /> Patrones y comparativa
+                <Brain size={10} /> {t("competitor.insights.heading")}
               </p>
               <InsightsPanel competitor={selected} myStats={myStats} myReels={myReels} myFollowerHistory={myFollowerHistory} />
             </div>

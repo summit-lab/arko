@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDown, User, Globe, TrendingUp, Users, Palette, Bookmark } from "lucide-react";
 
+type AdnSectionKey = "profile" | "strategies" | "market" | "competitors" | "brand" | "references";
+
 interface AdnSection {
-  name: string;
+  key: AdnSectionKey;
   done: boolean;
 }
 
@@ -78,6 +81,8 @@ const SECTION_ICONS = [
 ];
 
 export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
+  const t = useTranslations("adminDeep");
+  const tAdn = useTranslations("customerVoice.adn");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   function toggle(index: number) {
@@ -95,10 +100,10 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
     <div className="glass-panel rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-[15px] font-light text-white tracking-wide">
-          ADN de Comunicación
+          {t("adnPanel.title")}
         </h3>
         <span className="text-[11px] text-white/25 font-light">
-          {completedCount}/{sections.length} secciones
+          {t("adnPanel.sectionsProgress", { done: completedCount, total: sections.length })}
         </span>
       </div>
 
@@ -108,7 +113,7 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
           const hasContent = s.done;
 
           return (
-            <div key={s.name} className="rounded-xl border border-white/[0.04] bg-white/[0.02] overflow-hidden">
+            <div key={s.key} className="rounded-xl border border-white/[0.04] bg-white/[0.02] overflow-hidden">
               {/* Header — always clickable */}
               <button
                 onClick={() => hasContent && toggle(i)}
@@ -118,7 +123,7 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
               >
                 {SECTION_ICONS[i]}
                 <span className={`text-[12px] font-light flex-1 text-left ${s.done ? "text-white/60" : "text-white/25"}`}>
-                  {s.name}
+                  {t(`adnPanel.section.${s.key}`)}
                 </span>
                 <span className={`h-2 w-2 rounded-full shrink-0 ${s.done ? "bg-emerald-400" : "bg-foreground/10"}`} />
                 {hasContent && (
@@ -135,11 +140,11 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
                   <div className="pt-3 space-y-1">
                     {i === 0 && data.profile && (
                       <>
-                        <FieldRow label="Oferta principal" value={data.profile.main_offer} />
-                        <FieldRow label="Descripción del negocio" value={data.profile.business_description} />
-                        <FieldRow label="Personaje de marca" value={data.profile.brand_persona} />
-                        <FieldRow label="Avatar / cliente ideal" value={data.profile.avatar_description} />
-                        <FieldRow label="Audiencia objetivo" value={data.profile.target_audience} />
+                        <FieldRow label={tAdn("fields.mainOffer")} value={data.profile.main_offer} />
+                        <FieldRow label={tAdn("fields.business")} value={data.profile.business_description} />
+                        <FieldRow label={tAdn("fields.brandPersona")} value={data.profile.brand_persona} />
+                        <FieldRow label={t("adnPanel.field.idealAvatar")} value={data.profile.avatar_description} />
+                        <FieldRow label={t("adnPanel.field.targetAudience")} value={data.profile.target_audience} />
                       </>
                     )}
 
@@ -150,12 +155,12 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
                             <p className="text-[11px] font-medium text-violet-400/70 uppercase tracking-wider mb-2">
                               {st.platform}
                             </p>
-                            <FieldRow label="Qué probó" value={st.what_tested} />
-                            <FieldRow label="Resultados" value={st.test_results} />
-                            <FieldRow label="Conclusiones" value={st.conclusions} />
-                            <FieldRow label="Estrategia actual" value={st.current_strategy} />
-                            <FieldRow label="Formatos y cantidad" value={st.formats_and_quantity} />
-                            <FieldRow label="Por qué va a funcionar" value={st.why_it_will_work} />
+                            <FieldRow label={tAdn("whatTested")} value={st.what_tested} />
+                            <FieldRow label={tAdn("testResults")} value={st.test_results} />
+                            <FieldRow label={tAdn("conclusions")} value={st.conclusions} />
+                            <FieldRow label={tAdn("currentStrategy")} value={st.current_strategy} />
+                            <FieldRow label={tAdn("formatsAndQuantity")} value={st.formats_and_quantity} />
+                            <FieldRow label={tAdn("whyItWillWork")} value={st.why_it_will_work} />
                           </div>
                         ))}
                       </div>
@@ -163,13 +168,13 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
 
                     {i === 2 && data.market && (
                       <>
-                        <FieldRow label="Estado de la industria" value={data.market.industry_state} />
-                        <FieldRow label="Exposición de la audiencia" value={data.market.audience_exposure} />
-                        <FieldRow label="Creencias del mercado" value={data.market.market_beliefs} />
-                        <FieldRow label="Temas quemados" value={data.market.burned_topics} />
-                        <FieldRow label="Tendencias actuales" value={data.market.current_trends} />
-                        <FieldRow label="Competitividad" value={data.market.competitiveness} />
-                        <FieldRow label="Diferenciador" value={data.market.differentiator} />
+                        <FieldRow label={tAdn("industryState")} value={data.market.industry_state} />
+                        <FieldRow label={t("adnPanel.field.audienceExposure")} value={data.market.audience_exposure} />
+                        <FieldRow label={tAdn("marketBeliefs")} value={data.market.market_beliefs} />
+                        <FieldRow label={tAdn("burnedTopics")} value={data.market.burned_topics} />
+                        <FieldRow label={tAdn("currentTrends")} value={data.market.current_trends} />
+                        <FieldRow label={tAdn("competitiveness")} value={data.market.competitiveness} />
+                        <FieldRow label={tAdn("differentiator")} value={data.market.differentiator} />
                       </>
                     )}
 
@@ -178,13 +183,13 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
                         {data.competitors.map((c, ci) => (
                           <div key={ci} className="rounded-lg bg-white/[0.02] border border-white/[0.04] p-3">
                             <div className="flex items-center gap-2 mb-1">
-                              <p className="text-[12px] font-light text-white/60">{c.name || "Sin nombre"}</p>
+                              <p className="text-[12px] font-light text-white/60">{c.name || t("adnPanel.noName")}</p>
                               {c.ig_url && (
                                 <span className="text-[10px] text-rose-400/50 font-light">{c.ig_url}</span>
                               )}
                             </div>
                             {c.why_better && (
-                              <p className="text-[11px] text-white/35 font-light leading-relaxed whitespace-pre-line">{c.why_better.replace(/\[(MARCA|CONTENIDO)]\s*/g, (_, tag: string) => tag === 'MARCA' ? 'Marca: ' : 'Contenido: ')}</p>
+                              <p className="text-[11px] text-white/35 font-light leading-relaxed whitespace-pre-line">{c.why_better.replace(/\[(MARCA|CONTENIDO)]\s*/g, (_, tag: string) => tag === 'MARCA' ? t("adnPanel.brandTag") : t("adnPanel.contentTag"))}</p>
                             )}
                           </div>
                         ))}
@@ -193,11 +198,11 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
 
                     {i === 4 && data.brand && (
                       <>
-                        <FieldRow label="Por qué te eligen" value={data.brand.why_clients_choose} />
-                        <FieldRow label="Lenguaje de nicho" value={data.brand.niche_language} />
-                        <FieldRow label="Herramientas de nicho" value={data.brand.niche_tools} />
-                        <FieldRow label="Palabras de filtrado" value={data.brand.filtering_words} />
-                        <FieldRow label="Mecanismos nuevos" value={data.brand.new_mechanisms} />
+                        <FieldRow label={tAdn("whyChoose")} value={data.brand.why_clients_choose} />
+                        <FieldRow label={tAdn("nicheLanguage")} value={data.brand.niche_language} />
+                        <FieldRow label={tAdn("nicheTools")} value={data.brand.niche_tools} />
+                        <FieldRow label={tAdn("filteringWords")} value={data.brand.filtering_words} />
+                        <FieldRow label={tAdn("newMechanisms")} value={data.brand.new_mechanisms} />
                       </>
                     )}
 
@@ -206,7 +211,7 @@ export function AdnDetailPanel({ sections, data }: AdnDetailPanelProps) {
                         {data.references.map((r, ri) => (
                           <div key={ri} className="rounded-lg bg-white/[0.02] border border-white/[0.04] p-3">
                             <div className="flex items-center gap-2 mb-1">
-                              <p className="text-[12px] font-light text-white/60">{r.brand_name || "Sin nombre"}</p>
+                              <p className="text-[12px] font-light text-white/60">{r.brand_name || t("adnPanel.noName")}</p>
                               {r.brand_url && (
                                 <span className="text-[10px] text-cyan-400/50 font-light">{r.brand_url}</span>
                               )}

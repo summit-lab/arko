@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface ReelAutoTitleProps {
   reelId: string;
@@ -9,6 +10,7 @@ interface ReelAutoTitleProps {
 }
 
 export function ReelAutoTitle({ reelId, autoTitle, workspaceId }: ReelAutoTitleProps) {
+  const t = useTranslations("igAdvanced");
   const [title, setTitle] = useState<string | null>(autoTitle);
   const [generating, setGenerating] = useState(!autoTitle && !!workspaceId);
 
@@ -28,7 +30,7 @@ export function ReelAutoTitle({ reelId, autoTitle, workspaceId }: ReelAutoTitleP
   if (generating) {
     return (
       <p className="text-[18px] font-medium mb-2 leading-snug text-muted-foreground italic">
-        Generando título…
+        {t("autoTitle.generating")}
       </p>
     );
   }

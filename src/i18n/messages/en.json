@@ -679,5 +679,263 @@
       "invitationInvalid": "Invalid or expired invitation",
       "emailMismatch": "Email doesn't match the invitation"
     }
+  },
+  "igShell": {
+    "common": {"impressions": "Impressions","reach": "Reach","likes": "Likes","comments": "Comments","saves": "Saves","shares": "Shares","followers": "Followers","save": "Save","cancel": "Cancel"},
+    "tabs": {"dashboard": "Dashboard","reels": "Reels","stories": "Stories","publications": "Posts","competition": "Competition","references": "References","demographics": "Demographics"},
+    "back": {"reels": "Back to Reels","publications": "Back to Posts","stories": "Back to Stories","instagram": "Back to Instagram"},
+    "conversations": {"title": "New interactions","noData": "No data yet","interactions": "interactions"},
+    "metas": {
+      "title": "Monthly Goals","configureArrow": "Configure →","empty": "No goals configured","configureGoals": "+ Configure goals",
+      "metricLabels": {"views": "Views","followers": "Followers","engagementRate": "Eng. Rate","reach": "Reach","likes": "Likes","saves": "Saves"}
+    },
+    "dashboard": {
+      "empty": {"title": "No data available","description": "Sync your Instagram account to view the full dashboard."},
+      "viewsPerformance": "Views performance","avgReachPerDay": "Avg reach/day","profileConversion": "Profile conversion","visits": "visits",
+      "vsPreviousPeriod": "vs previous period","profileGrowth": "Profile growth","lastNDays": "last {days} days",
+      "newFollowersPerDay": "New followers / day","new": "New","keyInteractions": "Key interactions","bestReel": "Top Reel","bestReelAlt": "Top reel",
+      "firstOfReels": "1st of {total} Reels","totalViews": "total views","noReelsInPeriod": "No reels in this period","recentReels": "Recent reels"
+    },
+    "metrics": {
+      "empty": {"title": "No account data","line1": "Sync your Instagram account to view evolution, community, and demographic metrics.","permissionsBefore": "Make sure you have the permissions","permissionsAnd": "and"},
+      "daysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      "gender": {"male": "Male","female": "Female","other": "Other"},
+      "kpis": {"totalImpressions": "Total impressions","avgReachPerDay": "Avg reach / day","totalInteractions": "Total interactions"},
+      "vsFirstHalf": "vs first half of period",
+      "secondaryKpis": {
+        "engagementRate": {"label": "Engagement rate","desc": "Interactions / Impressions"},
+        "savesRate": {"label": "Saves rate","desc": "Saves / Reach"},
+        "profileConv": {"label": "Profile → follower conv.","desc": "New followers / Visits"},
+        "profileVisits": {"label": "Profile visits","desc": "Period total"},
+        "contentPublished": {"label": "Content published","desc": "Active posts on the account"}
+      },
+      "reach": {"title": "Reach & Visibility","subtitle": "Impressions, reach, and profile visits — {days} days","profileVisits": "Profile visits"},
+      "engagement": {"title": "Engagement Breakdown","subtitle": "What kind of interactions you generate — quality vs quantity","dailyBreakdown": "Daily breakdown","composition": "Composition","insightLabel": "Insight","insightSaves": "More <highlight>saves</highlight> than comments — your content has educational or inspirational value.","insightComments": "More <highlight>comments</highlight> than saves — your content sparks conversation and community."},
+      "community": {"title": "Community","subtitle": "Follower acquisition and the best times to post","newFollowers": "New followers","avgPerDay": "Avg / day","currentTotal": "Current total","needTwoDays": "At least 2 days of data are needed to plot the follower curve","interactionsByDay": "Interactions by day of week","historicalAvg": "Historical average for the period — use it to decide when to post","interactions": "Interactions","bestDayToPost": "Best day to post","bestDayLine": "<dayHighlight>{day}</dayHighlight> — average of <avgHighlight>{avg}</avgHighlight> interactions."},
+      "demographics": {"title": "Demographics","subtitle": "Audience distribution (lifetime account data)","gender": "Gender","ageByGender": "Age by gender","ageDistribution": "Age distribution","followersByCountry": "Followers by country","followersByCity": "Followers by city"}
+    },
+    "goals": {
+      "titleForMonth": "Goals for {month}","dayProgress": "Day {elapsed} of {total} — {pct}% of the month","addGoal": "Add goal","monthProgress": "Monthly progress","newGoal": "New goal",
+      "selectMetric": "Select metric...","targetValuePlaceholder": "Target value","remaining": "{value} remaining","ahead": "Ahead of pace","behind": "Behind pace","targetLabel": "Target:",
+      "metricLabels": {"totalViews": "Total views","followers": "Followers","likes": "Likes","saves": "Saves","reach": "Reach","engagementRate": "Engagement Rate"},
+      "empty": {"title": "You haven't set any goals","description": "Define monthly targets for views, followers, engagement, and more. You'll be able to track progress in real time.","cta": "Create your first goal"}
+    }
+  },
+  "igGrids": {
+    "common": {"likes": "Likes","saves": "Saves","comments": "Comments","shares": "Shares"},
+    "daysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "timeAgo": {"today": "Today","yesterday": "Yesterday","daySuffix": "d","weekSuffix": "w","monthSuffix": "mo"},
+    "reels": {
+      "viewOnIg": "View on IG","noTitle": "No title","noCaption": "No caption","views": "views","engagement": "Engagement","engagementFormula": "likes + saves + cmts / views",
+      "contentTotals": "Content totals","dayRadarFooter": "Average views by publication day","followers": "followers","showMore": "Show more","showMoreCount": "({count} more)",
+      "sortBy": "Sort by","sortDesc": "High → Low","sortAsc": "Low → High","pagination": "{shown} of {total}","empty": "No reels match these filters.",
+      "fullyOrganic": "100% organic","distSplit": "{organic}% organic · {paid}% paid",
+      "summary": {"title": "Summary · {count} reels","totalViews": "Total views","average": "Average","topX3": "Top ×3+"},
+      "trend": {"title": "Views Evolution","subtitle": "Chronological views · last {count} reels"},
+      "donut": {"likes": "Likes","saves": "Saves","cmts": "Cmts"},
+      "topSales": {"title": "Top Sales","totalGenerated": "Total generated:"},
+      "top5": {"title": "Top 5 by Views"},
+      "sort": {"date": "Date","totalViews": "Total views","organicViews": "Organic views","multiplier": "Multiplier"},
+      "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "All"},
+      "distFilter": {"all": "All","organic": "Organic","paid": "Paid"}
+    },
+    "posts": {
+      "summaryTitle": "Summary · {count} posts","carousels": "Carousels","posts": "Posts","noDescription": "No description","noTitle": "No title",
+      "engagement": "Engagement","avgShort": "avg.","likesTrend": "Likes Evolution","likesTrendSubtitle": "Chronological · last {count} posts","top5Likes": "Top 5 by Likes",
+      "carouselSingular": "Carousel","postSingular": "Post","postAlt": "Post","impressionsLower": "impressions","count": "{count} posts",
+      "totals": {"likes": "Total likes","saves": "Total saves","comments": "Total comments","shares": "Total shares","avgPerPost": "Avg. likes / post"},
+      "sort": {"date": "Date"},
+      "typeFilter": {"all": "All","posts": "Posts","carousels": "Carousels"},
+      "empty": {"title": "No posts in this period","description": "Sync your Instagram account to see posts and carousels."}
+    },
+    "stories": {
+      "summaryTitle": "Summary · {count} stories","multiSlide": "Multi-slide","oneSlide": "1 slide","storiesLabel": "stories","performance": "Performance",
+      "avgReplyRate": "Avg. reply rate","avgCompletion": "Avg. completion rate","avgDropOff": "Avg. drop-off (start→end)",
+      "followerReachTitle": "Follower reach","followerReachDesc": "Average followers viewing each story","viewsAvg": "avg. views","followers": "followers",
+      "viewsTrend": "Views Evolution","viewsTrendSubtitle": "Chronological impressions · last {count}","views": "views","top5Impressions": "Top 5 by Impressions",
+      "exampleSuffix": "example","example": "Example","active": "Active","archived": "Archived","slide": "Slide","slidesCount": "{count} slides","storyAlt": "Story",
+      "completedPct": "{pct}% completed","backToStories": "Back to stories","previous": "Previous","next": "Next",
+      "sequenceFlow": "Sequence flow","dropOffLabel": "Drop-off: -{pct}%","entry": "entry","dropOffCurve": "Drop-off curve","viewsPerSlide": "Views per slide",
+      "detailBySlide": "Slide-by-slide detail","tableViews": "Views","tableDrop": "Drop","tableForward": "→ Forward","tableBack": "← Back","tableReplies": "💬 Repl.",
+      "metricsDelayHint": "Recent story metrics can take a few minutes to become available. Sync again in a bit.",
+      "totals": {"impressions": "Total impressions","replies": "Total replies","exits": "Total exits","avgPerStory": "Avg. views / story"},
+      "kpi": {"impressions": "Impressions","completed": "Completed","completionRate": "Completion Rate","slides": "Slides","replies": "Replies"},
+      "empty": {"title": "No saved stories","description": "Stories are automatically archived within 24h of publishing. Sync your account to capture active stories."}
+    },
+    "postDetail": {
+      "slide": "Slide","thumb": "Thumb","openInInstagram": "Open in Instagram","carouselWithSlides": "Carousel · {count} slides","postBadge": "Post","noDescription": "No description",
+      "summary": "Summary","views": "Views","reach": "Reach","impressions": "Impressions","engRate": "Eng. Rate","interactionsDistribution": "Interaction distribution","pctOf": "{pct} of {basis}"
+    },
+    "perfChart": {"title": "Interactions vs Benchmark","subtitle": "% of total views vs 90d average","thisReel": "this reel","benchmark": "benchmark","reelLegend": "Reel","benchLegend": "Bench","likes": "Likes","saves": "Saves","comments": "Comments","shares": "Shares"},
+    "dailyChart": {"empty": "No daily data for this reel yet.","viewsPerDay": "Views per day","engagementPerDay": "Engagement per day","views": "Views"},
+    "sparkline": {"views": "views","cumulative": "cumulative"},
+    "dayRadar": {"title": "Views by day of week","subtitle": "View distribution for this reel","viewsName": "Views","views": "views","bestDayLabel": "Day with most views"},
+    "heatmap": {"title": "Publishing Heatmap","subtitle": "View intensity per day · click to view reel","less": "Less","more": "More","views": "views","noCaption": "No caption"},
+    "scatter": {"title": "Views per Reel","subtitle": "Each dot is a reel · click to view · line = average","averageLabel": "average: {value} views","views": "views","vsAverage": "×{multiplier} vs average","noCaption": "No caption","clickToView": "Click to view reel →","legend": {"normal": "Normal","outlier": "×8+ outlier","average": "average"}}
+  },
+  "igAdvanced": {
+    "autoTitle": {"generating": "Generating title…"},
+    "reelChat": {
+      "askMoka": "Ask Moka","headerTitle": "Moka AI — Reel","placeholder": "Ask about this reel...",
+      "empty": {"title": "Moka AI","body": "Ask anything about this reel. I have all the metrics and the context of your account."},
+      "suggestions": {"whyWorked": "Why did this reel work so well?","whyFailed": "Why didn't this reel work?","howImprove": "How can I improve this reel?","analyzeHook": "Analyze the hook of this reel","iterateIdeas": "Give me ideas to iterate this concept","evaluateCta": "Evaluate the CTA of this reel","recommendAnalysis": "What additional analysis do you recommend?","improveStructure": "What can I improve in the structure?"}
+    },
+    "sync": {"newCount": "{count, plural, one {# new} other {# new}}","tokenExpired": "Meta connection expired. Reconnect your account.","quickError": "Quick sync error","networkError": "Network error","button": {"idle": "Sync","quick": "Updating...","done": "Done"}},
+    "ai": {
+      "common": {"yes": "Yes","no": "No"},
+      "actions": {"analyzeDeep": "Deep analyze","reanalyze": "Re-analyze","retry": "Retry"},
+      "errors": {"noVideoUrl": "No video URL available. Make sure you synced the reel via Apify.","unknown": "Unknown error"},
+      "idle": {"title": "Deep analysis with MokaAI","body": "Timestamped transcript, narrative, visual analysis, tone of voice, insights and viral potential — all in a single analysis.","noVideoHint": "No video URL available. Sync the reel via Apify first."},
+      "loading": {"title": "Analyzing with MokaAI","body": "Downloading and processing the video. It can take 30 to 90 seconds."},
+      "error": {"title": "Analysis error"},
+      "done": {"heading": "MokaAI analysis"},
+      "sections": {"transcript": "Transcript","narrative": "Narrative and structure","visual": "Visual analysis","audio": "Voice tone and delivery","insights": "Insights and viral potential"},
+      "transcript": {"noAudio": "No spoken audio detected."},
+      "narrative": {"hook": "Hook","development": "Development","corePromise": "Core promise","ctaDetected": "CTA detected","noCta": "No CTA"},
+      "visual": {"format": "Format","shotType": "Shot type","scene": "Scene","orientation": "Orientation","people": "People","faceVisible": "Face visible","onScreenText": "On-screen text","firstFrame": "First frame","backgroundEnvironment": "Background / environment"},
+      "audio": {"voiceType": "Voice type","estimatedRate": "Estimated rate","fillerWords": "Filler words detected"},
+      "insights": {"viralPotential": "Viral potential","strengths": "Strengths","improvements": "Areas to improve"}
+    },
+    "initialSync": {
+      "badge": "First sync","currentStage": "Current stage","statusSyncing": "Syncing","statusPaused": "Paused","estimatedProgress": "Estimated progress","elapsedTime": "Elapsed time",
+      "elapsedHint": "The first sync usually takes longer because it brings historical content, account metrics and baseline benchmarks.","errorTitle": "Sync interrupted",
+      "heading": {"line1": "We're preparing your","line2": "Instagram Intelligence","subWithUsername": "We connected the @{username} account. Now we're fetching and processing your information so you have real data from minute one.","subNoUsername": "You just connected your account. Now we're fetching and processing your information so you have real data from minute one."},
+      "phases": {"validate": {"title": "Validating the connection","description": "Verifying permissions, Instagram Business account and workspace access."},"download": {"title": "Downloading your content","description": "Fetching your Reels from the last 90 days."},"metrics": {"title": "Processing metrics and Ads","description": "Consolidating reach, views, engagement and paid attribution where available."},"dashboard": {"title": "Building your dashboard","description": "Computing benchmarks, sorting the data and getting everything ready to explore."}},
+      "whatYoullSee": {"title": "What you'll see when you enter","item1": "Your recent Reels","item2": "Organic and paid KPIs","item3": "90-day baseline benchmark","item4": "Account-level IG Metrics"},
+      "actions": {"retry": "Retry sync","checkConnection": "Check connection"},
+      "errors": {"kickoff": "We couldn't start the sync.","timeout": "The sync is taking longer than expected. You can retry or enter anyway and refresh in a few minutes.","stepFailed": "One of the sync steps failed. Retry or check the connection with Meta.","generic": "We couldn't complete the initial sync."}
+    },
+    "competitor": {
+      "unnamed": "Unnamed","fallbackName": "competitor","noCaption": "No caption","viewOnInstagram": "View on Instagram","addCompetitor": "+ Add competitor","reelsHeader": "Reels ({count})",
+      "hookTypes": {"transformacion": "Transformation","enemigo": "Enemy","negativo": "Negative","promesa": "Promise","curiosidad": "Curiosity","desconocido": "Unclassified"},
+      "stats": {"views": "Views","likes": "Likes","comments": "Comments","commentsShort": "Com.","shares": "Shares","sharesShort": "Shr."},
+      "actions": {"analyze": "Analyze","analyzing": "Analyzing…","analyzingShort": "Analyzing","viewAnalysis": "View analysis","reanalyze": "Re-analyze","scrapeAndAnalyze": "Scrape + Analyze"},
+      "progress": {"preparing": "Preparing scrape…","working": "Working…","analyzingName": "Analyzing {name}","phases": {"starting": "Starting","scraping_reels": "Scraping","uploading_thumbs": "Thumbnails","saving": "Saving","analyzing": "AI analysis","done": "Done"}},
+      "modal": {"hookPrefix": "Hook","mokaAnalysis": "Moka analysis","narrativeStructure": "Narrative structure","strengths": "Strengths","opportunities": "Opportunities","visualStyle": "Visual style","analyzedWith": "Analyzed with {model}"},
+      "contentTypes": {"reputation": "Reputation","connection": "Connection"},
+      "compare": {"you": "You","youShort": "You","them": "Them","themShort": "Th.","youVs": "You vs {name}","avgViews": "Avg Views","avgLikes": "Avg Likes","avgCom": "Avg Com.","followers": "Followers"},
+      "charts": {"viewsTimeline": "Views per reel · over time","followerGrowth": "Followers · growth","historyAccumulates": "The competitor's history accumulates with each re-analysis"},
+      "insights": {"heading": "Patterns and comparison","reels": "Reels","analyzed": "Analyzed","avgViews": "Avg views","topReel": "Top reel","viewsCount": "{count} views","hookTypes": "Hook types","frequentTopics": "Frequent topics","analyzePrompt": "Analyze the reels to see patterns"},
+      "global": {"patterns": "Global patterns — {count} reels analyzed","topHook": "Top hook"},
+      "sort": {"views": "Views","likes": "Likes","date": "Date"},
+      "profile": {"followers": "followers","posts": "posts","scrape": "Scrape","whyBetter": "Why they're better"},
+      "noReels": {"title": "No reels scraped yet","hint": "Click on \"Scrape + Analyze\""},
+      "pagination": {"range": "{from}–{to} of {total}","previous": "← Previous","next": "Next →"},
+      "empty": {"title": "No competitors set up","body": "Add competitors in your Communication ADN to analyze their strategy.","cta": "Go to Communication ADN"},
+      "errors": {"loading": "Error loading competitors","loadFailed": "Couldn't load competitors.","scraping": "Scraping error","analyze": "Analysis error","analyzeReel": "Error analyzing reel","analyzeReelNetwork": "Network error analyzing the reel"}
+    },
+    "references": {
+      "unnamed": "Unnamed","headerTitle": "References","addBtn": "Add","classifying": "classifying with AI…","refCount": "{count, plural, one {# reference} other {# references}}","hookCount": "{count, plural, one {# hook} other {# hooks}}",
+      "searchPlaceholder": "Search hooks...","noMatch": "No hooks match the filters",
+      "noScrapedReels": {"title": "No reference has scanned reels yet.","hint": "Click <scan>Scan</scan> on each chip to fetch its hooks."},
+      "patterns": {"pregunta": "Question","lista": "List","contraste": "Contrast","cta": "CTA","historia": "Story","shock": "Shock","afirmacion": "Statement"},
+      "filters": {"all": "All","allPatterns": "All"},
+      "tier": {"all": "All","midTop": "Mid+Top","top": "🔥 Top"},
+      "sort": {"views": "Most viewed","likes": "Most likes","engagement": "Best engagement"},
+      "empty": {"title": "No references yet","body": "Add brands or creators that inspire you — Moka will extract and classify their hooks automatically.","cta": "Add first reference"},
+      "chip": {"scan": "Scan","scanning": "Scanning","scanTitle": "Scan profile and reels","analyze": "Analyze","analyzing": "Analyzing","analyzeTitle": "Analyze the top {count} reels with AI","deleteRef": "Delete reference","confirmDelete": "Click again to confirm"},
+      "card": {"copy": "Copy","copied": "Copied","analyze": "Analyze","analyzeTitle": "Analyze this reel with AI","viewAnalysis": "View analysis","viewAnalysisTitle": "View reel analysis","viewOriginal": "View original reel"},
+      "modal": {"title": "Reel analysis","analyzingWithGemini": "Analyzing with Gemini…","notAnalyzedYet": "This reel hasn't been analyzed yet. Moka will use Fran's framework to detect hook, structure, CTA, strengths and weaknesses.","analyzeNow": "Analyze now","summary": "Summary","hookType": "Hook type","contentType": "Content type","topic": "Topic","cta": "CTA","narrativeStructure": "Narrative structure","ctaText": "CTA text","strengths": "Strengths","weaknesses": "Weaknesses","model": "Model","reanalyze": "Re-analyze","reanalyzing": "Re-analyzing…"},
+      "add": {"title": "Add reference","cancel": "Cancel","add": "Add","saving": "Saving…","fields": {"name": "Name","url": "Instagram URL","inspiration": "Why it inspires you","optional": "(optional)"},"placeholders": {"name": "Brand / creator name","url": "@username or https://instagram.com/username","inspiration": "Their hooks, their format, their aesthetic…"},"errors": {"nameRequired": "Name is required","saving": "Error saving","connection": "Connection error"}}
+    }
+  },
+  "youtubeDeep": {
+    "tabs": {"canal": "Channel","videos": "Videos"},
+    "actions": {"sync": "Sync","syncing": "Syncing…"},
+    "metrics": {"views": "Views","watchtime": "Watch time","likes": "Likes","comments": "Comments","comentarios": "Comments","engagement": "Engagement"},
+    "kpis": {"totalViews": "Total views","totalViewsSub": "Avg: {avg}/video · cumulative","subscribers": "Subscribers","likes": "Likes","comments": "Comments","percentOfViews": "{pct}% of views · cumulative","avgEngagement": "Average engagement","avgEngagementSub": "(L+C) / Views · cumulative"},
+    "notices": {"lifetimeTitle": "Lifetime metric since publication","lifetimeBody": "Channel totals show lifetime views since each video was published. To see day-by-day evolution, open a specific video."},
+    "channel": {"fallback": "Channel","subscribersAndVideos": "{subscribers} subscribers · {videos} videos","analyticsTitle": "Channel analytics","currentSubscribers": "Current subscribers","cumulativeTotals": "Cumulative totals · {count} videos in the period","hrsEst": " est. hrs","topContent": "Top content · lifetime views","chartFootnote": "Per-video data · lifetime metric as of today · sorted by publication date","metricSub": {"views": "Lifetime views per video as of today","watchtime": "Estimated playback hours (cumulative)","likes": "Lifetime likes per video as of today","comentarios": "Lifetime comments per video as of today"}},
+    "charts": {"viewsPerVideo": {"title": "Views per video","subtitle": "Lifetime views as of today · sorted by publication date"},"videosCount": "{count} videos","engagementBreakdown": "Engagement breakdown","engagementPerVideo": "Engagement per video","engagementFormula": "(L+C) / Views","durationVsViews": {"title": "Duration vs. Views","subtitle": "minutes · views","xName": "Duration","minLabel": "min","footnote": "Each point is a video"}},
+    "emptyState": {"title": "No videos in this period.","body": "Change the date filter or sync your channel."},
+    "video": {"untitled": "Untitled","viewsCount": "{count} views","backToVideos": "Back to videos","publishedOn": "Published {date}","rankInPeriod": "#{rank} in the period","viewOnYouTube": "View on YouTube","tabs": {"overview": "Overview","alcance": "Reach","engagement": "Engagement"},"kpi": {"watchTimeEst": "Watch time est.","watchTimeFormula": "duration × views / 3600","hoursValue": "{hours} hrs","viewsAboveAvg": "+{delta} vs average","viewsBelowAvg": "-{delta} vs average","percentOfViews": "{pct}% of views","likeRate": "Like rate","commentRate": "Comment rate"},"compareTitle": "This video vs. top of the period","barHighlight": "Highlighted bar = this video","performanceVsAvg": "Performance vs. channel average","vsAvg": "{pct}% vs avg","avgLabel": "avg","viewsEvolution": {"title": "Views evolution","subtitle": "{count} days of data · since publication","total": "{count} total views"}},
+    "alcance": {"funnelTitle": "Audience conversion","totalEngagement": "Total engagement","likeRateConnector": "{pct}% like rate","commentRateConnector": "{pct}% comment rate","engagementConnector": "{pct}% engagement","vsAvg": "vs {pct}% average"},
+    "engagement": {"rateTitle": "Engagement rate","formula": "(Likes + Comments) / Views","deltaVsAvg": "{pp}pp vs channel average ({avg}%)","breakdownTitle": "Interaction breakdown","metricsVsAvg": "Metrics vs. channel average","channelAverage": "Channel average: {pct}%","ppAbove": "▲ {pp}pp above","ppBelow": "▼ {pp}pp below","rankByViews": "Ranking by views","rankByEngagement": "Ranking by engagement","outOfVideos": "of {count} videos in the period","outOfVideosWithViews": "of {count} videos with views"},
+    "videosTab": {"tableTitle": "Videos","summary": {"videos": "Videos","avgViews": "Average views","totalLikes": "Total likes"},"sort": {"recent": "Most recent","views": "Most views","likes": "Most likes","engagement": "Best engagement"},"columns": {"video": "Video","views": "Views","likes": "Likes","commentsShort": "Com.","engPct": "Eng%","durationShort": "Dur."},"emptyTable": "No synced videos. Click Sync to fetch your videos."},
+    "timeAgo": {"today": "Today","yesterday": "Yesterday","days": "{count} days ago","weeks": "{count} wk ago","months": "{count, plural, one {# month ago} other {# months ago}}","years": "{count, plural, one {# year ago} other {# years ago}}"},
+    "connect": {"title": "Connect your YouTube channel","body": "Link your Google account to access full YouTube Studio metrics: retention, CTR, watch time, traffic sources and more.","connecting": "Connecting...","connectWithGoogle": "Connect with Google","footnote": "You need a Google account with a YouTube channel. We only request read permissions.","errors": {"cantStart": "Couldn't start the connection","connection": "Connection error"}}
+  },
+  "customerVoiceDeep": {
+    "competitor": {
+      "comparison": "Comparison","followersChartTitle": "Followers","followersTooltipUnit": "followers","avgViewsChartTitle": "Avg views / reel","avgViewsTooltipUnit": "avg views","topHooksChartTitle": "Most-used hooks",
+      "emptyTitle": "You don't have any competitors set up","emptyDescription": "Add competitors from the DNA onboarding or by editing your profile.",
+      "statusDownloading": "Downloading profile and reels...","statusError": "Error: {message}","errorDownloadingData": "Error downloading data","statusNoPublicReels": "No public reels found",
+      "statusReelsDownloaded": "{count} reels downloaded. Analyzing top 5 with AI...","statusAnalyzeError": "Reels downloaded but error during analysis: {message}","statusDone": "Done: {downloaded} reels downloaded, {analyzed} analyzed with AI",
+      "statusConnectionError": "Connection error","errorAddingReel": "Error adding reel","reelsAnalyzedSummary": "{reels} reels · {analyzed} analyzed","processing": "processing...","unanalyzedSuffix": "· {count} not analyzed",
+      "noData": "No data","analyzing": "Analyzing...","reanalyze": "Re-analyze","analyze": "Analyze","analyzingReelsLong": "Analyzing reels with AI... this may take up to 2 minutes",
+      "statFollowers": "Followers","statPosts": "Posts","statReels": "Reels","statLastAnalysis": "Last analysis","never": "Never",
+      "topReelsHeading": "Top Reels ({count})","hookTypesLabel": "Hook types","hookTypesPopoverTitle": "Hook Types (Framework Fran)","addReel": "Add reel","add": "Add","noCaption": "(no caption)","noAnalysis": "No analysis",
+      "reanalyzeAi": "Re-analyze with AI","analyzeAi": "Analyze with AI","deleteReel": "Delete reel","labelHook": "Hook","labelVideoFormat": "Video format","labelNarrativeStructure": "Narrative structure","labelTranscript": "Transcript","labelAiSummary": "AI summary","labelStrengths": "Strengths","labelWeaknesses": "Weaknesses",
+      "contentTypeReputation": "Reputation","contentTypeConnection": "Connection","ctaPrefix": "CTA","noAiHint": "No AI analysis. Click <icon></icon> to analyze this reel.",
+      "whatYouLike": "What you like","brandPrefix": "Brand","contentPrefix": "Content",
+      "hookTypes": {"transformacion": {"label": "Transformation","description": "Shows a before/after or personal change"},"enemigo": {"label": "Enemy","description": "Points out a hidden problem or common enemy"},"negativo": {"label": "Negative","description": "Warns about mistakes or things not to do"},"promesa": {"label": "Promise","description": "Promises to teach or reveal something valuable"},"curiosidad": {"label": "Curiosity","description": "Builds intrigue with questions or surprising facts"},"desconocido": {"label": "Unclassified","description": "No known hook type was detected"}}
+    },
+    "calendar": {
+      "days": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      "months": ["January","February","March","April","May","June","July","August","September","October","November","December"],
+      "statusIdea": "Idea","statusInProgress": "In progress","statusReady": "Ready","statusPublished": "Published",
+      "newIdea": "New idea","titlePlaceholder": "Content title...","descriptionPlaceholder": "Notes or description (optional)...","platformGeneral": "General","typeOptionEmpty": "Type...",
+      "save": "Save","saving": "Saving...","cancel": "Cancel","filterAll": "All","viewsSuffix": "views","moreReels": "+{count} more","moreIdeas": "+{count} ideas",
+      "dateHeading": "{month} {day}","reelAlt": "Reel","published": "Published","planned": "Planned","emptyPast": "No posts this day","emptyFuture": "Free day — you can plan something","addIdea": "Add idea",
+      "legendPublished": "Published reel","legendTopPerformer": "Top performer ×3+","legendIgIdea": "IG idea","legendYtIdea": "YT idea","legendToday": "Today"
+    }
+  },
+  "onboardingDeep": {
+    "competitorModal": {
+      "title": "Competitors","subtitle": "Add your main competitors and what you like about them","entryLabel": "Competitor {num}",
+      "nameLabel": "Name *","namePlaceholder": "e.g., Jane Doe","instagramLabel": "Instagram","instagramPlaceholder": "@username or URL",
+      "likesBrandLabel": "What do you like about their brand?","likesBrandPlaceholder": "What stands out about their brand, positioning, identity...",
+      "likesContentLabel": "What do you like about their content?","likesContentPlaceholder": "What kind of content they make that you like, formats, style...",
+      "addAnother": "Add another competitor","validCount": "{count, plural, =0 {0 competitors with a name} one {# competitor with a name} other {# competitors with a name}}",
+      "cancel": "Cancel","save": "Save competitors","saving": "Saving..."
+    },
+    "docs": {
+      "title": "DNA","section1Title": "Your Business","section2Title": "Your Content","section3Title": "Your Market","section4Title": "Your Brand",
+      "addAction": "+ add","editAction": "edit","noDataYet": "No data yet","noCompetitors": "No competitors added","platform": "Platform",
+      "competitorsHeading": "Competitors ({count})","referencesHeading": "References ({count})","fieldCount": "{count, plural, one {# field} other {# fields}}","bottomHint": "Click a section to view and edit captured data.",
+      "fields": {"business_description": "Business","brand_persona": "Brand persona","avatar_description": "Avatar / Ideal customer","target_audience": "Target audience","main_offer": "Main offer","industry_state": "Industry state","audience_exposure": "Avatar exposure","market_beliefs": "Market beliefs","burned_topics": "Burned topics","current_trends": "Trends","competitiveness": "Competitiveness","differentiator": "Differentiator","why_clients_choose": "Why clients choose you","niche_language": "Niche language","niche_tools": "Niche tools","filtering_words": "Filtering words","new_mechanisms": "New mechanisms","what_tested": "What you tested","test_results": "Results","conclusions": "Conclusions","current_strategy": "Current strategy","formats_and_quantity": "Formats and quantity","why_it_will_work": "Why it will work"}
+    }
+  },
+  "salesForm": {
+    "newSale": "New Sale","editSale": "Edit Sale","stepLabel": "Step {step} of {total} — {name}","step1Name": "Sale information","step2Name": "Source & Client",
+    "paymentTypeLabel": "Payment type","amountCollectedLabel": "Amount collected","billingAndCollectedMatch": "Billing and cash collected match","dealTotalLabel": "Deal total value",
+    "installmentsCountLabel": "Number of installments","locked": "(locked)","perInstallmentLabel": "Per-installment amount","firstInstallmentDateLabel": "First installment date",
+    "installmentsCadenceHint": "Following installments are generated every 30 days. The sale date syncs automatically with this value (you can change it later).",
+    "billing": "Billing","cashCollected": "Cash collected","dueProgress": "({paid}/{total} installments due)","pending": "Pending",
+    "undueInstallmentsNote": "Unduue installments remain as pending. If you've already collected them, you can mark them from the detail later.",
+    "depositLabel": "Deposit","expectedRemainingLabel": "Estimated remaining collection","depositCollected": "Deposit collected",
+    "saleDateLabel": "Sale date","notesLabel": "Comment (optional)","notesPlaceholder": "Additional details...",
+    "sourceLabel": "Sale source","reelSourceLabel": "Reel that generated the sale","searchByCaptionPlaceholder": "Search by caption...","untitled": "Untitled","noResults": "No results",
+    "storySourceLabel": "Story that generated the sale","storyOf": "Story from {date}","storyMetrics": "{slides} slide(s) · {impressions} imp. · {reach} reach","describeStoryPlaceholder": "Describe the story...",
+    "postSourceLabel": "Post that generated the sale","describePostPlaceholder": "Describe the post...","linkPlatformLabel": "Link platform",
+    "describeSourceLabel": "Describe the source","describeSourcePlaceholder": "Referral, event, direct DM...",
+    "clientLabel": "Client (optional)","clientPlaceholder": "Client name...",
+    "next": "Next","back": "Back","saving": "Saving...","saveChanges": "Save changes","saveSale": "Save sale",
+    "errorInvalidAmount": "Enter a valid amount","errorSaving": "Error saving",
+    "notesInstallments": "{count, plural, one {# installment} other {# installments}} of {amount}","notesExpectedRemaining": "Estimated remaining collection: {date}"
+  },
+  "adminDeep": {
+    "client": {
+      "backToClients": "Back to Clients","active": "Active","inactive": "Inactive","slugCreated": "{slug} · Created {date}",
+      "totalCost": "Total Cost","costSplit": "AI ${ai} · Integ. ${integ}","aiCalls": "AI Calls","tokensCount": "{count} tokens","integrations": "Integrations","integSummary": "${cost} · {ok} ok · {err} err","types": "Types",
+      "usageByMonth": "Usage by Month","usageByType": "Usage by Type","month": "Month","calls": "Calls","tokens": "Tokens","cost": "Cost","type": "Type","noUsage": "No usage.",
+      "recentCalls": "Recent Calls","feature": "Feature","model": "Model","input": "Input","output": "Output","date": "Date","noCallsYet": "No calls yet.",
+      "recentIntegrations": "Recent Integrations","operation": "Operation","items": "Items","status": "Status",
+      "owner": "Owner","adminBadge": "admin","registered": "Registered {date}","metaConnection": "Meta Connection","connectedOn": "Connected {date}","tokenExpired": "Token expired","notConnected": "Hasn't connected Meta yet"
+    },
+    "adnPanel": {
+      "title": "Communication DNA","sectionsProgress": "{done}/{total} sections",
+      "section": {"profile": "Profile","strategies": "Strategies","market": "Market","competitors": "Competitors","brand": "Brand","references": "References"},
+      "field": {"idealAvatar": "Avatar / ideal client","targetAudience": "Target audience","audienceExposure": "Audience exposure"},
+      "noName": "No name","brandTag": "Brand: ","contentTag": "Content: "
+    },
+    "usage": {
+      "pageTitle": "Usage","pageSubtitle": "Consumption monitoring: AI models, external integrations and costs by section.",
+      "stats": {"totalCost": "Total Cost","totalCostSub": "AI ${ai} · Integ. ${integ}","totalTokens": "Total Tokens","totalTokensSub": "{count} AI calls","operations": "Operations","operationsSub": "{ai} AI · {integ} integ.","avgLatency": "Avg. Latency","avgLatencySub": "{count} distinct types"},
+      "byModelOp": "Consumption by Model / Operation","byWorkspace": "Consumption by Workspace","type": "Type","calls": "Calls","tokens": "Tokens","cost": "Cost","ops": "Ops","workspace": "Workspace","noData": "No data yet.","avgLatencyShort": "{ms}ms avg",
+      "recentOps": "Recent Operations","section": "Section","modelOp": "Model / Op.","date": "Date","noOps": "No operations yet.",
+      "dailyCost": "Daily Cost","costBySection": "Cost by Section","llmLegend": "AI (LLM)","integLegend": "Integrations","opsWord": "operations",
+      "feature": {"aiAgents": "Moka AI Chat","aiAgentsShort": "Moka AI Chat","onboardingAdn": "Onboarding DNA","competitorAnalysis": "Competitor Analysis (AI)","competitorAnalysisShort": "Competitor Analysis","competitorScraping": "Competitor Scraping","videoAnalysis": "Video Analysis (Reels)","reelDiagnostics": "Reel Diagnostics","metricsAnalysis": "Metrics Analysis","reelScrape": "Sync Reels (Meta)"}
+    }
   }
 }

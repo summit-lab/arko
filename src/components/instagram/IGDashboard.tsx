@@ -10,6 +10,7 @@ import {
   Trophy, Play, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import Image from "next/image";
+import { useTranslations, useLocale } from "next-intl";
 import { CountUp } from "@/components/ui/CountUp";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
@@ -109,11 +110,12 @@ function TrendIcon({ value }: { value: string }) {
   return <ArrowDownRight className="h-3.5 w-3.5" />;
 }
 
-function fmtDate(dateStr: string): string {
+function fmtDate(dateStr: string, locale: string): string {
   const [, month, day] = dateStr.split("-").map(Number);
   if (!month || !day) return dateStr;
   const d = new Date(Date.UTC(2026, (month ?? 1) - 1, day));
-  return `${day} ${d.toLocaleString("es", { month: "short", timeZone: "UTC" })}`;
+  const localeTag = locale === "en" ? "en-US" : "es";
+  return `${day} ${d.toLocaleString(localeTag, { month: "short", timeZone: "UTC" })}`;
 }
 
 function pctChange(current: number, previous: number): { value: string; positive: boolean } {
@@ -125,6 +127,7 @@ function pctChange(current: number, previous: number): { value: string; positive
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function DashChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string; dataKey: string }>; label?: string }) {
+  const t = useTranslations("igShell");
   if (!active || !payload?.length) return null;
   const impressions = payload.find((p) => p.dataKey === "impressions");
   const reach = payload.find((p) => p.dataKey === "reach");
@@ -134,7 +137,7 @@ function DashChartTooltip({ active, payload, label }: { active?: boolean; payloa
       <div className="flex gap-5">
         {impressions && (
           <div>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.06em]">Impresiones</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.06em]">{t("common.impressions")}</p>
             <div className="flex items-baseline gap-1">
               <span className="text-[18px] font-light tracking-[-0.02em] text-popover-foreground">{fmt(impressions.value)}</span>
               <ArrowUpRight className="h-3 w-3 text-emerald-400" />
@@ -143,7 +146,7 @@ function DashChartTooltip({ active, payload, label }: { active?: boolean; payloa
         )}
         {reach && (
           <div>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.06em]">Alcance</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.06em]">{t("common.reach")}</p>
             <div className="flex items-baseline gap-1">
               <span className="text-[18px] font-light tracking-[-0.02em] text-cyan-400">{fmt(reach.value)}</span>
               <ArrowUpRight className="h-3 w-3 text-emerald-400" />
@@ -186,14 +189,16 @@ function ChartCursor({ points, height, stroke }: { points?: Array<{ x: number; y
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays = 90, totalAdVideoPlays = 0 }: IGDashboardProps) {
+  const t = useTranslations("igShell");
+  const locale = useLocale();
   const chart = useChartTheme();
   if (dailyInsights.length === 0 && reels.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Eye className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-light text-foreground">Sin datos disponibles</h3>
+        <h3 className="text-lg font-light text-foreground">{t("dashboard.empty.title")}</h3>
         <p className="mt-2 text-sm text-muted-foreground max-w-md">
-          Sincroniza tu cuenta de Instagram para ver el dashboard completo.
+          {t("dashboard.empty.description")}
         </p>
       </div>
     );
@@ -242,7 +247,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
 
   // Chart data — duplicate single point so Recharts draws a flat line instead of dots
   const rawChartData = sorted.map((d, i) => ({
-    date: fmtDate(d.metric_date),
+    date: fmtDate(d.metric_date, locale),
     impressions: d.impressions,
     reach: d.reach,
     newFollowers: effectiveFollowerChange[i] ?? 0,
@@ -283,15 +288,15 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
         <div className="col-span-12 lg:col-span-8 glass-section p-6 flex flex-col">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <p className="stat-label mb-1">Rendimiento de visitas</p>
+              <p className="stat-label mb-1">{t("dashboard.viewsPerformance")}</p>
               <div className="flex items-baseline gap-6">
                 <div>
                   <span className="stat-number-xl">{fmt(totalImpressions)}</span>
-                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Impresiones</span>
+                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">{t("common.impressions")}</span>
                 </div>
                 <div>
                   <span className="text-[28px] font-light tracking-[-0.02em] text-cyan-400">{fmt(avgDailyReach)}</span>
-                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">Alcance prom/día</span>
+                  <span className="ml-2 text-[11px] text-white/30 uppercase tracking-[0.06em]">{t("dashboard.avgReachPerDay")}</span>
                 </div>
               </div>
             </div>
@@ -364,7 +369,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 <Area
                   type="monotone"
                   dataKey="impressions"
-                  name="Impresiones"
+                  name={t("common.impressions")}
                   stroke="#7A86E0"
                   fill="url(#dashImpGrad)"
                   strokeWidth={2.5}
@@ -375,7 +380,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 <Area
                   type="monotone"
                   dataKey="reach"
-                  name="Alcance"
+                  name={t("common.reach")}
                   stroke="#4BCEAF"
                   fill="url(#dashReachGrad)"
                   strokeWidth={2}
@@ -393,32 +398,32 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           {/* Conversión de perfil */}
           <div className="glass-card p-6 flex-1">
             <div className="flex items-center justify-between mb-3">
-              <p className="stat-label">Conversión de perfil</p>
+              <p className="stat-label">{t("dashboard.profileConversion")}</p>
               <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 bg-white/[0.06]">
                 <TrendingUp className="h-[16px] w-[16px]" />
               </div>
             </div>
             <CountUp value={`${conversionRate}%`} className="stat-number-xl text-violet-400" />
             <div className="flex items-center gap-4 mt-2">
-              <span className="text-[13px] font-light text-white/50">{fmt(totalProfileViews)} visitas</span>
-              <span className="text-[13px] font-light text-white/50">→ {fmt(totalFollowersGained)} seguidores</span>
+              <span className="text-[13px] font-light text-white/50">{fmt(totalProfileViews)} {t("dashboard.visits")}</span>
+              <span className="text-[13px] font-light text-white/50">→ {fmt(totalFollowersGained)} {t("common.followers")}</span>
             </div>
             <div className={`flex items-center gap-1 mt-2 text-[12px] font-medium ${trendColor(profileViewsTrend.value)}`}>
               <TrendIcon value={profileViewsTrend.value} />
-              {profileViewsTrend.value} vs período anterior
+              {profileViewsTrend.value} {t("dashboard.vsPreviousPeriod")}
             </div>
           </div>
 
           {/* Crecimiento de perfil */}
           <div className="glass-card p-6 flex-1">
             <div className="flex items-center justify-between mb-3">
-              <p className="stat-label">Crecimiento de perfil</p>
+              <p className="stat-label">{t("dashboard.profileGrowth")}</p>
               <div className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 bg-white/[0.06]">
                 <Users className="h-[16px] w-[16px]" />
               </div>
             </div>
             <CountUp value={fmt(totalFollowers)} className="stat-number-xl" />
-            <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedPeriod)} últimos {periodDays} días</p>
+            <p className="text-[13px] font-light text-emerald-400 mt-1">+{fmt(followersGainedPeriod)} {t("dashboard.lastNDays", { days: periodDays })}</p>
           </div>
 
         </div>
@@ -429,12 +434,12 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
         {/* ── Nuevos Seguidores / Día (4 cols) ── */}
         <div className="col-span-12 md:col-span-4 glass-card p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="stat-label">Nuevos seguidores / día</p>
+            <p className="stat-label">{t("dashboard.newFollowersPerDay")}</p>
             <Users className="h-4 w-4 text-emerald-400/50" />
           </div>
           <div className="flex items-baseline gap-2 mb-4">
             <p className="text-[28px] font-light text-emerald-400">+{fmt(followersGainedPeriod)}</p>
-            <p className="text-[11px] text-white/25">últimos {periodDays} días</p>
+            <p className="text-[11px] text-white/25">{t("dashboard.lastNDays", { days: periodDays })}</p>
           </div>
           <div style={{ height: 120, width: "100%" }}>
             <ResponsiveContainer width="100%" height={120}>
@@ -450,7 +455,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 <Tooltip
                   contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8, fontSize: 12, color: chart.tooltipText }}
                   labelStyle={{ color: chart.tooltipTextMuted, fontSize: 10 }}
-                  formatter={(value) => [`+${fmt(Number(value))}`, "Nuevos"]}
+                  formatter={(value) => [`+${fmt(Number(value))}`, t("dashboard.new")]}
                 />
                 <Area
                   type="monotone"
@@ -468,19 +473,19 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
 
         {/* ── Interacciones clave (4 cols) ── */}
         <div className="col-span-12 md:col-span-4 glass-card p-6">
-          <p className="stat-label mb-5">Interacciones clave</p>
+          <p className="stat-label mb-5">{t("dashboard.keyInteractions")}</p>
           <div className="grid grid-cols-2 gap-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Heart className="h-4 w-4 text-white/60" />
-                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Me gusta</span>
+                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">{t("common.likes")}</span>
               </div>
               <p className="stat-number">{fmt(totalLikes)}</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare className="h-4 w-4 text-white/60" />
-                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">Comentarios</span>
+                <span className="text-[11px] text-white/40 uppercase tracking-[0.06em]">{t("common.comments")}</span>
               </div>
               <p className="stat-number">{fmt(totalComments)}</p>
             </div>
@@ -488,8 +493,8 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
           {/* Interaction sparklines — mini bars */}
           <div className="mt-5 space-y-3">
             {[
-              { label: "Guardados", value: sorted.reduce((s, d) => s + d.saves, 0), icon: Bookmark },
-              { label: "Compartidos", value: sorted.reduce((s, d) => s + d.shares, 0), icon: Play },
+              { label: t("common.saves"), value: sorted.reduce((s, d) => s + d.saves, 0), icon: Bookmark },
+              { label: t("common.shares"), value: sorted.reduce((s, d) => s + d.shares, 0), icon: Play },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -505,7 +510,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
         {/* ── Mejor Reel del período (4 cols) ── */}
         <div className="col-span-12 md:col-span-4 glass-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <p className="stat-label">Mejor Reel</p>
+            <p className="stat-label">{t("dashboard.bestReel")}</p>
             <Trophy className="h-4 w-4 text-amber-400" />
           </div>
           {bestReel ? (
@@ -515,7 +520,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
                 {bestReel.thumbnail_url ? (
                   <Image
                     src={bestReel.thumbnail_url}
-                    alt="Best reel"
+                    alt={t("dashboard.bestReelAlt")}
                     fill
                     className="object-cover"
                     sizes="90px"
@@ -530,29 +535,29 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
               <div className="flex flex-col justify-between flex-1 min-w-0">
                 <div>
                   <p className="text-[11px] text-white/30 uppercase tracking-[0.06em] mb-1">
-                    1° de {reels.length} Reels
+                    {t("dashboard.firstOfReels", { total: reels.length })}
                   </p>
                   <p className="stat-number text-[28px]">{fmt(bestReel.views_total)}</p>
-                  <p className="text-[11px] text-white/30 mt-0.5">views totales</p>
+                  <p className="text-[11px] text-white/30 mt-0.5">{t("dashboard.totalViews")}</p>
                 </div>
                 <div className="space-y-1.5 mt-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/35">Likes</span>
+                    <span className="text-[11px] text-white/35">{t("common.likes")}</span>
                     <span className="text-[13px] font-light text-white">{fmt(bestReel.likes)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/35">Guardados</span>
+                    <span className="text-[11px] text-white/35">{t("common.saves")}</span>
                     <span className="text-[13px] font-light text-white">{fmt(bestReel.saves)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/35">Comentarios</span>
+                    <span className="text-[11px] text-white/35">{t("common.comments")}</span>
                     <span className="text-[13px] font-light text-white">{fmt(bestReel.comments)}</span>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-[13px] text-white/30 font-light">Sin reels en el período</p>
+            <p className="text-[13px] text-white/30 font-light">{t("dashboard.noReelsInPeriod")}</p>
           )}
         </div>
       </div>
@@ -560,7 +565,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
       {/* ═══ ROW 3: Recent reels strip ═══ */}
       {recentReels.length > 0 && (
         <div className="glass-section p-6">
-          <p className="stat-label mb-4">Reels recientes</p>
+          <p className="stat-label mb-4">{t("dashboard.recentReels")}</p>
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
             {recentReels.map((reel, idx) => (
               <a

@@ -1,6 +1,7 @@
 "use client";
 
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 // Deterministic number formatter — bypasses the user-browser locale so SSR
@@ -47,6 +48,7 @@ function ChartTooltip({
   active?: boolean;
   payload?: Array<{ payload: DailyPoint }>;
 }) {
+  const t = useTranslations("igShell");
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
@@ -54,13 +56,14 @@ function ChartTooltip({
       <p className="text-[10px] text-muted-foreground font-medium">{d.date}</p>
       <p className="text-[13px] font-light">
         {fmtNumber(d.interactions)}{" "}
-        <span className="text-[10px] text-muted-foreground">interacciones</span>
+        <span className="text-[10px] text-muted-foreground">{t("conversations.interactions")}</span>
       </p>
     </div>
   );
 }
 
 export function ConversationsChart({ data, previousTotal = 0 }: Props) {
+  const t = useTranslations("igShell");
   const chart = useChartTheme();
   const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -68,10 +71,10 @@ export function ConversationsChart({ data, previousTotal = 0 }: Props) {
     return (
       <div className="glass-panel rounded-xl p-6">
         <h3 className="text-[15px] font-light tracking-wide text-white">
-          Interacciones nuevas
+          {t("conversations.title")}
         </h3>
         <div className="flex h-[160px] items-center justify-center">
-          <p className="text-[13px] font-light text-white/30">Sin datos todav&iacute;a</p>
+          <p className="text-[13px] font-light text-white/30">{t("conversations.noData")}</p>
         </div>
       </div>
     );
@@ -84,7 +87,7 @@ export function ConversationsChart({ data, previousTotal = 0 }: Props) {
     <div className="glass-panel rounded-xl p-6">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-[15px] font-light tracking-wide text-white">
-          Interacciones nuevas
+          {t("conversations.title")}
         </h3>
         <div className="flex items-baseline gap-3">
           <span className="text-[22px] font-light tracking-[-0.02em] text-white">
