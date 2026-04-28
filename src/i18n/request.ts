@@ -14,7 +14,6 @@ export default getRequestConfig(async () => {
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
   const locale = isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
-  console.log(`[i18n request] cookie=${cookieLocale ?? "<none>"} → resolved locale=${locale}`);
 
   const messages = (await import(`./messages/${locale}.json`)).default;
 
