@@ -83,51 +83,27 @@ export function LanguageSwitcher({ mode = "app" }: LanguageSwitcherProps) {
       aria-checked={isEn}
       aria-label={`Cambiar idioma — actual: ${flag.alt}`}
       title={flag.alt}
-      className="relative inline-flex items-center h-7 w-[72px] rounded-full bg-accent/60 border border-border cursor-pointer disabled:cursor-default transition-colors hover:bg-accent overflow-hidden"
+      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-accent/60 border border-border cursor-pointer disabled:cursor-default hover:bg-accent transition-colors"
     >
-      {/* Static labels on each half — the active one becomes invisible while
-          the indicator covers it; the inactive one stays dimmed. */}
-      <span
-        className={`absolute left-0 w-9 text-center text-[10px] font-semibold tracking-wide transition-opacity ${
-          isEn ? "text-muted-foreground/70" : "opacity-0"
-        }`}
-      >
-        ES
-      </span>
-      <span
-        className={`absolute right-0 w-9 text-center text-[10px] font-semibold tracking-wide transition-opacity ${
-          isEn ? "opacity-0" : "text-muted-foreground/70"
-        }`}
-      >
-        EN
-      </span>
-
-      {/* Sliding indicator: shows the ACTIVE flag + ACTIVE label together. */}
-      <span
-        className="absolute top-0.5 h-6 w-9 rounded-full bg-background border border-border shadow-[0_1px_2px_rgba(0,0,0,0.15)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-all duration-200 ease-out flex items-center justify-center gap-1 px-1"
-        style={{ left: isEn ? "calc(100% - 38px)" : "2px" }}
-        aria-hidden
-      >
-        {isPending ? (
-          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-        ) : (
-          <>
-            <span className="relative h-3.5 w-3.5 rounded-full overflow-hidden shrink-0">
-              <Image
-                src={flag.src}
-                alt=""
-                fill
-                sizes="14px"
-                className="object-cover"
-                unoptimized
-              />
-            </span>
-            <span className="text-[10px] font-semibold tracking-wide text-foreground">
-              {isEn ? "EN" : "ES"}
-            </span>
-          </>
-        )}
-      </span>
+      {isPending ? (
+        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+      ) : (
+        <>
+          <span className="relative h-3.5 w-3.5 rounded-full overflow-hidden shrink-0">
+            <Image
+              src={flag.src}
+              alt=""
+              fill
+              sizes="14px"
+              className="object-cover"
+              unoptimized
+            />
+          </span>
+          <span className="text-[10px] font-semibold tracking-wide text-foreground">
+            {active.toUpperCase()}
+          </span>
+        </>
+      )}
     </button>
   );
 }
