@@ -157,29 +157,64 @@ function extractJsonPayload(rawText: string): string {
 function parseAnalysisResponse(
   parts: Array<{ text?: string }> | undefined,
   finishReason: string | undefined,
+  usage: GeminiUsageMetadata | undefined,
 ): GeminiVideoAnalysis {
   const rawText = parts?.map((part) => part.text ?? '').join('').trim();
 
   if (!rawText) {
-    throw new Error('ArkoAI no devolvió contenido para este video.');
+    throw new Error(
+      `ArkoAI no devolvió contenido para este video (finishReason: ${finishReason ?? 'unknown'}).`,
+    );
   }
 
   const jsonPayload = extractJsonPayload(rawText);
 
+  let parsed: unknown;
+  let parseError: unknown = null;
   try {
-    const parsed = JSON.parse(jsonPayload) as unknown;
+    parsed = JSON.parse(jsonPayload);
+  } catch (err) {
+    parseError = err;
+  }
 
-    if (!isGeminiVideoAnalysis(parsed)) {
-      throw new Error('shape');
-    }
-
+  if (parsed !== undefined && isGeminiVideoAnalysis(parsed)) {
     return parsed;
-  } catch {
-    if (finishReason === 'MAX_TOKENS') {
-      throw new Error('ArkoAI devolvió una respuesta incompleta. Reintentá el análisis.');
-    }
+  }
 
-    throw new Error(`ArkoAI devolvió una respuesta inválida. ${jsonPayload.slice(0, 200)}`);
+  // Log diagnostics so we can tell truncation, safety blocks, and malformed JSON apart.
+  console.error('[gemini-video] invalid response', {
+    finishReason,
+    usage,
+    parseError: parseError instanceof Error ? parseError.message : null,
+    rawLength: rawText.length,
+    payloadHead: jsonPayload.slice(0, 300),
+  });
+
+  switch (finishReason) {
+    case 'MAX_TOKENS':
+      throw new Error(
+        'ArkoAI devolvió una respuesta incompleta porque el video es muy largo. Reintentá el análisis.',
+      );
+    case 'SAFETY':
+      throw new Error(
+        'ArkoAI bloqueó el análisis por filtros de seguridad. Probá con otro video.',
+      );
+    case 'RECITATION':
+      throw new Error(
+        'ArkoAI bloqueó el análisis por recitación de contenido protegido.',
+      );
+    case 'OTHER':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'BLOCKLIST':
+      throw new Error(
+        `ArkoAI no pudo generar el análisis (motivo: ${finishReason}). Reintentá en unos minutos.`,
+      );
+    default:
+      // STOP or unknown → most common cause is truncated JSON despite finishReason=STOP.
+      throw new Error(
+        `ArkoAI devolvió una respuesta inválida. Reintentá el análisis. (${jsonPayload.slice(0, 160)})`,
+      );
   }
 }
 
@@ -428,52 +463,109 @@ export async function analyzeVideoWithGemini(
     ],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 16384,
       responseMimeType: 'application/json',
     },
   };
 
-  const response = await fetch(GEMINI_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(120_000),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`ArkoAI API error ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json() as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-      finishReason?: string;
-    }>;
-    usageMetadata?: {
-      promptTokenCount?: number;
-      candidatesTokenCount?: number;
-      totalTokenCount?: number;
-    };
-    error?: { message: string };
-  };
+  const data = await callGeminiWithRetry(apiKey, body);
 
   if (data.error) {
     throw new Error(`ArkoAI error: ${data.error.message}`);
   }
 
-  const candidate = data.candidates?.[0];
-  const analysis = parseAnalysisResponse(candidate?.content?.parts, candidate?.finishReason);
-
-  return {
-    analysis,
-    usage: {
-      inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
-      outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
-      totalTokens: data.usageMetadata?.totalTokenCount ?? 0,
-    },
+  const usage: GeminiUsageMetadata = {
+    inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: data.usageMetadata?.totalTokenCount ?? 0,
   };
+
+  const candidate = data.candidates?.[0];
+  const analysis = parseAnalysisResponse(
+    candidate?.content?.parts,
+    candidate?.finishReason,
+    usage,
+  );
+
+  return { analysis, usage };
+}
+
+interface GeminiGenerateResponse {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  error?: { message: string };
+}
+
+/**
+ * Calls Gemini's generateContent with retry on transient failures.
+ *
+ * Retries on 429 (rate limit), 500 (internal), 503 (UNAVAILABLE) — Gemini's
+ * "experiencing high demand" responses. Uses exponential backoff: 2s, 8s, 30s.
+ * Total worst-case wait is ~40s before surfacing the error.
+ */
+async function callGeminiWithRetry(
+  apiKey: string,
+  body: unknown,
+): Promise<GeminiGenerateResponse> {
+  const RETRY_DELAYS_MS = [2_000, 8_000, 30_000];
+  const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const response = await fetch(GEMINI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(120_000),
+      });
+
+      if (response.ok) {
+        return (await response.json()) as GeminiGenerateResponse;
+      }
+
+      const errorText = await response.text();
+
+      if (RETRYABLE_STATUS.has(response.status) && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        console.warn(
+          `[gemini-video] ${response.status} on attempt ${attempt + 1}, retrying in ${delay}ms`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        lastError = new Error(`ArkoAI API error ${response.status}: ${errorText}`);
+        continue;
+      }
+
+      // Non-retryable or out of retries — surface a user-friendly message for 503.
+      if (response.status === 503) {
+        throw new Error(
+          'ArkoAI está saturado momentáneamente. Reintentá en unos minutos.',
+        );
+      }
+      throw new Error(`ArkoAI API error ${response.status}: ${errorText}`);
+    } catch (err) {
+      // Network errors / timeouts also retry, on the same schedule.
+      if (err instanceof Error && err.name === 'TimeoutError' && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        console.warn(`[gemini-video] timeout on attempt ${attempt + 1}, retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError ?? new Error('ArkoAI no respondió después de varios reintentos.');
 }
