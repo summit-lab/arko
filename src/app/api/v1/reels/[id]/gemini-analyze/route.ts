@@ -56,8 +56,14 @@ export async function POST(
 
     // Ejecutar análisis con Gemini
     const t0 = Date.now();
-    const { analysis, usage } = await analyzeVideoWithGemini(videoUrl);
+    const { analysis, usage, model, complete, partialReason } = await analyzeVideoWithGemini(videoUrl);
     const latencyMs = Date.now() - t0;
+
+    if (!complete) {
+      console.warn(
+        `[arkoai-analyze] reel=${id} partial analysis from ${model}: ${partialReason ?? 'unknown'}`,
+      );
+    }
 
     await persistGeminiAnalysis({
       supabase,
@@ -75,16 +81,21 @@ export async function POST(
         text: '',
         toolCalls: [],
         provider: 'google',
-        model: 'gemini-2.5-flash',
+        model,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
         totalTokens: usage.totalTokens,
-        stopReason: 'end',
+        stopReason: complete ? 'end' : 'error',
       },
       latencyMs,
     }).catch(() => {});
 
-    return apiSuccess({ analysis }, 200);
+    return apiSuccess(
+      complete
+        ? { analysis }
+        : { analysis, partial: true, partial_reason: partialReason ?? 'desconocido' },
+      200,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     console.error('[arkoai-analyze]', message);

@@ -6,8 +6,12 @@
 
 import { getGeminiKey } from '@/lib/env';
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_PRIMARY_MODEL = 'gemini-2.5-flash';
+const GEMINI_FALLBACK_MODEL = 'gemini-2.0-flash';
+
+function geminiUrl(model: string): string {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -154,17 +158,25 @@ function extractJsonPayload(rawText: string): string {
   return unfenced.slice(start, end + 1).trim();
 }
 
+interface ParsedAnalysisResult {
+  analysis: GeminiVideoAnalysis;
+  /** True when the analysis is valid by schema and complete. */
+  ok: boolean;
+  /** Set when ok=false: human-readable reason the analysis is partial. */
+  reason?: string;
+}
+
 function parseAnalysisResponse(
   parts: Array<{ text?: string }> | undefined,
   finishReason: string | undefined,
   usage: GeminiUsageMetadata | undefined,
-): GeminiVideoAnalysis {
+): ParsedAnalysisResult {
   const rawText = parts?.map((part) => part.text ?? '').join('').trim();
 
   if (!rawText) {
-    throw new Error(
-      `ArkoAI no devolvió contenido para este video (finishReason: ${finishReason ?? 'unknown'}).`,
-    );
+    const reason = describeFinishReason(finishReason) ?? 'sin contenido devuelto';
+    console.warn('[gemini-video] empty response', { finishReason, usage });
+    return { analysis: buildSkeletonAnalysis('', reason), ok: false, reason };
   }
 
   const jsonPayload = extractJsonPayload(rawText);
@@ -178,11 +190,11 @@ function parseAnalysisResponse(
   }
 
   if (parsed !== undefined && isGeminiVideoAnalysis(parsed)) {
-    return parsed;
+    return { analysis: parsed, ok: true };
   }
 
   // Log diagnostics so we can tell truncation, safety blocks, and malformed JSON apart.
-  console.error('[gemini-video] invalid response', {
+  console.error('[gemini-video] invalid response — salvaging', {
     finishReason,
     usage,
     parseError: parseError instanceof Error ? parseError.message : null,
@@ -190,32 +202,103 @@ function parseAnalysisResponse(
     payloadHead: jsonPayload.slice(0, 300),
   });
 
+  const reason = describeFinishReason(finishReason)
+    ?? (parseError ? 'JSON malformado' : 'estructura incompleta');
+
+  return {
+    analysis: salvagePartialAnalysis(jsonPayload, parsed, reason),
+    ok: false,
+    reason,
+  };
+}
+
+function describeFinishReason(finishReason: string | undefined): string | null {
   switch (finishReason) {
-    case 'MAX_TOKENS':
-      throw new Error(
-        'ArkoAI devolvió una respuesta incompleta porque el video es muy largo. Reintentá el análisis.',
-      );
-    case 'SAFETY':
-      throw new Error(
-        'ArkoAI bloqueó el análisis por filtros de seguridad. Probá con otro video.',
-      );
-    case 'RECITATION':
-      throw new Error(
-        'ArkoAI bloqueó el análisis por recitación de contenido protegido.',
-      );
-    case 'OTHER':
+    case 'MAX_TOKENS': return 'respuesta cortada por límite de tokens';
+    case 'SAFETY': return 'bloqueado por filtros de seguridad';
+    case 'RECITATION': return 'bloqueado por contenido protegido';
     case 'PROHIBITED_CONTENT':
     case 'SPII':
     case 'BLOCKLIST':
-      throw new Error(
-        `ArkoAI no pudo generar el análisis (motivo: ${finishReason}). Reintentá en unos minutos.`,
-      );
-    default:
-      // STOP or unknown → most common cause is truncated JSON despite finishReason=STOP.
-      throw new Error(
-        `ArkoAI devolvió una respuesta inválida. Reintentá el análisis. (${jsonPayload.slice(0, 160)})`,
-      );
+    case 'OTHER': return `motivo: ${finishReason}`;
+    default: return null;
   }
+}
+
+/**
+ * Builds a fully-valid skeleton analysis with neutral defaults so persistence
+ * and UI never break. Used as last resort when Gemini fails completely.
+ */
+function buildSkeletonAnalysis(transcript: string, reason: string): GeminiVideoAnalysis {
+  return {
+    transcript,
+    transcript_lines: [],
+    narrative: {
+      hook: '',
+      development_summary: '',
+      cta_text: null,
+      has_cta: false,
+      core_promise: '',
+      topic_cluster: '',
+    },
+    visual: {
+      format_type: '',
+      scene_type: '',
+      shot_type: '',
+      orientation: 'vertical',
+      people_count: 0,
+      face_visible: false,
+      text_on_screen: null,
+      background_context: '',
+      clothing_features: null,
+      first_frame_hook_context: '',
+    },
+    audio: {
+      tone: '',
+      energy_level: 'medio',
+      speaking_rate: 'normal',
+      formality: 'semiformal',
+      voice_type: '',
+      estimated_wpm: 0,
+      filler_words_detected: [],
+      notable_pauses: false,
+    },
+    insights: {
+      strengths: [],
+      improvements: [],
+      viral_potential: 'medio',
+      viral_potential_reason: `Análisis incompleto (${reason}). Reintentá para obtener un análisis completo.`,
+    },
+  };
+}
+
+/**
+ * Try to keep whatever fields the model did emit (typically the transcript)
+ * and fill the rest with skeleton defaults. Worst case the JSON is unparseable,
+ * in which case we regex out the transcript string and skeleton everything else.
+ */
+function salvagePartialAnalysis(
+  jsonPayload: string,
+  parsed: unknown,
+  reason: string,
+): GeminiVideoAnalysis {
+  // Parsed but wrong shape — keep whatever's well-typed, default the rest.
+  if (parsed !== undefined && parsed !== null && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>;
+    const skeleton = buildSkeletonAnalysis(
+      typeof obj.transcript === 'string' ? obj.transcript : '',
+      reason,
+    );
+    if (Array.isArray(obj.transcript_lines) && obj.transcript_lines.every(isTranscriptLine)) {
+      skeleton.transcript_lines = obj.transcript_lines;
+    }
+    return skeleton;
+  }
+
+  // Unparseable — extract a transcript string with regex if we can.
+  const m = jsonPayload.match(/"transcript"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const transcript = m?.[1]?.replace(/\\"/g, '"').replace(/\\n/g, '\n') ?? '';
+  return buildSkeletonAnalysis(transcript, reason);
 }
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
@@ -413,51 +496,81 @@ export interface GeminiUsageMetadata {
   totalTokens: number;
 }
 
-export async function analyzeVideoWithGemini(
-  videoUrl: string,
-): Promise<{ analysis: GeminiVideoAnalysis; usage: GeminiUsageMetadata }> {
+export interface AnalyzeVideoResult {
+  analysis: GeminiVideoAnalysis;
+  usage: GeminiUsageMetadata;
+  /** Model that produced the analysis. */
+  model: string;
+  /** True when the analysis is valid + complete. False when fields had to be defaulted. */
+  complete: boolean;
+  /** Set when complete=false: short reason. Surfaces in logs and (optionally) UI. */
+  partialReason?: string;
+}
+
+export async function analyzeVideoWithGemini(videoUrl: string): Promise<AnalyzeVideoResult> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     throw new Error('ArkoAI no está configurado en el servidor. Falta la API key.');
   }
 
-  // 1. Subir el video a la Files API de Gemini
+  // 1. Upload video to Gemini's Files API
   const fileUri = await uploadVideoToGeminiFiles(videoUrl, apiKey);
 
-  // 2. Esperar a que Gemini procese el archivo (PROCESSING → ACTIVE)
-  //    El URI tiene forma: https://.../v1beta/files/XXXXX
-  //    El "name" del archivo es la parte "files/XXXXX" del path
+  // 2. Wait for Gemini to finish processing the file (PROCESSING → ACTIVE)
+  await waitForGeminiFileActive(fileUri, apiKey);
+
+  // 3. Try primary model → fallback model. If both fail entirely, return skeleton.
+  const primary = await tryAnalyzeWithModel(apiKey, fileUri, GEMINI_PRIMARY_MODEL);
+  if (primary.complete) return primary;
+
+  console.warn(
+    `[gemini-video] primary (${GEMINI_PRIMARY_MODEL}) returned partial: ${primary.partialReason}. Falling back to ${GEMINI_FALLBACK_MODEL}.`,
+  );
+
+  const fallback = await tryAnalyzeWithModel(apiKey, fileUri, GEMINI_FALLBACK_MODEL);
+  if (fallback.complete) return fallback;
+
+  // Both models gave partial results — return whichever has a non-empty transcript.
+  const winner = fallback.analysis.transcript.length >= primary.analysis.transcript.length
+    ? fallback
+    : primary;
+  console.error(
+    `[gemini-video] both models returned partial. primary=${primary.partialReason} fallback=${fallback.partialReason}`,
+  );
+  return winner;
+}
+
+async function waitForGeminiFileActive(fileUri: string, apiKey: string): Promise<void> {
   const urlParts = new URL(fileUri);
   const fileName = urlParts.pathname.replace('/v1beta/', ''); // "files/XXXXX"
 
   for (let attempt = 0; attempt < 24; attempt++) {
-    await new Promise((r) => setTimeout(r, 5_000)); // esperar 5s entre checks
+    await new Promise((r) => setTimeout(r, 5_000));
     const statusRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/${fileName}`,
       { headers: { 'x-goog-api-key': apiKey } },
     );
     if (statusRes.ok) {
       const statusData = await statusRes.json() as { state?: string };
-      if (statusData.state === 'ACTIVE') break;
+      if (statusData.state === 'ACTIVE') return;
       if (statusData.state === 'FAILED') {
         throw new Error('ArkoAI no pudo procesar el video (estado FAILED).');
       }
     }
   }
+}
 
+async function tryAnalyzeWithModel(
+  apiKey: string,
+  fileUri: string,
+  model: string,
+): Promise<AnalyzeVideoResult> {
   const body = {
     contents: [
       {
         parts: [
-          {
-            file_data: {
-              mime_type: 'video/mp4',
-              file_uri: fileUri,
-            },
-          },
-          {
-            text: ANALYSIS_PROMPT,
-          },
+          { file_data: { mime_type: 'video/mp4', file_uri: fileUri } },
+          { text: ANALYSIS_PROMPT },
         ],
       },
     ],
@@ -468,10 +581,31 @@ export async function analyzeVideoWithGemini(
     },
   };
 
-  const data = await callGeminiWithRetry(apiKey, body);
+  let data: GeminiGenerateResponse;
+  try {
+    data = await callGeminiWithRetry(apiKey, body, model);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'error desconocido';
+    console.error(`[gemini-video] ${model} call failed completely: ${reason}`);
+    return {
+      analysis: buildSkeletonAnalysis('', `${model} no respondió: ${reason}`),
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      model,
+      complete: false,
+      partialReason: reason,
+    };
+  }
 
   if (data.error) {
-    throw new Error(`ArkoAI error: ${data.error.message}`);
+    const reason = data.error.message;
+    console.error(`[gemini-video] ${model} returned error: ${reason}`);
+    return {
+      analysis: buildSkeletonAnalysis('', `${model}: ${reason}`),
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      model,
+      complete: false,
+      partialReason: reason,
+    };
   }
 
   const usage: GeminiUsageMetadata = {
@@ -481,13 +615,19 @@ export async function analyzeVideoWithGemini(
   };
 
   const candidate = data.candidates?.[0];
-  const analysis = parseAnalysisResponse(
+  const parsed = parseAnalysisResponse(
     candidate?.content?.parts,
     candidate?.finishReason,
     usage,
   );
 
-  return { analysis, usage };
+  return {
+    analysis: parsed.analysis,
+    usage,
+    model,
+    complete: parsed.ok,
+    partialReason: parsed.reason,
+  };
 }
 
 interface GeminiGenerateResponse {
@@ -513,7 +653,9 @@ interface GeminiGenerateResponse {
 async function callGeminiWithRetry(
   apiKey: string,
   body: unknown,
+  model: string,
 ): Promise<GeminiGenerateResponse> {
+  const url = geminiUrl(model);
   const RETRY_DELAYS_MS = [2_000, 8_000, 30_000];
   const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
@@ -521,7 +663,7 @@ async function callGeminiWithRetry(
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     try {
-      const response = await fetch(GEMINI_API_URL, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -540,25 +682,19 @@ async function callGeminiWithRetry(
       if (RETRYABLE_STATUS.has(response.status) && attempt < RETRY_DELAYS_MS.length) {
         const delay = RETRY_DELAYS_MS[attempt];
         console.warn(
-          `[gemini-video] ${response.status} on attempt ${attempt + 1}, retrying in ${delay}ms`,
+          `[gemini-video] ${model} ${response.status} on attempt ${attempt + 1}, retrying in ${delay}ms`,
         );
         await new Promise((r) => setTimeout(r, delay));
-        lastError = new Error(`ArkoAI API error ${response.status}: ${errorText}`);
+        lastError = new Error(`${response.status}: ${errorText.slice(0, 200)}`);
         continue;
       }
 
-      // Non-retryable or out of retries — surface a user-friendly message for 503.
-      if (response.status === 503) {
-        throw new Error(
-          'ArkoAI está saturado momentáneamente. Reintentá en unos minutos.',
-        );
-      }
-      throw new Error(`ArkoAI API error ${response.status}: ${errorText}`);
+      throw new Error(`${response.status}: ${errorText.slice(0, 200)}`);
     } catch (err) {
       // Network errors / timeouts also retry, on the same schedule.
       if (err instanceof Error && err.name === 'TimeoutError' && attempt < RETRY_DELAYS_MS.length) {
         const delay = RETRY_DELAYS_MS[attempt];
-        console.warn(`[gemini-video] timeout on attempt ${attempt + 1}, retrying in ${delay}ms`);
+        console.warn(`[gemini-video] ${model} timeout on attempt ${attempt + 1}, retrying in ${delay}ms`);
         await new Promise((r) => setTimeout(r, delay));
         lastError = err;
         continue;
