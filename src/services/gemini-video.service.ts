@@ -418,7 +418,11 @@ export function isGeminiEnabled(): boolean {
  *
  * Ref: https://ai.google.dev/api/files
  */
-const RETRY_DELAYS_MS = [2_000, 8_000, 30_000];
+// Total retry budget per call: ~6.5s. When Gemini is genuinely overloaded the
+// retries don't help (Google needs minutes to recover), so we'd rather fall
+// through to the next model tier quickly than burn 40s waiting on the same
+// failing model.
+const RETRY_DELAYS_MS = [1_500, 5_000];
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 /**
@@ -663,7 +667,7 @@ async function rescueAnalysisFromTranscript(
   for (const model of GEMINI_MODELS_TIERED) {
     let data: GeminiGenerateResponse;
     try {
-      data = await callGeminiWithRetry(apiKey, body, model);
+      data = await callGemini(apiKey, body, model);
     } catch (err) {
       console.warn(`[gemini-video] rescue with ${model} failed: ${err instanceof Error ? err.message : 'unknown'}`);
       continue;
@@ -731,75 +735,55 @@ async function rescueAnalysisWithOpenAI(
     ],
   };
 
-  const RETRYABLE_OPENAI = new Set([408, 425, 429, 500, 502, 503, 504]);
-  let lastError: Error | null = null;
+  // Single attempt — no retries. If OpenAI is also down we return null and
+  // the caller surfaces a 503 to the client.
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
 
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        if (RETRYABLE_OPENAI.has(response.status) && attempt < RETRY_DELAYS_MS.length) {
-          const delay = RETRY_DELAYS_MS[attempt];
-          console.warn(`[gemini-video] OpenAI rescue ${response.status} attempt ${attempt + 1}, retrying in ${delay}ms`);
-          await new Promise((r) => setTimeout(r, delay));
-          lastError = new Error(`${response.status} ${errText.slice(0, 140)}`);
-          continue;
-        }
-        throw new Error(`OpenAI rescue ${response.status}: ${errText.slice(0, 140)}`);
-      }
-
-      const data = await response.json() as {
-        choices?: Array<{ message?: { content?: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-      };
-
-      const content = data.choices?.[0]?.message?.content;
-      if (!content) return null;
-
-      const parsed = parseAnalysisResponse([{ text: content }], 'STOP', undefined);
-      if (!parsed.ok) {
-        console.warn(`[gemini-video] OpenAI rescue produced invalid shape: ${parsed.reason}`);
-        return null;
-      }
-
-      // Restore original transcript so the user sees what we actually transcribed.
-      parsed.analysis.transcript = transcript;
-      return {
-        analysis: parsed.analysis,
-        usage: {
-          inputTokens: best.usage.inputTokens + (data.usage?.prompt_tokens ?? 0),
-          outputTokens: best.usage.outputTokens + (data.usage?.completion_tokens ?? 0),
-          totalTokens: best.usage.totalTokens + (data.usage?.total_tokens ?? 0),
-        },
-        model: `${best.model}+openai-${OPENAI_RESCUE_MODEL}/rescue`,
-        complete: true,
-      };
-    } catch (err) {
-      const transient = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
-      if (transient && attempt < RETRY_DELAYS_MS.length) {
-        const delay = RETRY_DELAYS_MS[attempt];
-        console.warn(`[gemini-video] OpenAI rescue ${err.name} attempt ${attempt + 1}, retrying in ${delay}ms`);
-        await new Promise((r) => setTimeout(r, delay));
-        lastError = err;
-        continue;
-      }
-      console.error(`[gemini-video] OpenAI rescue failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[gemini-video] OpenAI rescue ${response.status}: ${errText.slice(0, 140)}`);
       return null;
     }
-  }
 
-  console.error(`[gemini-video] OpenAI rescue exhausted retries: ${lastError?.message ?? 'unknown'}`);
-  return null;
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    const parsed = parseAnalysisResponse([{ text: content }], 'STOP', undefined);
+    if (!parsed.ok) {
+      console.warn(`[gemini-video] OpenAI rescue produced invalid shape: ${parsed.reason}`);
+      return null;
+    }
+
+    // Restore original transcript so the user sees what we actually transcribed.
+    parsed.analysis.transcript = transcript;
+    return {
+      analysis: parsed.analysis,
+      usage: {
+        inputTokens: best.usage.inputTokens + (data.usage?.prompt_tokens ?? 0),
+        outputTokens: best.usage.outputTokens + (data.usage?.completion_tokens ?? 0),
+        totalTokens: best.usage.totalTokens + (data.usage?.total_tokens ?? 0),
+      },
+      model: `${best.model}+openai-${OPENAI_RESCUE_MODEL}/rescue`,
+      complete: true,
+    };
+  } catch (err) {
+    console.error(`[gemini-video] OpenAI rescue failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    return null;
+  }
 }
 
 async function waitForGeminiFileActive(fileUri: string, apiKey: string): Promise<void> {
@@ -861,7 +845,7 @@ async function tryAnalyzeWithModel(
 
   let data: GeminiGenerateResponse;
   try {
-    data = await callGeminiWithRetry(apiKey, body, model);
+    data = await callGemini(apiKey, body, model);
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'error desconocido';
     console.error(`[gemini-video] ${model} call failed completely: ${reason}`);
@@ -922,62 +906,31 @@ interface GeminiGenerateResponse {
 }
 
 /**
- * Calls Gemini's generateContent with retry on transient failures.
- *
- * Retries on 429 (rate limit), 500 (internal), 503 (UNAVAILABLE) — Gemini's
- * "experiencing high demand" responses. Uses exponential backoff: 2s, 8s, 30s.
- * Total worst-case wait is ~40s before surfacing the error.
+ * Calls Gemini's generateContent. NO RETRIES — if the model returns 503 or
+ * any error, we fall through to the next model tier instead of waiting. A
+ * 503 means Google is overloaded, retrying the same model in seconds doesn't
+ * help. Multiple model tiers + cross-provider rescue cover the redundancy.
  */
-async function callGeminiWithRetry(
+async function callGemini(
   apiKey: string,
   body: unknown,
   model: string,
 ): Promise<GeminiGenerateResponse> {
   const url = geminiUrl(model);
-  let lastError: Error | null = null;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120_000),
+  });
 
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(120_000),
-      });
-
-      if (response.ok) {
-        return (await response.json()) as GeminiGenerateResponse;
-      }
-
-      const errorText = await response.text();
-      const cleanMsg = cleanGeminiError(errorText);
-
-      if (RETRYABLE_STATUS.has(response.status) && attempt < RETRY_DELAYS_MS.length) {
-        const delay = RETRY_DELAYS_MS[attempt];
-        console.warn(
-          `[gemini-video] ${model} ${response.status} on attempt ${attempt + 1}, retrying in ${delay}ms`,
-        );
-        await new Promise((r) => setTimeout(r, delay));
-        lastError = new Error(`${response.status} ${cleanMsg}`);
-        continue;
-      }
-
-      throw new Error(`${response.status} ${cleanMsg}`);
-    } catch (err) {
-      // Network errors / timeouts also retry, on the same schedule.
-      if (err instanceof Error && err.name === 'TimeoutError' && attempt < RETRY_DELAYS_MS.length) {
-        const delay = RETRY_DELAYS_MS[attempt];
-        console.warn(`[gemini-video] ${model} timeout on attempt ${attempt + 1}, retrying in ${delay}ms`);
-        await new Promise((r) => setTimeout(r, delay));
-        lastError = err;
-        continue;
-      }
-      throw err;
-    }
+  if (response.ok) {
+    return (await response.json()) as GeminiGenerateResponse;
   }
 
-  throw lastError ?? new Error('ArkoAI no respondió después de varios reintentos.');
+  const errorText = await response.text().catch(() => '');
+  throw new Error(`${response.status} ${cleanGeminiError(errorText)}`);
 }
