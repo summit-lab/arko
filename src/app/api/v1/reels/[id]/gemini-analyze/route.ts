@@ -9,7 +9,7 @@ export const maxDuration = 120;
 
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
-import { apiSuccess, api400, api404, api500 } from '@/lib/api/response';
+import { apiSuccess, api400, api404, apiError, api500 } from '@/lib/api/response';
 import { persistGeminiAnalysis } from '@/services/gemini-analysis-persistence.service';
 import { analyzeVideoWithGemini, isGeminiEnabled } from '@/services/gemini-video.service';
 import { logLLMUsage } from '@/services/llm-usage.service';
@@ -58,6 +58,22 @@ export async function POST(
     const t0 = Date.now();
     const { analysis, usage, model, complete, partialReason } = await analyzeVideoWithGemini(videoUrl);
     const latencyMs = Date.now() - t0;
+
+    // If we got NOTHING usable (no transcript, not complete) the upstream provider
+    // is fully down. Don't persist a fake skeleton — that would overwrite any
+    // previous good analysis and mark the reel as "completed" with empty fields.
+    // Surface a 503 so the client can keep showing "Reintentar" cleanly.
+    if (!complete && analysis.transcript.trim().length === 0) {
+      console.error(
+        `[arkoai-analyze] reel=${id} all tiers failed without transcript: ${partialReason ?? 'unknown'}`,
+      );
+      return apiError(
+        'Service Unavailable',
+        'ArkoAI está saturado momentáneamente y no pudo analizar el video. Reintentá en unos minutos.',
+        503,
+        { reason: partialReason ?? 'unknown', model },
+      );
+    }
 
     if (!complete) {
       console.warn(
