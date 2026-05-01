@@ -86,6 +86,12 @@
   },
   "nav": {
     "ventas": "Sales",
+    "historias": "Stories",
+    "competencia": "Competition",
+    "referencias": "References",
+    "tuAudiencia": "Your audience",
+    "publicaciones": "Posts",
+    "masHerramientas": "More tools",
     "settingsHeader": "Settings",
     "branding": "Branding",
     "adn": "Brand DNA",
@@ -137,6 +143,18 @@
       "story": "Story",
       "storyOf": "Story from {date}",
       "noCaption": "No caption"
+    },
+    "profileGrowth": {
+      "title": "Profile growth",
+      "totalFollowers": "total followers",
+      "conversionRate": "Profile conversion",
+      "visitsSub": "profile visits"
+    },
+    "recentReels": "Recent reels",
+    "newFollowersChart": {
+      "title": "New followers / day",
+      "gained": "gained in period",
+      "new": "new"
     }
   },
   "admin": {
@@ -959,7 +977,8 @@
       "stats": {"views": "Views","likes": "Likes","comments": "Comments","commentsShort": "Com.","shares": "Shares","sharesShort": "Shr."},
       "actions": {"analyze": "Analyze","analyzing": "Analyzing…","analyzingShort": "Analyzing","viewAnalysis": "View analysis","reanalyze": "Re-analyze","scrapeAndAnalyze": "Scrape + Analyze"},
       "progress": {"preparing": "Preparing scrape…","working": "Working…","analyzingName": "Analyzing {name}","phases": {"starting": "Starting","scraping_reels": "Scraping","uploading_thumbs": "Thumbnails","saving": "Saving","analyzing": "AI analysis","done": "Done"}},
-      "modal": {"hookPrefix": "Hook","mokaAnalysis": "Moka analysis","narrativeStructure": "Narrative structure","strengths": "Strengths","opportunities": "Opportunities","visualStyle": "Visual style","analyzedWith": "Analyzed with {model}"},
+      "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "All"},
+      "modal": {"hookPrefix": "Hook","mokaAnalysis": "Moka analysis","narrativeStructure": "Narrative structure","strengths": "Strengths","opportunities": "Opportunities","visualStyle": "Visual style","analyzedWith": "Analyzed with {model}","transcript": "Transcript","trialBadge": "Trial","publishedDate": "Published","duration": "Duration"},
       "contentTypes": {"reputation": "Reputation","connection": "Connection"},
       "compare": {"you": "You","youShort": "You","them": "Them","themShort": "Th.","youVs": "You vs {name}","avgViews": "Avg Views","avgLikes": "Avg Likes","avgCom": "Avg Com.","followers": "Followers"},
       "charts": {"viewsTimeline": "Views per reel · over time","followerGrowth": "Followers · growth","historyAccumulates": "The competitor's history accumulates with each re-analysis"},

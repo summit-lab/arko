@@ -1,4 +1,4 @@
-import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes, AtSign } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes, AtSign, Users, TrendingUp } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
@@ -6,6 +6,8 @@ import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ContentCalendar } from "@/components/dashboard/ContentCalendar";
 import { MetasDonut } from "@/components/dashboard/MetasDonut";
 import { ConversationsChart } from "@/components/dashboard/ConversationsChart";
+import { RecentReelsStrip } from "@/components/dashboard/RecentReelsStrip";
+import { FollowerGrowthChart } from "@/components/dashboard/FollowerGrowthChart";
 import { CountUp } from "@/components/ui/CountUp";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
@@ -137,10 +139,10 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
       .lt("metric_date", today)
       .order("metric_date", { ascending: true }),
 
-    // Query 4: Period daily insights (for daily charts)
+    // Query 4: Period daily insights (for daily charts + profile growth section)
     supabase
       .from("ig_account_insights")
-      .select("metric_date, reach, impressions, likes, saves, comments")
+      .select("metric_date, reach, impressions, likes, saves, comments, profile_views, follower_count, followers_total")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", periodAgo)
       .lt("metric_date", today)
@@ -155,11 +157,11 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
       .lt("metric_date", monthTo)
       .order("metric_date", { ascending: true }),
 
-    // Query 6: Reels last 90 days — for calendar + top sales panels (unchanged window)
+    // Query 6: Reels last 90 days — for calendar + top sales + recent reels strip
     supabase
       .from("reels")
       .select(`
-        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount,
+        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount, thumbnail_url,
         reel_metrics (views_org, likes_total, comments_total, shares_total, saves_total),
         reel_metrics_paid (views_paid)
       `)
@@ -295,6 +297,19 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   if (adsMessagingPrev.error) console.error('[dashboard] adsMessagingPrev error:', adsMessagingPrev.error);
   if (storiesForCalendar.error) console.error('[dashboard] storiesForCalendar error:', storiesForCalendar.error);
 
+  // ─── Follower growth chart data (from Query 3: daily follower_count) ───
+  const rawFollowerGrowth = (insightsPeriodFollows.data ?? []).map((r) => {
+    const d = new Date(r.metric_date + "T00:00:00Z");
+    return {
+      date: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
+      newFollowers: r.follower_count || 0,
+    };
+  });
+  // Trim trailing zeros — Meta has 24-48h delay so last 1-2 days may read as 0
+  let trimEnd = rawFollowerGrowth.length;
+  while (trimEnd > 0 && rawFollowerGrowth[trimEnd - 1].newFollowers === 0) trimEnd--;
+  const followerGrowthData = trimEnd > 0 ? rawFollowerGrowth.slice(0, trimEnd) : rawFollowerGrowth;
+
   // ─── Process insights data ───
   // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
   const current30d = (insightsCurrent.data ?? []).filter(hasSignal);
@@ -343,6 +358,7 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
       media_type: (r as { media_type?: string }).media_type,
       reel_type: r.reel_type,
       has_ads: r.has_ads,
+      thumbnail_url: (r as { thumbnail_url?: string | null }).thumbnail_url ?? null,
       views_org: viewsOrg,
       views_paid: viewsPaid,
       views_total: viewsOrg + viewsPaid,
@@ -398,10 +414,26 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
     ? (sumCurrent.interactions / sumCurrent.reach) * 100
     : 0;
 
+  // ─── Total followers snapshot (last known followers_total in period) ───
+  const totalFollowers = withFt[withFt.length - 1]?.followers_total ?? 0;
+
   // ─── Daily chart data from ig_account_insights ───
   // Filter out days with zero metrics (incomplete sync data from current day)
 
   const dailyInsights = (insightsMonthly.data ?? []).filter(hasSignal);
+
+  // Profile views + conversion rate (unique from IGDashboard)
+  const totalProfileViews = dailyInsights.reduce(
+    (s, r) => s + ((r as { profile_views?: number | null }).profile_views ?? 0), 0
+  );
+  const conversionRate = totalProfileViews > 0 && newFollowsWindow > 0
+    ? ((newFollowsWindow / totalProfileViews) * 100).toFixed(1)
+    : null;
+
+  // Recent reels strip — top 7 by views, with thumbnails
+  const recentReels = [...reels]
+    .sort((a, b) => b.views_total - a.views_total)
+    .slice(0, 7);
 
   const growthData = dailyInsights.map((row) => {
     const d = new Date(row.metric_date);
@@ -821,6 +853,12 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
     conversationsPrevTotal,
     salesMetrics,
     topSources,
+    totalFollowers,
+    totalProfileViews,
+    conversionRate,
+    recentReels,
+    followerGrowthData,
+    newFollowsWindow,
   };
 }
 
@@ -967,6 +1005,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const conversationsPrevTotal = data?.conversationsPrevTotal ?? 0;
   const salesMetrics = data?.salesMetrics ?? null;
   const topSources = data?.topSources ?? [];
+  const totalFollowers = data?.totalFollowers ?? 0;
+  const totalProfileViews = data?.totalProfileViews ?? 0;
+  const conversionRate = data?.conversionRate ?? null;
+  const recentReels = data?.recentReels ?? [];
+  const followerGrowthData = data?.followerGrowthData ?? [];
+  const newFollowsWindow = data?.newFollowsWindow ?? 0;
 
   return (
     <div className="px-8 py-10">
@@ -1054,11 +1098,25 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             )}
           </div>
 
+          {/* Nuevos seguidores / día — gráfico de crecimiento (from IGDashboard) */}
+          {followerGrowthData.length > 0 && (
+            <FollowerGrowthChart
+              data={followerGrowthData}
+              totalGained={newFollowsWindow}
+              title={t("newFollowersChart.title")}
+              gainedLabel={t("newFollowersChart.gained")}
+              newLabel={t("newFollowersChart.new")}
+            />
+          )}
+
           {/* Calendario de Contenido — al ancho del col izq asi llena el espacio
               bajo "Mejor Contenido" en vez de ocupar full-width al fondo. */}
           <div className="animate-slide-up stagger-6">
             <ContentCalendar items={calendarContent} />
           </div>
+
+          {/* Reels recientes — top 7 por vistas (from IGDashboard) */}
+          <RecentReelsStrip reels={recentReels} label={t("recentReels")} />
 
         </div>
 
@@ -1125,6 +1183,30 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                 </div>
               </div>
             </>
+          )}
+
+          {/* Crecimiento de perfil — total followers + conversion rate (from IGDashboard) */}
+          {totalFollowers > 0 && (
+            <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
+              <div className="flex items-center justify-between mb-4">
+                <p className="stat-label">{t("profileGrowth.title")}</p>
+                <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white/[0.06] text-white/40">
+                  <Users className="h-[15px] w-[15px]" />
+                </div>
+              </div>
+              <CountUp value={formatCompact(totalFollowers)} className="stat-number-xl" />
+              <p className="text-[12px] text-white/25 font-light mt-1">{t("profileGrowth.totalFollowers")}</p>
+              {conversionRate && totalProfileViews > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="h-3.5 w-3.5 text-violet-400/60" />
+                    <p className="text-[11px] text-white/30 uppercase tracking-[0.06em]">{t("profileGrowth.conversionRate")}</p>
+                  </div>
+                  <p className="text-[28px] font-light text-violet-400">{conversionRate}%</p>
+                  <p className="text-[11px] text-white/20 mt-0.5">{formatCompact(totalProfileViews)} {t("profileGrowth.visitsSub")}</p>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Quick Stats — columna vertical siempre. */}

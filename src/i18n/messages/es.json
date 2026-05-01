@@ -86,6 +86,12 @@
   },
   "nav": {
     "ventas": "Ventas",
+    "historias": "Historias",
+    "competencia": "Competencia",
+    "referencias": "Referencias",
+    "tuAudiencia": "Tu audiencia",
+    "publicaciones": "Publicaciones",
+    "masHerramientas": "Más herramientas",
     "settingsHeader": "Configuración",
     "branding": "Branding",
     "adn": "ADN de Marca",
@@ -137,6 +143,18 @@
       "story": "Historia",
       "storyOf": "Historia del {date}",
       "noCaption": "Sin caption"
+    },
+    "profileGrowth": {
+      "title": "Crecimiento de perfil",
+      "totalFollowers": "seguidores totales",
+      "conversionRate": "Conversión de perfil",
+      "visitsSub": "visitas al perfil"
+    },
+    "recentReels": "Reels recientes",
+    "newFollowersChart": {
+      "title": "Nuevos seguidores / día",
+      "gained": "ganados en el período",
+      "new": "nuevos"
     }
   },
   "admin": {
@@ -959,7 +977,8 @@
       "stats": {"views": "Views","likes": "Likes","comments": "Comments","commentsShort": "Com.","shares": "Shares","sharesShort": "Comp."},
       "actions": {"analyze": "Analizar","analyzing": "Analizando…","analyzingShort": "Analizando","viewAnalysis": "Ver análisis","reanalyze": "Re-analizar","scrapeAndAnalyze": "Scrape + Analizar"},
       "progress": {"preparing": "Preparando scrape…","working": "Trabajando…","analyzingName": "Analizando {name}","phases": {"starting": "Iniciando","scraping_reels": "Scrapeando","uploading_thumbs": "Portadas","saving": "Guardando","analyzing": "Análisis IA","done": "Listo"}},
-      "modal": {"hookPrefix": "Hook","mokaAnalysis": "Análisis Moka","narrativeStructure": "Estructura narrativa","strengths": "Fortalezas","opportunities": "Oportunidades","visualStyle": "Estilo visual","analyzedWith": "Analizado con {model}"},
+      "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "Todos"},
+      "modal": {"hookPrefix": "Hook","mokaAnalysis": "Análisis Moka","narrativeStructure": "Estructura narrativa","strengths": "Fortalezas","opportunities": "Oportunidades","visualStyle": "Estilo visual","analyzedWith": "Analizado con {model}","transcript": "Transcripción","trialBadge": "Trial","publishedDate": "Publicado","duration": "Duración"},
       "contentTypes": {"reputation": "Reputación","connection": "Conexión"},
       "compare": {"you": "Yo","youShort": "Yo","them": "Ellos","themShort": "Ell.","youVs": "Yo vs {name}","avgViews": "Avg Views","avgLikes": "Avg Likes","avgCom": "Avg Com.","followers": "Seguidores"},
       "charts": {"viewsTimeline": "Views por reel · en el tiempo","followerGrowth": "Seguidores · crecimiento","historyAccumulates": "El historial del competidor se acumula con cada re-análisis"},

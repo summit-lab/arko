@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
 import type { ReelsSummary } from "./ReelsGrid";
-import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked } from "lucide-react";
 
 // Skeleton for lazy-loaded tabs
 const TabSkeleton = () => (
@@ -178,18 +176,6 @@ export interface InstagramShellProps {
   initialReferences: any[];
 }
 
-// ─── Tab definitions ───
-
-const TABS: { key: TabKey; labelKey: string; icon: React.ElementType }[] = [
-  { key: "dashboard",     labelKey: "dashboard",     icon: LayoutDashboard },
-  { key: "reels",         labelKey: "reels",         icon: Clapperboard },
-  { key: "historias",     labelKey: "stories",       icon: BookImage },
-  { key: "publicaciones", labelKey: "publications",  icon: Grid2X2 },
-  { key: "competencia",   labelKey: "competition",   icon: Swords },
-  { key: "referencias",   labelKey: "references",    icon: BookMarked },
-  { key: "metrics",       labelKey: "demographics",  icon: BarChart3 },
-];
-
 // ─── Component ───
 
 export function InstagramShell({
@@ -209,19 +195,13 @@ export function InstagramShell({
   initialCompetitors,
   initialReferences,
 }: InstagramShellProps) {
-  const t = useTranslations("igShell");
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const searchParams = useSearchParams();
 
-  // Update URL without server roundtrip (shallow)
-  const handleTabChange = useCallback((key: TabKey) => {
-    if (key === activeTab) return;
-    setActiveTab(key);
-    // Update URL for shareability + back button, using replaceState (no navigation)
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", key);
-    window.history.replaceState(null, "", `/instagram?${params.toString()}`);
-  }, [activeTab, searchParams]);
+  // Re-sync when initialTab changes (sidebar navigation via router.push)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Posts summary
   const postsSummary = posts.length > 0 ? (() => {
@@ -239,28 +219,7 @@ export function InstagramShell({
 
   return (
     <>
-      {/* ── Tabs (instant, client-side) ── */}
-      <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
-        {TABS.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-250 cursor-pointer ${
-                active
-                  ? "text-white bg-white/[0.1] border border-white/[0.1]"
-                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border border-transparent"
-              }`}
-            >
-              <tab.icon size={14} strokeWidth={active ? 2.2 : 1.6} />
-              {t(`tabs.${tab.labelKey}`)}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Tab content (instant switch, no server roundtrip) ── */}
+      {/* ── Tab content ── */}
 
       {activeTab === "dashboard" && (
         <IGDashboard

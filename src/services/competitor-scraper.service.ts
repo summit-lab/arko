@@ -28,11 +28,14 @@ const APIFY_REEL_SCRAPER_ACTOR = 'apify~instagram-reel-scraper';
 const APIFY_POST_SCRAPER_ACTOR = 'apify~instagram-post-scraper';
 const APIFY_BASE_URL = 'https://api.apify.com/v2/acts';
 
-// Ventana de scrape: reels publicados en los últimos 30 días. Si un competidor
-// publica menos de 50 reels/mes (la mayoría), recibimos todos; si publica más,
-// el cap de 100 corta en lo más reciente.
-const SCRAPE_WINDOW_DAYS = 30;
+// Ventana de scrape: reels publicados en los últimos 90 días. Usamos 90 días
+// para capturar creadores con posting frecuente (40-60 reels/trimestre).
+// El cap de 100 sigue aplicando para limitar el costo de Apify.
+const SCRAPE_WINDOW_DAYS = 90;
 const MAX_REELS_PER_SCRAPE = 100;
+// Para el grid usamos un límite mayor: necesitamos el set más completo posible
+// de shortcodes del perfil para que la detección de trials sea precisa.
+const MAX_GRID_POSTS = 200;
 
 // ─── Progress reporting ─────────────────────────────────────────────────────
 
@@ -116,6 +119,7 @@ interface ApifyReelResult {
 interface ApifyPostResult {
   shortCode?: string;
   id?: string;
+  url?: string;
   timestamp?: string;
 }
 
@@ -345,8 +349,12 @@ async function scrapeGridShortcodes(
       body: JSON.stringify({
         username: [`https://www.instagram.com/${username}/`],
         resultsLimit: limit,
-        onlyPostsNewerThan: `${SCRAPE_WINDOW_DAYS} days`,
-        skipPinnedPosts: true,
+        // NO se pasa onlyPostsNewerThan ni skipPinnedPosts:
+        // instagram-post-scraper no soporta esos parámetros de la misma forma
+        // que el reel-scraper, y su presencia hacía que el actor devolviera
+        // casi 0 resultados (solo 2 posts) en lugar del grid completo.
+        // El filtrado de fecha ya ocurre en scrapeReels — aquí solo necesitamos
+        // el set completo de shortcodes del perfil para detectar trials.
       }),
       cache: 'no-store',
       signal: AbortSignal.timeout(90000),
@@ -360,9 +368,14 @@ async function scrapeGridShortcodes(
     const data = await response.json() as ApifyPostResult[];
     const shortcodes = new Set<string>();
     for (const item of data) {
-      const sc = toNullableString(item.shortCode);
+      // Primary: explicit shortCode field
+      const sc = toNullableString(item.shortCode)
+        // Fallback: extract from URL (e.g. instagram.com/p/ABC or /reel/ABC)
+        ?? toNullableString(item.url)?.match(/instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/)?.[1]
+        ?? null;
       if (sc) shortcodes.add(sc);
     }
+    console.log(`[competitor-scraper] Grid @${username}: ${data.length} posts → ${shortcodes.size} shortcodes`);
     return shortcodes;
   } catch (err) {
     console.warn('[competitor-scraper] Grid scrape exception:', err);
@@ -454,7 +467,7 @@ export async function scrapeCompetitor(
       console.error('[competitor-scraper] Reels error:', err);
       return [] as CompetitorReelData[];
     }),
-    scrapeGridShortcodes(username, token, MAX_REELS_PER_SCRAPE).catch((err) => {
+    scrapeGridShortcodes(username, token, MAX_GRID_POSTS).catch((err) => {
       console.error('[competitor-scraper] Grid error:', err);
       return null;
     }),
@@ -464,11 +477,14 @@ export async function scrapeCompetitor(
   // (actor falló), dejamos NULL — la UI lo interpreta como "desconocido".
   let trialCount = 0;
   if (gridShortcodes && gridShortcodes.size > 0) {
+    console.log(`[competitor-scraper] Trial detection @${username}: ${reels.length} reels, ${gridShortcodes.size} grid shortcodes`);
     for (const reel of reels) {
       if (!reel.short_code) continue;
       reel.maybe_trial = !gridShortcodes.has(reel.short_code);
       if (reel.maybe_trial) trialCount++;
     }
+  } else {
+    console.warn(`[competitor-scraper] Grid scrape returned 0 shortcodes for @${username} — skipping trial detection`);
   }
 
   await setProgress(supabase, competitorId, {
