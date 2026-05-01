@@ -4,8 +4,10 @@
  * Requiere video_url pública (Apify) en el body.
  */
 
-// Aumentar timeout a 120s — el proceso de upload + análisis puede tardar ~60-90s
-export const maxDuration = 120;
+// Vercel Pro hard cap is 300s. Tier 1 (2.5-flash) usually finishes under 90s,
+// but if we fall through retries + tier 2 (2.5-pro, slower) + transcript rescue
+// the worst case approaches 4 min. Keep the full headroom.
+export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
@@ -75,11 +77,9 @@ export async function POST(
       );
     }
 
-    if (!complete) {
-      console.warn(
-        `[arkoai-analyze] reel=${id} partial analysis from ${model}: ${partialReason ?? 'unknown'}`,
-      );
-    }
+    console.log(
+      `[arkoai-analyze] reel=${id} ${complete ? 'OK' : 'PARTIAL'} via ${model} in ${latencyMs}ms${complete ? '' : ` (${partialReason ?? 'unknown'})`}`,
+    );
 
     await persistGeminiAnalysis({
       supabase,
@@ -107,9 +107,17 @@ export async function POST(
     }).catch(() => {});
 
     return apiSuccess(
-      complete
-        ? { analysis }
-        : { analysis, partial: true, partial_reason: partialReason ?? 'desconocido' },
+      {
+        analysis,
+        meta: {
+          model,
+          complete,
+          latency_ms: latencyMs,
+          ...(complete ? {} : { partial_reason: partialReason ?? 'desconocido' }),
+        },
+        // Kept for backwards-compat with any client that already reads these:
+        ...(complete ? {} : { partial: true, partial_reason: partialReason ?? 'desconocido' }),
+      },
       200,
     );
   } catch (error) {
