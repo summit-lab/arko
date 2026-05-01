@@ -21,7 +21,7 @@ export async function GET(request: Request) {
         competitor_reels (
           id, short_code, permalink, caption,
           likes_count, comments_count, views_count, shares_count,
-          duration_seconds, published_at, thumbnail_url, maybe_trial,
+          duration_seconds, published_at, thumbnail_url, maybe_trial, transcript,
           hashtags, music_artist, music_name,
           competitor_reel_analysis (
             hook_text, hook_type, narrative_structure, content_type,

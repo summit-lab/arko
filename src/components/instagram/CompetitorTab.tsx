@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   RefreshCw, Zap, ExternalLink, Users, Play, Heart, MessageCircle,
   Share2, CheckCircle2, Clock, AlertCircle, ChevronDown,
@@ -42,6 +44,8 @@ interface CompetitorReel {
   duration_seconds: number | null;
   published_at: string | null;
   thumbnail_url: string | null;
+  maybe_trial: boolean | null;
+  transcript: string | null;
   hashtags: string[];
   music_artist: string | null;
   music_name: string | null;
@@ -104,6 +108,7 @@ export interface MyFollowerPoint {
 }
 
 type SortKey = "views" | "likes" | "date";
+type TypeFilter = "all" | "trial" | "normal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -377,6 +382,9 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
   onClose: () => void;
 }) {
   const t = useTranslations("igAdvanced");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
+
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -388,24 +396,45 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
   const hookMeta = HOOK_TYPE_META[hookKey]!;
   const hookLabel = t(`competitor.hookTypes.${hookKey}`);
 
+  const publishedFormatted = reel.published_at
+    ? new Date(reel.published_at).toLocaleDateString(dateLocale, { day: "numeric", month: "long", year: "numeric" })
+    : null;
+
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex bg-popover text-popover-foreground border border-border shadow-2xl"
+        className="relative w-full max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden flex bg-popover text-popover-foreground border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Left: Thumbnail column ── */}
-        <div className="w-52 shrink-0 flex flex-col border-r border-border">
+        <div className="w-60 shrink-0 flex flex-col border-r border-border">
           {/* Portrait thumbnail */}
-          <div className="relative flex-1 min-h-0" style={{ aspectRatio: "9/16", maxHeight: "420px" }}>
-            <Thumbnail url={reel.thumbnail_url} duration={reel.duration_seconds} />
+          <div className="relative shrink-0" style={{ aspectRatio: "9/16", maxHeight: "400px" }}>
+            <Thumbnail url={reel.thumbnail_url} duration={null} showDuration={false} />
+            {/* Duration overlay on thumbnail */}
+            {reel.duration_seconds && (
+              <div className="absolute bottom-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] text-white/80 font-medium z-10"
+                style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}>
+                <Play size={8} />
+                {Math.round(reel.duration_seconds)}s
+              </div>
+            )}
+            {/* Trial badge on thumbnail */}
+            {reel.maybe_trial === true && (
+              <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full z-10"
+                style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", backdropFilter: "blur(4px)" }}>
+                <AlertTriangle size={8} className="text-amber-400" />
+                <span className="text-[8px] text-amber-300 font-medium">{t("competitor.modal.trialBadge")}</span>
+              </div>
+            )}
           </div>
 
-          {/* Stats below thumbnail */}
-          <div className="p-4 space-y-3">
+          {/* Stats + metadata below thumbnail */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* 4 core metrics */}
             <div className="grid grid-cols-2 gap-2">
               {[
                 { icon: Eye,           v: fmt(reel.views_count),    l: t("competitor.stats.views") },
@@ -421,7 +450,15 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               ))}
             </div>
 
-            {/* Hook + content type badges */}
+            {/* Date */}
+            {publishedFormatted && (
+              <div className="flex items-center gap-1.5 text-[10px] text-white/25">
+                <Calendar size={9} />
+                <span>{publishedFormatted}</span>
+              </div>
+            )}
+
+            {/* Hook + content type + topic badges */}
             <div className="space-y-1.5">
               <HookBadge type={analysis.hook_type} />
               {analysis.content_type && (
@@ -440,6 +477,20 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               )}
             </div>
 
+            {/* Hashtags */}
+            {reel.hashtags && reel.hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {reel.hashtags.slice(0, 8).map((h) => (
+                  <span key={h} className="text-[9px] text-white/20 bg-white/[0.04] px-1.5 py-0.5 rounded-full">
+                    #{h}
+                  </span>
+                ))}
+                {reel.hashtags.length > 8 && (
+                  <span className="text-[9px] text-white/15">+{reel.hashtags.length - 8}</span>
+                )}
+              </div>
+            )}
+
             {/* Open in IG */}
             {reel.permalink && (
               <a href={reel.permalink} target="_blank" rel="noopener noreferrer"
@@ -455,14 +506,14 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
         <div className="flex-1 min-w-0 overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 bg-popover text-popover-foreground border-b border-border backdrop-blur-md">
-            <div>
+            <div className="min-w-0 flex-1 mr-3">
               <p className="text-[10px] text-white/25 uppercase tracking-wider">{competitor.name}</p>
-              <p className="text-[13px] text-white/70 font-light line-clamp-1 mt-0.5">
+              <p className="text-[13px] text-white/70 font-light line-clamp-2 mt-0.5 leading-snug">
                 {reel.caption ?? t("competitor.noCaption")}
               </p>
             </div>
             <button onClick={onClose}
-              className="h-8 w-8 rounded-full flex items-center justify-center transition-all hover:bg-white/[0.08] cursor-pointer border border-white/[0.1]">
+              className="shrink-0 h-8 w-8 rounded-full flex items-center justify-center transition-all hover:bg-white/[0.08] cursor-pointer border border-white/[0.1]">
               <X size={14} className="text-white/40" />
             </button>
           </div>
@@ -573,6 +624,21 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
               </div>
             )}
 
+            {/* Transcript */}
+            {reel.transcript && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BookOpen size={11} className="text-white/25" />
+                  <p className="text-[9px] text-white/20 uppercase tracking-wider">{t("competitor.modal.transcript")}</p>
+                </div>
+                <div className="rounded-xl p-3.5 bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-[12px] text-white/45 font-light leading-relaxed whitespace-pre-wrap">
+                    {reel.transcript}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {analysis.model_used && (
               <p className="text-[9px] text-white/12 pb-1">{t("competitor.modal.analyzedWith", { model: analysis.model_used })}</p>
             )}
@@ -585,12 +651,11 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
 
 // ─── Reel Gallery Card ────────────────────────────────────────────────────────
 
-function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnalysis }: {
+function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing }: {
   reel: CompetitorReel;
   competitorId: string;
   onAnalyze: (reelId: string) => void;
   analyzing: boolean;
-  onOpenAnalysis: (reel: CompetitorReel, analysis: ReelAnalysis) => void;
 }) {
   const t = useTranslations("igAdvanced");
   const locale = useLocale();
@@ -598,24 +663,32 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
   const analysis = getAnalysis(reel);
   const hasAnalysis = analysis !== null;
 
-  void competitorId;
-
   return (
     <div className="rounded-xl overflow-hidden flex flex-col bg-white/[0.03] border border-white/[0.07]">
 
-      {/* Thumbnail — portrait 4:5, relative for next/image fill */}
-      <div className="relative overflow-hidden bg-muted shrink-0" style={{ aspectRatio: "4/5" }}>
+      {/* Thumbnail — portrait 4:5, clickeable → detalle del reel */}
+      <Link
+        href={`/instagram/competencia/${competitorId}/${reel.id}`}
+        className="relative overflow-hidden bg-muted shrink-0 block"
+        style={{ aspectRatio: "4/5" }}
+      >
         <Thumbnail url={reel.thumbnail_url} duration={reel.duration_seconds} />
 
         {/* Gradient overlay */}
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)" }} />
 
-        {/* Analyzed dot + date (top) */}
-        {hasAnalysis && (
+        {/* Top-left: analyzed dot OR trial badge */}
+        {reel.maybe_trial === true ? (
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full z-10"
+            style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", backdropFilter: "blur(4px)" }}>
+            <AlertTriangle size={8} className="text-amber-400" />
+            <span className="text-[8px] text-amber-300 font-medium">Trial</span>
+          </div>
+        ) : hasAnalysis ? (
           <div className="absolute top-2 left-2 h-2 w-2 rounded-full z-10"
             style={{ background: "#a78bfa", boxShadow: "0 0 8px rgba(167,139,250,0.9)" }} />
-        )}
+        ) : null}
         <div className="absolute top-2 right-2 text-[9px] text-white/50 z-10 font-light"
           style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
           {fmtDate(reel.published_at, dateLocale)}
@@ -624,12 +697,13 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
         {/* External link (bottom-right corner of thumbnail) */}
         {reel.permalink && (
           <a href={reel.permalink} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="absolute bottom-2 right-2 h-6 w-6 rounded-lg flex items-center justify-center z-10 transition-all hover:scale-105"
             style={GLASS_SUBTLE}>
             <ExternalLink size={9} className="text-white/60" />
           </a>
         )}
-      </div>
+      </Link>
 
       {/* Footer — stats + caption + hook + action */}
       <div className="p-3 flex flex-col gap-2 flex-1">
@@ -669,14 +743,14 @@ function ReelGalleryCard({ reel, competitorId, onAnalyze, analyzing, onOpenAnaly
             {analyzing ? t("competitor.actions.analyzing") : t("competitor.actions.analyze")}
           </button>
         ) : (
-          <button
-            onClick={() => onOpenAnalysis(reel, analysis)}
+          <Link
+            href={`/instagram/competencia/${competitorId}/${reel.id}`}
             className="w-full flex items-center justify-center gap-1.5 h-8 rounded-xl text-[11px] font-medium text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 transition-all cursor-pointer"
             style={GLASS_VIOLET}
           >
             <Zap size={10} />
             {t("competitor.actions.viewAnalysis")}
-          </button>
+          </Link>
         )}
       </div>
     </div>
@@ -1454,6 +1528,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const t = useTranslations("igAdvanced");
   const locale = useLocale();
   const dateLocale = locale === "en" ? "en-US" : "es-AR";
+  const router = useRouter();
   const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors ?? []);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialCompetitors?.[0]?.id ?? null);
@@ -1461,12 +1536,11 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const [analyzingReels, setAnalyzingReels] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("views");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   // Paginación del grid de reels del competidor seleccionado: 20 por página.
-  // Reset a 1 cada vez que cambia de competidor o de sort.
+  // Reset a 1 cada vez que cambia de competidor, sort o filtro de tipo.
   const [reelsPage, setReelsPage] = useState(1);
   const REELS_PAGE_SIZE = 20;
-  // Modal state
-  const [modal, setModal] = useState<{ reel: CompetitorReel; analysis: ReelAnalysis } | null>(null);
 
   const headers = useMemo(() => ({
     "Content-Type": "application/json",
@@ -1554,33 +1628,25 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
         const body = await res.json() as { message?: string; error?: string };
         setError(body.message ?? body.error ?? t("competitor.errors.analyzeReel"));
       } else {
-        const body = await res.json() as { data?: { analysis?: ReelAnalysis } };
-        const analysis = body.data?.analysis;
-        if (analysis) {
-          // Update local state directly — no round-trip needed
-          setCompetitors((prev) => prev.map((c) => {
-            if (c.id !== competitorId) return c;
-            return {
-              ...c,
-              competitor_reels: c.competitor_reels.map((r) =>
-                r.id === reelId ? { ...r, competitor_reel_analysis: analysis } : r
-              ),
-            };
-          }));
-        } else {
-          // Fallback: full reload if analysis wasn't in response
-          await load();
-        }
+        // Navigate to the detail page — it fetches fresh data from the DB
+        router.push(`/instagram/competencia/${competitorId}/${reelId}`);
       }
     } catch {
       setError(t("competitor.errors.analyzeReelNetwork"));
     } finally {
       setAnalyzingReels((prev) => { const n = new Set(prev); n.delete(reelId); return n; });
     }
-  }, [headers, load, t]);
+  }, [headers, router, t]);
 
   const selected = competitors.find((c) => c.id === selectedId) ?? null;
-  const sortedReels = selected ? sortReels(selected.competitor_reels, sort) : [];
+  const filteredReels = selected
+    ? selected.competitor_reels.filter((r) => {
+        if (typeFilter === "trial") return r.maybe_trial === true;
+        if (typeFilter === "normal") return r.maybe_trial !== true;
+        return true;
+      })
+    : [];
+  const sortedReels = sortReels(filteredReels, sort);
   const totalPages = Math.max(1, Math.ceil(sortedReels.length / REELS_PAGE_SIZE));
   const currentPage = Math.min(reelsPage, totalPages);
   const paginatedReels = sortedReels.slice(
@@ -1588,8 +1654,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
     currentPage * REELS_PAGE_SIZE,
   );
 
-  // Reset page when competitor or sort changes.
-  useEffect(() => { setReelsPage(1); }, [selectedId, sort]);
+  // Reset page when competitor, sort or type filter changes.
+  useEffect(() => { setReelsPage(1); }, [selectedId, sort, typeFilter]);
 
   // Polling live progress. Seguimos polleando mientras haya AL MENOS UNA de
   // estas dos señales activas para el competidor:
@@ -1677,16 +1743,6 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
   return (
     <>
-      {/* Analysis modal */}
-      {modal && selected && (
-        <AnalysisModal
-          reel={modal.reel}
-          analysis={modal.analysis}
-          competitor={selected}
-          onClose={() => setModal(null)}
-        />
-      )}
-
       <div className="space-y-4">
         {error && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] text-rose-300 font-light"
@@ -1782,12 +1838,46 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
               </div>
 
               {/* Reels header */}
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] text-white/25 uppercase tracking-wider">
-                  {t("competitor.reelsHeader", { count: selected.competitor_reels.length })}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-[11px] text-white/25 uppercase tracking-wider shrink-0">
+                  {t("competitor.reelsHeader", { count: sortedReels.length })}
+                  {typeFilter !== "all" && (
+                    <span className="ml-1.5 text-white/15">/ {selected.competitor_reels.length}</span>
+                  )}
                 </p>
                 {selected.competitor_reels.length > 1 && (
-                  <SortDropdown value={sort} onChange={setSort} />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Type filter pills — mismo diseño que ReelsGrid */}
+                    <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
+                      {(
+                        [
+                          { key: "normal" as TypeFilter, label: t("competitor.typeFilter.reel"),  icon: null },
+                          { key: "trial"  as TypeFilter, label: t("competitor.typeFilter.trial"), icon: AlertTriangle },
+                          { key: "all"    as TypeFilter, label: t("competitor.typeFilter.all"),   icon: null },
+                        ]
+                      ).map(({ key, label, icon: Icon }) => {
+                        const trialCount = selected.competitor_reels.filter((r) => r.maybe_trial === true).length;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setTypeFilter(key)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer border ${
+                              typeFilter === key
+                                ? "text-white bg-white/[0.1] border-white/[0.1]"
+                                : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-transparent"
+                            }`}
+                          >
+                            {Icon && <Icon size={10} className={typeFilter === key ? "text-amber-400" : "text-white/30"} />}
+                            {label}
+                            {key === "trial" && trialCount > 0 && (
+                              <span className="text-[10px] text-amber-400/70 tabular-nums">{trialCount}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <SortDropdown value={sort} onChange={setSort} />
+                  </div>
                 )}
               </div>
 
@@ -1808,7 +1898,6 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                         competitorId={selected.id}
                         onAnalyze={(reelId) => handleAnalyzeReel(selected.id, reelId)}
                         analyzing={analyzingReels.has(reel.id)}
-                        onOpenAnalysis={(r, a) => setModal({ reel: r, analysis: a })}
                       />
                     ))}
                   </div>

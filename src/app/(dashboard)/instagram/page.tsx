@@ -18,7 +18,7 @@ import { Suspense } from "react";
 
 export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string; tab?: string }> }) {
   const params = await searchParams;
-  const activeTab = (params.tab as TabKey) || "dashboard";
+  const activeTab = (params.tab as TabKey) || "reels";
   const dateRange = parseDateParams(params, "90d");
   const t = await getTranslations("instagram");
   const periodDays = dateRange.days;
