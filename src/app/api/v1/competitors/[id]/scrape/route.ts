@@ -84,6 +84,18 @@ export async function POST(
     // pegado en "analyzing" para siempre porque el success path no reseteaba).
     await resetStatus();
 
+    // Si no hay reels para analizar, también limpiamos scrape_progress acá
+    // para que el overlay no quede colgado mostrando "Scrape terminado: 0 reels"
+    // a 110% indefinidamente. Cuando hay reels, el analyze corre después y
+    // se encarga de limpiar su propio scrape_progress al terminar.
+    if (result.reelsInserted === 0) {
+      await supabase
+        .from('workspace_competitors')
+        .update({ scrape_progress: null })
+        .eq('id', competitorId)
+        .eq('workspace_id', auth.workspaceId);
+    }
+
     // Log profile scrape cost
     await logIntegrationUsage(supabase, {
       workspaceId: auth.workspaceId,

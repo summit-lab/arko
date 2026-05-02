@@ -978,18 +978,20 @@
       "actions": {"analyze": "Analizar","analyzing": "Analizando…","analyzingShort": "Analizando","viewAnalysis": "Ver análisis","reanalyze": "Re-analizar","scrapeAndAnalyze": "Scrape + Analizar"},
       "progress": {"preparing": "Preparando scrape…","working": "Trabajando…","analyzingName": "Analizando {name}","phases": {"starting": "Iniciando","scraping_reels": "Scrapeando","uploading_thumbs": "Portadas","saving": "Guardando","analyzing": "Análisis IA","done": "Listo"}},
       "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "Todos"},
+      "trialToggle": {"mark": "Marcar como trial","unmark": "Desmarcar trial"},
+      "selection": {"start": "Seleccionar","cancel": "Cancelar","counter": "{selected} de {max} seleccionados","analyzeN": "Analizar {n}","analyzing": "Analizando…","select": "Seleccionar reel","deselect": "Deseleccionar reel","startingMessage": "Iniciando análisis de {n} reels...","failedCount": "{count} reel(es) fallaron — podés reintentar individualmente"},
       "modal": {"hookPrefix": "Hook","mokaAnalysis": "Análisis Moka","narrativeStructure": "Estructura narrativa","strengths": "Fortalezas","opportunities": "Oportunidades","visualStyle": "Estilo visual","analyzedWith": "Analizado con {model}","transcript": "Transcripción","trialBadge": "Trial","publishedDate": "Publicado","duration": "Duración"},
       "contentTypes": {"reputation": "Reputación","connection": "Conexión"},
       "compare": {"you": "Yo","youShort": "Yo","them": "Ellos","themShort": "Ell.","youVs": "Yo vs {name}","avgViews": "Avg Views","avgLikes": "Avg Likes","avgCom": "Avg Com.","followers": "Seguidores"},
-      "charts": {"viewsTimeline": "Views por reel · en el tiempo","followerGrowth": "Seguidores · crecimiento","historyAccumulates": "El historial del competidor se acumula con cada re-análisis"},
+      "charts": {"viewsTimeline": "Views por reel · en el tiempo","followerGrowth": "Seguidores · crecimiento","historyAccumulates": "El historial del competidor se acumula con cada re-análisis","viewsPerDay": "Views por día · 60 días","interactionsPerDay": "Interacciones por día · 60 días","noData": "Sin datos en el período"},
       "insights": {"heading": "Patrones y comparativa","reels": "Reels","analyzed": "Analizados","avgViews": "Avg views","topReel": "Top reel","viewsCount": "{count} views","hookTypes": "Tipos de hook","frequentTopics": "Temas frecuentes","analyzePrompt": "Analizá los reels para ver patrones"},
       "global": {"patterns": "Patrones globales — {count} reels analizados","topHook": "Hook top"},
       "sort": {"views": "Views","likes": "Likes","date": "Fecha"},
-      "profile": {"followers": "seguidores","posts": "posts","scrape": "Scrape","whyBetter": "Por qué son mejores"},
+      "profile": {"followers": "seguidores","posts": "posts","scrape": "Scrape","whyBetter": "Por qué son mejores","whyBetterBrand": "Marca","whyBetterContent": "Contenido"},
       "noReels": {"title": "No hay reels scrapeados aún","hint": "Hacé click en \"Scrape + Analizar\""},
       "pagination": {"range": "{from}–{to} de {total}","previous": "← Anterior","next": "Siguiente →"},
       "empty": {"title": "No hay competidores configurados","body": "Agregá competidores en tu ADN de Comunicación para analizar su estrategia.","cta": "Ir al ADN de Comunicación"},
-      "errors": {"loading": "Error cargando competidores","loadFailed": "No se pudieron cargar los competidores.","scraping": "Error en scraping","analyze": "Error al analizar","analyzeReel": "Error analizando reel","analyzeReelNetwork": "Error de red al analizar el reel"}
+      "errors": {"loading": "Error cargando competidores","loadFailed": "No se pudieron cargar los competidores.","scraping": "Error en scraping","analyze": "Error al analizar","analyzeReel": "Error analizando reel","analyzeReelNetwork": "Error de red al analizar el reel","bulkAnalyzePartial": "{count} de {total} reels fallaron al analizar. Reintentá los que faltan."}
     },
     "references": {
       "unnamed": "Sin nombre","headerTitle": "Referencias","addBtn": "Agregar","classifying": "clasificando con IA…","refCount": "{count, plural, one {# referencia} other {# referencias}}","hookCount": "{count, plural, one {# hook} other {# hooks}}",
