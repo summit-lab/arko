@@ -804,34 +804,41 @@ function ReelGalleryCard({
           </div>
         )}
 
-        {/* Top-left: analyzed dot OR trial badge */}
+        {/* Top-left: analyzed dot OR trial badge — siempre fondo negro semi
+            transparente + texto blanco/ámbar para que sea legible sin importar
+            el fondo del thumbnail. */}
         {isTrial ? (
-          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full z-10 pointer-events-none"
-            style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", backdropFilter: "blur(4px)" }}>
-            <AlertTriangle size={8} className="text-amber-400" />
-            <span className="text-[8px] text-amber-300 font-medium">Trial</span>
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md z-10 pointer-events-none"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+            <AlertTriangle size={9} style={{ color: "#fbbf24" }} />
+            <span className="text-[9px] font-medium" style={{ color: "#fbbf24" }}>Trial</span>
           </div>
         ) : hasAnalysis ? (
-          <div className="absolute top-2 left-2 h-2 w-2 rounded-full z-10 pointer-events-none"
-            style={{ background: "#a78bfa", boxShadow: "0 0 8px rgba(167,139,250,0.9)" }} />
+          <div className="absolute top-2 left-2 h-3 w-3 rounded-full z-10 pointer-events-none flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+            <span className="h-1.5 w-1.5 rounded-full"
+              style={{ background: "#a78bfa", boxShadow: "0 0 6px rgba(167,139,250,0.9)" }} />
+          </div>
         ) : null}
 
         {!selectionMode && (
-          // Inline color so it stays white in light mode too — the global
-          // .text-white override would flip it to #111 and disappear against
-          // the dark thumbnail.
-          <div className="absolute top-2 right-2 text-[9px] z-10 font-light pointer-events-none"
-            style={{ color: "rgba(255,255,255,0.85)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+          // Black pill + white text so the date is legible on top of any
+          // thumbnail color (light, washed-out, etc.). The plain text-on-image
+          // pattern broke the moment a competitor posted a white-bg reel.
+          <div className="absolute top-2 right-2 text-[10px] z-10 font-medium pointer-events-none px-1.5 py-0.5 rounded-md"
+            style={{ color: "#fff", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
             {fmtDate(reel.published_at, dateLocale)}
           </div>
         )}
 
-        {/* External link — sibling of the Link, not nested inside it. */}
+        {/* External link — sibling of the Link, not nested inside it.
+            Black pill background so the icon is always visible regardless of
+            the thumbnail's underlying color. */}
         {reel.permalink && (
           <a href={reel.permalink} target="_blank" rel="noopener noreferrer"
             className="absolute bottom-2 right-2 h-6 w-6 rounded-lg flex items-center justify-center z-10 transition-all hover:scale-105"
-            style={{ ...GLASS_SUBTLE, color: "rgba(255,255,255,0.85)" }}>
-            <ExternalLink size={9} />
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", color: "#fff" }}>
+            <ExternalLink size={10} />
           </a>
         )}
       </div>
