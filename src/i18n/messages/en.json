@@ -978,18 +978,20 @@
       "actions": {"analyze": "Analyze","analyzing": "Analyzing…","analyzingShort": "Analyzing","viewAnalysis": "View analysis","reanalyze": "Re-analyze","scrapeAndAnalyze": "Scrape + Analyze"},
       "progress": {"preparing": "Preparing scrape…","working": "Working…","analyzingName": "Analyzing {name}","phases": {"starting": "Starting","scraping_reels": "Scraping","uploading_thumbs": "Thumbnails","saving": "Saving","analyzing": "AI analysis","done": "Done"}},
       "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "All"},
+      "trialToggle": {"mark": "Mark as trial","unmark": "Unmark trial"},
+      "selection": {"start": "Select","cancel": "Cancel","counter": "{selected} of {max} selected","analyzeN": "Analyze {n}","analyzing": "Analyzing…","select": "Select reel","deselect": "Deselect reel","startingMessage": "Starting analysis for {n} reels...","failedCount": "{count} reel(s) failed — you can retry them individually"},
       "modal": {"hookPrefix": "Hook","mokaAnalysis": "Moka analysis","narrativeStructure": "Narrative structure","strengths": "Strengths","opportunities": "Opportunities","visualStyle": "Visual style","analyzedWith": "Analyzed with {model}","transcript": "Transcript","trialBadge": "Trial","publishedDate": "Published","duration": "Duration"},
       "contentTypes": {"reputation": "Reputation","connection": "Connection"},
       "compare": {"you": "You","youShort": "You","them": "Them","themShort": "Th.","youVs": "You vs {name}","avgViews": "Avg Views","avgLikes": "Avg Likes","avgCom": "Avg Com.","followers": "Followers"},
-      "charts": {"viewsTimeline": "Views per reel · over time","followerGrowth": "Followers · growth","historyAccumulates": "The competitor's history accumulates with each re-analysis"},
+      "charts": {"viewsTimeline": "Views per reel · over time","followerGrowth": "Followers · growth","historyAccumulates": "The competitor's history accumulates with each re-analysis","viewsPerDay": "Views per day · 60 days","interactionsPerDay": "Interactions per day · 60 days","noData": "No data in this period"},
       "insights": {"heading": "Patterns and comparison","reels": "Reels","analyzed": "Analyzed","avgViews": "Avg views","topReel": "Top reel","viewsCount": "{count} views","hookTypes": "Hook types","frequentTopics": "Frequent topics","analyzePrompt": "Analyze the reels to see patterns"},
       "global": {"patterns": "Global patterns — {count} reels analyzed","topHook": "Top hook"},
       "sort": {"views": "Views","likes": "Likes","date": "Date"},
-      "profile": {"followers": "followers","posts": "posts","scrape": "Scrape","whyBetter": "Why they're better"},
+      "profile": {"followers": "followers","posts": "posts","scrape": "Scrape","whyBetter": "Why they're better","whyBetterBrand": "Brand","whyBetterContent": "Content"},
       "noReels": {"title": "No reels scraped yet","hint": "Click on \"Scrape + Analyze\""},
       "pagination": {"range": "{from}–{to} of {total}","previous": "← Previous","next": "Next →"},
       "empty": {"title": "No competitors set up","body": "Add competitors in your Communication ADN to analyze their strategy.","cta": "Go to Communication ADN"},
-      "errors": {"loading": "Error loading competitors","loadFailed": "Couldn't load competitors.","scraping": "Scraping error","analyze": "Analysis error","analyzeReel": "Error analyzing reel","analyzeReelNetwork": "Network error analyzing the reel"}
+      "errors": {"loading": "Error loading competitors","loadFailed": "Couldn't load competitors.","scraping": "Scraping error","analyze": "Analysis error","analyzeReel": "Error analyzing reel","analyzeReelNetwork": "Network error analyzing the reel","bulkAnalyzePartial": "{count} of {total} reels failed to analyze. Retry the missing ones."}
     },
     "references": {
       "unnamed": "Unnamed","headerTitle": "References","addBtn": "Add","classifying": "classifying with AI…","refCount": "{count, plural, one {# reference} other {# references}}","hookCount": "{count, plural, one {# hook} other {# hooks}}",

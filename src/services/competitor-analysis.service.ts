@@ -123,9 +123,13 @@ MÚSICA: ${reel.music_artist ? `${reel.music_artist}` : 'N/A'}`;
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: TEXT_ONLY_SYSTEM_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text: userContent }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+        // 1024 tokens was way too low — the full schema (hook_text + narrative
+        // + 2-3 strengths + ai_summary as long-form Fran-framework analysis)
+        // routinely exceeds 1500-2000 tokens, the response got truncated, and
+        // the catch below stuffed the raw truncated JSON into ai_summary.
+        generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: 'application/json' },
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(60_000),
     }
   );
 
@@ -136,24 +140,25 @@ MÚSICA: ${reel.music_artist ? `${reel.music_artist}` : 'N/A'}`;
   }
 
   const genData = await genRes.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
     usageMetadata?: { totalTokenCount?: number };
   };
 
   const rawText = genData.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  const finishReason = genData.candidates?.[0]?.finishReason;
   const totalTokens = genData.usageMetadata?.totalTokenCount ?? 0;
 
+  // Strict JSON parse only. If parse fails (truncation, malformed output),
+  // throw — the caller has retry logic and a fallback. We DO NOT stuff raw
+  // JSON text into ai_summary anymore: that produced the user-visible
+  // "concepto general: { hook_text: ... }" garbage shown to Fran.
+  const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   let analysis: Record<string, string | null>;
   try {
-    const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     analysis = JSON.parse(cleaned);
-  } catch {
-    analysis = {
-      hook_text: null, hook_type: 'desconocido', narrative_structure: null,
-      content_type: null, cta_text: null, cta_type: 'ninguno',
-      topic_cluster: null, style_notes: null, strengths: null,
-      weaknesses: null, ai_summary: rawText.substring(0, 500),
-    };
+  } catch (err) {
+    console.error(`[gemini-text] JSON parse failed (finishReason=${finishReason ?? 'unknown'}, len=${cleaned.length}):`, err, cleaned.slice(0, 200));
+    throw new Error(`Gemini text response was not valid JSON (finishReason=${finishReason ?? 'unknown'})`);
   }
 
   return {
@@ -651,69 +656,153 @@ export async function analyzeSingleCompetitorReel(
   }
 }
 
-// ─── Analyze all unanalyzed reels for a competitor ──────────────────────────
+// ─── Analyze competitor reels (bulk) ────────────────────────────────────────
+//
+// Two modes, depending on whether `reelIds` is provided:
+//
+//   1. Targeted (reelIds passed)     — analyze exactly those reels. The user
+//      selected them with the multi-select UI. Re-analysis is allowed: any
+//      existing analysis row for the reel is wiped before inserting fresh.
+//
+//   2. Default (no reelIds)          — analyze the 5 most recent reels by
+//      published_at that don't have an analysis yet. (Per Fran's feedback:
+//      "que por default te analice los últimos cinco por fecha", replacing
+//      the previous "top 6 por views" heuristic.)
+//
+// Per-reel progress is published into workspace_competitors.scrape_progress
+// under the existing schema with a new optional `reels` array. The UI polls
+// that field and renders a card-by-card status: pending → running → done/failed.
+// Because the work runs server-side, the user can navigate away and the
+// analyses keep going; on return the polling effect picks up the latest state.
+
+interface BulkReelStatus {
+  id: string;
+  short_code: string | null;
+  thumbnail_url: string | null;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  error?: string | null;
+}
+
+const BULK_DEFAULT_LIMIT = 5;
 
 export async function analyzeCompetitorReels(
   supabase: SupabaseClient,
   competitorId: string,
-  workspaceId: string
+  workspaceId: string,
+  reelIds?: string[],
 ): Promise<AnalysisResult[]> {
-  // Top 6 reels por views sin análisis aún. Analizamos en paralelo — cada uno
-  // tarda ~35s con Gemini video; secuencial sería 6×35=210s y no cabe en el
-  // maxDuration de 120s. En paralelo total ≈ max(tiempos individuales) ≈ 40s.
-  // El resto queda para análisis manual desde la UI.
-  const { data: reels, error } = await supabase
+  let query = supabase
     .from('competitor_reels')
     .select(`
-      id, caption, video_url, likes_count, comments_count,
-      views_count, shares_count, duration_seconds, hashtags, music_artist,
+      id, short_code, thumbnail_url, caption, video_url,
+      likes_count, comments_count, views_count, shares_count,
+      duration_seconds, hashtags, music_artist, published_at,
       competitor_reel_analysis (id)
     `)
     .eq('competitor_id', competitorId)
-    .eq('workspace_id', workspaceId)
-    .is('competitor_reel_analysis.id', null)
-    .order('views_count', { ascending: false, nullsFirst: false })
-    .limit(6);
+    .eq('workspace_id', workspaceId);
 
+  if (reelIds && reelIds.length > 0) {
+    query = query.in('id', reelIds);
+  } else {
+    query = query
+      .is('competitor_reel_analysis.id', null)
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .limit(BULK_DEFAULT_LIMIT);
+  }
+
+  const { data: reels, error } = await query;
   if (error || !reels || reels.length === 0) {
     return [];
   }
 
-  // Emitimos progress inicial — la UI lo pollea para mostrar "Analizando 0/6…".
-  await supabase
-    .from('workspace_competitors')
-    .update({
-      scrape_progress: {
-        phase: 'analyzing',
-        current: 0,
-        total: reels.length,
-        message: `Analizando ${reels.length} reels con Gemini...`,
-      },
-    })
-    .eq('id', competitorId);
+  // Mutable per-reel status. Mutated in place by analyzeOne and serialized to
+  // DB on each transition. Race conditions across parallel writes are benign:
+  // the last write reflects the latest status, and any "missed" intermediate
+  // running→done transition still resolves to the correct terminal state.
+  const reelStatuses: BulkReelStatus[] = reels.map((r) => ({
+    id: r.id,
+    short_code: (r as { short_code: string | null }).short_code ?? null,
+    thumbnail_url: (r as { thumbnail_url: string | null }).thumbnail_url ?? null,
+    status: 'pending',
+  }));
+
+  const writeProgress = async () => {
+    const done = reelStatuses.filter((s) => s.status === 'done').length;
+    const failed = reelStatuses.filter((s) => s.status === 'failed').length;
+    const running = reelStatuses.filter((s) => s.status === 'running').length;
+    const completed = done + failed;
+    const total = reelStatuses.length;
+    const message = running > 0
+      ? `${completed}/${total} listos · ${running} analizando`
+      : completed === total
+        ? `${total} reels analizados`
+        : `Analizando ${total} reels...`;
+    await supabase
+      .from('workspace_competitors')
+      .update({
+        scrape_progress: {
+          phase: 'analyzing',
+          current: completed,
+          total,
+          message,
+          reels: reelStatuses,
+        },
+      })
+      .eq('id', competitorId);
+  };
+
+  await writeProgress();
 
   const geminiAvailable = isGeminiEnabled();
-  let analyzedCount = 0;
 
-  const analyzeOne = async (reel: typeof reels[number]): Promise<AnalysisResult> => {
-    try {
-      let analysisData: ReelAnalysisData;
-      let extractedTranscript: string | null = null;
+  // Detect Gemini quota exhaustion (429 RESOURCE_EXHAUSTED). The free tier
+  // is 20 requests/DAY — once hit, retry won't help for ~24h. Fail fast with
+  // a clear message instead of burning retry budget.
+  const isQuotaError = (err: unknown): boolean => {
+    if (!(err instanceof Error)) return false;
+    return err.message.includes('429') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('quota');
+  };
 
-      if (geminiAvailable && (reel as CompetitorReel).video_url) {
+  // Try Gemini video → text → fallback, with one retry on transient failures
+  // (5s delay). Quota errors (429) skip the retry — they're daily limits, not
+  // transient blips, and retrying just wastes time.
+  const tryAnalyzeWithRetry = async (reel: CompetitorReel): Promise<{ data: ReelAnalysisData; transcript: string | null }> => {
+    const attempt = async (): Promise<{ data: ReelAnalysisData; transcript: string | null }> => {
+      if (geminiAvailable && reel.video_url) {
         try {
-          const geminiResult = await analyzeReelWithGemini(reel as CompetitorReel);
-          extractedTranscript = geminiResult.transcript;
-          analysisData = geminiResult;
+          const geminiResult = await analyzeReelWithGemini(reel);
+          return { data: geminiResult, transcript: geminiResult.transcript };
         } catch (geminiErr) {
+          if (isQuotaError(geminiErr)) throw geminiErr; // don't waste a text-only call on the same key
           console.warn(`[competitor-analysis] Gemini video failed for reel ${reel.id}, using Gemini text:`, geminiErr);
-          analysisData = await analyzeReelWithGeminiText(reel as CompetitorReel);
+          return { data: await analyzeReelWithGeminiText(reel), transcript: null };
         }
-      } else if (geminiAvailable) {
-        analysisData = await analyzeReelWithGeminiText(reel as CompetitorReel);
-      } else {
-        analysisData = await analyzeReelFallback(reel as CompetitorReel);
       }
+      if (geminiAvailable) return { data: await analyzeReelWithGeminiText(reel), transcript: null };
+      return { data: await analyzeReelFallback(reel), transcript: null };
+    };
+
+    try {
+      return await attempt();
+    } catch (err) {
+      if (isQuotaError(err)) {
+        // Quota errors are daily limits — surface a friendly user-facing
+        // message that explains why and what to do.
+        throw new Error('Cuota diaria de Gemini agotada (free tier: 20 req/día). Actualizá la API key a paid tier para continuar.');
+      }
+      console.warn(`[competitor-analysis] Attempt 1 failed for reel ${reel.id}, retrying in 5s:`, err);
+      await new Promise((r) => setTimeout(r, 5_000));
+      return await attempt();
+    }
+  };
+
+  const analyzeOne = async (reel: typeof reels[number], index: number): Promise<AnalysisResult> => {
+    reelStatuses[index].status = 'running';
+    await writeProgress();
+
+    try {
+      const { data: analysisData, transcript: extractedTranscript } = await tryAnalyzeWithRetry(reel as CompetitorReel);
 
       if (extractedTranscript) {
         await supabase
@@ -721,6 +810,13 @@ export async function analyzeCompetitorReels(
           .update({ transcript: extractedTranscript })
           .eq('id', reel.id);
       }
+
+      // Wipe any existing analysis for this reel so re-analysis (the user
+      // clicked "Analizar" on a reel that already had a row) replaces cleanly.
+      await supabase
+        .from('competitor_reel_analysis')
+        .delete()
+        .eq('competitor_reel_id', reel.id);
 
       const { error: insertError } = await supabase
         .from('competitor_reel_analysis')
@@ -742,18 +838,13 @@ export async function analyzeCompetitorReels(
           tokens_used: analysisData.tokens_used,
         });
 
-      analyzedCount++;
-      await supabase
-        .from('workspace_competitors')
-        .update({
-          scrape_progress: {
-            phase: 'analyzing',
-            current: analyzedCount,
-            total: reels.length,
-            message: `Analizando ${analyzedCount}/${reels.length} reels con Gemini...`,
-          },
-        })
-        .eq('id', competitorId);
+      if (insertError) {
+        reelStatuses[index].status = 'failed';
+        reelStatuses[index].error = insertError.message;
+      } else {
+        reelStatuses[index].status = 'done';
+      }
+      await writeProgress();
 
       return {
         reelId: reel.id,
@@ -762,31 +853,34 @@ export async function analyzeCompetitorReels(
         error: insertError?.message,
       };
     } catch (err) {
-      analyzedCount++;
-      await supabase
-        .from('workspace_competitors')
-        .update({
-          scrape_progress: {
-            phase: 'analyzing',
-            current: analyzedCount,
-            total: reels.length,
-            message: `Analizando ${analyzedCount}/${reels.length} reels con Gemini...`,
-          },
-        })
-        .eq('id', competitorId);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      reelStatuses[index].status = 'failed';
+      reelStatuses[index].error = message;
+      await writeProgress();
 
       return {
         reelId: reel.id,
         success: false,
         tokensUsed: 0,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: message,
       };
     }
   };
 
-  const results = await Promise.all(reels.map(analyzeOne));
+  // Sequential execution. Parallel calls were saturating Gemini and causing
+  // silent 503 failures; even concurrency=2 left 1-2 of 5 reels failing
+  // intermittently. With concurrency=1 each reel gets Gemini's full attention
+  // and the retry-with-delay inside tryAnalyzeWithRetry can do its job. Trade
+  // off: total wall-clock = sum(per-reel times) ~60-90s × 5 = 5-7min worst
+  // case. Vercel kills the function at 300s, so reels processed up to that
+  // point stay persisted (each analyzeOne writes its row before moving on);
+  // any leftover reels can be re-triggered manually from the UI.
+  const results: AnalysisResult[] = [];
+  for (let i = 0; i < reels.length; i++) {
+    results.push(await analyzeOne(reels[i], i));
+  }
 
-  // Progress final: limpiamos el objeto así la UI deja de mostrar el mensaje.
+  // Clear progress so the polling effect knows we're done.
   await supabase
     .from('workspace_competitors')
     .update({ scrape_progress: null })

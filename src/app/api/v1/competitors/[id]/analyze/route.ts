@@ -5,13 +5,21 @@
  * Logs AI costs to llm_usage with feature 'competitor-analysis'.
  */
 
-export const maxDuration = 120;
+// Vercel Pro hard cap is 300s. 5 reels in parallel ≈ 30-90s, so 300s leaves
+// plenty of headroom for slow Gemini retries / fallback to text-only mode.
+export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { analyzeCompetitorReels } from '@/services/competitor-analysis.service';
 import { logLLMUsage, calculateCost } from '@/services/llm-usage.service';
+
+const MAX_BULK_REEL_IDS = 5;
+
+interface AnalyzeBody {
+  reelIds?: string[];
+}
 
 export async function POST(
   request: Request,
@@ -23,6 +31,19 @@ export async function POST(
 
     const { id: competitorId } = await params;
     const supabase = await createClient();
+
+    // Optional reelIds[] in body — when present, analyze exactly those reels
+    // (the user picked them with the multi-select UI). Capped server-side at
+    // MAX_BULK_REEL_IDS to keep cost predictable.
+    let reelIds: string[] | undefined;
+    const contentType = request.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      const body = (await request.json().catch(() => ({}))) as AnalyzeBody;
+      if (Array.isArray(body.reelIds)) {
+        reelIds = body.reelIds.slice(0, MAX_BULK_REEL_IDS).filter((id) => typeof id === 'string');
+        if (reelIds.length === 0) reelIds = undefined;
+      }
+    }
 
     // Verify competitor belongs to workspace
     const { data: competitor } = await supabase
@@ -45,7 +66,7 @@ export async function POST(
       .eq('id', competitorId);
 
     const startMs = Date.now();
-    const results = await analyzeCompetitorReels(supabase, competitorId, auth.workspaceId);
+    const results = await analyzeCompetitorReels(supabase, competitorId, auth.workspaceId, reelIds);
     const latencyMs = Date.now() - startMs;
 
     // Reset status to idle

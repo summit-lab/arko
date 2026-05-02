@@ -474,17 +474,27 @@ export async function scrapeCompetitor(
   ]);
 
   // Tag `maybe_trial` comparando reels vs grid. Si no pudimos traer el grid
-  // (actor falló), dejamos NULL — la UI lo interpreta como "desconocido".
+  // (Apify post-scraper falló), defaulteamos a `false` (reel normal) en vez de
+  // dejar NULL: la mayoría de los reels NO son trials, y dejar null hacía que
+  // el tab "Trials" quedara vacío y "Reels" mostrara todo cuando el grid
+  // scrape fallaba. El usuario puede marcar manualmente los trials reales con
+  // toggle-trial si la detección automática se equivoca.
   let trialCount = 0;
   if (gridShortcodes && gridShortcodes.size > 0) {
     console.log(`[competitor-scraper] Trial detection @${username}: ${reels.length} reels, ${gridShortcodes.size} grid shortcodes`);
     for (const reel of reels) {
-      if (!reel.short_code) continue;
+      if (!reel.short_code) {
+        reel.maybe_trial = false;
+        continue;
+      }
       reel.maybe_trial = !gridShortcodes.has(reel.short_code);
       if (reel.maybe_trial) trialCount++;
     }
   } else {
-    console.warn(`[competitor-scraper] Grid scrape returned 0 shortcodes for @${username} — skipping trial detection`);
+    console.warn(`[competitor-scraper] Grid scrape returned 0 shortcodes for @${username} — defaulting all reels to maybe_trial=false`);
+    for (const reel of reels) {
+      reel.maybe_trial = false;
+    }
   }
 
   await setProgress(supabase, competitorId, {
@@ -566,51 +576,89 @@ export async function scrapeCompetitor(
     message: `Guardando ${reelsWithStableUrls.length} reels en BD...`,
   });
 
-  await supabase
-    .from('competitor_reels')
-    .delete()
-    .eq('competitor_id', competitorId);
-
+  // UPSERT instead of delete+insert. Reasons:
+  //   1. Preserves the row's `id` across scrapes — competitor_reel_snapshots
+  //      references reel_id and would orphan otherwise.
+  //   2. Preserves `competitor_reel_analysis` rows that the user already paid
+  //      tokens for — analysis is keyed by competitor_reel_id.
+  //   3. Preserves `maybe_trial` if the user manually toggled it.
+  // The unique index `(competitor_id, short_code) WHERE short_code IS NOT NULL`
+  // (migration 20260326000019) supports the conflict target.
   const scrapedAt = new Date().toISOString();
-  const rowsToInsert = reelsWithStableUrls.map((reel) => ({
-    competitor_id: competitorId,
-    workspace_id: workspaceId,
-    short_code: reel.short_code,
-    permalink: reel.permalink,
-    caption: reel.caption,
-    likes_count: reel.likes_count,
-    comments_count: reel.comments_count,
-    views_count: reel.views_count,
-    shares_count: reel.shares_count,
-    duration_seconds: reel.duration_seconds,
-    published_at: reel.published_at,
-    thumbnail_url: reel.thumbnail_url,
-    video_url: reel.video_url,
-    transcript: reel.transcript,
-    hashtags: reel.hashtags,
-    mentions: reel.mentions,
-    music_artist: reel.music_artist,
-    music_name: reel.music_name,
-    location_name: reel.location_name,
-    location_id: reel.location_id,
-    tagged_users: reel.tagged_users,
-    product_type: reel.product_type,
-    is_video: reel.is_video,
-    maybe_trial: reel.maybe_trial,
-    raw_data: reel,
-    scraped_at: scrapedAt,
-  }));
+  const rowsToUpsert = reelsWithStableUrls
+    .filter((reel) => reel.short_code) // upsert needs the conflict key
+    .map((reel) => ({
+      competitor_id: competitorId,
+      workspace_id: workspaceId,
+      short_code: reel.short_code,
+      permalink: reel.permalink,
+      caption: reel.caption,
+      likes_count: reel.likes_count,
+      comments_count: reel.comments_count,
+      views_count: reel.views_count,
+      shares_count: reel.shares_count,
+      duration_seconds: reel.duration_seconds,
+      published_at: reel.published_at,
+      thumbnail_url: reel.thumbnail_url,
+      video_url: reel.video_url,
+      transcript: reel.transcript,
+      hashtags: reel.hashtags,
+      mentions: reel.mentions,
+      music_artist: reel.music_artist,
+      music_name: reel.music_name,
+      location_name: reel.location_name,
+      location_id: reel.location_id,
+      tagged_users: reel.tagged_users,
+      product_type: reel.product_type,
+      is_video: reel.is_video,
+      maybe_trial: reel.maybe_trial,
+      raw_data: reel,
+      scraped_at: scrapedAt,
+    }));
 
   let reelsInserted = 0;
-  if (rowsToInsert.length > 0) {
+  if (rowsToUpsert.length > 0) {
     const { error: bulkError, count } = await supabase
       .from('competitor_reels')
-      .insert(rowsToInsert, { count: 'exact' });
+      .upsert(rowsToUpsert, { onConflict: 'competitor_id,short_code', count: 'exact' });
 
     if (bulkError) {
-      console.error('[competitor-scraper] Bulk insert error:', bulkError.message);
+      console.error('[competitor-scraper] Bulk upsert error:', bulkError.message);
     } else {
-      reelsInserted = count ?? rowsToInsert.length;
+      reelsInserted = count ?? rowsToUpsert.length;
+    }
+
+    // Daily per-reel metrics snapshot. PRIMARY KEY (reel_id, snapshot_date) makes
+    // this idempotent if the scrape runs twice on the same calendar day.
+    // We need the row IDs back from the upsert to write the snapshot, so we
+    // re-fetch by short_code (the upsert API doesn't reliably return ids on
+    // conflict). Fast: indexed by (competitor_id, short_code).
+    const shortCodes = rowsToUpsert.map((r) => r.short_code).filter((sc): sc is string => sc != null);
+    if (shortCodes.length > 0) {
+      const { data: persistedReels } = await supabase
+        .from('competitor_reels')
+        .select('id, short_code, views_count, likes_count, comments_count, shares_count')
+        .eq('competitor_id', competitorId)
+        .in('short_code', shortCodes);
+
+      if (persistedReels && persistedReels.length > 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        const snapshotRows = persistedReels.map((r) => ({
+          reel_id: r.id,
+          workspace_id: workspaceId,
+          snapshot_date: today,
+          views_count: r.views_count,
+          likes_count: r.likes_count,
+          comments_count: r.comments_count,
+          shares_count: r.shares_count,
+        }));
+        const { error: snapErr } = await supabase
+          .from('competitor_reel_snapshots')
+          .upsert(snapshotRows, { onConflict: 'reel_id,snapshot_date' });
+        if (snapErr) {
+          console.warn('[competitor-scraper] Reel snapshot write error:', snapErr.message);
+        }
+      }
     }
   }
 
