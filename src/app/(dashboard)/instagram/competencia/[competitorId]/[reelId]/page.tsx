@@ -454,7 +454,8 @@ export default async function CompetitorReelDetailPage({
             </div>
             {reel.maybe_trial && (
               <div className="pointer-events-none absolute bottom-3 left-3">
-                <span className="flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                <span className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium"
+                  style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", color: "#fbbf24" }}>
                   <AlertTriangle className="h-2.5 w-2.5" /> Trial
                 </span>
               </div>
