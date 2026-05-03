@@ -119,7 +119,6 @@ export interface MyFollowerPoint {
 }
 
 type SortKey = "views" | "likes" | "date";
-type TypeFilter = "all" | "trial" | "normal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -498,14 +497,6 @@ function AnalysisModal({ reel, analysis, competitor, onClose }: {
                 {Math.round(reel.duration_seconds)}s
               </div>
             )}
-            {/* Trial badge on thumbnail */}
-            {reel.maybe_trial === true && (
-              <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full z-10"
-                style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", backdropFilter: "blur(4px)" }}>
-                <AlertTriangle size={8} className="text-amber-400" />
-                <span className="text-[8px] text-amber-300 font-medium">{t("competitor.modal.trialBadge")}</span>
-              </div>
-            )}
           </div>
 
           {/* Stats + metadata below thumbnail */}
@@ -745,7 +736,6 @@ function ReelGalleryCard({
   const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const analysis = getAnalysis(reel);
   const hasAnalysis = analysis !== null;
-  const isTrial = reel.maybe_trial === true;
   // In selection mode: clicking the thumbnail toggles selection instead of
   // navigating. Disabled cards (when at max selection and this one isn't
   // selected) become non-interactive to avoid silent no-ops.
@@ -804,22 +794,15 @@ function ReelGalleryCard({
           </div>
         )}
 
-        {/* Top-left: analyzed dot OR trial badge — siempre fondo negro semi
-            transparente + texto blanco/ámbar para que sea legible sin importar
-            el fondo del thumbnail. */}
-        {isTrial ? (
-          <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md z-10 pointer-events-none"
-            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
-            <AlertTriangle size={9} style={{ color: "#fbbf24" }} />
-            <span className="text-[9px] font-medium" style={{ color: "#fbbf24" }}>Trial</span>
-          </div>
-        ) : hasAnalysis ? (
+        {/* Top-left: analyzed dot. Trial detection se removió (mostramos
+            todos los reels de la cuenta sin diferenciar). */}
+        {hasAnalysis && (
           <div className="absolute top-2 left-2 h-3 w-3 rounded-full z-10 pointer-events-none flex items-center justify-center"
             style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
             <span className="h-1.5 w-1.5 rounded-full"
               style={{ background: "#a78bfa", boxShadow: "0 0 6px rgba(167,139,250,0.9)" }} />
           </div>
-        ) : null}
+        )}
 
         {!selectionMode && (
           // Black pill + white text so the date is legible on top of any
@@ -1529,9 +1512,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const [analyzingReels, setAnalyzingReels] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("date");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   // Paginación del grid de reels del competidor seleccionado: 20 por página.
-  // Reset a 1 cada vez que cambia de competidor, sort o filtro de tipo.
+  // Reset a 1 cada vez que cambia de competidor o sort.
   const [reelsPage, setReelsPage] = useState(1);
   const REELS_PAGE_SIZE = 20;
   // Multi-select para bulk analyze. Cuando está activo, las cards muestran
@@ -1806,21 +1788,17 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   }, [selectedReelIds, headers, t, load]);
 
   // Reset selection when competitor/filter/sort changes — keeps the UI sane.
-  useEffect(() => { setSelectionMode(false); setSelectedReelIds(new Set()); }, [selectedId, sort, typeFilter]);
+  useEffect(() => { setSelectionMode(false); setSelectedReelIds(new Set()); }, [selectedId, sort]);
 
   // `selected` drives the heavy right panel + grid. We use the DEFERRED id
   // here so the panel keeps showing the old competitor until the new render
   // is ready. The sidebar highlight uses the non-deferred selectedId, so it
   // updates instantly when the user clicks.
   const selected = competitors.find((c) => c.id === deferredSelectedId) ?? null;
-  const filteredReels = selected
-    ? selected.competitor_reels.filter((r) => {
-        if (typeFilter === "trial") return r.maybe_trial === true;
-        if (typeFilter === "normal") return r.maybe_trial !== true;
-        return true;
-      })
-    : [];
-  const sortedReels = sortReels(filteredReels, sort);
+  // Mostramos todos los reels del competidor sin distinguir trial/normal.
+  // La detección de trial fue removida: el campo maybe_trial sigue en DB
+  // pero ya no afecta la UI.
+  const sortedReels = selected ? sortReels(selected.competitor_reels, sort) : [];
   const totalPages = Math.max(1, Math.ceil(sortedReels.length / REELS_PAGE_SIZE));
   const currentPage = Math.min(reelsPage, totalPages);
   const paginatedReels = sortedReels.slice(
@@ -1828,8 +1806,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
     currentPage * REELS_PAGE_SIZE,
   );
 
-  // Reset page when competitor, sort or type filter changes.
-  useEffect(() => { setReelsPage(1); }, [selectedId, sort, typeFilter]);
+  // Reset page when competitor or sort changes.
+  useEffect(() => { setReelsPage(1); }, [selectedId, sort]);
 
   // Polling live progress. Seguimos polleando mientras haya AL MENOS UNA de
   // estas dos señales activas para el competidor:
@@ -2060,16 +2038,9 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-[11px] text-white/25 uppercase tracking-wider shrink-0">
                   {selectionMode ? (
-                    <>
-                      {t("competitor.selection.counter", { selected: selectedReelIds.size, max: MAX_SELECTION })}
-                    </>
+                    t("competitor.selection.counter", { selected: selectedReelIds.size, max: MAX_SELECTION })
                   ) : (
-                    <>
-                      {t("competitor.reelsHeader", { count: sortedReels.length })}
-                      {typeFilter !== "all" && (
-                        <span className="ml-1.5 text-white/15">/ {selected.competitor_reels.length}</span>
-                      )}
-                    </>
+                    t("competitor.reelsHeader", { count: sortedReels.length })
                   )}
                 </p>
                 {selected.competitor_reels.length > 1 && (
@@ -2095,35 +2066,6 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                       </>
                     ) : (
                       <>
-                        {/* Type filter pills */}
-                        <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
-                          {(
-                            [
-                              { key: "all"    as TypeFilter, label: t("competitor.typeFilter.all"),   icon: null },
-                              { key: "normal" as TypeFilter, label: t("competitor.typeFilter.reel"),  icon: null },
-                              { key: "trial"  as TypeFilter, label: t("competitor.typeFilter.trial"), icon: AlertTriangle },
-                            ]
-                          ).map(({ key, label, icon: Icon }) => {
-                            const trialCount = selected.competitor_reels.filter((r) => r.maybe_trial === true).length;
-                            return (
-                              <button
-                                key={key}
-                                onClick={() => setTypeFilter(key)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer border ${
-                                  typeFilter === key
-                                    ? "text-white bg-white/[0.1] border-white/[0.1]"
-                                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-transparent"
-                                }`}
-                              >
-                                {Icon && <Icon size={10} className={typeFilter === key ? "text-amber-400" : "text-white/30"} />}
-                                {label}
-                                {key === "trial" && trialCount > 0 && (
-                                  <span className="text-[10px] text-amber-400/70 tabular-nums">{trialCount}</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
                         <SortDropdown value={sort} onChange={setSort} />
                         <button
                           onClick={toggleSelectionMode}
