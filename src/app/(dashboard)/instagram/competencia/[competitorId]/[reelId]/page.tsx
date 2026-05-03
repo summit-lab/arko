@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Eye, Heart, MessageSquare, Share2, Clock, ExternalLink,
-  AlertTriangle, ChevronLeft, Hash, Music, Activity, TrendingUp,
+  ChevronLeft, Hash, Music, Activity, TrendingUp,
   Sparkles, FileText, Brain, Target, Zap, BookOpen, Lightbulb,
   CheckCircle2, AlertCircle,
 } from "lucide-react";
@@ -452,14 +452,6 @@ export default async function CompetitorReelDetailPage({
                 </div>
               )}
             </div>
-            {reel.maybe_trial && (
-              <div className="pointer-events-none absolute bottom-3 left-3">
-                <span className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium"
-                  style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", color: "#fbbf24" }}>
-                  <AlertTriangle className="h-2.5 w-2.5" /> Trial
-                </span>
-              </div>
-            )}
           </div>
 
           {reel.permalink && (
