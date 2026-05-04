@@ -36,7 +36,9 @@ CREATE OR REPLACE FUNCTION public.refresh_meta_token(
 ) RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog, pg_temp
+-- `extensions` schema en search_path es crítico: pgcrypto vive ahí y
+-- pgp_sym_encrypt() falla con "function does not exist" si no se incluye.
+SET search_path = public, extensions, pg_catalog, pg_temp
 AS $$
 BEGIN
   UPDATE meta_connections
