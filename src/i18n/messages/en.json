@@ -726,6 +726,12 @@
     "blockedTitle": "Moka AI needs your DNA",
     "blockedDescription": "To give you personalized analysis and recommendations, first complete your Communication DNA."
   },
+  "metaConnectionBanner": {
+    "title": "Your Instagram connection was disconnected",
+    "expiredDescription": "The Meta token expired or was revoked. Reconnect so daily syncs of followers, views, and metrics resume.",
+    "pendingDescription": "The Meta connection is pending verification. Reconnect to activate syncs.",
+    "reconnectCta": "Reconnect"
+  },
   "instagram": {
     "pageTitle": "IG Intelligence",
     "pageSubtitle": "Deep analysis of your Instagram account.",

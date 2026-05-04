@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { NavProgressBar } from "@/components/layout/NavigationProvider";
 import { AdnAlertBanner } from "@/components/features/onboarding/AdnAlertBanner";
+import { MetaConnectionBanner } from "@/components/features/meta/MetaConnectionBanner";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -18,17 +19,29 @@ export default async function DashboardLayout({
   // but the layout reads incoming cookies on the same request).
   let onboardingCompleted = cookieStore.get("arko_onboarding_completed")?.value === "true";
 
-  // Fetch workspace branding + onboarding status.
+  // Fetch workspace branding + onboarding status + meta connection status.
+  // The meta_connection lookup runs on EVERY dashboard render so the
+  // banner about expired Meta tokens is always fresh — antes era silencioso
+  // y el cron dejaba de sincronizar al usuario sin avisar.
   const workspaceId = cookieStore.get("arko_workspace_id")?.value;
   let brandName: string | null = null;
   let logoUrl: string | null = null;
+  let metaConnectionStatus: string | null = null;
+  let metaConnectionLastError: string | null = null;
   if (workspaceId) {
     const supabase = await createClient();
-    const { data: wsData } = await supabase
-      .from("workspaces")
-      .select("name, settings, onboarding_completed")
-      .eq("id", workspaceId)
-      .single();
+    const [{ data: wsData }, { data: metaData }] = await Promise.all([
+      supabase
+        .from("workspaces")
+        .select("name, settings, onboarding_completed")
+        .eq("id", workspaceId)
+        .single(),
+      supabase
+        .from("meta_connections")
+        .select("status, last_error")
+        .eq("workspace_id", workspaceId)
+        .maybeSingle(),
+    ]);
 
     if (wsData) {
       const settings = wsData.settings as Record<string, unknown>;
@@ -38,9 +51,17 @@ export default async function DashboardLayout({
         onboardingCompleted = true;
       }
     }
+    if (metaData) {
+      metaConnectionStatus = metaData.status ?? null;
+      metaConnectionLastError = metaData.last_error ?? null;
+    }
   }
 
   const showAdnAlert = !onboardingCompleted && !isAdmin;
+  // Banner solo cuando hay conexión configurada y NO está activa. Si el
+  // usuario nunca conectó Meta, mostramos el flujo de onboarding normal,
+  // no este banner.
+  const showMetaBanner = !!metaConnectionStatus && metaConnectionStatus !== "active" && !isAdmin;
 
   return (
     <div className="flex min-h-screen">
@@ -71,6 +92,12 @@ export default async function DashboardLayout({
           <Header />
         </Suspense>
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          {showMetaBanner && (
+            <MetaConnectionBanner
+              status={metaConnectionStatus!}
+              lastError={metaConnectionLastError}
+            />
+          )}
           {showAdnAlert && <AdnAlertBanner />}
           {children}
         </main>

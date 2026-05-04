@@ -726,6 +726,12 @@
     "blockedTitle": "Moka AI necesita tu ADN",
     "blockedDescription": "Para darte análisis y recomendaciones personalizadas, primero completá tu ADN de Comunicación."
   },
+  "metaConnectionBanner": {
+    "title": "Tu cuenta de Instagram se desconectó",
+    "expiredDescription": "El token de Meta caducó o fue revocado. Reconectá para que vuelvan los syncs diarios de seguidores, views y métricas.",
+    "pendingDescription": "La conexión con Meta está pendiente de verificación. Reconectá para activar los syncs.",
+    "reconnectCta": "Reconectar"
+  },
   "instagram": {
     "pageTitle": "IG Intelligence",
     "pageSubtitle": "Análisis profundo de tu cuenta de Instagram.",
