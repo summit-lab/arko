@@ -91,6 +91,7 @@
     "referencias": "References",
     "tuAudiencia": "Your audience",
     "publicaciones": "Posts",
+    "mesaDeTrabajo": "Content studio",
     "masHerramientas": "More tools",
     "settingsHeader": "Settings",
     "branding": "Branding",
@@ -103,6 +104,73 @@
     "logout": "Log out",
     "subtitleDefault": "Intelligence Suite",
     "subtitlePoweredBy": "powered by Moka"
+  },
+  "mesaDeTrabajo": {
+    "title": "Content studio",
+    "subtitle": "Plan and create your content from one place.",
+    "newItem": "New content",
+    "views": {
+      "pipeline": "Pipeline",
+      "calendar": "Calendar"
+    },
+    "filters": {
+      "all": "All",
+      "reel": "Reels",
+      "carousel": "Carousels",
+      "story": "Stories"
+    },
+    "status": {
+      "idea": "Idea",
+      "script": "Script",
+      "needs_recording": "Needs recording",
+      "recorded": "Recorded",
+      "needs_editing": "Needs editing",
+      "editing": "Editing",
+      "scheduled": "Scheduled",
+      "published": "Published"
+    },
+    "type": {
+      "reel": "Reel",
+      "carousel": "Carousel",
+      "story": "Story"
+    },
+    "platform": {
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "youtube": "YouTube"
+    },
+    "modal": {
+      "titleCreate": "New content",
+      "titleEdit": "Edit content",
+      "fieldTitle": "Title",
+      "fieldTitlePlaceholder": "What is this content about?",
+      "fieldType": "Type",
+      "fieldStatus": "Status",
+      "fieldPlatform": "Platform",
+      "fieldDate": "Target date",
+      "fieldDescription": "Notes / brief",
+      "fieldDescriptionPlaceholder": "Context, references, loose ideas…",
+      "fieldScript": "Script / caption",
+      "fieldScriptPlaceholder": "Write the full script or caption…",
+      "save": "Save",
+      "saving": "Saving…",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "deleteConfirm": "Delete this item? This action cannot be undone.",
+      "errorTitle": "Title is required."
+    },
+    "empty": {
+      "pipeline": "No content in this column.",
+      "calendar": "No content scheduled this month.",
+      "addFirst": "Create your first content"
+    },
+    "metrics": {
+      "reach": "Reach",
+      "likes": "Likes",
+      "saves": "Saves",
+      "comments": "Comments",
+      "shares": "Shares"
+    }
   },
   "dashboard": {
     "title": "Dashboard",

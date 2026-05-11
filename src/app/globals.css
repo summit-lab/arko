@@ -430,6 +430,29 @@
   animation: moka-head-tilt-right 0.5s ease-out forwards;
 }
 
+/* ── Pipeline — prominent horizontal scrollbar for the Kanban board ── */
+.pipeline-scroll::-webkit-scrollbar { height: 8px; }
+.pipeline-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin: 0 4px;
+}
+.pipeline-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+}
+.pipeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.40);
+}
+.pipeline-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) rgba(255, 255, 255, 0.05);
+}
+html:not(.dark) .pipeline-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+html:not(.dark) .pipeline-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.22); }
+html:not(.dark) .pipeline-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.40); }
+html:not(.dark) .pipeline-scroll { scrollbar-color: rgba(0, 0, 0, 0.22) rgba(0, 0, 0, 0.05); }
+
 /* ── Stories sequence — thicker + more visible scrollbar for the slide strip,
       since the global 6px scrollbar is nearly invisible for a prominent
       horizontal scroll the user is meant to interact with ── */
@@ -732,5 +755,11 @@ html:not(.dark) .autofill-dark:-webkit-autofill:focus {
 @keyframes barGrow {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
+}
+
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
 

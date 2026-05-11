@@ -91,6 +91,7 @@
     "referencias": "Referencias",
     "tuAudiencia": "Tu audiencia",
     "publicaciones": "Publicaciones",
+    "mesaDeTrabajo": "Mesa de trabajo",
     "masHerramientas": "Más herramientas",
     "settingsHeader": "Configuración",
     "branding": "Branding",
@@ -103,6 +104,73 @@
     "logout": "Log out",
     "subtitleDefault": "Intelligence Suite",
     "subtitlePoweredBy": "powered by Moka"
+  },
+  "mesaDeTrabajo": {
+    "title": "Mesa de trabajo",
+    "subtitle": "Planeá y creá tu contenido desde un solo lugar.",
+    "newItem": "Nuevo contenido",
+    "views": {
+      "pipeline": "Pipeline",
+      "calendar": "Calendario"
+    },
+    "filters": {
+      "all": "Todos",
+      "reel": "Reels",
+      "carousel": "Carruseles",
+      "story": "Historias"
+    },
+    "status": {
+      "idea": "Idea",
+      "script": "Script",
+      "needs_recording": "Falta grabar",
+      "recorded": "Grabado",
+      "needs_editing": "Falta editar",
+      "editing": "Editando",
+      "scheduled": "Programado",
+      "published": "Publicado"
+    },
+    "type": {
+      "reel": "Reel",
+      "carousel": "Carrusel",
+      "story": "Historia"
+    },
+    "platform": {
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "youtube": "YouTube"
+    },
+    "modal": {
+      "titleCreate": "Nuevo contenido",
+      "titleEdit": "Editar contenido",
+      "fieldTitle": "Título",
+      "fieldTitlePlaceholder": "¿De qué trata este contenido?",
+      "fieldType": "Tipo",
+      "fieldStatus": "Estado",
+      "fieldPlatform": "Plataforma",
+      "fieldDate": "Fecha objetivo",
+      "fieldDescription": "Notas / brief",
+      "fieldDescriptionPlaceholder": "Contexto, referencias, ideas sueltas…",
+      "fieldScript": "Script / caption",
+      "fieldScriptPlaceholder": "Escribí el guion o caption completo…",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "delete": "Eliminar",
+      "deleting": "Eliminando…",
+      "deleteConfirm": "¿Eliminás este item? Esta acción no se puede deshacer.",
+      "errorTitle": "El título es obligatorio."
+    },
+    "empty": {
+      "pipeline": "No hay contenido en esta columna.",
+      "calendar": "No hay contenido programado este mes.",
+      "addFirst": "Creá tu primer contenido"
+    },
+    "metrics": {
+      "reach": "Alcance",
+      "likes": "Likes",
+      "saves": "Guardados",
+      "comments": "Comentarios",
+      "shares": "Compartidos"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
