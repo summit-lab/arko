@@ -20,6 +20,7 @@ import {
   Grid2X2,
   ChevronRight,
   Wrench,
+  Pencil,
 } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 import { useTheme } from "./ThemeProvider";
@@ -48,10 +49,11 @@ const buildNavItems = (t: (key: string) => string): NavItem[] => [
   { name: "Reels",           href: "/instagram", tab: "reels",        LucideIcon: Clapperboard },
   { name: t("historias"),    href: "/instagram", tab: "historias",    LucideIcon: BookImage },
   { name: t("competencia"),  href: "/instagram", tab: "competencia",  LucideIcon: Swords },
-  { name: t("referencias"),  href: "/instagram", tab: "referencias",  LucideIcon: BookMarked },
+  // { name: t("referencias"),  href: "/instagram", tab: "referencias",  LucideIcon: BookMarked },
   { name: t("tuAudiencia"),  href: "/instagram", tab: "metrics",      LucideIcon: Users },
-  { name: t("ventas"),       href: "/ventas",    LucideIcon: Megaphone },
-  { name: "Moka AI",         href: "/agents",    LucideIcon: Bot },
+  { name: t("ventas"),         href: "/ventas",            LucideIcon: Megaphone },
+  { name: t("mesaDeTrabajo"), href: "/mesa-de-trabajo",  LucideIcon: Pencil },
+  { name: "Moka AI",          href: "/agents",            LucideIcon: Bot },
 ];
 
 // "Más herramientas" accordion items
