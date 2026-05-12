@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Sparkles, History, Plus, MessageSquare, ArrowLeft } from "lucide-react";
+import { Send, Sparkles, History, Plus, MessageSquare, ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { useArkoChat } from "@/hooks/useArkoChat";
@@ -9,6 +9,7 @@ import { ArkoMessage, ThinkingIndicator } from "@/components/chat/ChatShared";
 
 interface MokaContentPanelProps {
   workspaceId: string;
+  onClose?: () => void;
   onContentAdded?: (items: Record<string, unknown>[]) => void;
   onContentUpdated?: (item: Record<string, unknown>) => void;
 }
@@ -39,7 +40,7 @@ function formatRelativeDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
 }
 
-export function MokaContentPanel({ workspaceId, onContentAdded, onContentUpdated }: MokaContentPanelProps) {
+export function MokaContentPanel({ workspaceId, onClose, onContentAdded, onContentUpdated }: MokaContentPanelProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
 
@@ -211,6 +212,17 @@ export function MokaContentPanel({ workspaceId, onContentAdded, onContentUpdated
             >
               <History size={14} />
             </button>
+            {onClose && (
+              <button
+                style={iconBtnStyle}
+                onClick={onClose}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; (e.currentTarget as HTMLElement).style.color = textMain; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
+                title="Cerrar Moka"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>

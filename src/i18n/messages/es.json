@@ -117,22 +117,22 @@
       "all": "Todos",
       "reel": "Reels",
       "carousel": "Carruseles",
-      "story": "Historias"
+      "story": "Historias",
+      "youtube_video": "YouTube"
     },
     "status": {
       "idea": "Idea",
-      "script": "Script",
-      "needs_recording": "Falta grabar",
-      "recorded": "Grabado",
-      "needs_editing": "Falta editar",
+      "ready_to_record": "Listo para grabar",
+      "raw_footage": "Video crudo",
       "editing": "Editando",
-      "scheduled": "Programado",
+      "ready_to_publish": "Listo para publicar",
       "published": "Publicado"
     },
     "type": {
       "reel": "Reel",
       "carousel": "Carrusel",
-      "story": "Historia"
+      "story": "Historia",
+      "youtube_video": "Video de YouTube"
     },
     "platform": {
       "instagram": "Instagram",
@@ -160,7 +160,8 @@
       "errorTitle": "El título es obligatorio."
     },
     "empty": {
-      "pipeline": "No hay contenido en esta columna.",
+      "pipeline": "Sin contenido",
+      "dropHere": "Soltar acá",
       "calendar": "No hay contenido programado este mes.",
       "addFirst": "Creá tu primer contenido"
     },

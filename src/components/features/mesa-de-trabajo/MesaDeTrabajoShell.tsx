@@ -1,35 +1,26 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Plus, Kanban, CalendarDays } from "lucide-react";
+import { Plus, Kanban, CalendarDays, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_TYPES } from "@/types/content-plan";
 import type {
   ContentItem,
   ContentStatus,
   ContentType,
-  ContentPlatform,
   CalendarReel,
 } from "@/types/content-plan";
 import { ContentPipeline } from "./ContentPipeline";
 import { ContentCalendar } from "./ContentCalendar";
 import { ContentItemModal } from "./ContentItemModal";
+import type { CreatePayload } from "./ContentItemModal";
 import { MokaContentPanel } from "./MokaContentPanel";
 
 type ViewMode = "pipeline" | "calendar";
 
 const MOKA_WIDTH = 320;
 const HEADER_H   = 80;
-
-interface ItemPayload {
-  title: string;
-  content_type: ContentType;
-  status: ContentStatus;
-  platform: ContentPlatform;
-  planned_date: string | null;
-  description: string | null;
-  script: string | null;
-}
 
 interface MesaDeTrabajoShellProps {
   initialItems: ContentItem[];
@@ -44,6 +35,7 @@ export function MesaDeTrabajoShell({
 }: MesaDeTrabajoShellProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const t = useTranslations("mesaDeTrabajo");
 
   const [items, setItems]             = useState<ContentItem[]>(initialItems);
   const [view, setView]               = useState<ViewMode>("pipeline");
@@ -52,6 +44,7 @@ export function MesaDeTrabajoShell({
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [modalStatus, setModalStatus] = useState<ContentStatus>("idea");
   const [modalDate, setModalDate]     = useState<string | null>(null);
+  const [mokaOpen, setMokaOpen]       = useState(false);
 
   // Disable the main scroll container so the layout is fully self-contained.
   // Without this, the parent <main overflow-y-auto> scrolls and hides the Moka panel.
@@ -84,7 +77,7 @@ export function MesaDeTrabajoShell({
     setModalDate(null);
   }
 
-  const handleCreate = useCallback(async (data: ItemPayload) => {
+  const handleCreate = useCallback(async (data: CreatePayload) => {
     const payload = { ...data, planned_date: modalDate ?? data.planned_date };
     const res = await fetch("/api/v1/content-plan", {
       method: "POST",
@@ -99,7 +92,7 @@ export function MesaDeTrabajoShell({
     setItems((prev) => [json.data.item, ...prev]);
   }, [modalDate, workspaceId]);
 
-  const handleUpdate = useCallback(async (id: string, data: Partial<ItemPayload>) => {
+  const handleUpdate = useCallback(async (id: string, data: Partial<CreatePayload>) => {
     const res = await fetch("/api/v1/content-plan", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-workspace-id": workspaceId },
@@ -138,8 +131,11 @@ export function MesaDeTrabajoShell({
   }, [items, workspaceId]);
 
   const typeOptions: { value: ContentType | "all"; label: string }[] = [
-    { value: "all",       label: "Todos"    },
-    ...CONTENT_TYPES.map((t) => ({ value: t.value, label: t.label })),
+    { value: "all",       label: t("filters.all") },
+    ...CONTENT_TYPES.map((ct) => ({
+      value: ct.value,
+      label: t(`filters.${ct.value}` as Parameters<typeof t>[0]),
+    })),
   ];
 
   const btnBase     = "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all";
@@ -155,14 +151,14 @@ export function MesaDeTrabajoShell({
       {/* ── Left: content area — explicit height so children can use h-full ── */}
       <div
         className="flex flex-col overflow-hidden"
-        style={{ height: `calc(100vh - ${HEADER_H}px)`, paddingRight: MOKA_WIDTH }}
+        style={{ height: `calc(100vh - ${HEADER_H}px)`, paddingRight: mokaOpen ? MOKA_WIDTH : 0 }}
       >
         {/* Header — does not scroll */}
         <div className="flex items-center justify-between px-6 pt-7 pb-4 shrink-0">
           <div>
-            <h1 className="page-title">Mesa de trabajo</h1>
+            <h1 className="page-title">{t("title")}</h1>
             <p className="text-[13px] font-light mt-0.5" style={{ color: textSub }}>
-              Planeá y creá tu contenido desde un solo lugar.
+              {t("subtitle")}
             </p>
           </div>
           <button
@@ -175,7 +171,7 @@ export function MesaDeTrabajoShell({
             }}
           >
             <Plus size={14} strokeWidth={2} />
-            Nuevo contenido
+            {t("newItem")}
           </button>
         </div>
 
@@ -190,9 +186,9 @@ export function MesaDeTrabajoShell({
             }}
           >
             {([
-              { value: "pipeline"  as ViewMode, label: "Pipeline",   Icon: Kanban },
-              { value: "calendar"  as ViewMode, label: "Calendario", Icon: CalendarDays },
-            ] as const).map(({ value, label, Icon }) => (
+              { value: "pipeline"  as ViewMode, labelKey: "views.pipeline",  Icon: Kanban },
+              { value: "calendar"  as ViewMode, labelKey: "views.calendar",  Icon: CalendarDays },
+            ] as const).map(({ value, labelKey, Icon }) => (
               <button
                 key={value}
                 onClick={() => setView(value)}
@@ -203,7 +199,7 @@ export function MesaDeTrabajoShell({
                 }`}
               >
                 <Icon size={13} strokeWidth={1.5} />
-                {label}
+                {t(labelKey as Parameters<typeof t>[0])}
               </button>
             ))}
           </div>
@@ -246,23 +242,45 @@ export function MesaDeTrabajoShell({
         </div>
       </div>
 
-      {/* ── Right: Moka AI — fixed to viewport, always visible ── */}
-      <div
-        className="fixed right-0 flex flex-col overflow-hidden"
-        style={{ top: HEADER_H, bottom: 0, width: MOKA_WIDTH, zIndex: 40 }}
-      >
-        <MokaContentPanel
-          workspaceId={workspaceId}
-          onContentAdded={(newItems) =>
-            setItems((prev) => [...(newItems as unknown as ContentItem[]), ...prev])
-          }
-          onContentUpdated={(updated) =>
-            setItems((prev) =>
-              prev.map((i) => (i.id === (updated as unknown as ContentItem).id ? (updated as unknown as ContentItem) : i))
-            )
-          }
-        />
-      </div>
+      {/* ── Floating "Preguntar a Moka" button — visible when Moka is closed ── */}
+      {!mokaOpen && (
+        <button
+          onClick={() => setMokaOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium shadow-lg transition-all"
+          style={{
+            background: isLight ? "rgba(17,17,17,0.90)" : "rgba(255,255,255,0.12)",
+            border: `1px solid ${isLight ? "rgba(17,17,17,0.12)" : "rgba(255,255,255,0.15)"}`,
+            color: isLight ? "white" : "rgba(255,255,255,0.88)",
+            backdropFilter: "blur(12px)",
+          }}
+          onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.opacity = "0.85"}
+          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
+        >
+          <Sparkles size={14} />
+          Preguntar a Moka
+        </button>
+      )}
+
+      {/* ── Right: Moka AI — fixed to viewport, visible when open ── */}
+      {mokaOpen && (
+        <div
+          className="fixed right-0 flex flex-col overflow-hidden"
+          style={{ top: HEADER_H, bottom: 0, width: MOKA_WIDTH, zIndex: 40 }}
+        >
+          <MokaContentPanel
+            workspaceId={workspaceId}
+            onClose={() => setMokaOpen(false)}
+            onContentAdded={(newItems) =>
+              setItems((prev) => [...(newItems as unknown as ContentItem[]), ...prev])
+            }
+            onContentUpdated={(updated) =>
+              setItems((prev) =>
+                prev.map((i) => (i.id === (updated as unknown as ContentItem).id ? (updated as unknown as ContentItem) : i))
+              )
+            }
+          />
+        </div>
+      )}
 
       {/* Modal */}
       {modalOpen && (
