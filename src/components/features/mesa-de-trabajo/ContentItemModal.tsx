@@ -451,6 +451,7 @@ export function ContentItemModal({
   const [editedVideoUrl, setEditedVideoUrl] = useState(item?.edited_video_url ?? "");
   const [titleError, setTitleError]         = useState(false);
   const [saving, setSaving]                 = useState(false);
+  const [saveError, setSaveError]           = useState<string | null>(null);
   const [deleting, setDeleting]             = useState(false);
   const [confirmDelete, setConfirmDelete]   = useState(false);
   const [scriptExpanded, setScriptExpanded] = useState(false);
@@ -472,6 +473,7 @@ export function ContentItemModal({
   async function handleSave() {
     if (!title.trim()) { setTitleError(true); titleRef.current?.focus(); return; }
     setSaving(true);
+    setSaveError(null);
     try {
       const payload: CreatePayload = {
         title:            title.trim(),
@@ -487,6 +489,8 @@ export function ContentItemModal({
       if (isEdit) await onUpdate(item.id, payload);
       else await onCreate(payload);
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -745,9 +749,13 @@ export function ContentItemModal({
 
         {/* Footer */}
         <div
-          className="px-5 pb-5 pt-3 flex items-center justify-between gap-3"
+          className="px-5 pb-5 pt-3 flex flex-col gap-3"
           style={{ borderTop: `1px solid ${borderColor}` }}
         >
+          {saveError && (
+            <p className="text-[12px] text-red-500 text-center px-2">{saveError}</p>
+          )}
+        <div className="flex items-center justify-between gap-3">
           {isEdit ? (
             <button
               onClick={handleDelete}
@@ -782,6 +790,7 @@ export function ContentItemModal({
               {saving ? "Guardando…" : "Guardar"}
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>
