@@ -82,23 +82,21 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient();
 
+    // Paso 1: insert con las columnas que siempre existen (compatible con cualquier versión del schema)
     const { data: inserted, error: insertError } = await supabase
       .from('content_plan')
       .insert({
-        workspace_id:     auth.workspaceId,
+        workspace_id: auth.workspaceId,
         title,
         content_type,
         status,
         platform,
         planned_date,
-        script:           body.script?.trim()           ?? null,
-        reference_url:    body.reference_url?.trim()    ?? null,
-        raw_video_url:    body.raw_video_url?.trim()    ?? null,
-        edited_video_url: body.edited_video_url?.trim() ?? null,
-        source_type:      body.source_type              ?? 'manual',
-        source_ref:       body.source_ref               ?? null,
+        script:       body.script?.trim()  ?? null,
+        source_type:  body.source_type     ?? 'manual',
+        source_ref:   body.source_ref      ?? null,
       })
-      .select(FULL_SELECT)
+      .select('id')
       .single();
 
     if (insertError || !inserted) {
@@ -107,7 +105,24 @@ export async function POST(request: Request) {
       return api500(process.env.NODE_ENV === 'development' ? `Insert falló: ${msg}` : 'Error creando item');
     }
 
-    return apiSuccess({ item: inserted }, 201);
+    // Paso 2: update con columnas nuevas (migración 110) — falla silenciosamente si no existen
+    const newCols: Record<string, unknown> = {};
+    if (body.reference_url    !== undefined) newCols.reference_url    = body.reference_url?.trim()    ?? null;
+    if (body.raw_video_url    !== undefined) newCols.raw_video_url    = body.raw_video_url?.trim()    ?? null;
+    if (body.edited_video_url !== undefined) newCols.edited_video_url = body.edited_video_url?.trim() ?? null;
+    if (Object.keys(newCols).length > 0) {
+      await supabase.from('content_plan').update(newCols).eq('id', inserted.id);
+    }
+
+    // Paso 3: devolver el item completo (FULL_SELECT primero, BASE_SELECT como fallback)
+    const { data: fullItem } = await supabase
+      .from('content_plan').select(FULL_SELECT).eq('id', inserted.id).single();
+    if (fullItem) return apiSuccess({ item: fullItem }, 201);
+
+    const { data: baseItem } = await supabase
+      .from('content_plan').select(BASE_SELECT).eq('id', inserted.id).single();
+    if (!baseItem) return api500('Error recuperando item creado');
+    return apiSuccess({ item: baseItem }, 201);
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -166,17 +181,42 @@ export async function PATCH(request: Request) {
 
     const supabase = createServiceClient();
 
-    const { data, error } = await supabase
-      .from('content_plan')
-      .update(updates)
-      .eq('id', body.id)
-      .eq('workspace_id', auth.workspaceId)
-      .select(FULL_SELECT)
-      .single();
+    // Separar columnas base (siempre existen) de columnas nuevas (migración 110)
+    const NEW_COLS = ['reference_url', 'raw_video_url', 'edited_video_url'] as const;
+    const safeUpdates: Record<string, unknown> = {};
+    const newColUpdates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(updates)) {
+      if ((NEW_COLS as readonly string[]).includes(k)) newColUpdates[k] = v;
+      else safeUpdates[k] = v;
+    }
 
-    if (error) return api500('Error actualizando item');
-    if (!data)  return api400('Item no encontrado');
-    return apiSuccess({ item: data });
+    // Aplicar columnas base
+    if (Object.keys(safeUpdates).length > 0) {
+      const { error } = await supabase
+        .from('content_plan')
+        .update(safeUpdates)
+        .eq('id', body.id)
+        .eq('workspace_id', auth.workspaceId);
+      if (error) return api500('Error actualizando item');
+    }
+
+    // Aplicar columnas nuevas — falla silenciosamente si no existen
+    if (Object.keys(newColUpdates).length > 0) {
+      await supabase.from('content_plan').update(newColUpdates)
+        .eq('id', body.id).eq('workspace_id', auth.workspaceId);
+    }
+
+    // Devolver item completo con fallback
+    const { data: fullItem } = await supabase
+      .from('content_plan').select(FULL_SELECT)
+      .eq('id', body.id).eq('workspace_id', auth.workspaceId).single();
+    if (fullItem) return apiSuccess({ item: fullItem });
+
+    const { data: baseItem } = await supabase
+      .from('content_plan').select(BASE_SELECT)
+      .eq('id', body.id).eq('workspace_id', auth.workspaceId).single();
+    if (!baseItem) return api400('Item no encontrado');
+    return apiSuccess({ item: baseItem });
 
   } catch {
     return api500('Error actualizando item');
