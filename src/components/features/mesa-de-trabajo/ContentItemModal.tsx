@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Trash2, ChevronDown, Maximize2, Download } from "lucide-react";
+import { X, Trash2, ChevronDown, Maximize2, Bold, List, Heading1, Heading2 } from "lucide-react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES, CONTENT_PLATFORMS } from "@/types/content-plan";
 import type {
@@ -98,19 +101,9 @@ function StatusSelect({
           color: textMain,
         }}
       >
-        <span
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: currentMeta.dot }}
-        />
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: currentMeta.dot }} />
         <span className="flex-1">{currentMeta.label}</span>
-        <ChevronDown
-          size={13}
-          style={{
-            color: textSub,
-            transform: open ? "rotate(180deg)" : "none",
-            transition: "transform 0.15s",
-          }}
-        />
+        <ChevronDown size={13} style={{ color: textSub, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
 
       {open && (
@@ -146,16 +139,165 @@ function StatusSelect({
                   if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
                 }}
               >
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: opt.dot }}
-                />
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: opt.dot }} />
                 {opt.label}
               </button>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── URL input ────────────────────────────────────────────────────────────────
+
+interface UrlFieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  inputStyle: React.CSSProperties;
+  inputBorderNormal: string;
+  inputBorderFocus: string;
+  labelStyle: React.CSSProperties;
+}
+
+function UrlField({ label, value, onChange, placeholder, inputStyle, inputBorderNormal, inputBorderFocus, labelStyle }: UrlFieldProps) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <input
+        type="url"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={inputStyle}
+        onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
+        onBlur={(e)  => (e.currentTarget.style.borderColor = inputBorderNormal)}
+      />
+    </div>
+  );
+}
+
+// ─── Script helpers ──────────────────────────────────────────────────────────
+
+function scriptToHtml(text: string): string {
+  if (!text) return '';
+  if (/<(p|h[1-6]|ul|ol|li|strong|em)\b/i.test(text)) return text;
+  return text.split('\n').map((l) => l.trim() ? `<p>${l}</p>` : '<p></p>').join('');
+}
+
+function scriptToPlainText(value: string): string {
+  if (!value.includes('<')) return value;
+  return value
+    .replace(/<\/?(h[1-6])[^>]*>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+}
+
+function countWords(value: string): number {
+  return scriptToPlainText(value).split(/\s+/).filter(Boolean).length;
+}
+
+// ─── Rich text editor (tiptap) ────────────────────────────────────────────────
+
+interface ScriptEditorProps {
+  content: string;
+  onChange: (html: string) => void;
+  isLight: boolean;
+  textMain: string;
+  textSub: string;
+  border: string;
+  inputBg: string;
+}
+
+function ScriptEditor({ content, onChange, isLight, textMain, textSub, border, inputBg }: ScriptEditorProps) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: 'Escribí el guion aquí…' }),
+    ],
+    content: scriptToHtml(content),
+    onUpdate: ({ editor: e }) => onChange(e.getHTML()),
+    editorProps: {
+      attributes: {
+        class: 'outline-none min-h-[60vh]',
+        style: `font-size:22px;line-height:1.8;color:${textMain};font-weight:300;letter-spacing:0.01em`,
+      },
+    },
+  });
+
+  const toolBtn = (active: boolean, onClick: () => void, title: string, icon: React.ReactNode) => (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="w-7 h-7 rounded-md flex items-center justify-center transition-all"
+      style={{
+        background: active ? (isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.12)") : "transparent",
+        border: `1px solid ${active ? (isLight ? "rgba(17,17,17,0.20)" : "rgba(255,255,255,0.18)") : "transparent"}`,
+        color: active ? textMain : textSub,
+      }}
+      onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = inputBg; }}
+      onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+    >
+      {icon}
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Toolbar */}
+      <div
+        className="flex items-center gap-1 px-4 py-2 shrink-0"
+        style={{ borderBottom: `1px solid ${border}` }}
+      >
+        {toolBtn(
+          editor?.isActive('heading', { level: 1 }) ?? false,
+          () => editor?.chain().focus().toggleHeading({ level: 1 }).run(),
+          'Título 1',
+          <Heading1 size={14} />
+        )}
+        {toolBtn(
+          editor?.isActive('heading', { level: 2 }) ?? false,
+          () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
+          'Título 2',
+          <Heading2 size={14} />
+        )}
+        {toolBtn(
+          editor?.isActive('bold') ?? false,
+          () => editor?.chain().focus().toggleBold().run(),
+          'Negrita',
+          <Bold size={14} />
+        )}
+        {toolBtn(
+          editor?.isActive('bulletList') ?? false,
+          () => editor?.chain().focus().toggleBulletList().run(),
+          'Lista',
+          <List size={14} />
+        )}
+      </div>
+      {/* Editor area */}
+      <div className="flex-1 overflow-y-auto px-12 py-10 scrollbar-none">
+        <style>{`
+          .tiptap h1 { font-size: 1.8em; font-weight: 600; margin-bottom: 0.4em; }
+          .tiptap h2 { font-size: 1.4em; font-weight: 600; margin-bottom: 0.3em; }
+          .tiptap ul { list-style-type: disc; padding-left: 1.5em; }
+          .tiptap li { margin-bottom: 0.2em; }
+          .tiptap p.is-editor-empty:first-child::before {
+            content: attr(data-placeholder);
+            float: left;
+            pointer-events: none;
+            height: 0;
+            color: ${textSub};
+          }
+        `}</style>
+        <EditorContent editor={editor} className="tiptap" />
+      </div>
     </div>
   );
 }
@@ -171,14 +313,16 @@ interface ContentItemModalProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-interface CreatePayload {
+export interface CreatePayload {
   title: string;
   content_type: ContentType;
   status: ContentStatus;
   platform: ContentPlatform;
   planned_date: string | null;
-  description: string | null;
   script: string | null;
+  reference_url: string | null;
+  raw_video_url: string | null;
+  edited_video_url: string | null;
 }
 
 export function ContentItemModal({
@@ -198,37 +342,44 @@ export function ContentItemModal({
   const [status, setStatus]           = useState<ContentStatus>(item?.status ?? defaultStatus);
   const [platform, setPlatform]       = useState<ContentPlatform>(item?.platform ?? "instagram");
   const [plannedDate, setPlannedDate] = useState(item?.planned_date ?? "");
-  const [description, setDescription] = useState(item?.description ?? "");
   const [script, setScript]           = useState(item?.script ?? "");
-  const [titleError, setTitleError]       = useState(false);
-  const [saving, setSaving]               = useState(false);
-  const [deleting, setDeleting]           = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [referenceUrl, setReferenceUrl]     = useState(item?.reference_url ?? "");
+  const [rawVideoUrl, setRawVideoUrl]       = useState(item?.raw_video_url ?? "");
+  const [editedVideoUrl, setEditedVideoUrl] = useState(item?.edited_video_url ?? "");
+  const [titleError, setTitleError]         = useState(false);
+  const [saving, setSaving]                 = useState(false);
+  const [deleting, setDeleting]             = useState(false);
+  const [confirmDelete, setConfirmDelete]   = useState(false);
   const [scriptExpanded, setScriptExpanded] = useState(false);
 
-  const titleRef      = useRef<HTMLInputElement>(null);
-  const scriptRef     = useRef<HTMLTextAreaElement>(null);
-  const scriptExpRef  = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (scriptExpanded) { setScriptExpanded(false); return; }
+        onClose();
+      }
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, scriptExpanded]);
 
   async function handleSave() {
     if (!title.trim()) { setTitleError(true); titleRef.current?.focus(); return; }
     setSaving(true);
     try {
       const payload: CreatePayload = {
-        title: title.trim(),
-        content_type: contentType,
+        title:            title.trim(),
+        content_type:     contentType,
         status,
         platform,
-        planned_date: plannedDate || null,
-        description: description.trim() || null,
-        script: script.trim() || null,
+        planned_date:     plannedDate || null,
+        script:           script.trim() || null,
+        reference_url:    referenceUrl.trim() || null,
+        raw_video_url:    rawVideoUrl.trim() || null,
+        edited_video_url: editedVideoUrl.trim() || null,
       };
       if (isEdit) await onUpdate(item.id, payload);
       else await onCreate(payload);
@@ -246,55 +397,17 @@ export function ContentItemModal({
     finally { setDeleting(false); }
   }
 
-  function downloadScript() {
-    if (!script.trim()) return;
-    const safeName = (title || "script").replace(/[<>:"/\\|?*]/g, "").trim() || "script";
-
-    const escHtml = (s: string) =>
-      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    const bodyLines = script
-      .split("\n")
-      .map((line) => line.trim() ? `<p>${escHtml(line)}</p>` : "<p>&nbsp;</p>")
-      .join("\n");
-
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
-<head>
-<meta charset="UTF-8">
-<title>${escHtml(safeName)}</title>
-<style>
-body { font-family: Calibri, Arial, sans-serif; font-size: 13pt; line-height: 1.8; margin: 2.5cm; color: #111; }
-h1  { font-size: 18pt; font-weight: 600; margin-bottom: 1.2em; }
-p   { margin: 0 0 0.6em 0; }
-</style>
-</head>
-<body>
-<h1>${escHtml(safeName)}</h1>
-${bodyLines}
-</body>
-</html>`;
-
-    const blob = new Blob([html], { type: "application/msword" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `${safeName}.doc`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function openScriptExpanded() {
     setScriptExpanded(true);
-    setTimeout(() => scriptExpRef.current?.focus(), 50);
   }
 
   // Theme tokens
-  const modalBg     = isLight ? "#ffffff" : "rgba(14,14,16,0.97)";
-  const borderColor = isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.09)";
-  const textMain    = isLight ? "#111111" : "rgba(255,255,255,0.88)";
-  const textSub     = isLight ? "rgba(17,17,17,0.45)" : "rgba(255,255,255,0.38)";
-  const labelColor  = isLight ? "rgba(17,17,17,0.45)" : "rgba(255,255,255,0.35)";
-  const inputBg     = isLight ? "rgba(17,17,17,0.04)" : "rgba(255,255,255,0.04)";
+  const modalBg           = isLight ? "#ffffff" : "rgba(14,14,16,0.97)";
+  const borderColor       = isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.09)";
+  const textMain          = isLight ? "#111111" : "rgba(255,255,255,0.88)";
+  const textSub           = isLight ? "rgba(17,17,17,0.45)" : "rgba(255,255,255,0.38)";
+  const labelColor        = isLight ? "rgba(17,17,17,0.45)" : "rgba(255,255,255,0.35)";
+  const inputBg           = isLight ? "rgba(17,17,17,0.04)" : "rgba(255,255,255,0.04)";
   const inputBorderNormal = isLight ? "rgba(17,17,17,0.12)" : "rgba(255,255,255,0.08)";
   const inputBorderFocus  = isLight ? "rgba(17,17,17,0.30)" : "rgba(255,255,255,0.22)";
 
@@ -309,6 +422,8 @@ ${bodyLines}
     outline: "none",
     transition: "border-color 0.15s",
   };
+
+  const urlInputStyle: React.CSSProperties = { ...inputStyle, border: `1px solid ${inputBorderNormal}` };
 
   const labelStyle: React.CSSProperties = {
     display: "block",
@@ -359,7 +474,8 @@ ${bodyLines}
 
         {/* Body */}
         <div className="px-5 py-5 flex flex-col gap-5">
-          {/* Title */}
+
+          {/* Título */}
           <div>
             <label style={labelStyle}>Título</label>
             <input
@@ -378,7 +494,7 @@ ${bodyLines}
             )}
           </div>
 
-          {/* Type — pill buttons */}
+          {/* Tipo */}
           <div>
             <label style={labelStyle}>Tipo</label>
             <PillGroup
@@ -392,7 +508,7 @@ ${bodyLines}
             />
           </div>
 
-          {/* Status + Date */}
+          {/* Estado + Fecha */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label style={labelStyle}>Estado</label>
@@ -413,17 +529,14 @@ ${bodyLines}
                 type="date"
                 value={plannedDate}
                 onChange={(e) => setPlannedDate(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  colorScheme: isLight ? "light" : "dark",
-                }}
+                style={{ ...inputStyle, border: `1px solid ${inputBorderNormal}`, colorScheme: isLight ? "light" : "dark" }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
                 onBlur={(e) => (e.currentTarget.style.borderColor = inputBorderNormal)}
               />
             </div>
           </div>
 
-          {/* Platform — pill buttons */}
+          {/* Plataforma */}
           <div>
             <label style={labelStyle}>Plataforma</label>
             <PillGroup
@@ -437,66 +550,73 @@ ${bodyLines}
             />
           </div>
 
-          {/* Notes */}
-          <div>
-            <label style={labelStyle}>Notas / brief</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Contexto, referencias, ideas sueltas…"
-              rows={3}
-              style={{ ...inputStyle, resize: "none" }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
-              onBlur={(e) => (e.currentTarget.style.borderColor = inputBorderNormal)}
-            />
-          </div>
+          {/* Referencia */}
+          <UrlField
+            label="Referencia"
+            value={referenceUrl}
+            onChange={setReferenceUrl}
+            placeholder="Link al video de referencia…"
+            inputStyle={urlInputStyle}
+            inputBorderNormal={inputBorderNormal}
+            inputBorderFocus={inputBorderFocus}
+            labelStyle={labelStyle}
+          />
 
-          {/* Script */}
+          {/* Guion */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Script / caption</label>
-              <div className="flex items-center gap-1">
-                {script.trim() && (
-                  <button
-                    type="button"
-                    onClick={downloadScript}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] transition-all"
-                    style={{ color: textSub, background: "transparent" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = inputBg; (e.currentTarget as HTMLElement).style.color = labelColor; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
-                    title="Descargar script"
-                  >
-                    <Download size={11} />
-                    <span>Descargar</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={openScriptExpanded}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] transition-all"
-                  style={{ color: textSub, background: "transparent" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = inputBg; (e.currentTarget as HTMLElement).style.color = labelColor; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
-                  title="Ver en modo grabación"
-                >
-                  <Maximize2 size={11} />
-                  <span>Expandir</span>
-                </button>
-              </div>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Guion</label>
+              <button
+                type="button"
+                onClick={openScriptExpanded}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+                style={{
+                  background: isLight ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.90)",
+                  color: isLight ? "white" : "#111111",
+                }}
+                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.opacity = "0.85"}
+                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
+              >
+                <Maximize2 size={12} />
+                Expandir guion
+              </button>
             </div>
             <textarea
-              ref={scriptRef}
-              value={script}
+              value={scriptToPlainText(script)}
               onChange={(e) => setScript(e.target.value)}
               placeholder="Escribí el guion o caption completo…"
-              rows={5}
-              style={{ ...inputStyle, resize: "none" }}
+              rows={4}
+              style={{ ...inputStyle, border: `1px solid ${inputBorderNormal}`, resize: "none" }}
               onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
               onBlur={(e) => (e.currentTarget.style.borderColor = inputBorderNormal)}
             />
           </div>
 
-          {/* Metrics (published only) */}
+          {/* Link video crudo */}
+          <UrlField
+            label="Video crudo"
+            value={rawVideoUrl}
+            onChange={setRawVideoUrl}
+            placeholder="Link al video sin editar…"
+            inputStyle={urlInputStyle}
+            inputBorderNormal={inputBorderNormal}
+            inputBorderFocus={inputBorderFocus}
+            labelStyle={labelStyle}
+          />
+
+          {/* Link video editado */}
+          <UrlField
+            label="Video editado"
+            value={editedVideoUrl}
+            onChange={setEditedVideoUrl}
+            placeholder="Link al video editado final…"
+            inputStyle={urlInputStyle}
+            inputBorderNormal={inputBorderNormal}
+            inputBorderFocus={inputBorderFocus}
+            labelStyle={labelStyle}
+          />
+
+          {/* Métricas (solo publicado) */}
           {isEdit && item.status === "published" && item.metrics && (
             <div
               className="rounded-xl p-3"
@@ -507,10 +627,7 @@ ${bodyLines}
                 {(["reach", "likes", "saves", "comments", "shares"] as const).map((k) => {
                   const v = item.metrics?.[k];
                   if (!v) return null;
-                  const labels = {
-                    reach: "Alcance", likes: "Likes", saves: "Guardados",
-                    comments: "Comentarios", shares: "Compartidos",
-                  };
+                  const labels = { reach: "Alcance", likes: "Likes", saves: "Guardados", comments: "Comentarios", shares: "Compartidos" };
                   return (
                     <div key={k}>
                       <p className="text-[10px] uppercase tracking-wide" style={{ color: textSub }}>{labels[k]}</p>
@@ -566,97 +683,134 @@ ${bodyLines}
       </div>
     </div>
 
-      {/* ── Script fullscreen overlay ── */}
-      {scriptExpanded && (
-        <div
-          className="fixed inset-0 z-[60] flex flex-col"
-          style={{
-            background: isLight ? "#fafafa" : "rgba(8,8,10,0.98)",
-            backdropFilter: "blur(16px)",
-          }}
-        >
-          {/* Toolbar */}
+    {/* ── Guion expandido ── */}
+    {scriptExpanded && (
+      <div
+        className="fixed inset-0 z-[60] flex"
+        style={{ background: isLight ? "#f9f9fb" : "rgba(8,8,10,0.98)" }}
+      >
+        {/* Editor */}
+        <div className="flex-1 flex flex-col min-w-0">
           <div
-            className="flex items-center justify-between px-6 py-3 shrink-0"
+            className="flex items-center justify-between px-8 py-3 shrink-0"
             style={{ borderBottom: `1px solid ${borderColor}` }}
           >
-            <div>
-              <p className="text-[13px] font-semibold" style={{ color: textMain }}>
-                Modo grabación
-              </p>
-              {title && (
-                <p className="text-[12px] mt-0.5" style={{ color: textSub }}>{title}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {script.trim() && (
-                <button
-                  onClick={downloadScript}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] transition-all"
-                  style={{
-                    background: inputBg,
-                    border: `1px solid ${borderColor}`,
-                    color: textSub,
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
-                  onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
-                >
-                  <Download size={12} />
-                  Descargar
-                </button>
-              )}
-              <button
-                onClick={() => setScriptExpanded(false)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] transition-all"
-                style={{
-                  background: inputBg,
-                  border: `1px solid ${borderColor}`,
-                  color: textSub,
-                }}
-                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
-                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
-              >
-                <X size={12} />
-                Cerrar
-              </button>
-            </div>
+            <p className="text-[13px] font-semibold" style={{ color: textMain }}>Modo guion</p>
+            <button
+              onClick={() => setScriptExpanded(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] transition-all"
+              style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textSub }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
+            >
+              <X size={12} /> Cerrar
+            </button>
           </div>
-
-          {/* Script editor — large font for reading while recording */}
-          <div className="flex-1 overflow-hidden px-8 py-8">
-            <textarea
-              ref={scriptExpRef}
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
-              placeholder="Escribí el guion aquí…"
-              className="w-full h-full resize-none bg-transparent outline-none leading-relaxed scrollbar-none"
-              style={{
-                fontSize: 22,
-                lineHeight: 1.75,
-                color: textMain,
-                letterSpacing: "0.01em",
-                fontWeight: 300,
-              }}
-            />
-          </div>
-
-          {/* Stats bar */}
+          <ScriptEditor
+            content={script}
+            onChange={setScript}
+            isLight={isLight}
+            textMain={textMain}
+            textSub={textSub}
+            border={borderColor}
+            inputBg={inputBg}
+          />
           <div
-            className="px-8 py-3 shrink-0 flex items-center gap-4"
+            className="px-12 py-3 shrink-0 flex gap-4"
             style={{ borderTop: `1px solid ${borderColor}` }}
           >
             <p className="text-[11px]" style={{ color: textSub }}>
-              {script.trim().split(/\s+/).filter(Boolean).length} palabras
+              {countWords(script)} palabras
             </p>
             <p className="text-[11px]" style={{ color: textSub }}>
-              {script.length} caracteres
-            </p>
-            <p className="text-[11px]" style={{ color: textSub }}>
-              ~{Math.ceil(script.trim().split(/\s+/).filter(Boolean).length / 130)} min de lectura
+              ~{Math.ceil(countWords(script) / 130)} min lectura
             </p>
           </div>
         </div>
-      )}
+
+        {/* Sidebar con metadata */}
+        <div
+          className="w-72 shrink-0 flex flex-col gap-5 overflow-y-auto px-6 py-8"
+          style={{ borderLeft: `1px solid ${borderColor}` }}
+        >
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: labelColor }}>Título</p>
+            <p className="text-[14px] font-medium leading-snug" style={{ color: textMain }}>{title || "Sin título"}</p>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: labelColor }}>Estado</p>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: CONTENT_STATUSES.find(s => s.value === status)?.dot }} />
+              <p className="text-[13px]" style={{ color: textMain }}>
+                {CONTENT_STATUSES.find(s => s.value === status)?.label}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: labelColor }}>Tipo · Plataforma</p>
+            <p className="text-[13px]" style={{ color: textMain }}>
+              {CONTENT_TYPES.find(t => t.value === contentType)?.label} · {CONTENT_PLATFORMS.find(p => p.value === platform)?.label}
+            </p>
+          </div>
+
+          {plannedDate && (
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: labelColor }}>Fecha objetivo</p>
+              <p className="text-[13px]" style={{ color: textMain }}>
+                {new Date(plannedDate + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            </div>
+          )}
+
+          {referenceUrl && (
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: labelColor }}>Referencia</p>
+              <a
+                href={referenceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] truncate block"
+                style={{ color: "rgb(59,130,246)" }}
+              >
+                {referenceUrl}
+              </a>
+            </div>
+          )}
+
+          {rawVideoUrl && (
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: labelColor }}>Video crudo</p>
+              <a
+                href={rawVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] truncate block"
+                style={{ color: "rgb(59,130,246)" }}
+              >
+                {rawVideoUrl}
+              </a>
+            </div>
+          )}
+
+          {editedVideoUrl && (
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: labelColor }}>Video editado</p>
+              <a
+                href={editedVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] truncate block"
+                style={{ color: "rgb(59,130,246)" }}
+              >
+                {editedVideoUrl}
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
     </>
   );
 }

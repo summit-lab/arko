@@ -11,14 +11,13 @@ import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import type { ContentType, ContentStatus, ContentPlatform, ContentMetrics } from '@/types/content-plan';
 
 const VALID_STATUSES: ContentStatus[] = [
-  'idea', 'script', 'needs_recording', 'recorded',
-  'needs_editing', 'editing', 'scheduled', 'published',
+  'idea', 'ready_to_record', 'raw_footage', 'editing', 'ready_to_publish', 'published',
 ];
-const VALID_TYPES: ContentType[]     = ['reel', 'carousel', 'story'];
+const VALID_TYPES: ContentType[]         = ['reel', 'carousel', 'story', 'youtube_video'];
 const VALID_PLATFORMS: ContentPlatform[] = ['instagram', 'tiktok', 'youtube'];
 
-const BASE_SELECT = 'id, planned_date, title, description, platform, content_type, status, created_at, updated_at';
-const FULL_SELECT = `${BASE_SELECT}, script, source_type, source_ref, metrics`;
+const BASE_SELECT = 'id, planned_date, title, platform, content_type, status, created_at, updated_at';
+const FULL_SELECT = `${BASE_SELECT}, script, reference_url, raw_video_url, edited_video_url, source_type, source_ref, metrics`;
 
 export async function GET(request: Request) {
   try {
@@ -59,8 +58,10 @@ export async function POST(request: Request) {
       status?: string;
       platform?: string;
       planned_date?: string | null;
-      description?: string | null;
       script?: string | null;
+      reference_url?: string | null;
+      raw_video_url?: string | null;
+      edited_video_url?: string | null;
       source_type?: string;
       source_ref?: string | null;
     };
@@ -77,24 +78,27 @@ export async function POST(request: Request) {
     const platform = (body.platform ?? 'instagram') as ContentPlatform;
     if (!VALID_PLATFORMS.includes(platform)) return api400('Plataforma inválida');
 
-    // planned_date era NOT NULL en schema original; defaulteamos a hoy como fallback
     const planned_date = body.planned_date ?? new Date().toISOString().slice(0, 10);
 
     const supabase = createServiceClient();
 
-    // Paso 1: Insert base (siempre funciona, con o sin migración 100)
     const { data: inserted, error: insertError } = await supabase
       .from('content_plan')
       .insert({
-        workspace_id: auth.workspaceId,
+        workspace_id:     auth.workspaceId,
         title,
         content_type,
         status,
         platform,
         planned_date,
-        description: body.description?.trim() ?? null,
+        script:           body.script?.trim()           ?? null,
+        reference_url:    body.reference_url?.trim()    ?? null,
+        raw_video_url:    body.raw_video_url?.trim()    ?? null,
+        edited_video_url: body.edited_video_url?.trim() ?? null,
+        source_type:      body.source_type              ?? 'manual',
+        source_ref:       body.source_ref               ?? null,
       })
-      .select('id')
+      .select(FULL_SELECT)
       .single();
 
     if (insertError || !inserted) {
@@ -103,22 +107,7 @@ export async function POST(request: Request) {
       return api500(process.env.NODE_ENV === 'development' ? `Insert falló: ${msg}` : 'Error creando item');
     }
 
-    // Paso 2: Update con campos de migración 100 (falla silenciosamente si no existen)
-    const extras: Record<string, unknown> = { source_type: body.source_type ?? 'manual' };
-    if (body.script   !== undefined) extras.script    = body.script?.trim()  ?? null;
-    if (body.source_ref !== undefined) extras.source_ref = body.source_ref ?? null;
-    await supabase.from('content_plan').update(extras).eq('id', inserted.id);
-    // Ignoramos el error intencionalmente — las columnas pueden no existir aún
-
-    // Paso 3: Devolver el item completo
-    const { data: fullItem } = await supabase
-      .from('content_plan').select(FULL_SELECT).eq('id', inserted.id).single();
-    if (fullItem) return apiSuccess({ item: fullItem }, 201);
-
-    const { data: baseItem } = await supabase
-      .from('content_plan').select(BASE_SELECT).eq('id', inserted.id).single();
-    if (!baseItem) return api500('Error recuperando item creado');
-    return apiSuccess({ item: baseItem }, 201);
+    return apiSuccess({ item: inserted }, 201);
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -139,8 +128,10 @@ export async function PATCH(request: Request) {
       status?: string;
       platform?: string;
       planned_date?: string | null;
-      description?: string | null;
       script?: string | null;
+      reference_url?: string | null;
+      raw_video_url?: string | null;
+      edited_video_url?: string | null;
       metrics?: ContentMetrics | null;
     };
 
@@ -164,17 +155,18 @@ export async function PATCH(request: Request) {
       if (!VALID_PLATFORMS.includes(body.platform as ContentPlatform)) return api400('Plataforma inválida');
       updates.platform = body.platform;
     }
-    if ('planned_date' in body) updates.planned_date = body.planned_date ?? null;
-    if ('description'  in body) updates.description  = body.description?.trim()  ?? null;
-    if ('script'       in body) updates.script        = body.script?.trim()        ?? null;
-    if ('metrics'      in body) updates.metrics       = body.metrics               ?? null;
+    if ('planned_date'    in body) updates.planned_date    = body.planned_date                  ?? null;
+    if ('script'          in body) updates.script          = body.script?.trim()                ?? null;
+    if ('reference_url'   in body) updates.reference_url   = body.reference_url?.trim()         ?? null;
+    if ('raw_video_url'   in body) updates.raw_video_url   = body.raw_video_url?.trim()         ?? null;
+    if ('edited_video_url'in body) updates.edited_video_url= body.edited_video_url?.trim()      ?? null;
+    if ('metrics'         in body) updates.metrics         = body.metrics                       ?? null;
 
     if (Object.keys(updates).length === 0) return api400('Nada que actualizar');
 
     const supabase = createServiceClient();
 
-    // Intentar con FULL_SELECT; si falla por columnas nuevas, reintentar con BASE
-    const fullResult = await supabase
+    const { data, error } = await supabase
       .from('content_plan')
       .update(updates)
       .eq('id', body.id)
@@ -182,27 +174,9 @@ export async function PATCH(request: Request) {
       .select(FULL_SELECT)
       .single();
 
-    if (!fullResult.error) {
-      return fullResult.data ? apiSuccess({ item: fullResult.data }) : api400('Item no encontrado');
-    }
-
-    // Fallback: quitar campos que requieren migración y reintentar
-    const safeUpdates = { ...updates };
-    delete safeUpdates.script;
-    delete safeUpdates.metrics;
-    if (Object.keys(safeUpdates).length === 0) return api400('Nada que actualizar');
-
-    const baseResult = await supabase
-      .from('content_plan')
-      .update(safeUpdates)
-      .eq('id', body.id)
-      .eq('workspace_id', auth.workspaceId)
-      .select(BASE_SELECT)
-      .single();
-
-    if (baseResult.error) return api500('Error actualizando item');
-    if (!baseResult.data)  return api400('Item no encontrado');
-    return apiSuccess({ item: baseResult.data });
+    if (error) return api500('Error actualizando item');
+    if (!data)  return api400('Item no encontrado');
+    return apiSuccess({ item: data });
 
   } catch {
     return api500('Error actualizando item');
