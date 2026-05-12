@@ -117,22 +117,22 @@
       "all": "All",
       "reel": "Reels",
       "carousel": "Carousels",
-      "story": "Stories"
+      "story": "Stories",
+      "youtube_video": "YouTube"
     },
     "status": {
       "idea": "Idea",
-      "script": "Script",
-      "needs_recording": "Needs recording",
-      "recorded": "Recorded",
-      "needs_editing": "Needs editing",
+      "ready_to_record": "Ready to record",
+      "raw_footage": "Raw footage",
       "editing": "Editing",
-      "scheduled": "Scheduled",
+      "ready_to_publish": "Ready to publish",
       "published": "Published"
     },
     "type": {
       "reel": "Reel",
       "carousel": "Carousel",
-      "story": "Story"
+      "story": "Story",
+      "youtube_video": "YouTube video"
     },
     "platform": {
       "instagram": "Instagram",
@@ -160,7 +160,8 @@
       "errorTitle": "Title is required."
     },
     "empty": {
-      "pipeline": "No content in this column.",
+      "pipeline": "No content",
+      "dropHere": "Drop here",
       "calendar": "No content scheduled this month.",
       "addFirst": "Create your first content"
     },

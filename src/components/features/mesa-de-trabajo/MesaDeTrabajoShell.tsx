@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { Plus, Kanban, CalendarDays, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_TYPES } from "@/types/content-plan";
 import type {
@@ -34,6 +35,7 @@ export function MesaDeTrabajoShell({
 }: MesaDeTrabajoShellProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const t = useTranslations("mesaDeTrabajo");
 
   const [items, setItems]             = useState<ContentItem[]>(initialItems);
   const [view, setView]               = useState<ViewMode>("pipeline");
@@ -129,8 +131,11 @@ export function MesaDeTrabajoShell({
   }, [items, workspaceId]);
 
   const typeOptions: { value: ContentType | "all"; label: string }[] = [
-    { value: "all",       label: "Todos"    },
-    ...CONTENT_TYPES.map((t) => ({ value: t.value, label: t.label })),
+    { value: "all",       label: t("filters.all") },
+    ...CONTENT_TYPES.map((ct) => ({
+      value: ct.value,
+      label: t(`filters.${ct.value}` as Parameters<typeof t>[0]),
+    })),
   ];
 
   const btnBase     = "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all";
@@ -151,9 +156,9 @@ export function MesaDeTrabajoShell({
         {/* Header — does not scroll */}
         <div className="flex items-center justify-between px-6 pt-7 pb-4 shrink-0">
           <div>
-            <h1 className="page-title">Mesa de trabajo</h1>
+            <h1 className="page-title">{t("title")}</h1>
             <p className="text-[13px] font-light mt-0.5" style={{ color: textSub }}>
-              Planeá y creá tu contenido desde un solo lugar.
+              {t("subtitle")}
             </p>
           </div>
           <button
@@ -166,7 +171,7 @@ export function MesaDeTrabajoShell({
             }}
           >
             <Plus size={14} strokeWidth={2} />
-            Nuevo contenido
+            {t("newItem")}
           </button>
         </div>
 
@@ -181,9 +186,9 @@ export function MesaDeTrabajoShell({
             }}
           >
             {([
-              { value: "pipeline"  as ViewMode, label: "Pipeline",   Icon: Kanban },
-              { value: "calendar"  as ViewMode, label: "Calendario", Icon: CalendarDays },
-            ] as const).map(({ value, label, Icon }) => (
+              { value: "pipeline"  as ViewMode, labelKey: "views.pipeline",  Icon: Kanban },
+              { value: "calendar"  as ViewMode, labelKey: "views.calendar",  Icon: CalendarDays },
+            ] as const).map(({ value, labelKey, Icon }) => (
               <button
                 key={value}
                 onClick={() => setView(value)}
@@ -194,7 +199,7 @@ export function MesaDeTrabajoShell({
                 }`}
               >
                 <Icon size={13} strokeWidth={1.5} />
-                {label}
+                {t(labelKey as Parameters<typeof t>[0])}
               </button>
             ))}
           </div>

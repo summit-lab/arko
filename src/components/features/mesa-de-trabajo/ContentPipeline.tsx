@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
 import type { ContentItem, ContentStatus, ContentType } from "@/types/content-plan";
@@ -24,6 +25,7 @@ export function ContentPipeline({
 }: ContentPipelineProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const t = useTranslations("mesaDeTrabajo");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [dragOverStatus, setDragOverStatus] = useState<ContentStatus | null>(null);
@@ -32,12 +34,6 @@ export function ContentPipeline({
   const filtered = typeFilter === "all"
     ? items
     : items.filter((i) => i.content_type === typeFilter);
-
-  function doScroll(amount: number) {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: amount, behavior: "smooth" });
-  }
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -52,56 +48,20 @@ export function ContentPipeline({
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  const colBg          = isLight ? "rgba(17,17,17,0.03)"  : "rgba(255,255,255,0.03)";
-  const colBorder      = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
-  const headerBorder   = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.05)";
-  const emptyText      = isLight ? "rgba(17,17,17,0.25)"  : "rgba(255,255,255,0.20)";
-  const labelColor     = isLight ? "rgba(17,17,17,0.55)"  : "rgba(255,255,255,0.55)";
-  const countBg        = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
-  const countText      = isLight ? "rgba(17,17,17,0.40)"  : "rgba(255,255,255,0.30)";
-  const addColor       = isLight ? "rgba(17,17,17,0.30)"  : "rgba(255,255,255,0.28)";
-  const addHoverBg     = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
+  const colBg            = isLight ? "rgba(17,17,17,0.03)"  : "rgba(255,255,255,0.03)";
+  const colBorder        = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
+  const headerBorder     = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.05)";
+  const emptyText        = isLight ? "rgba(17,17,17,0.25)"  : "rgba(255,255,255,0.20)";
+  const labelColor       = isLight ? "rgba(17,17,17,0.55)"  : "rgba(255,255,255,0.55)";
+  const countBg          = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
+  const countText        = isLight ? "rgba(17,17,17,0.40)"  : "rgba(255,255,255,0.30)";
+  const addColor         = isLight ? "rgba(17,17,17,0.30)"  : "rgba(255,255,255,0.28)";
+  const addHoverBg       = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
   const dragTargetBg     = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
   const dragTargetBorder = isLight ? "rgba(17,17,17,0.18)"  : "rgba(255,255,255,0.16)";
-  const arrowBg        = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
-  const arrowBorder    = isLight ? "rgba(17,17,17,0.12)"  : "rgba(255,255,255,0.10)";
-  const arrowColor     = isLight ? "rgba(17,17,17,0.50)"  : "rgba(255,255,255,0.45)";
-
-  const arrowHoverBg   = isLight ? "rgba(17,17,17,0.12)" : "rgba(255,255,255,0.14)";
-  const arrowActiveBg  = isLight ? "rgba(17,17,17,0.18)" : "rgba(255,255,255,0.20)";
-
-  const arrowBtn = (onClick: () => void, icon: React.ReactNode, title: string) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer select-none"
-      style={{ background: arrowBg, border: `1px solid ${arrowBorder}`, color: arrowColor, transition: "background 0.12s, color 0.12s" }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = arrowHoverBg;
-        el.style.color = labelColor;
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = arrowBg;
-        el.style.color = arrowColor;
-      }}
-      onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.background = arrowActiveBg; }}
-      onMouseUp={(e)   => { (e.currentTarget as HTMLElement).style.background = arrowHoverBg; }}
-    >
-      {icon}
-    </button>
-  );
 
   return (
     <div className="h-full flex flex-col gap-1.5">
-
-      {/* ── Flechas: fila propia, centrada, encima de las columnas ── */}
-      <div className="shrink-0 flex justify-center gap-2">
-        {arrowBtn(() => doScroll(-260), <ChevronLeft size={15} strokeWidth={2} />, "Anterior")}
-        {arrowBtn(() => doScroll(260),  <ChevronRight size={15} strokeWidth={2} />, "Siguiente")}
-      </div>
 
       {/* ── Columnas scrolleables ── */}
       {/* El wrapper ocupa el espacio flex-1; el inner es absolute para que tenga
@@ -151,7 +111,7 @@ export function ContentPipeline({
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusMeta.dot }} />
                   <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: labelColor }}>
-                    {statusMeta.label}
+                    {t(`status.${statusMeta.value}` as `status.${ContentStatus}`)}
                   </span>
                   {colItems.length > 0 && (
                     <span
@@ -186,12 +146,12 @@ export function ContentPipeline({
                     className="flex-1 flex items-center justify-center py-8 rounded-lg border-2 border-dashed"
                     style={{ borderColor: dragTargetBorder }}
                   >
-                    <span className="text-[11px]" style={{ color: emptyText }}>Soltar acá</span>
+                    <span className="text-[11px]" style={{ color: emptyText }}>{t("empty.dropHere")}</span>
                   </div>
                 )}
                 {!isDragTarget && colItems.length === 0 && (
                   <div className="flex-1 flex items-center justify-center py-8">
-                    <span className="text-[11px]" style={{ color: emptyText }}>Sin contenido</span>
+                    <span className="text-[11px]" style={{ color: emptyText }}>{t("empty.pipeline")}</span>
                   </div>
                 )}
                 {colItems.map((item) => (
@@ -219,9 +179,9 @@ export function ContentPipeline({
 
       {/* Leyenda */}
       <div className="shrink-0 flex items-center gap-3">
-        {CONTENT_TYPES.map((t) => (
-          <span key={t.value} className="text-[11px]" style={{ color: emptyText }}>
-            {t.label}: {filtered.filter((i) => i.content_type === t.value).length}
+        {CONTENT_TYPES.map((typeMeta) => (
+          <span key={typeMeta.value} className="text-[11px]" style={{ color: emptyText }}>
+            {t(`type.${typeMeta.value}` as `type.${ContentType}`)}: {filtered.filter((i) => i.content_type === typeMeta.value).length}
           </span>
         ))}
         <span className="text-[11px]" style={{ color: emptyText }}>· Total: {filtered.length}</span>
