@@ -16,6 +16,8 @@ export interface ReelChatContext {
 interface UseArkoChatOptions {
   workspaceId: string;
   context?: ReelChatContext;
+  onContentAdded?: (items: Record<string, unknown>[]) => void;
+  onContentUpdated?: (item: Record<string, unknown>) => void;
 }
 
 interface UseArkoChatReturn {
@@ -36,6 +38,8 @@ interface UseArkoChatReturn {
 export function useArkoChat({
   workspaceId,
   context,
+  onContentAdded,
+  onContentUpdated,
 }: UseArkoChatOptions): UseArkoChatReturn {
   const t = useTranslations("arkoChat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -186,6 +190,14 @@ export function useArkoChat({
                   break;
                 }
 
+                case "content_added":
+                  if (onContentAdded && Array.isArray(event.items)) onContentAdded(event.items as Record<string, unknown>[]);
+                  break;
+
+                case "content_updated":
+                  if (onContentUpdated && event.item) onContentUpdated(event.item as Record<string, unknown>);
+                  break;
+
                 case "error":
                   throw new Error(event.message || t("errors.server"));
               }
@@ -226,7 +238,7 @@ export function useArkoChat({
         setToolSteps([]);
       }
     },
-    [isLoading, workspaceId, context, updateSessionId, t],
+    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated],
   );
 
   return {

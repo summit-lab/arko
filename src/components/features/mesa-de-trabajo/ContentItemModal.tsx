@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Trash2, ChevronDown } from "lucide-react";
+import { X, Trash2, ChevronDown, Maximize2, Download } from "lucide-react";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES, CONTENT_PLATFORMS } from "@/types/content-plan";
 import type {
@@ -200,12 +200,15 @@ export function ContentItemModal({
   const [plannedDate, setPlannedDate] = useState(item?.planned_date ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
   const [script, setScript]           = useState(item?.script ?? "");
-  const [titleError, setTitleError]   = useState(false);
-  const [saving, setSaving]           = useState(false);
-  const [deleting, setDeleting]       = useState(false);
+  const [titleError, setTitleError]       = useState(false);
+  const [saving, setSaving]               = useState(false);
+  const [deleting, setDeleting]           = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scriptExpanded, setScriptExpanded] = useState(false);
 
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef      = useRef<HTMLInputElement>(null);
+  const scriptRef     = useRef<HTMLTextAreaElement>(null);
+  const scriptExpRef  = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
   useEffect(() => {
@@ -243,6 +246,48 @@ export function ContentItemModal({
     finally { setDeleting(false); }
   }
 
+  function downloadScript() {
+    if (!script.trim()) return;
+    const safeName = (title || "script").replace(/[<>:"/\\|?*]/g, "").trim() || "script";
+
+    const escHtml = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const bodyLines = script
+      .split("\n")
+      .map((line) => line.trim() ? `<p>${escHtml(line)}</p>` : "<p>&nbsp;</p>")
+      .join("\n");
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
+<head>
+<meta charset="UTF-8">
+<title>${escHtml(safeName)}</title>
+<style>
+body { font-family: Calibri, Arial, sans-serif; font-size: 13pt; line-height: 1.8; margin: 2.5cm; color: #111; }
+h1  { font-size: 18pt; font-weight: 600; margin-bottom: 1.2em; }
+p   { margin: 0 0 0.6em 0; }
+</style>
+</head>
+<body>
+<h1>${escHtml(safeName)}</h1>
+${bodyLines}
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "application/msword" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `${safeName}.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function openScriptExpanded() {
+    setScriptExpanded(true);
+    setTimeout(() => scriptExpRef.current?.focus(), 50);
+  }
+
   // Theme tokens
   const modalBg     = isLight ? "#ffffff" : "rgba(14,14,16,0.97)";
   const borderColor = isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.09)";
@@ -276,6 +321,7 @@ export function ContentItemModal({
   };
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
@@ -407,8 +453,39 @@ export function ContentItemModal({
 
           {/* Script */}
           <div>
-            <label style={labelStyle}>Script / caption</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Script / caption</label>
+              <div className="flex items-center gap-1">
+                {script.trim() && (
+                  <button
+                    type="button"
+                    onClick={downloadScript}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] transition-all"
+                    style={{ color: textSub, background: "transparent" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = inputBg; (e.currentTarget as HTMLElement).style.color = labelColor; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
+                    title="Descargar script"
+                  >
+                    <Download size={11} />
+                    <span>Descargar</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={openScriptExpanded}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] transition-all"
+                  style={{ color: textSub, background: "transparent" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = inputBg; (e.currentTarget as HTMLElement).style.color = labelColor; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
+                  title="Ver en modo grabación"
+                >
+                  <Maximize2 size={11} />
+                  <span>Expandir</span>
+                </button>
+              </div>
+            </div>
             <textarea
+              ref={scriptRef}
               value={script}
               onChange={(e) => setScript(e.target.value)}
               placeholder="Escribí el guion o caption completo…"
@@ -488,5 +565,98 @@ export function ContentItemModal({
         </div>
       </div>
     </div>
+
+      {/* ── Script fullscreen overlay ── */}
+      {scriptExpanded && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col"
+          style={{
+            background: isLight ? "#fafafa" : "rgba(8,8,10,0.98)",
+            backdropFilter: "blur(16px)",
+          }}
+        >
+          {/* Toolbar */}
+          <div
+            className="flex items-center justify-between px-6 py-3 shrink-0"
+            style={{ borderBottom: `1px solid ${borderColor}` }}
+          >
+            <div>
+              <p className="text-[13px] font-semibold" style={{ color: textMain }}>
+                Modo grabación
+              </p>
+              {title && (
+                <p className="text-[12px] mt-0.5" style={{ color: textSub }}>{title}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {script.trim() && (
+                <button
+                  onClick={downloadScript}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] transition-all"
+                  style={{
+                    background: inputBg,
+                    border: `1px solid ${borderColor}`,
+                    color: textSub,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
+                  onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
+                >
+                  <Download size={12} />
+                  Descargar
+                </button>
+              )}
+              <button
+                onClick={() => setScriptExpanded(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] transition-all"
+                style={{
+                  background: inputBg,
+                  border: `1px solid ${borderColor}`,
+                  color: textSub,
+                }}
+                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
+                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
+              >
+                <X size={12} />
+                Cerrar
+              </button>
+            </div>
+          </div>
+
+          {/* Script editor — large font for reading while recording */}
+          <div className="flex-1 overflow-hidden px-8 py-8">
+            <textarea
+              ref={scriptExpRef}
+              value={script}
+              onChange={(e) => setScript(e.target.value)}
+              placeholder="Escribí el guion aquí…"
+              className="w-full h-full resize-none bg-transparent outline-none leading-relaxed scrollbar-none"
+              style={{
+                fontSize: 22,
+                lineHeight: 1.75,
+                color: textMain,
+                letterSpacing: "0.01em",
+                fontWeight: 300,
+              }}
+            />
+          </div>
+
+          {/* Stats bar */}
+          <div
+            className="px-8 py-3 shrink-0 flex items-center gap-4"
+            style={{ borderTop: `1px solid ${borderColor}` }}
+          >
+            <p className="text-[11px]" style={{ color: textSub }}>
+              {script.trim().split(/\s+/).filter(Boolean).length} palabras
+            </p>
+            <p className="text-[11px]" style={{ color: textSub }}>
+              {script.length} caracteres
+            </p>
+            <p className="text-[11px]" style={{ color: textSub }}>
+              ~{Math.ceil(script.trim().split(/\s+/).filter(Boolean).length / 130)} min de lectura
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

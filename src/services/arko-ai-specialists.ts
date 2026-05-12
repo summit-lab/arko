@@ -475,13 +475,28 @@ ${contextData || noDataPlaceholder}`;
   const config = getLLMConfig('ai-agents');
   const start = Date.now();
 
-  const response = await callLLM({
-    provider: config.provider,
-    model: config.model,
-    messages,
-    system: systemPrompt,
-    maxTokens: config.maxTokens,
-  });
+  let response;
+  try {
+    response = await callLLM({
+      provider: config.provider,
+      model: config.model,
+      messages,
+      system: systemPrompt,
+      maxTokens: config.maxTokens,
+    });
+  } catch (err) {
+    const latencyMs = Date.now() - start;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[specialist:${domain}] callLLM failed:`, errMsg);
+    return {
+      domain,
+      analysis: locale === 'en'
+        ? `Specialist "${domain}" temporarily unavailable. Please try again.`
+        : `El especialista "${domain}" no está disponible temporalmente. Intentá de nuevo.`,
+      tokensUsed: 0,
+      latencyMs,
+    };
+  }
 
   const latencyMs = Date.now() - start;
 
