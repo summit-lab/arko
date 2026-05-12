@@ -251,7 +251,17 @@ export function MesaDeTrabajoShell({
         className="fixed right-0 flex flex-col overflow-hidden"
         style={{ top: HEADER_H, bottom: 0, width: MOKA_WIDTH, zIndex: 40 }}
       >
-        <MokaContentPanel workspaceId={workspaceId} />
+        <MokaContentPanel
+          workspaceId={workspaceId}
+          onContentAdded={(newItems) =>
+            setItems((prev) => [...(newItems as unknown as ContentItem[]), ...prev])
+          }
+          onContentUpdated={(updated) =>
+            setItems((prev) =>
+              prev.map((i) => (i.id === (updated as unknown as ContentItem).id ? (updated as unknown as ContentItem) : i))
+            )
+          }
+        />
       </div>
 
       {/* Modal */}

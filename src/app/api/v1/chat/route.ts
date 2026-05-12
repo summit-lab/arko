@@ -145,6 +145,9 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     get_topic_clusters: 'Mapeando clusters de temas',
     get_competitor_analysis: 'Analizando competencia',
     consult_specialist: 'Consultando especialista',
+    list_pipeline_items: 'Revisando pipeline de contenido',
+    add_content_to_pipeline: 'Agregando al pipeline',
+    update_content_item: 'Actualizando item',
   },
   en: {
     query_reels: 'Analyzing reels',
@@ -160,6 +163,9 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     get_topic_clusters: 'Mapping topic clusters',
     get_competitor_analysis: 'Analyzing competitors',
     consult_specialist: 'Consulting specialist',
+    list_pipeline_items: 'Reviewing content pipeline',
+    add_content_to_pipeline: 'Adding to pipeline',
+    update_content_item: 'Updating item',
   },
 };
 
@@ -456,14 +462,24 @@ export async function POST(request: Request) {
 
             const toolResults = await Promise.all(
               toolCalls.map(async (tc) => {
-                const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext, userLocale);
-                // Emit tool_done when each tool finishes
-                controller.enqueue(sseEvent({
-                  type: 'tool_done',
-                  tool: tc.name,
-                  label: tools[tc.name] || tc.name,
-                }));
-                return result;
+                try {
+                  const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext, userLocale);
+                  controller.enqueue(sseEvent({
+                    type: 'tool_done',
+                    tool: tc.name,
+                    label: tools[tc.name] || tc.name,
+                  }));
+                  return result;
+                } catch (toolErr) {
+                  const errMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+                  console.error(`[chat] Tool "${tc.name}" failed:`, errMsg);
+                  controller.enqueue(sseEvent({
+                    type: 'tool_done',
+                    tool: tc.name,
+                    label: tools[tc.name] || tc.name,
+                  }));
+                  return { result: JSON.stringify({ error: `Tool "${tc.name}" failed: ${errMsg}` }) };
+                }
               })
             );
 
@@ -474,6 +490,12 @@ export async function POST(request: Request) {
                 const s = toolResults[t].specialistUsed!;
                 specialistsUsed.push({ domain: s.domain, tokensUsed: s.tokensUsed, latencyMs: s.latencyMs });
                 totalInputTokens += s.tokensUsed;
+              }
+              if (toolResults[t].contentAdded?.length) {
+                controller.enqueue(sseEvent({ type: 'content_added', items: toolResults[t].contentAdded }));
+              }
+              if (toolResults[t].contentUpdated) {
+                controller.enqueue(sseEvent({ type: 'content_updated', item: toolResults[t].contentUpdated }));
               }
             }
 
@@ -556,7 +578,9 @@ export async function POST(request: Request) {
 
         // Map known error patterns to user-friendly messages.
         const errCopy = ERROR_MESSAGES[userLocale];
-        let userMessage = errCopy.generic;
+        let userMessage = process.env.NODE_ENV === 'development'
+          ? `[DEV] ${errMsg}`
+          : errCopy.generic;
         const lowerErr = errMsg.toLowerCase();
         if (lowerErr.includes('context') && (lowerErr.includes('length') || lowerErr.includes('window') || lowerErr.includes('too long'))) {
           userMessage = errCopy.contextTooLong;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect, useLayoutEffect } from "react";
-import { Plus } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
 import type { ContentItem, ContentStatus, ContentType } from "@/types/content-plan";
@@ -25,136 +25,95 @@ export function ContentPipeline({
   const { theme } = useTheme();
   const isLight = theme === "light";
   const scrollRef = useRef<HTMLDivElement>(null);
-  const trackRef  = useRef<HTMLDivElement>(null);
 
   const [dragOverStatus, setDragOverStatus] = useState<ContentStatus | null>(null);
   const [draggingId, setDraggingId]         = useState<string | null>(null);
-  const [thumb, setThumb] = useState({ w: 100, l: 0 });
 
   const filtered = typeFilter === "all"
     ? items
     : items.filter((i) => i.content_type === typeFilter);
 
-  function measure() {
+  function doScroll(amount: number) {
     const el = scrollRef.current;
     if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    if (scrollWidth <= clientWidth) {
-      setThumb(prev => (prev.w === 100 && prev.l === 0) ? prev : { w: 100, l: 0 });
-      return;
-    }
-    const w = (clientWidth / scrollWidth) * 100;
-    const l = (scrollLeft / (scrollWidth - clientWidth)) * (100 - w);
-    setThumb(prev => (prev.w === w && prev.l === l) ? prev : { w, l });
+    el.scrollBy({ left: amount, behavior: "smooth" });
   }
 
-  // Measure after every render (layout already settled at this point)
-  useLayoutEffect(() => {
-    measure();
-    const el = scrollRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  });
-
-  // Convert vertical wheel to horizontal scroll
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const handleWheel = (e: WheelEvent) => {
+    const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) > 5) return;
       if (e.deltaY === 0) return;
       e.preventDefault();
       el.scrollLeft += e.deltaY;
     };
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  function handleTrackClick(e: React.MouseEvent<HTMLDivElement>) {
-    const el = scrollRef.current;
-    const track = trackRef.current;
-    if (!el || !track) return;
-    const rect = track.getBoundingClientRect();
-    const ratio = (e.clientX - rect.left) / rect.width;
-    el.scrollLeft = ratio * (el.scrollWidth - el.clientWidth);
-  }
-
-  function handleThumbMouseDown(e: React.MouseEvent<HTMLDivElement>) {
-    e.preventDefault();
-    e.stopPropagation();
-    const el = scrollRef.current;
-    const track = trackRef.current;
-    if (!el || !track) return;
-    const startX = e.clientX;
-    const startLeft = el.scrollLeft;
-    const trackW = track.getBoundingClientRect().width;
-    const thumbPx = (el.clientWidth / el.scrollWidth) * trackW;
-    const maxTravel = trackW - thumbPx;
-    const scrollRange = el.scrollWidth - el.clientWidth;
-    const onMove = (ev: MouseEvent) => {
-      if (maxTravel <= 0) return;
-      el.scrollLeft = startLeft + ((ev.clientX - startX) / maxTravel) * scrollRange;
-    };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }
-
-  const colBg      = isLight ? "rgba(17,17,17,0.03)"  : "rgba(255,255,255,0.03)";
-  const colBorder  = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
-  const headerBorder = isLight ? "rgba(17,17,17,0.06)" : "rgba(255,255,255,0.05)";
-  const emptyText  = isLight ? "rgba(17,17,17,0.25)"  : "rgba(255,255,255,0.20)";
-  const labelColor = isLight ? "rgba(17,17,17,0.55)"  : "rgba(255,255,255,0.55)";
-  const countBg    = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
-  const countText  = isLight ? "rgba(17,17,17,0.40)"  : "rgba(255,255,255,0.30)";
-  const addColor   = isLight ? "rgba(17,17,17,0.30)"  : "rgba(255,255,255,0.28)";
-  const addHoverBg = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
+  const colBg          = isLight ? "rgba(17,17,17,0.03)"  : "rgba(255,255,255,0.03)";
+  const colBorder      = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
+  const headerBorder   = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.05)";
+  const emptyText      = isLight ? "rgba(17,17,17,0.25)"  : "rgba(255,255,255,0.20)";
+  const labelColor     = isLight ? "rgba(17,17,17,0.55)"  : "rgba(255,255,255,0.55)";
+  const countBg        = isLight ? "rgba(17,17,17,0.07)"  : "rgba(255,255,255,0.06)";
+  const countText      = isLight ? "rgba(17,17,17,0.40)"  : "rgba(255,255,255,0.30)";
+  const addColor       = isLight ? "rgba(17,17,17,0.30)"  : "rgba(255,255,255,0.28)";
+  const addHoverBg     = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
   const dragTargetBg     = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
   const dragTargetBorder = isLight ? "rgba(17,17,17,0.18)"  : "rgba(255,255,255,0.16)";
-  const trackBg    = isLight ? "rgba(17,17,17,0.08)"  : "rgba(255,255,255,0.08)";
-  const thumbBg    = isLight ? "rgba(17,17,17,0.28)"  : "rgba(255,255,255,0.28)";
+  const arrowBg        = isLight ? "rgba(17,17,17,0.06)"  : "rgba(255,255,255,0.07)";
+  const arrowBorder    = isLight ? "rgba(17,17,17,0.12)"  : "rgba(255,255,255,0.10)";
+  const arrowColor     = isLight ? "rgba(17,17,17,0.50)"  : "rgba(255,255,255,0.45)";
 
-  const hasOverflow = thumb.w < 99;
+  const arrowHoverBg   = isLight ? "rgba(17,17,17,0.12)" : "rgba(255,255,255,0.14)";
+  const arrowActiveBg  = isLight ? "rgba(17,17,17,0.18)" : "rgba(255,255,255,0.20)";
+
+  const arrowBtn = (onClick: () => void, icon: React.ReactNode, title: string) => (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer select-none"
+      style={{ background: arrowBg, border: `1px solid ${arrowBorder}`, color: arrowColor, transition: "background 0.12s, color 0.12s" }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.background = arrowHoverBg;
+        el.style.color = labelColor;
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.background = arrowBg;
+        el.style.color = arrowColor;
+      }}
+      onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.background = arrowActiveBg; }}
+      onMouseUp={(e)   => { (e.currentTarget as HTMLElement).style.background = arrowHoverBg; }}
+    >
+      {icon}
+    </button>
+  );
 
   return (
-    <div className="h-full flex flex-col gap-2">
+    <div className="h-full flex flex-col gap-1.5">
 
-      {/* ── Scrollbar: fijo arriba, clickeable y arrastrable ── */}
-      <div
-        ref={trackRef}
-        className="h-[7px] rounded-full relative shrink-0"
-        style={{
-          background: trackBg,
-          cursor: hasOverflow ? "pointer" : "default",
-        }}
-        onClick={hasOverflow ? handleTrackClick : undefined}
-      >
-        <div
-          className="absolute top-0 h-full rounded-full transition-[left] duration-75"
-          style={{
-            width: `${thumb.w}%`,
-            left:  `${thumb.l}%`,
-            background: thumbBg,
-            cursor: hasOverflow ? "grab" : "default",
-          }}
-          onMouseDown={hasOverflow ? handleThumbMouseDown : undefined}
-          onClick={(e) => e.stopPropagation()}
-        />
+      {/* ── Flechas: fila propia, centrada, encima de las columnas ── */}
+      <div className="shrink-0 flex justify-center gap-2">
+        {arrowBtn(() => doScroll(-260), <ChevronLeft size={15} strokeWidth={2} />, "Anterior")}
+        {arrowBtn(() => doScroll(260),  <ChevronRight size={15} strokeWidth={2} />, "Siguiente")}
       </div>
 
       {/* ── Columnas scrolleables ── */}
+      {/* El wrapper ocupa el espacio flex-1; el inner es absolute para que tenga
+          width explícito (inset-0), evitando que el flex container crezca con el
+          contenido y haga scrollWidth == clientWidth (que rompía scrollBy). */}
+      <div className="flex-1 min-h-0 relative">
       <div
         ref={scrollRef}
-        className="flex gap-2.5 flex-1 min-h-0 overflow-x-auto overflow-y-hidden pb-1 scrollbar-none"
-        onScroll={measure}
+        className="absolute inset-0 flex gap-2.5 overflow-x-auto overflow-y-hidden pb-1 scrollbar-none"
       >
         {CONTENT_STATUSES.map((statusMeta) => {
-          const colItems    = filtered.filter((i) => i.status === statusMeta.value);
+          const colItems     = filtered.filter((i) => i.status === statusMeta.value);
           const isDragTarget = dragOverStatus === statusMeta.value;
 
           return (
@@ -184,7 +143,7 @@ export function ContentPipeline({
                 setDraggingId(null);
               }}
             >
-              {/* Column header */}
+              {/* Header */}
               <div
                 className="flex items-center justify-between px-3 py-2.5 shrink-0"
                 style={{ borderBottom: `1px solid ${headerBorder}` }}
@@ -215,7 +174,6 @@ export function ContentPipeline({
                     (e.currentTarget as HTMLElement).style.background = "transparent";
                     (e.currentTarget as HTMLElement).style.color = addColor;
                   }}
-                  title={`Agregar en ${statusMeta.label}`}
                 >
                   <Plus size={12} strokeWidth={2.5} />
                 </button>
@@ -233,9 +191,7 @@ export function ContentPipeline({
                 )}
                 {!isDragTarget && colItems.length === 0 && (
                   <div className="flex-1 flex items-center justify-center py-8">
-                    <span className="text-[11px] text-center px-3" style={{ color: emptyText }}>
-                      Sin contenido
-                    </span>
+                    <span className="text-[11px]" style={{ color: emptyText }}>Sin contenido</span>
                   </div>
                 )}
                 {colItems.map((item) => (
@@ -248,11 +204,7 @@ export function ContentPipeline({
                       e.dataTransfer.effectAllowed = "move";
                     }}
                     onDragEnd={() => { setDraggingId(null); setDragOverStatus(null); }}
-                    style={{
-                      opacity: draggingId === item.id ? 0.4 : 1,
-                      cursor: "grab",
-                      transition: "opacity 0.15s",
-                    }}
+                    style={{ opacity: draggingId === item.id ? 0.4 : 1, cursor: "grab", transition: "opacity 0.15s" }}
                   >
                     <ContentCard item={item} onClick={() => onCardClick(item)} />
                   </div>
@@ -263,17 +215,16 @@ export function ContentPipeline({
         })}
         <div className="shrink-0 w-1" />
       </div>
+      </div>
 
-      {/* Type legend */}
+      {/* Leyenda */}
       <div className="shrink-0 flex items-center gap-3">
         {CONTENT_TYPES.map((t) => (
           <span key={t.value} className="text-[11px]" style={{ color: emptyText }}>
             {t.label}: {filtered.filter((i) => i.content_type === t.value).length}
           </span>
         ))}
-        <span className="text-[11px]" style={{ color: emptyText }}>
-          · Total: {filtered.length}
-        </span>
+        <span className="text-[11px]" style={{ color: emptyText }}>· Total: {filtered.length}</span>
       </div>
     </div>
   );

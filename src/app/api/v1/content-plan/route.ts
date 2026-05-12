@@ -5,7 +5,7 @@
  * DELETE /api/v1/content-plan  — Elimina un item (?id= en query)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import type { ContentType, ContentStatus, ContentPlatform, ContentMetrics } from '@/types/content-plan';
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     // planned_date era NOT NULL en schema original; defaulteamos a hoy como fallback
     const planned_date = body.planned_date ?? new Date().toISOString().slice(0, 10);
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Paso 1: Insert base (siempre funciona, con o sin migración 100)
     const { data: inserted, error: insertError } = await supabase
@@ -98,8 +98,9 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError || !inserted) {
-      console.error('[content-plan POST] insert error:', insertError?.message, insertError?.code, insertError?.details);
-      return api500(`Error creando item: ${insertError?.message ?? 'no data'} (code: ${insertError?.code})`);
+      const msg = insertError?.message ?? 'sin respuesta';
+      console.error('[content-plan POST] insert error:', msg);
+      return api500(process.env.NODE_ENV === 'development' ? `Insert falló: ${msg}` : 'Error creando item');
     }
 
     // Paso 2: Update con campos de migración 100 (falla silenciosamente si no existen)
@@ -119,8 +120,10 @@ export async function POST(request: Request) {
     if (!baseItem) return api500('Error recuperando item creado');
     return apiSuccess({ item: baseItem }, 201);
 
-  } catch {
-    return api500('Error creando item');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[content-plan POST] catch:', msg);
+    return api500(process.env.NODE_ENV === 'development' ? `Error inesperado: ${msg}` : 'Error creando item');
   }
 }
 
@@ -168,7 +171,7 @@ export async function PATCH(request: Request) {
 
     if (Object.keys(updates).length === 0) return api400('Nada que actualizar');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Intentar con FULL_SELECT; si falla por columnas nuevas, reintentar con BASE
     const fullResult = await supabase
@@ -215,7 +218,7 @@ export async function DELETE(request: Request) {
     const id  = url.searchParams.get('id');
     if (!id) return api400('El id es obligatorio');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { error } = await supabase
       .from('content_plan')
       .delete()

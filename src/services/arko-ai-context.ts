@@ -330,6 +330,66 @@ export const ARKO_TOOLS: LLMTool[] = [
     },
   },
   {
+    name: 'list_pipeline_items',
+    description: 'Lista los items actuales de la Mesa de Trabajo (pipeline de contenido). Úsala ANTES de update_content_item para obtener los IDs, o cuando el usuario pregunte qué hay en su pipeline.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['idea', 'script', 'needs_recording', 'recorded', 'needs_editing', 'editing', 'scheduled', 'published'],
+          description: 'Filtrar por estado (opcional)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'add_content_to_pipeline',
+    description: 'Agrega uno o más ideas/contenidos a la Mesa de Trabajo del usuario. Úsala cuando pida "agregar al pipeline", "generame ideas de contenido", "planificame contenido para esta semana", "creame un plan de reels", etc. Podés agregar varios items de una sola vez.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          description: 'Items a agregar al pipeline',
+          items: {
+            type: 'object',
+            properties: {
+              title:        { type: 'string', description: 'Título del contenido (obligatorio)' },
+              description:  { type: 'string', description: 'Brief o descripción del contenido' },
+              content_type: { type: 'string', enum: ['reel', 'carousel', 'story'], description: 'Tipo. Default: reel' },
+              platform:     { type: 'string', enum: ['instagram', 'tiktok', 'youtube'], description: 'Plataforma. Default: instagram' },
+              status:       { type: 'string', enum: ['idea', 'script', 'needs_recording', 'recorded', 'needs_editing', 'editing', 'scheduled', 'published'], description: 'Estado inicial. Default: idea' },
+              planned_date: { type: 'string', description: 'Fecha YYYY-MM-DD. Opcional.' },
+              script:       { type: 'string', description: 'Script del contenido. Opcional.' },
+            },
+            required: ['title'],
+          },
+        },
+      },
+      required: ['items'],
+    },
+  },
+  {
+    name: 'update_content_item',
+    description: 'Edita un item existente en la Mesa de Trabajo. Usá list_pipeline_items primero para obtener el ID. Úsala cuando el usuario quiera cambiar el estado, editar el título, agregar un script, o modificar cualquier campo de un contenido ya existente.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:           { type: 'string', description: 'UUID del item (obligatorio)' },
+        title:        { type: 'string', description: 'Nuevo título (opcional)' },
+        description:  { type: 'string', description: 'Nueva descripción (opcional)' },
+        status:       { type: 'string', enum: ['idea', 'script', 'needs_recording', 'recorded', 'needs_editing', 'editing', 'scheduled', 'published'], description: 'Nuevo estado (opcional)' },
+        content_type: { type: 'string', enum: ['reel', 'carousel', 'story'], description: 'Tipo (opcional)' },
+        platform:     { type: 'string', enum: ['instagram', 'tiktok', 'youtube'], description: 'Plataforma (opcional)' },
+        planned_date: { type: 'string', description: 'Fecha YYYY-MM-DD (opcional)' },
+        script:       { type: 'string', description: 'Script completo del contenido (opcional)' },
+      },
+      required: ['id'],
+    },
+  },
+  {
     name: 'consult_specialist',
     description: `Consulta a un sub-agente especializado para análisis profundo. Úsala cuando necesites ir más allá de un análisis superficial. Cada especialista tiene el framework COMPLETO de Francisco Doglio para su dominio.
 
@@ -379,6 +439,8 @@ const ORDER_COLUMN_MAP: Record<string, string> = {
 export interface ArkoToolResult {
   result: string;
   specialistUsed?: SpecialistResult;
+  contentAdded?: Record<string, unknown>[];
+  contentUpdated?: Record<string, unknown>;
 }
 
 export async function executeArkoTool(
@@ -438,6 +500,68 @@ export async function executeArkoTool(
           analysis: specialistResult.analysis,
         }),
         specialistUsed: specialistResult,
+      };
+    }
+    case 'list_pipeline_items': {
+      const statusFilter = input.status as string | undefined;
+      let query = supabase
+        .from('content_plan')
+        .select('id, title, description, content_type, platform, status, planned_date, script, created_at')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (statusFilter) query = query.eq('status', statusFilter);
+      const { data, error } = await query;
+      if (error) return { result: JSON.stringify({ error: error.message }) };
+      return { result: JSON.stringify({ total: data?.length ?? 0, items: data ?? [] }) };
+    }
+    case 'add_content_to_pipeline': {
+      const rawItems = (input.items ?? []) as Array<Record<string, unknown>>;
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = rawItems
+        .map((item) => ({
+          workspace_id: workspaceId,
+          title: String(item.title ?? '').trim(),
+          description: item.description ? String(item.description).trim() : null,
+          content_type: item.content_type ?? 'reel',
+          platform: item.platform ?? 'instagram',
+          status: item.status ?? 'idea',
+          planned_date: item.planned_date ?? today,
+          script: item.script ? String(item.script).trim() : null,
+          source_type: 'ai_insight',
+        }))
+        .filter((r) => r.title.length > 0);
+      if (rows.length === 0) return { result: JSON.stringify({ error: 'No hay items válidos para insertar' }) };
+      const { data, error } = await supabase
+        .from('content_plan')
+        .insert(rows)
+        .select('id, title, description, content_type, platform, status, planned_date, script, source_type, source_ref, metrics, created_at, updated_at, workspace_id');
+      if (error) return { result: JSON.stringify({ error: error.message }) };
+      return {
+        result: JSON.stringify({ added: data?.length ?? 0, titles: data?.map((i) => (i as Record<string, unknown>).title) }),
+        contentAdded: (data ?? []) as Record<string, unknown>[],
+      };
+    }
+    case 'update_content_item': {
+      const id = input.id as string;
+      if (!id) return { result: JSON.stringify({ error: 'id requerido' }) };
+      const allowedFields = ['title', 'description', 'status', 'content_type', 'platform', 'planned_date', 'script'] as const;
+      const updates: Record<string, unknown> = {};
+      for (const key of allowedFields) {
+        if (input[key] !== undefined) updates[key] = input[key];
+      }
+      if (Object.keys(updates).length === 0) return { result: JSON.stringify({ error: 'Nada que actualizar' }) };
+      const { data, error } = await supabase
+        .from('content_plan')
+        .update(updates)
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .select('id, title, description, content_type, platform, status, planned_date, script, source_type, source_ref, metrics, created_at, updated_at, workspace_id')
+        .single();
+      if (error) return { result: JSON.stringify({ error: error.message }) };
+      return {
+        result: JSON.stringify({ updated: true, title: (data as Record<string, unknown>)?.title }),
+        contentUpdated: data as Record<string, unknown>,
       };
     }
     default:
