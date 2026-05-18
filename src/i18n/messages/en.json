@@ -111,7 +111,8 @@
     "newItem": "New content",
     "views": {
       "pipeline": "Pipeline",
-      "calendar": "Calendar"
+      "calendar": "Calendar",
+      "scripts": "Scripts"
     },
     "filters": {
       "all": "All",
@@ -157,7 +158,17 @@
       "delete": "Delete",
       "deleting": "Deleting…",
       "deleteConfirm": "Delete this item? This action cannot be undone.",
-      "errorTitle": "Title is required."
+      "deleteConfirmShort": "Confirm?",
+      "errorTitle": "Title is required.",
+      "cancel": "Cancel",
+      "openEditor": "Open editor",
+      "fieldReference": "Reference",
+      "fieldReferencePlaceholder": "Link to reference video…",
+      "fieldRawVideo": "Raw video",
+      "fieldRawVideoPlaceholder": "Link to raw video…",
+      "fieldEditedVideo": "Edited video",
+      "fieldEditedVideoPlaceholder": "Link to final edited video…",
+      "scriptPreviewPlaceholder": "Script preview…"
     },
     "empty": {
       "pipeline": "No content",
@@ -166,11 +177,91 @@
       "addFirst": "Create your first content"
     },
     "metrics": {
+      "title": "Metrics",
       "reach": "Reach",
       "likes": "Likes",
       "saves": "Saves",
       "comments": "Comments",
       "shares": "Shares"
+    },
+    "calendar": {
+      "days": {
+        "sun": "Sun", "mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat"
+      },
+      "months": {
+        "jan": "January", "feb": "February", "mar": "March", "apr": "April",
+        "may": "May", "jun": "June", "jul": "July", "aug": "August",
+        "sep": "September", "oct": "October", "nov": "November", "dec": "December"
+      },
+      "pillLabel": {
+        "carousel": "Carousel",
+        "story": "Story",
+        "reel": "IG"
+      },
+      "legend": {
+        "planned": "Planned",
+        "publishedSuffix": "published",
+        "moreCount": "+{count} more",
+        "noDate": "{count} without date"
+      }
+    },
+    "scripts": {
+      "back": "Content studio",
+      "searchPlaceholder": "Search scripts…",
+      "emptyAll": "You haven't written any script yet",
+      "emptyResults": "No results",
+      "untitled": "Untitled",
+      "newInGroup": "New in {label}",
+      "collapseSidebar": "Collapse sidebar (⌘\\)",
+      "expandSidebar": "Show sidebar (⌘\\)",
+      "openMoka": "Ask Moka",
+      "closeMoka": "Close Moka",
+      "moka": "Moka",
+      "focusMode": "Focus mode",
+      "exitFocus": "Close",
+      "focusModeTitle": "Focus mode (⌘.)",
+      "exitFocusTitle": "Exit focus mode (⌘.)",
+      "delete": "Delete",
+      "confirmDelete": "Confirm",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "saveError": "Save error",
+      "wordsCount": "{count} words",
+      "readTime": "~{minutes} min read",
+      "mokaGreeting": "I'm looking at \"{title}\". How can I help?",
+      "mokaGreetingNoTitle": "I'm looking at this script. How can I help?"
+    },
+    "mokaPanel": {
+      "name": "Moka AI",
+      "subtitle": "Content assistant",
+      "conversations": "Conversations",
+      "chatHistory": "Chat history",
+      "backToChat": "Back to chat",
+      "newConversation": "New conversation",
+      "history": "Conversation history",
+      "close": "Close Moka",
+      "untitledConversation": "Untitled conversation",
+      "loading": "Loading…",
+      "emptyConversations": "No previous conversations",
+      "placeholder": "Ask Moka…",
+      "hint": "Enter to send · Shift+Enter for new line",
+      "greeting": "Hi 👋 I'm here to help with your content. What are we creating today?",
+      "now": "Now",
+      "minutesAgo": "{n}m ago",
+      "hoursAgo": "{n}h ago",
+      "daysAgo": "{n}d ago",
+      "suggestions": {
+        "default1": "Generate 3 reel ideas for this week and add them to the pipeline",
+        "default2": "Write a script for a sales reel and add it as an idea",
+        "default3": "What kind of content works best for me?",
+        "default4": "Suggest a content plan for the next 7 days",
+        "scriptForIdea": "Write the script for \"{title}\"",
+        "scriptsForReadyToRecord": "Generate scripts for the {n} \"ready to record\" items without a script",
+        "prioritizeIdeas": "I have {n} ideas — which should move to \"ready to record\" first?",
+        "generateNewIdeas": "Generate 3 new ideas based on what's already working",
+        "captionsForEditing": "I have {n} videos in editing — what captions do you suggest?",
+        "weekPlan": "Suggest a content plan for the next 7 days"
+      }
     }
   },
   "dashboard": {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { Plus, Kanban, CalendarDays, Sparkles } from "lucide-react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Kanban, CalendarDays, Sparkles, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_TYPES } from "@/types/content-plan";
@@ -19,8 +20,7 @@ import { MokaContentPanel } from "./MokaContentPanel";
 
 type ViewMode = "pipeline" | "calendar";
 
-const MOKA_WIDTH = 320;
-const HEADER_H   = 80;
+const HEADER_H = 80;
 
 interface MesaDeTrabajoShellProps {
   initialItems: ContentItem[];
@@ -36,6 +36,23 @@ export function MesaDeTrabajoShell({
   const { theme } = useTheme();
   const isLight = theme === "light";
   const t = useTranslations("mesaDeTrabajo");
+  const router = useRouter();
+
+  // Most-recently-edited item that has a non-empty script. Falls back to the
+  // first item in the list when nothing has been scripted yet. We compute this
+  // each render based on `items` so the destination is always fresh.
+  const scriptsDestination = useMemo(() => {
+    const withScript = initialItems
+      .filter((it) => typeof it.script === "string" && it.script.trim().length > 0)
+      .sort((a, b) => (b.updated_at < a.updated_at ? -1 : b.updated_at > a.updated_at ? 1 : 0));
+    return withScript[0]?.id ?? initialItems[0]?.id ?? null;
+  }, [initialItems]);
+
+  const openScripts = useCallback(() => {
+    if (!scriptsDestination) return;
+    window.dispatchEvent(new Event("nav:start"));
+    router.push(`/mesa-de-trabajo/${scriptsDestination}/guion`);
+  }, [router, scriptsDestination]);
 
   const [items, setItems]             = useState<ContentItem[]>(initialItems);
   const [view, setView]               = useState<ViewMode>("pipeline");
@@ -138,7 +155,7 @@ export function MesaDeTrabajoShell({
     })),
   ];
 
-  const btnBase     = "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all";
+  const btnBase     = "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer";
   const btnActive   = isLight
     ? `${btnBase} bg-[rgba(17,17,17,0.08)] text-[#111111]`
     : `${btnBase} bg-white/[0.10] text-white/90`;
@@ -148,10 +165,10 @@ export function MesaDeTrabajoShell({
 
   return (
     <>
-      {/* ── Left: content area — explicit height so children can use h-full ── */}
+      {/* ── Content area — explicit height so children can use h-full ── */}
       <div
         className="flex flex-col overflow-hidden"
-        style={{ height: `calc(100vh - ${HEADER_H}px)`, paddingRight: mokaOpen ? MOKA_WIDTH : 0 }}
+        style={{ height: `calc(100vh - ${HEADER_H}px)` }}
       >
         {/* Header — does not scroll */}
         <div className="flex items-center justify-between px-6 pt-7 pb-4 shrink-0">
@@ -192,7 +209,7 @@ export function MesaDeTrabajoShell({
               <button
                 key={value}
                 onClick={() => setView(value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all cursor-pointer ${
                   view === value
                     ? isLight ? "bg-white text-[#111111] shadow-sm" : "bg-white/[0.10] text-white/90"
                     : isLight ? "text-[rgba(17,17,17,0.45)] hover:text-[rgba(17,17,17,0.7)]" : "text-white/35 hover:text-white/60"
@@ -202,6 +219,19 @@ export function MesaDeTrabajoShell({
                 {t(labelKey as Parameters<typeof t>[0])}
               </button>
             ))}
+            <button
+              onClick={openScripts}
+              disabled={!scriptsDestination}
+              title={scriptsDestination ? undefined : "Aún no hay contenido"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                isLight
+                  ? "text-[rgba(17,17,17,0.45)] hover:text-[rgba(17,17,17,0.7)]"
+                  : "text-white/35 hover:text-white/60"
+              }`}
+            >
+              <FileText size={13} strokeWidth={1.5} />
+              {t("views.scripts")}
+            </button>
           </div>
 
           {/* Type filter */}
@@ -257,30 +287,28 @@ export function MesaDeTrabajoShell({
           onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
         >
           <Sparkles size={14} />
-          Preguntar a Moka
+          {t("scripts.openMoka")}
         </button>
       )}
 
-      {/* ── Right: Moka AI — fixed to viewport, visible when open ── */}
-      {mokaOpen && (
-        <div
-          className="fixed right-0 flex flex-col overflow-hidden"
-          style={{ top: HEADER_H, bottom: 0, width: MOKA_WIDTH, zIndex: 40 }}
-        >
-          <MokaContentPanel
-            workspaceId={workspaceId}
-            onClose={() => setMokaOpen(false)}
-            onContentAdded={(newItems) =>
-              setItems((prev) => [...(newItems as unknown as ContentItem[]), ...prev])
-            }
-            onContentUpdated={(updated) =>
-              setItems((prev) =>
-                prev.map((i) => (i.id === (updated as unknown as ContentItem).id ? (updated as unknown as ContentItem) : i))
-              )
-            }
-          />
-        </div>
-      )}
+      {/* ── Moka AI — slide-in modal with backdrop blur (managed internally) ── */}
+      <MokaContentPanel
+        open={mokaOpen}
+        workspaceId={workspaceId}
+        items={items}
+        onClose={() => setMokaOpen(false)}
+        onContentAdded={(newItems) =>
+          setItems((prev) => [...(newItems as unknown as ContentItem[]), ...prev])
+        }
+        onContentUpdated={(updated) =>
+          setItems((prev) =>
+            prev.map((i) => (i.id === (updated as unknown as ContentItem).id ? (updated as unknown as ContentItem) : i))
+          )
+        }
+        onContentDeleted={(id) =>
+          setItems((prev) => prev.filter((i) => i.id !== id))
+        }
+      />
 
       {/* Modal */}
       {modalOpen && (

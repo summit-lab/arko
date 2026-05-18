@@ -79,9 +79,9 @@ export function ContentPipeline({
           return (
             <div
               key={statusMeta.value}
-              className="flex-shrink-0 flex flex-col rounded-xl overflow-hidden transition-all duration-150"
+              className="flex-1 flex flex-col rounded-xl overflow-hidden transition-all duration-150"
               style={{
-                width: 236,
+                minWidth: 220,
                 background: isDragTarget ? dragTargetBg : colBg,
                 border: `1px solid ${isDragTarget ? dragTargetBorder : colBorder}`,
               }}
@@ -173,7 +173,6 @@ export function ContentPipeline({
             </div>
           );
         })}
-        <div className="shrink-0 w-1" />
       </div>
       </div>
 
