@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, Sparkles, History, Plus, MessageSquare, ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { useArkoChat, type ArkoChatContext } from "@/hooks/useArkoChat";
 import { ArkoMessage, ThinkingIndicator } from "@/components/chat/ChatShared";
+import type { ContentItem } from "@/types/content-plan";
 
 interface MokaContentPanelProps {
   open: boolean;
   workspaceId: string;
   context?: ArkoChatContext;
+  /** Items del pipeline para generar sugerencias dinámicas. Solo se usa si no se pasan `suggestions` explícitas. */
+  items?: ContentItem[];
+  /** Sugerencias custom. Si se omiten y se pasa `items`, se calculan dinámicamente; si no, usa DEFAULT_SUGGESTIONS. */
   suggestions?: string[];
   greeting?: string;
   onClose: () => void;
@@ -28,12 +32,45 @@ interface SessionMeta {
 
 const DEFAULT_SUGGESTIONS = [
   "Generame 3 ideas de reels para esta semana y agregalas al pipeline",
-  "¿Qué hay actualmente en mi pipeline de contenido?",
   "Escribime un script para un reel de ventas y agregalo como idea",
   "¿Qué tipo de contenido me funciona mejor?",
+  "Sugerime un plan de contenido para los próximos 7 días",
 ];
 
 const DEFAULT_GREETING = "Hola 👋 Estoy acá para ayudarte con tu contenido. ¿Qué creamos hoy?";
+
+/**
+ * Build context-aware suggestions based on what's in the user's pipeline.
+ * Falls back to default suggestions when the pipeline is empty.
+ */
+function buildSuggestions(items: ContentItem[] | undefined): string[] {
+  if (!items || items.length === 0) return DEFAULT_SUGGESTIONS;
+
+  const ideas       = items.filter((i) => i.status === "idea");
+  const noScript    = items.filter((i) => i.status === "ready_to_record" && !i.script);
+  const ideaNoScript = ideas.find((i) => !i.script);
+  const editing     = items.filter((i) => i.status === "editing");
+
+  const out: string[] = [];
+
+  if (ideaNoScript) {
+    out.push(`Escribime el guión para "${ideaNoScript.title}"`);
+  }
+  if (noScript.length > 0) {
+    out.push(`Generá guiones para los ${noScript.length} items "listos para grabar" que no tienen script`);
+  }
+  if (ideas.length >= 3) {
+    out.push(`Tengo ${ideas.length} ideas — ¿cuáles deberían pasar a "listo para grabar" primero?`);
+  } else {
+    out.push("Generame 3 ideas nuevas basadas en lo que ya me funciona");
+  }
+  if (editing.length > 0) {
+    out.push(`Tengo ${editing.length} videos en edición — ¿qué captions sugerís?`);
+  }
+  out.push("Sugerime un plan de contenido para los próximos 7 días");
+
+  return out.slice(0, 4);
+}
 
 function formatRelativeDate(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -51,6 +88,7 @@ export function MokaContentPanel({
   open,
   workspaceId,
   context,
+  items,
   suggestions,
   greeting,
   onClose,
@@ -69,6 +107,10 @@ export function MokaContentPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
 
+  // Default context: si el caller no pasa context y hay items, asumimos Mesa de Trabajo.
+  const effectiveContext: ArkoChatContext | undefined =
+    context ?? (items !== undefined ? { type: "mesa-de-trabajo" } : undefined);
+
   const {
     messages,
     isLoading,
@@ -79,9 +121,17 @@ export function MokaContentPanel({
     setMessages,
     sendMessage,
     loadSessionMessages,
-  } = useArkoChat({ workspaceId, context, onContentAdded, onContentUpdated, onContentDeleted });
+  } = useArkoChat({
+    workspaceId,
+    context: effectiveContext,
+    onContentAdded,
+    onContentUpdated,
+    onContentDeleted,
+  });
 
-  const activeSuggestions = suggestions ?? DEFAULT_SUGGESTIONS;
+  // Sugerencias: prop explícita > dinámicas según items > defaults.
+  const dynamicSuggestions = useMemo(() => buildSuggestions(items), [items]);
+  const activeSuggestions = suggestions ?? (items !== undefined ? dynamicSuggestions : DEFAULT_SUGGESTIONS);
   const activeGreeting = greeting ?? DEFAULT_GREETING;
 
   const scrollToBottom = useCallback(() => {

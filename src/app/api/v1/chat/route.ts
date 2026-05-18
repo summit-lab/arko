@@ -31,8 +31,8 @@ import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
-import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity } from '@/services/arko-ai-context';
-import { buildArkoSystemPrompt, buildReelContextPrompt, buildScriptContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
+import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity, loadPipelineSnapshot } from '@/services/arko-ai-context';
+import { buildArkoSystemPrompt, buildReelContextPrompt, buildScriptContextPrompt, buildPipelineContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
 import { getUserLanguage } from '@/i18n/server';
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -149,6 +149,7 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     add_content_to_pipeline: 'Agregando al pipeline',
     update_content_item: 'Actualizando item',
     get_content_item: 'Cargando detalle del item',
+    move_content_item: 'Moviendo de columna',
     delete_content_item: 'Eliminando item',
   },
   en: {
@@ -169,6 +170,7 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     add_content_to_pipeline: 'Adding to pipeline',
     update_content_item: 'Updating item',
     get_content_item: 'Loading item details',
+    move_content_item: 'Moving column',
     delete_content_item: 'Deleting item',
   },
 };
@@ -252,6 +254,7 @@ export async function POST(request: Request) {
         const reelContext = context?.type === 'reel' && typeof context.reel_id === 'string' && typeof context.reel_data === 'string'
           ? context as { type: 'reel'; reel_id: string; reel_data: string; gemini_analysis: string | null }
           : null;
+        const isMesaContext = context?.type === 'mesa-de-trabajo';
 
         // Script context — sent on every message while the user is in the
         // script editor. Stateless (not persisted on the session) since the
@@ -348,7 +351,11 @@ export async function POST(request: Request) {
           .limit(30);
 
         // Load workspace snapshot (ADN + benchmarks + top topics — cached 30min)
-        const snapshot = await loadWorkspaceSnapshot(supabase, auth.workspaceId);
+        // Also load pipeline snapshot in parallel when chat is opened from Mesa de Trabajo.
+        const [snapshot, pipelineSnapshot] = await Promise.all([
+          loadWorkspaceSnapshot(supabase, auth.workspaceId),
+          isMesaContext ? loadPipelineSnapshot(supabase, auth.workspaceId) : Promise.resolve<string | null>(null),
+        ]);
         // Forward-only language: each new generation uses the language stored
         // on the user that triggered this turn (profiles.language).
         userLocale = (await getUserLanguage(auth.userId)) as PromptLocale;
@@ -375,6 +382,11 @@ export async function POST(request: Request) {
           });
         }
 
+        // Append Mesa de Trabajo pipeline snapshot when chat is opened from that view
+        if (pipelineSnapshot) {
+          systemPrompt += buildPipelineContextPrompt(pipelineSnapshot);
+        }
+
         // Build LLM messages from history
         const rawMessages: LLMMessage[] = (history ?? [])
           .filter((m: { role: string }) => m.role === 'user' || m.role === 'assistant')
@@ -394,8 +406,8 @@ export async function POST(request: Request) {
 
         // ─── Route by message complexity ──────────────────────────────────────────
         const recentTexts = llmMessages.filter(m => m.role === 'user').map(m => m.content);
-        // Reel and script sessions always use the complex path (Claude Sonnet + tools)
-        const complexity = (isReelSession || scriptContext) ? 'complex' : classifyMessageComplexity(message, recentTexts);
+        // Reel, script, and Mesa de Trabajo sessions always use the complex path (Claude Sonnet + tools)
+        const complexity = (isReelSession || scriptContext || isMesaContext) ? 'complex' : classifyMessageComplexity(message, recentTexts);
 
         let totalInputTokens = 0;
         let totalOutputTokens = 0;

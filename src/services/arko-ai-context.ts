@@ -410,6 +410,18 @@ export const ARKO_TOOLS: LLMTool[] = [
     },
   },
   {
+    name: 'move_content_item',
+    description: 'Mueve un item de la Mesa de Trabajo a otra columna (cambia su estado). Atajo semántico para "mové X a editando", "pasá X a publicado", "movelo a ideas". Usá list_pipeline_items primero para obtener el ID si no lo tenés.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:         { type: 'string', description: 'UUID del item a mover (obligatorio)' },
+        new_status: { type: 'string', enum: ['idea', 'ready_to_record', 'raw_footage', 'editing', 'ready_to_publish', 'published'], description: 'Columna destino (obligatorio)' },
+      },
+      required: ['id', 'new_status'],
+    },
+  },
+  {
     name: 'consult_specialist',
     description: `Consulta a un sub-agente especializado para análisis profundo. Úsala cuando necesites ir más allá de un análisis superficial. Cada especialista tiene el framework COMPLETO de Francisco Doglio para su dominio.
 
@@ -597,6 +609,23 @@ export async function executeArkoTool(
       if (error) return { result: JSON.stringify({ error: error.message }) };
       if (!data) return { result: JSON.stringify({ error: 'Item no encontrado' }) };
       return { result: JSON.stringify(data) };
+    }
+    case 'move_content_item': {
+      const id = input.id as string;
+      const newStatus = input.new_status as string;
+      if (!id || !newStatus) return { result: JSON.stringify({ error: 'id y new_status son obligatorios' }) };
+      const { data, error } = await supabase
+        .from('content_plan')
+        .update({ status: newStatus })
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .select('id, title, description, content_type, platform, status, planned_date, script, source_type, source_ref, metrics, created_at, updated_at, workspace_id')
+        .single();
+      if (error) return { result: JSON.stringify({ error: error.message }) };
+      return {
+        result: JSON.stringify({ moved: true, title: (data as Record<string, unknown>)?.title, new_status: newStatus }),
+        contentUpdated: data as Record<string, unknown>,
+      };
     }
     case 'delete_content_item': {
       const id = input.id as string;
@@ -1477,4 +1506,67 @@ async function loadTopTopicsContext(
   );
 
   return `## Top 10 temas por rendimiento\n${lines.join('\n')}`;
+}
+
+// ─── Pipeline snapshot for system prompt (Mesa de Trabajo context) ───────────
+
+const STATUS_LABELS_ES: Record<string, string> = {
+  idea: 'Idea',
+  ready_to_record: 'Listo para grabar',
+  raw_footage: 'Videos crudos',
+  editing: 'Editando',
+  ready_to_publish: 'Listo para publicar',
+  published: 'Publicado',
+};
+
+/**
+ * Loads the current Mesa de Trabajo pipeline items, grouped by status,
+ * formatted for inclusion in the system prompt. Used when the chat is
+ * opened from the Mesa de Trabajo view so Moka knows the pipeline state
+ * without needing to call list_pipeline_items first.
+ */
+export async function loadPipelineSnapshot(
+  supabase: SupabaseClient,
+  workspaceId: string
+): Promise<string> {
+  const { data, error } = await supabase
+    .from('content_plan')
+    .select('id, title, content_type, status, planned_date, script')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(80);
+
+  if (error || !data || data.length === 0) {
+    return '_Pipeline vacío — el usuario aún no tiene contenido cargado en Mesa de Trabajo._';
+  }
+
+  const byStatus: Record<string, Array<Record<string, unknown>>> = {};
+  for (const item of data) {
+    const status = (item.status as string) ?? 'idea';
+    if (!byStatus[status]) byStatus[status] = [];
+    byStatus[status].push(item as Record<string, unknown>);
+  }
+
+  const order = ['idea', 'ready_to_record', 'raw_footage', 'editing', 'ready_to_publish', 'published'];
+  const sections: string[] = [];
+
+  for (const status of order) {
+    const items = byStatus[status];
+    if (!items || items.length === 0) continue;
+    const label = STATUS_LABELS_ES[status] ?? status;
+    const lines = items.map((item) => {
+      const type = item.content_type ?? 'reel';
+      const date = item.planned_date ? ` · ${item.planned_date}` : '';
+      const hasScript = item.script ? ' · con guión' : '';
+      return `  - [${item.id}] (${type}${date}${hasScript}) ${item.title}`;
+    });
+    sections.push(`**${label}** (${items.length}):\n${lines.join('\n')}`);
+  }
+
+  return `## Estado actual de la Mesa de Trabajo
+Total de items: ${data.length}
+
+${sections.join('\n\n')}
+
+(Tenés los IDs entre corchetes. Cuando el usuario te pida modificar/mover/borrar un item, usá el ID directamente sin llamar a list_pipeline_items.)`;
 }

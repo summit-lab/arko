@@ -23,7 +23,11 @@ export interface ScriptChatContext {
   script: string | null;
 }
 
-export type ArkoChatContext = ReelChatContext | ScriptChatContext;
+export interface MesaDeTrabajoChatContext {
+  type: "mesa-de-trabajo";
+}
+
+export type ArkoChatContext = ReelChatContext | ScriptChatContext | MesaDeTrabajoChatContext;
 
 interface UseArkoChatOptions {
   workspaceId: string;
@@ -212,9 +216,11 @@ export function useArkoChat({
                   if (onContentUpdated && event.item) onContentUpdated(event.item as Record<string, unknown>);
                   break;
 
-                case "content_deleted":
-                  if (onContentDeleted && typeof event.id === "string") onContentDeleted(event.id);
+                case "content_deleted": {
+                  const deletedId = (typeof event.id === "string" ? event.id : event.item?.id) as string | undefined;
+                  if (onContentDeleted && deletedId) onContentDeleted(deletedId);
                   break;
+                }
 
                 case "error":
                   throw new Error(event.message || t("errors.server"));

@@ -295,6 +295,7 @@ export function MesaDeTrabajoShell({
       <MokaContentPanel
         open={mokaOpen}
         workspaceId={workspaceId}
+        items={items}
         onClose={() => setMokaOpen(false)}
         onContentAdded={(newItems) =>
           setItems((prev) => [...(newItems as unknown as ContentItem[]), ...prev])
