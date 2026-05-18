@@ -382,7 +382,29 @@ export const ARKO_TOOLS: LLMTool[] = [
         content_type: { type: 'string', enum: ['reel', 'carousel', 'story', 'youtube_video'], description: 'Tipo (opcional)' },
         platform:     { type: 'string', enum: ['instagram', 'tiktok', 'youtube'], description: 'Plataforma (opcional)' },
         planned_date: { type: 'string', description: 'Fecha YYYY-MM-DD (opcional)' },
-        script:       { type: 'string', description: 'Guion completo del contenido (opcional)' },
+        script:       { type: 'string', description: 'Guion completo del contenido. Puede ser HTML (con etiquetas <p>, <h1>, <h2>, <ul>, <li>, <strong>, <em>, <u>) o texto plano — el editor renderiza ambos.' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'get_content_item',
+    description: 'Obtiene el detalle COMPLETO de un item de la Mesa de Trabajo por su ID (título, estado, fecha, guion completo, links). Úsala cuando el usuario te pida revisar, mejorar o trabajar sobre un guion específico, especialmente si estás operando en el contexto de un guion activo (el ID viene en el system prompt como CONTEXTO DEL GUION ACTIVO).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'UUID del item (obligatorio)' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'delete_content_item',
+    description: 'Elimina un item de la Mesa de Trabajo. Usá esta tool solo cuando el usuario lo pida explícitamente ("borrá esta idea", "eliminá este reel del pipeline"). Es una acción destructiva e irreversible — NO la uses para "limpiar" o "reordenar" sin pedido explícito.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'UUID del item a eliminar (obligatorio)' },
       },
       required: ['id'],
     },
@@ -439,6 +461,7 @@ export interface ArkoToolResult {
   specialistUsed?: SpecialistResult;
   contentAdded?: Record<string, unknown>[];
   contentUpdated?: Record<string, unknown>;
+  contentDeleted?: { id: string };
 }
 
 export async function executeArkoTool(
@@ -560,6 +583,41 @@ export async function executeArkoTool(
       return {
         result: JSON.stringify({ updated: true, title: (data as Record<string, unknown>)?.title }),
         contentUpdated: data as Record<string, unknown>,
+      };
+    }
+    case 'get_content_item': {
+      const id = input.id as string;
+      if (!id) return { result: JSON.stringify({ error: 'id requerido' }) };
+      const { data, error } = await supabase
+        .from('content_plan')
+        .select('id, title, description, content_type, platform, status, planned_date, script, reference_url, raw_video_url, edited_video_url, source_type, source_ref, metrics, created_at, updated_at')
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+      if (error) return { result: JSON.stringify({ error: error.message }) };
+      if (!data) return { result: JSON.stringify({ error: 'Item no encontrado' }) };
+      return { result: JSON.stringify(data) };
+    }
+    case 'delete_content_item': {
+      const id = input.id as string;
+      if (!id) return { result: JSON.stringify({ error: 'id requerido' }) };
+      const { data: existing, error: fetchError } = await supabase
+        .from('content_plan')
+        .select('id, title')
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+      if (fetchError) return { result: JSON.stringify({ error: fetchError.message }) };
+      if (!existing) return { result: JSON.stringify({ error: 'Item no encontrado' }) };
+      const { error } = await supabase
+        .from('content_plan')
+        .delete()
+        .eq('id', id)
+        .eq('workspace_id', workspaceId);
+      if (error) return { result: JSON.stringify({ error: error.message }) };
+      return {
+        result: JSON.stringify({ deleted: true, id, title: (existing as { title?: string }).title }),
+        contentDeleted: { id },
       };
     }
     default:

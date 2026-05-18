@@ -111,7 +111,8 @@
     "newItem": "New content",
     "views": {
       "pipeline": "Pipeline",
-      "calendar": "Calendar"
+      "calendar": "Calendar",
+      "scripts": "Scripts"
     },
     "filters": {
       "all": "All",

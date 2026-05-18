@@ -431,3 +431,57 @@ ${geminiSection}
 ---
 `;
 }
+
+/**
+ * Builds a context block describing the script the user is currently editing,
+ * so Moka can edit it directly via `update_content_item`.
+ */
+export function buildScriptContextPrompt(input: {
+  script_id: string;
+  title: string | null;
+  content_type: string | null;
+  status: string | null;
+  planned_date: string | null;
+  script: string | null;
+}): string {
+  const { script_id, title, content_type, status, planned_date, script } = input;
+  const scriptBlock = script && script.trim().length > 0
+    ? `### Guion actual (HTML)
+${script}`
+    : `### Guion actual
+(vacío — el usuario todavía no escribió nada)`;
+
+  return `
+---
+
+## CONTEXTO DEL GUION ACTIVO
+
+El usuario está editando un guion específico en la Mesa de Trabajo. Tenés acceso directo para modificarlo. NO necesitás llamar a \`list_pipeline_items\` ni a \`get_content_item\` para este guion — ya tenés todos los datos abajo y conocés el ID.
+
+### Datos del item
+- **ID:** \`${script_id}\` (úsalo directamente con \`update_content_item\` o \`delete_content_item\`)
+- **Título:** ${title || '(sin título)'}
+- **Tipo:** ${content_type || 'reel'}
+- **Estado:** ${status || 'idea'}
+- **Fecha objetivo:** ${planned_date || '(sin fecha)'}
+
+${scriptBlock}
+
+### Cómo trabajar este guion
+
+- Si el usuario pide **mejorar, reescribir o editar** el guion: usá \`update_content_item\` con \`id="${script_id}"\` y el nuevo \`script\` (HTML). El editor del usuario se actualiza en vivo cuando llega tu cambio.
+- Si pide **cambiar título, estado, fecha**: usá \`update_content_item\` con los campos correspondientes.
+- Si pide **eliminar**: usá \`delete_content_item\` solo si lo pide explícitamente.
+- Si pide **otro guion / pipeline general / análisis**: usá las tools normales (\`list_pipeline_items\`, \`query_reels\`, etc.).
+
+### Formato del script
+Aceptamos HTML simple compatible con el editor Tiptap:
+- \`<h1>\` y \`<h2>\` para títulos de sección
+- \`<p>\` para párrafos
+- \`<ul><li>\` para listas
+- \`<strong>\` para negrita, \`<em>\` para cursiva
+- Cuando reescribas, devolvé el guion completo en HTML — el editor lo reemplaza entero.
+
+---
+`;
+}

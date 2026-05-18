@@ -4,14 +4,19 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Sparkles, History, Plus, MessageSquare, ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/layout/ThemeProvider";
-import { useArkoChat } from "@/hooks/useArkoChat";
+import { useArkoChat, type ArkoChatContext } from "@/hooks/useArkoChat";
 import { ArkoMessage, ThinkingIndicator } from "@/components/chat/ChatShared";
 
 interface MokaContentPanelProps {
+  open: boolean;
   workspaceId: string;
-  onClose?: () => void;
+  context?: ArkoChatContext;
+  suggestions?: string[];
+  greeting?: string;
+  onClose: () => void;
   onContentAdded?: (items: Record<string, unknown>[]) => void;
   onContentUpdated?: (item: Record<string, unknown>) => void;
+  onContentDeleted?: (id: string) => void;
 }
 
 interface SessionMeta {
@@ -21,12 +26,14 @@ interface SessionMeta {
   updated_at: string;
 }
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   "Generame 3 ideas de reels para esta semana y agregalas al pipeline",
   "¿Qué hay actualmente en mi pipeline de contenido?",
   "Escribime un script para un reel de ventas y agregalo como idea",
   "¿Qué tipo de contenido me funciona mejor?",
 ];
+
+const DEFAULT_GREETING = "Hola 👋 Estoy acá para ayudarte con tu contenido. ¿Qué creamos hoy?";
 
 function formatRelativeDate(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -40,7 +47,17 @@ function formatRelativeDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
 }
 
-export function MokaContentPanel({ workspaceId, onClose, onContentAdded, onContentUpdated }: MokaContentPanelProps) {
+export function MokaContentPanel({
+  open,
+  workspaceId,
+  context,
+  suggestions,
+  greeting,
+  onClose,
+  onContentAdded,
+  onContentUpdated,
+  onContentDeleted,
+}: MokaContentPanelProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
 
@@ -62,7 +79,10 @@ export function MokaContentPanel({ workspaceId, onClose, onContentAdded, onConte
     setMessages,
     sendMessage,
     loadSessionMessages,
-  } = useArkoChat({ workspaceId, onContentAdded, onContentUpdated });
+  } = useArkoChat({ workspaceId, context, onContentAdded, onContentUpdated, onContentDeleted });
+
+  const activeSuggestions = suggestions ?? DEFAULT_SUGGESTIONS;
+  const activeGreeting = greeting ?? DEFAULT_GREETING;
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -149,10 +169,23 @@ export function MokaContentPanel({ workspaceId, onClose, onContentAdded, onConte
   };
 
   return (
-    <div
-      className="flex flex-col h-full"
-      style={{ borderLeft: `1px solid ${border}`, background: bg }}
-    >
+    <>
+      {/* Backdrop — click closes */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-[70] bg-black/30 backdrop-blur-sm transition-opacity duration-300 ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        aria-hidden="true"
+      />
+
+      {/* Slide-in panel */}
+      <div
+        className={`fixed top-0 right-0 z-[80] flex flex-col w-[720px] max-w-[90vw] h-dvh shadow-[-8px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          open ? "translate-x-0" : "translate-x-full"
+        }`}
+        style={{ borderLeft: `1px solid ${border}`, background: bg }}
+      >
       {/* ── Header ── */}
       <div
         className="flex items-center justify-between px-4 py-3 shrink-0"
@@ -316,11 +349,11 @@ export function MokaContentPanel({ workspaceId, onClose, onContentAdded, onConte
                       border: `1px solid ${border}`,
                     }}
                   >
-                    Hola 👋 Estoy acá para ayudarte con tu contenido. ¿Qué creamos hoy?
+                    {activeGreeting}
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5 pl-9">
-                  {SUGGESTIONS.map((s) => (
+                  {activeSuggestions.map((s) => (
                     <button
                       key={s}
                       onClick={() => { setInput(s); textareaRef.current?.focus(); }}
@@ -389,6 +422,7 @@ export function MokaContentPanel({ workspaceId, onClose, onContentAdded, onConte
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

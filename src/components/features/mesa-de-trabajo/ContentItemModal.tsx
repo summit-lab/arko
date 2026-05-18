@@ -1,15 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Trash2, ChevronDown, Maximize2, Bold, List, Heading1, Heading2, Italic, Underline as UnderlineIcon, Type } from "lucide-react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import UnderlineExt from "@tiptap/extension-underline";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { Color } from "@tiptap/extension-color";
+import Link from "next/link";
+import { X, Trash2, ChevronDown, FileText } from "lucide-react";
 import { useTheme } from "@/components/layout/ThemeProvider";
-import { CONTENT_STATUSES, CONTENT_TYPES, CONTENT_PLATFORMS } from "@/types/content-plan";
+import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
 import type {
   ContentItem,
   ContentType,
@@ -185,12 +180,6 @@ function UrlField({ label, value, onChange, placeholder, inputStyle, inputBorder
 
 // ─── Script helpers ──────────────────────────────────────────────────────────
 
-function scriptToHtml(text: string): string {
-  if (!text) return '';
-  if (/<(p|h[1-6]|ul|ol|li|strong|em)\b/i.test(text)) return text;
-  return text.split('\n').map((l) => l.trim() ? `<p>${l}</p>` : '<p></p>').join('');
-}
-
 function scriptToPlainText(value: string): string {
   if (!value.includes('<')) return value;
   return value
@@ -202,208 +191,7 @@ function scriptToPlainText(value: string): string {
     .trim();
 }
 
-function countWords(value: string): number {
-  return scriptToPlainText(value).split(/\s+/).filter(Boolean).length;
-}
-
-// ─── Rich text editor (tiptap) ────────────────────────────────────────────────
-
-interface ScriptEditorProps {
-  content: string;
-  onChange: (html: string) => void;
-  isLight: boolean;
-  textMain: string;
-  textSub: string;
-  border: string;
-  inputBg: string;
-}
-
-const PALETTE = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899"];
-
-function ScriptEditor({ content, onChange, isLight, textMain, textSub, border, inputBg }: ScriptEditorProps) {
-  const [showColors, setShowColors] = useState(false);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: "Escribí el guion aquí…" }),
-      UnderlineExt,
-      TextStyle,
-      Color,
-    ],
-    content: scriptToHtml(content),
-    onUpdate: ({ editor: e }) => onChange(e.getHTML()),
-    editorProps: {
-      attributes: {
-        class: "outline-none min-h-[60vh]",
-        style: `font-size:22px;line-height:1.8;color:${textMain};font-weight:300;letter-spacing:0.01em`,
-      },
-    },
-  });
-
-  const toolBtn = (active: boolean, onClick: () => void, title: string, icon: React.ReactNode) => (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className="w-7 h-7 rounded-md flex items-center justify-center transition-all"
-      style={{
-        background: active ? (isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.12)") : "transparent",
-        border: `1px solid ${active ? (isLight ? "rgba(17,17,17,0.20)" : "rgba(255,255,255,0.18)") : "transparent"}`,
-        color: active ? textMain : textSub,
-      }}
-      onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = inputBg; }}
-      onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-    >
-      {icon}
-    </button>
-  );
-
-  const currentColor = editor?.getAttributes("textStyle").color as string | undefined;
-
-  return (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Toolbar */}
-      <div
-        className="flex items-center gap-1 px-4 py-2 shrink-0 flex-wrap"
-        style={{ borderBottom: `1px solid ${border}` }}
-      >
-        {/* Normal text */}
-        {toolBtn(
-          !editor?.isActive("heading") && !editor?.isActive("bulletList"),
-          () => editor?.chain().focus().setParagraph().run(),
-          "Texto normal",
-          <Type size={14} />
-        )}
-        {toolBtn(
-          editor?.isActive("heading", { level: 1 }) ?? false,
-          () => editor?.chain().focus().toggleHeading({ level: 1 }).run(),
-          "Título 1",
-          <Heading1 size={14} />
-        )}
-        {toolBtn(
-          editor?.isActive("heading", { level: 2 }) ?? false,
-          () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
-          "Título 2",
-          <Heading2 size={14} />
-        )}
-
-        {/* Separator */}
-        <div className="w-px h-4 mx-1" style={{ background: border }} />
-
-        {toolBtn(
-          editor?.isActive("bold") ?? false,
-          () => editor?.chain().focus().toggleBold().run(),
-          "Negrita",
-          <Bold size={14} />
-        )}
-        {toolBtn(
-          editor?.isActive("italic") ?? false,
-          () => editor?.chain().focus().toggleItalic().run(),
-          "Cursiva",
-          <Italic size={14} />
-        )}
-        {toolBtn(
-          editor?.isActive("underline") ?? false,
-          () => editor?.chain().focus().toggleUnderline().run(),
-          "Subrayado",
-          <UnderlineIcon size={14} />
-        )}
-
-        {/* Separator */}
-        <div className="w-px h-4 mx-1" style={{ background: border }} />
-
-        {toolBtn(
-          editor?.isActive("bulletList") ?? false,
-          () => editor?.chain().focus().toggleBulletList().run(),
-          "Lista",
-          <List size={14} />
-        )}
-
-        {/* Separator */}
-        <div className="w-px h-4 mx-1" style={{ background: border }} />
-
-        {/* Color picker */}
-        <div className="relative">
-          <button
-            type="button"
-            title="Color de texto"
-            onClick={() => setShowColors((v) => !v)}
-            className="w-7 h-7 rounded-md flex flex-col items-center justify-center gap-0.5 transition-all"
-            style={{
-              background: showColors ? (isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.12)") : "transparent",
-              border: `1px solid ${showColors ? (isLight ? "rgba(17,17,17,0.20)" : "rgba(255,255,255,0.18)") : "transparent"}`,
-            }}
-            onMouseEnter={(e) => { if (!showColors) (e.currentTarget as HTMLElement).style.background = inputBg; }}
-            onMouseLeave={(e) => { if (!showColors) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1, color: currentColor ?? textMain }}>A</span>
-            <span
-              className="w-3.5 h-0.5 rounded-full"
-              style={{ background: currentColor ?? (isLight ? "rgba(17,17,17,0.4)" : "rgba(255,255,255,0.4)") }}
-            />
-          </button>
-          {showColors && (
-            <div
-              className="absolute top-full left-0 mt-1.5 flex items-center gap-1.5 p-2 rounded-xl z-20"
-              style={{
-                background: isLight ? "white" : "rgba(20,20,22,0.99)",
-                border: `1px solid ${border}`,
-                boxShadow: isLight ? "0 8px 24px rgba(0,0,0,0.12)" : "0 8px 24px rgba(0,0,0,0.5)",
-              }}
-            >
-              {/* Reset to default */}
-              <button
-                type="button"
-                title="Color por defecto"
-                onClick={() => { editor?.chain().focus().unsetColor().run(); setShowColors(false); }}
-                className="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all hover:scale-110"
-                style={{ borderColor: border, background: "transparent" }}
-              >
-                <span style={{ fontSize: 8, color: textSub }}>✕</span>
-              </button>
-              {PALETTE.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  title={color}
-                  onClick={() => { editor?.chain().focus().setColor(color).run(); setShowColors(false); }}
-                  className="w-5 h-5 rounded-full transition-all hover:scale-110"
-                  style={{
-                    background: color,
-                    outline: currentColor === color ? `2px solid ${color}` : "none",
-                    outlineOffset: 2,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Editor area */}
-      <div className="flex-1 overflow-y-auto px-12 py-10 scrollbar-none">
-        <style>{`
-          .tiptap h1 { font-size: 1.8em; font-weight: 600; margin-bottom: 0.4em; }
-          .tiptap h2 { font-size: 1.4em; font-weight: 600; margin-bottom: 0.3em; }
-          .tiptap ul { list-style-type: disc; padding-left: 1.5em; }
-          .tiptap li { margin-bottom: 0.2em; }
-          .tiptap strong { font-weight: 700; }
-          .tiptap em { font-style: italic; }
-          .tiptap u { text-decoration: underline; }
-          .tiptap p.is-editor-empty:first-child::before {
-            content: attr(data-placeholder);
-            float: left;
-            pointer-events: none;
-            height: 0;
-            color: ${textSub};
-          }
-        `}</style>
-        <EditorContent editor={editor} className="tiptap" />
-      </div>
-    </div>
-  );
-}
+// (ScriptEditor was extracted to its own page at /mesa-de-trabajo/[id]/guion)
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
@@ -443,7 +231,7 @@ export function ContentItemModal({
   const [title, setTitle]             = useState(item?.title ?? "");
   const [contentType, setContentType] = useState<ContentType>(item?.content_type ?? "reel");
   const [status, setStatus]           = useState<ContentStatus>(item?.status ?? defaultStatus);
-  const [platform, setPlatform]       = useState<ContentPlatform>(item?.platform ?? "instagram");
+  const [platform]                    = useState<ContentPlatform>(item?.platform ?? "instagram");
   const [plannedDate, setPlannedDate] = useState(item?.planned_date ?? "");
   const [script, setScript]           = useState(item?.script ?? "");
   const [referenceUrl, setReferenceUrl]     = useState(item?.reference_url ?? "");
@@ -454,21 +242,17 @@ export function ContentItemModal({
   const [saveError, setSaveError]           = useState<string | null>(null);
   const [deleting, setDeleting]             = useState(false);
   const [confirmDelete, setConfirmDelete]   = useState(false);
-  const [scriptExpanded, setScriptExpanded] = useState(false);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (scriptExpanded) { setScriptExpanded(false); return; }
-        onClose();
-      }
+      if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose, scriptExpanded]);
+  }, [onClose]);
 
   async function handleSave() {
     if (!title.trim()) { setTitleError(true); titleRef.current?.focus(); return; }
@@ -502,10 +286,6 @@ export function ContentItemModal({
     setDeleting(true);
     try { await onDelete(item.id); onClose(); }
     finally { setDeleting(false); }
-  }
-
-  function openScriptExpanded() {
-    setScriptExpanded(true);
   }
 
   // Theme tokens
@@ -643,20 +423,6 @@ export function ContentItemModal({
             </div>
           </div>
 
-          {/* Plataforma */}
-          <div>
-            <label style={labelStyle}>Plataforma</label>
-            <PillGroup
-              options={CONTENT_PLATFORMS}
-              value={platform}
-              onChange={setPlatform}
-              isLight={isLight}
-              textMain={textMain}
-              textSub={textSub}
-              border={inputBorderNormal}
-            />
-          </div>
-
           {/* Referencia */}
           <UrlField
             label="Referencia"
@@ -673,25 +439,27 @@ export function ContentItemModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label style={{ ...labelStyle, marginBottom: 0 }}>Guion</label>
-              <button
-                type="button"
-                onClick={openScriptExpanded}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
-                style={{
-                  background: isLight ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.90)",
-                  color: isLight ? "white" : "#111111",
-                }}
-                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.opacity = "0.85"}
-                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
-              >
-                <Maximize2 size={12} />
-                Expandir guion
-              </button>
+              {isEdit && (
+                <Link
+                  href={`/mesa-de-trabajo/${item.id}/guion`}
+                  onClick={() => window.dispatchEvent(new Event("nav:start"))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+                  style={{
+                    background: isLight ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.90)",
+                    color: isLight ? "white" : "#111111",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.opacity = "0.85"}
+                  onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
+                >
+                  <FileText size={12} />
+                  Abrir editor
+                </Link>
+              )}
             </div>
             <textarea
               value={scriptToPlainText(script)}
               onChange={(e) => setScript(e.target.value)}
-              placeholder="Escribí el guion o caption completo…"
+              placeholder={isEdit ? "Vista previa del guion…" : "Escribí el guion o caption completo (después podés expandirlo)…"}
               rows={4}
               style={{ ...inputStyle, border: `1px solid ${inputBorderNormal}`, resize: "none" }}
               onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
@@ -795,160 +563,6 @@ export function ContentItemModal({
       </div>
     </div>
 
-    {/* ── Guion expandido ── */}
-    {scriptExpanded && (
-      <div
-        className="fixed inset-0 z-[60] flex"
-        style={{ background: isLight ? "#f9f9fb" : "rgba(8,8,10,0.98)" }}
-      >
-        {/* Editor */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div
-            className="flex items-center justify-between px-8 py-3 shrink-0"
-            style={{ borderBottom: `1px solid ${borderColor}` }}
-          >
-            <p className="text-[13px] font-semibold" style={{ color: textMain }}>Modo guion</p>
-            <button
-              onClick={() => setScriptExpanded(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] transition-all"
-              style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textSub }}
-              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
-              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
-            >
-              <X size={12} /> Cerrar
-            </button>
-          </div>
-          <ScriptEditor
-            content={script}
-            onChange={setScript}
-            isLight={isLight}
-            textMain={textMain}
-            textSub={textSub}
-            border={borderColor}
-            inputBg={inputBg}
-          />
-        </div>
-
-        {/* Sidebar con metadata */}
-        <div
-          className="w-72 shrink-0 flex flex-col overflow-y-auto scrollbar-none"
-          style={{ borderLeft: `1px solid ${borderColor}` }}
-        >
-          {/* Sidebar header */}
-          <div
-            className="px-6 py-4 shrink-0"
-            style={{ borderBottom: `1px solid ${borderColor}` }}
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: labelColor }}>Detalles</p>
-          </div>
-
-          <div className="flex flex-col px-6 py-6 gap-5 flex-1">
-
-            {/* Stats: palabras + lectura */}
-            <div
-              className="flex gap-4 p-4 rounded-xl"
-              style={{ background: isLight ? "rgba(17,17,17,0.03)" : "rgba(255,255,255,0.03)", border: `1px solid ${borderColor}` }}
-            >
-              <div className="flex-1">
-                <p className="text-[22px] font-light tabular-nums" style={{ color: textMain }}>{countWords(script)}</p>
-                <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: textSub }}>palabras</p>
-              </div>
-              <div className="w-px" style={{ background: borderColor }} />
-              <div className="flex-1">
-                <p className="text-[22px] font-light tabular-nums" style={{ color: textMain }}>~{Math.ceil(countWords(script) / 130)}</p>
-                <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: textSub }}>min lectura</p>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="h-px" style={{ background: borderColor }} />
-
-            {/* Título */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Título</p>
-              <p className="text-[13px] font-medium leading-snug" style={{ color: textMain }}>{title || "Sin título"}</p>
-            </div>
-
-            {/* Estado */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Estado</p>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: CONTENT_STATUSES.find((s) => s.value === status)?.dot }} />
-                <p className="text-[13px]" style={{ color: textMain }}>
-                  {CONTENT_STATUSES.find((s) => s.value === status)?.label}
-                </p>
-              </div>
-            </div>
-
-            {/* Tipo · Plataforma */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Tipo · Plataforma</p>
-              <p className="text-[13px]" style={{ color: textMain }}>
-                {CONTENT_TYPES.find((ct) => ct.value === contentType)?.label}
-                {" · "}
-                {CONTENT_PLATFORMS.find((pl) => pl.value === platform)?.label}
-              </p>
-            </div>
-
-            {/* Fecha (conditional) */}
-            {plannedDate && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Fecha objetivo</p>
-                <p className="text-[13px]" style={{ color: textMain }}>
-                  {new Date(plannedDate + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
-                </p>
-              </div>
-            )}
-
-            {/* URLs */}
-            {referenceUrl && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Referencia</p>
-                <a
-                  href={referenceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[12px] truncate block hover:underline"
-                  style={{ color: "rgb(59,130,246)" }}
-                >
-                  {referenceUrl}
-                </a>
-              </div>
-            )}
-
-            {rawVideoUrl && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Video crudo</p>
-                <a
-                  href={rawVideoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[12px] truncate block hover:underline"
-                  style={{ color: "rgb(59,130,246)" }}
-                >
-                  {rawVideoUrl}
-                </a>
-              </div>
-            )}
-
-            {editedVideoUrl && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: labelColor }}>Video editado</p>
-                <a
-                  href={editedVideoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[12px] truncate block hover:underline"
-                  style={{ color: "rgb(59,130,246)" }}
-                >
-                  {editedVideoUrl}
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
     </>
   );
 }

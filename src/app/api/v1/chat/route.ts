@@ -32,7 +32,7 @@ import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/s
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
 import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity } from '@/services/arko-ai-context';
-import { buildArkoSystemPrompt, buildReelContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
+import { buildArkoSystemPrompt, buildReelContextPrompt, buildScriptContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
 import { getUserLanguage } from '@/i18n/server';
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -148,6 +148,8 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     list_pipeline_items: 'Revisando pipeline de contenido',
     add_content_to_pipeline: 'Agregando al pipeline',
     update_content_item: 'Actualizando item',
+    get_content_item: 'Cargando detalle del item',
+    delete_content_item: 'Eliminando item',
   },
   en: {
     query_reels: 'Analyzing reels',
@@ -166,6 +168,8 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     list_pipeline_items: 'Reviewing content pipeline',
     add_content_to_pipeline: 'Adding to pipeline',
     update_content_item: 'Updating item',
+    get_content_item: 'Loading item details',
+    delete_content_item: 'Deleting item',
   },
 };
 
@@ -247,6 +251,21 @@ export async function POST(request: Request) {
         // Validate context shape if provided
         const reelContext = context?.type === 'reel' && typeof context.reel_id === 'string' && typeof context.reel_data === 'string'
           ? context as { type: 'reel'; reel_id: string; reel_data: string; gemini_analysis: string | null }
+          : null;
+
+        // Script context — sent on every message while the user is in the
+        // script editor. Stateless (not persisted on the session) since the
+        // script content itself is the source of truth in `content_plan`.
+        const scriptContext = context?.type === 'script' && typeof context.script_id === 'string'
+          ? context as {
+              type: 'script';
+              script_id: string;
+              title: string | null;
+              content_type: string | null;
+              status: string | null;
+              planned_date: string | null;
+              script: string | null;
+            }
           : null;
 
         const supabase = await createClient();
@@ -343,6 +362,19 @@ export async function POST(request: Request) {
           systemPrompt += buildReelContextPrompt(reelContextData, reelGeminiData);
         }
 
+        // Append script-editing context (stateless — comes from the client on
+        // every message while the user is editing a specific script).
+        if (scriptContext) {
+          systemPrompt += buildScriptContextPrompt({
+            script_id: scriptContext.script_id,
+            title: scriptContext.title,
+            content_type: scriptContext.content_type,
+            status: scriptContext.status,
+            planned_date: scriptContext.planned_date,
+            script: scriptContext.script,
+          });
+        }
+
         // Build LLM messages from history
         const rawMessages: LLMMessage[] = (history ?? [])
           .filter((m: { role: string }) => m.role === 'user' || m.role === 'assistant')
@@ -362,8 +394,8 @@ export async function POST(request: Request) {
 
         // ─── Route by message complexity ──────────────────────────────────────────
         const recentTexts = llmMessages.filter(m => m.role === 'user').map(m => m.content);
-        // Reel sessions always use the complex path (Claude Sonnet + tools)
-        const complexity = isReelSession ? 'complex' : classifyMessageComplexity(message, recentTexts);
+        // Reel and script sessions always use the complex path (Claude Sonnet + tools)
+        const complexity = (isReelSession || scriptContext) ? 'complex' : classifyMessageComplexity(message, recentTexts);
 
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
@@ -496,6 +528,9 @@ export async function POST(request: Request) {
               }
               if (toolResults[t].contentUpdated) {
                 controller.enqueue(sseEvent({ type: 'content_updated', item: toolResults[t].contentUpdated }));
+              }
+              if (toolResults[t].contentDeleted) {
+                controller.enqueue(sseEvent({ type: 'content_deleted', id: toolResults[t].contentDeleted!.id }));
               }
             }
 

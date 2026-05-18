@@ -68,19 +68,14 @@ export function ContentCard({ item, onClick }: ContentCardProps) {
         {item.title}
       </p>
 
-      {/* Status + platform */}
-      <div className="flex items-center justify-between mt-0.5">
-        <div className="flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ background: statusMeta?.dot ?? "rgba(150,150,150,0.5)" }}
-          />
-          <span className="text-[11px]" style={{ color: textSub }}>
-            {statusMeta?.label ?? item.status}
-          </span>
-        </div>
-        <span className="text-[11px] capitalize" style={{ color: isLight ? "rgba(17,17,17,0.28)" : "rgba(255,255,255,0.22)" }}>
-          {item.platform}
+      {/* Status */}
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: statusMeta?.dot ?? "rgba(150,150,150,0.5)" }}
+        />
+        <span className="text-[11px]" style={{ color: textSub }}>
+          {statusMeta?.label ?? item.status}
         </span>
       </div>
     </button>

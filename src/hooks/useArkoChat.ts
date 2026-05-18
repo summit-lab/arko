@@ -13,11 +13,24 @@ export interface ReelChatContext {
   gemini_analysis: string | null;
 }
 
+export interface ScriptChatContext {
+  type: "script";
+  script_id: string;
+  title: string | null;
+  content_type: string | null;
+  status: string | null;
+  planned_date: string | null;
+  script: string | null;
+}
+
+export type ArkoChatContext = ReelChatContext | ScriptChatContext;
+
 interface UseArkoChatOptions {
   workspaceId: string;
-  context?: ReelChatContext;
+  context?: ArkoChatContext;
   onContentAdded?: (items: Record<string, unknown>[]) => void;
   onContentUpdated?: (item: Record<string, unknown>) => void;
+  onContentDeleted?: (id: string) => void;
 }
 
 interface UseArkoChatReturn {
@@ -40,6 +53,7 @@ export function useArkoChat({
   context,
   onContentAdded,
   onContentUpdated,
+  onContentDeleted,
 }: UseArkoChatOptions): UseArkoChatReturn {
   const t = useTranslations("arkoChat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -198,6 +212,10 @@ export function useArkoChat({
                   if (onContentUpdated && event.item) onContentUpdated(event.item as Record<string, unknown>);
                   break;
 
+                case "content_deleted":
+                  if (onContentDeleted && typeof event.id === "string") onContentDeleted(event.id);
+                  break;
+
                 case "error":
                   throw new Error(event.message || t("errors.server"));
               }
@@ -238,7 +256,7 @@ export function useArkoChat({
         setToolSteps([]);
       }
     },
-    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated],
+    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated, onContentDeleted],
   );
 
   return {
