@@ -287,7 +287,7 @@ export function MesaDeTrabajoShell({
           onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
         >
           <Sparkles size={14} />
-          Preguntar a Moka
+          {t("scripts.openMoka")}
         </button>
       )}
 

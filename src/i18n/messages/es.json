@@ -158,7 +158,17 @@
       "delete": "Eliminar",
       "deleting": "Eliminando…",
       "deleteConfirm": "¿Eliminás este item? Esta acción no se puede deshacer.",
-      "errorTitle": "El título es obligatorio."
+      "deleteConfirmShort": "¿Confirmar?",
+      "errorTitle": "El título es obligatorio.",
+      "cancel": "Cancelar",
+      "openEditor": "Abrir editor",
+      "fieldReference": "Referencia",
+      "fieldReferencePlaceholder": "Link al video de referencia…",
+      "fieldRawVideo": "Video crudo",
+      "fieldRawVideoPlaceholder": "Link al video sin editar…",
+      "fieldEditedVideo": "Video editado",
+      "fieldEditedVideoPlaceholder": "Link al video editado final…",
+      "scriptPreviewPlaceholder": "Vista previa del guion…"
     },
     "empty": {
       "pipeline": "Sin contenido",
@@ -167,11 +177,91 @@
       "addFirst": "Creá tu primer contenido"
     },
     "metrics": {
+      "title": "Métricas",
       "reach": "Alcance",
       "likes": "Likes",
       "saves": "Guardados",
       "comments": "Comentarios",
       "shares": "Compartidos"
+    },
+    "calendar": {
+      "days": {
+        "sun": "Dom", "mon": "Lun", "tue": "Mar", "wed": "Mié", "thu": "Jue", "fri": "Vie", "sat": "Sáb"
+      },
+      "months": {
+        "jan": "Enero", "feb": "Febrero", "mar": "Marzo", "apr": "Abril",
+        "may": "Mayo", "jun": "Junio", "jul": "Julio", "aug": "Agosto",
+        "sep": "Septiembre", "oct": "Octubre", "nov": "Noviembre", "dec": "Diciembre"
+      },
+      "pillLabel": {
+        "carousel": "Carrusel",
+        "story": "Historia",
+        "reel": "IG"
+      },
+      "legend": {
+        "planned": "Planeado",
+        "publishedSuffix": "publicado",
+        "moreCount": "+{count} más",
+        "noDate": "{count} sin fecha asignada"
+      }
+    },
+    "scripts": {
+      "back": "Mesa de trabajo",
+      "searchPlaceholder": "Buscar guiones…",
+      "emptyAll": "Aún no escribiste ningún guion",
+      "emptyResults": "Sin resultados",
+      "untitled": "Sin título",
+      "newInGroup": "Nuevo en {label}",
+      "collapseSidebar": "Colapsar barra (⌘\\)",
+      "expandSidebar": "Mostrar barra (⌘\\)",
+      "openMoka": "Preguntar a Moka",
+      "closeMoka": "Cerrar Moka",
+      "moka": "Moka",
+      "focusMode": "Modo foco",
+      "exitFocus": "Cerrar",
+      "focusModeTitle": "Modo foco (⌘.)",
+      "exitFocusTitle": "Salir del modo foco (⌘.)",
+      "delete": "Eliminar",
+      "confirmDelete": "Confirmar",
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "saveError": "Error al guardar",
+      "wordsCount": "{count} palabras",
+      "readTime": "~{minutes} min lectura",
+      "mokaGreeting": "Estoy mirando \"{title}\". ¿En qué te ayudo?",
+      "mokaGreetingNoTitle": "Estoy mirando este guion. ¿En qué te ayudo?"
+    },
+    "mokaPanel": {
+      "name": "Moka AI",
+      "subtitle": "Asistente de contenido",
+      "conversations": "Conversaciones",
+      "chatHistory": "Historial de chats",
+      "backToChat": "Volver al chat",
+      "newConversation": "Nueva conversación",
+      "history": "Historial de conversaciones",
+      "close": "Cerrar Moka",
+      "untitledConversation": "Conversación sin título",
+      "loading": "Cargando…",
+      "emptyConversations": "Sin conversaciones anteriores",
+      "placeholder": "Preguntale a Moka…",
+      "hint": "Enter para enviar · Shift+Enter nueva línea",
+      "greeting": "Hola 👋 Estoy acá para ayudarte con tu contenido. ¿Qué creamos hoy?",
+      "now": "Ahora",
+      "minutesAgo": "Hace {n}m",
+      "hoursAgo": "Hace {n}h",
+      "daysAgo": "Hace {n}d",
+      "suggestions": {
+        "default1": "Generame 3 ideas de reels para esta semana y agregalas al pipeline",
+        "default2": "Escribime un script para un reel de ventas y agregalo como idea",
+        "default3": "¿Qué tipo de contenido me funciona mejor?",
+        "default4": "Sugerime un plan de contenido para los próximos 7 días",
+        "scriptForIdea": "Escribime el guión para \"{title}\"",
+        "scriptsForReadyToRecord": "Generá guiones para los {n} items \"listos para grabar\" que no tienen script",
+        "prioritizeIdeas": "Tengo {n} ideas — ¿cuáles deberían pasar a \"listo para grabar\" primero?",
+        "generateNewIdeas": "Generame 3 ideas nuevas basadas en lo que ya me funciona",
+        "captionsForEditing": "Tengo {n} videos en edición — ¿qué captions sugerís?",
+        "weekPlan": "Sugerime un plan de contenido para los próximos 7 días"
+      }
     }
   },
   "dashboard": {

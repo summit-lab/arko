@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { X, Trash2, ChevronDown, FileText } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
 import type {
@@ -58,6 +59,8 @@ function PillGroup<T extends string>({
 
 interface StatusSelectProps {
   options: ContentStatusMeta[];
+  /** Mapa de value → label traducido. */
+  labelFor: (value: ContentStatus) => string;
   value: ContentStatus;
   onChange: (v: ContentStatus) => void;
   isLight: boolean;
@@ -68,7 +71,7 @@ interface StatusSelectProps {
 }
 
 function StatusSelect({
-  options, value, onChange, isLight, textMain, textSub, border, inputBg,
+  options, labelFor, value, onChange, isLight, textMain, textSub, border, inputBg,
 }: StatusSelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,7 +103,7 @@ function StatusSelect({
         }}
       >
         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: currentMeta.dot }} />
-        <span className="flex-1">{currentMeta.label}</span>
+        <span className="flex-1">{labelFor(currentMeta.value)}</span>
         <ChevronDown size={13} style={{ color: textSub, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
 
@@ -138,7 +141,7 @@ function StatusSelect({
                 }}
               >
                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: opt.dot }} />
-                {opt.label}
+                {labelFor(opt.value)}
               </button>
             );
           })}
@@ -227,6 +230,13 @@ export function ContentItemModal({
   const { theme } = useTheme();
   const isLight = theme === "light";
   const isEdit = !!item;
+  const t = useTranslations("mesaDeTrabajo");
+
+  const typeOptionsLocalized = CONTENT_TYPES.map((o) => ({
+    value: o.value,
+    label: t(`type.${o.value}` as `type.${ContentType}`),
+  }));
+  const statusLabelFor = (v: ContentStatus) => t(`status.${v}` as `status.${ContentStatus}`);
 
   const [title, setTitle]             = useState(item?.title ?? "");
   const [contentType, setContentType] = useState<ContentType>(item?.content_type ?? "reel");
@@ -346,7 +356,7 @@ export function ContentItemModal({
           style={{ borderBottom: `1px solid ${borderColor}` }}
         >
           <h2 className="text-[15px] font-semibold" style={{ color: textMain }}>
-            {isEdit ? "Editar contenido" : "Nuevo contenido"}
+            {isEdit ? t("modal.titleEdit") : t("modal.titleCreate")}
           </h2>
           <button
             onClick={onClose}
@@ -364,28 +374,28 @@ export function ContentItemModal({
 
           {/* Título */}
           <div>
-            <label style={labelStyle}>Título</label>
+            <label style={labelStyle}>{t("modal.fieldTitle")}</label>
             <input
               ref={titleRef}
               type="text"
               value={title}
               onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
-              placeholder="¿De qué trata este contenido?"
+              placeholder={t("modal.fieldTitlePlaceholder")}
               style={inputStyle}
               onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
               onBlur={(e) => (e.currentTarget.style.borderColor = titleError ? "rgba(239,68,68,0.5)" : inputBorderNormal)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
             />
             {titleError && (
-              <p className="text-[11px] text-red-500 mt-1">El título es obligatorio.</p>
+              <p className="text-[11px] text-red-500 mt-1">{t("modal.errorTitle")}</p>
             )}
           </div>
 
           {/* Tipo */}
           <div>
-            <label style={labelStyle}>Tipo</label>
+            <label style={labelStyle}>{t("modal.fieldType")}</label>
             <PillGroup
-              options={CONTENT_TYPES}
+              options={typeOptionsLocalized}
               value={contentType}
               onChange={setContentType}
               isLight={isLight}
@@ -398,9 +408,10 @@ export function ContentItemModal({
           {/* Estado + Fecha */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={labelStyle}>Estado</label>
+              <label style={labelStyle}>{t("modal.fieldStatus")}</label>
               <StatusSelect
                 options={CONTENT_STATUSES}
+                labelFor={statusLabelFor}
                 value={status}
                 onChange={setStatus}
                 isLight={isLight}
@@ -411,7 +422,7 @@ export function ContentItemModal({
               />
             </div>
             <div>
-              <label style={labelStyle}>Fecha objetivo</label>
+              <label style={labelStyle}>{t("modal.fieldDate")}</label>
               <input
                 type="date"
                 value={plannedDate}
@@ -425,10 +436,10 @@ export function ContentItemModal({
 
           {/* Referencia */}
           <UrlField
-            label="Referencia"
+            label={t("modal.fieldReference")}
             value={referenceUrl}
             onChange={setReferenceUrl}
-            placeholder="Link al video de referencia…"
+            placeholder={t("modal.fieldReferencePlaceholder")}
             inputStyle={urlInputStyle}
             inputBorderNormal={inputBorderNormal}
             inputBorderFocus={inputBorderFocus}
@@ -438,7 +449,7 @@ export function ContentItemModal({
           {/* Guion */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Guion</label>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>{t("modal.fieldScript")}</label>
               {isEdit && (
                 <Link
                   href={`/mesa-de-trabajo/${item.id}/guion`}
@@ -452,14 +463,14 @@ export function ContentItemModal({
                   onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.opacity = "1"}
                 >
                   <FileText size={12} />
-                  Abrir editor
+                  {t("modal.openEditor")}
                 </Link>
               )}
             </div>
             <textarea
               value={scriptToPlainText(script)}
               onChange={(e) => setScript(e.target.value)}
-              placeholder={isEdit ? "Vista previa del guion…" : "Escribí el guion o caption completo (después podés expandirlo)…"}
+              placeholder={isEdit ? t("modal.scriptPreviewPlaceholder") : t("modal.fieldScriptPlaceholder")}
               rows={4}
               style={{ ...inputStyle, border: `1px solid ${inputBorderNormal}`, resize: "none" }}
               onFocus={(e) => (e.currentTarget.style.borderColor = inputBorderFocus)}
@@ -469,10 +480,10 @@ export function ContentItemModal({
 
           {/* Link video crudo */}
           <UrlField
-            label="Video crudo"
+            label={t("modal.fieldRawVideo")}
             value={rawVideoUrl}
             onChange={setRawVideoUrl}
-            placeholder="Link al video sin editar…"
+            placeholder={t("modal.fieldRawVideoPlaceholder")}
             inputStyle={urlInputStyle}
             inputBorderNormal={inputBorderNormal}
             inputBorderFocus={inputBorderFocus}
@@ -481,10 +492,10 @@ export function ContentItemModal({
 
           {/* Link video editado */}
           <UrlField
-            label="Video editado"
+            label={t("modal.fieldEditedVideo")}
             value={editedVideoUrl}
             onChange={setEditedVideoUrl}
-            placeholder="Link al video editado final…"
+            placeholder={t("modal.fieldEditedVideoPlaceholder")}
             inputStyle={urlInputStyle}
             inputBorderNormal={inputBorderNormal}
             inputBorderFocus={inputBorderFocus}
@@ -497,16 +508,15 @@ export function ContentItemModal({
               className="rounded-xl p-3"
               style={{ background: inputBg, border: `1px solid ${borderColor}` }}
             >
-              <p style={labelStyle}>Métricas</p>
+              <p style={labelStyle}>{t("metrics.title")}</p>
               <div className="grid grid-cols-3 gap-3">
                 {(["reach", "likes", "saves", "comments", "shares"] as const).map((k) => {
                   const v = item.metrics?.[k];
                   if (!v) return null;
-                  const labels = { reach: "Alcance", likes: "Likes", saves: "Guardados", comments: "Comentarios", shares: "Compartidos" };
                   return (
                     <div key={k}>
-                      <p className="text-[10px] uppercase tracking-wide" style={{ color: textSub }}>{labels[k]}</p>
-                      <p className="text-[15px] font-light" style={{ color: textMain }}>{v.toLocaleString("es-AR")}</p>
+                      <p className="text-[10px] uppercase tracking-wide" style={{ color: textSub }}>{t(`metrics.${k}` as `metrics.${typeof k}`)}</p>
+                      <p className="text-[15px] font-light" style={{ color: textMain }}>{v.toLocaleString()}</p>
                     </div>
                   );
                 })}
@@ -532,7 +542,7 @@ export function ContentItemModal({
               style={{ color: confirmDelete ? "rgb(239,68,68)" : textSub }}
             >
               <Trash2 size={13} />
-              {deleting ? "Eliminando…" : confirmDelete ? "¿Confirmar?" : "Eliminar"}
+              {deleting ? t("modal.deleting") : confirmDelete ? t("modal.deleteConfirmShort") : t("modal.delete")}
             </button>
           ) : <div />}
 
@@ -544,7 +554,7 @@ export function ContentItemModal({
               onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
               onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
             >
-              Cancelar
+              {t("modal.cancel")}
             </button>
             <button
               onClick={handleSave}
@@ -555,7 +565,7 @@ export function ContentItemModal({
                 color: isLight ? "white" : "rgba(255,255,255,0.9)",
               }}
             >
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? t("modal.saving") : t("modal.save")}
             </button>
           </div>
         </div>

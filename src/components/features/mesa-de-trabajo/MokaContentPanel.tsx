@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, Sparkles, History, Plus, MessageSquare, ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { useArkoChat, type ArkoChatContext } from "@/hooks/useArkoChat";
 import { ArkoMessage, ThinkingIndicator } from "@/components/chat/ChatShared";
@@ -30,21 +31,25 @@ interface SessionMeta {
   updated_at: string;
 }
 
-const DEFAULT_SUGGESTIONS = [
-  "Generame 3 ideas de reels para esta semana y agregalas al pipeline",
-  "Escribime un script para un reel de ventas y agregalo como idea",
-  "¿Qué tipo de contenido me funciona mejor?",
-  "Sugerime un plan de contenido para los próximos 7 días",
-];
+type SuggestionT = (
+  key:
+    | "default1" | "default2" | "default3" | "default4"
+    | "scriptForIdea" | "scriptsForReadyToRecord"
+    | "prioritizeIdeas" | "generateNewIdeas"
+    | "captionsForEditing" | "weekPlan",
+  values?: Record<string, string | number>
+) => string;
 
-const DEFAULT_GREETING = "Hola 👋 Estoy acá para ayudarte con tu contenido. ¿Qué creamos hoy?";
+function defaultSuggestions(t: SuggestionT): string[] {
+  return [t("default1"), t("default2"), t("default3"), t("default4")];
+}
 
 /**
  * Build context-aware suggestions based on what's in the user's pipeline.
  * Falls back to default suggestions when the pipeline is empty.
  */
-function buildSuggestions(items: ContentItem[] | undefined): string[] {
-  if (!items || items.length === 0) return DEFAULT_SUGGESTIONS;
+function buildSuggestions(items: ContentItem[] | undefined, t: SuggestionT): string[] {
+  if (!items || items.length === 0) return defaultSuggestions(t);
 
   const ideas       = items.filter((i) => i.status === "idea");
   const noScript    = items.filter((i) => i.status === "ready_to_record" && !i.script);
@@ -54,34 +59,38 @@ function buildSuggestions(items: ContentItem[] | undefined): string[] {
   const out: string[] = [];
 
   if (ideaNoScript) {
-    out.push(`Escribime el guión para "${ideaNoScript.title}"`);
+    out.push(t("scriptForIdea", { title: ideaNoScript.title }));
   }
   if (noScript.length > 0) {
-    out.push(`Generá guiones para los ${noScript.length} items "listos para grabar" que no tienen script`);
+    out.push(t("scriptsForReadyToRecord", { n: noScript.length }));
   }
   if (ideas.length >= 3) {
-    out.push(`Tengo ${ideas.length} ideas — ¿cuáles deberían pasar a "listo para grabar" primero?`);
+    out.push(t("prioritizeIdeas", { n: ideas.length }));
   } else {
-    out.push("Generame 3 ideas nuevas basadas en lo que ya me funciona");
+    out.push(t("generateNewIdeas"));
   }
   if (editing.length > 0) {
-    out.push(`Tengo ${editing.length} videos en edición — ¿qué captions sugerís?`);
+    out.push(t("captionsForEditing", { n: editing.length }));
   }
-  out.push("Sugerime un plan de contenido para los próximos 7 días");
+  out.push(t("weekPlan"));
 
   return out.slice(0, 4);
 }
 
-function formatRelativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins  < 1)  return "Ahora";
-  if (mins  < 60) return `Hace ${mins}m`;
-  if (hours < 24) return `Hace ${hours}h`;
-  if (days  < 7)  return `Hace ${days}d`;
-  return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+function useFormatRelativeDate() {
+  const t = useTranslations("mesaDeTrabajo.mokaPanel");
+  const locale = useLocale();
+  return (iso: string): string => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins  = Math.floor(diff / 60_000);
+    const hours = Math.floor(diff / 3_600_000);
+    const days  = Math.floor(diff / 86_400_000);
+    if (mins  < 1)  return t("now");
+    if (mins  < 60) return t("minutesAgo", { n: mins });
+    if (hours < 24) return t("hoursAgo",   { n: hours });
+    if (days  < 7)  return t("daysAgo",    { n: days });
+    return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "es-AR", { day: "numeric", month: "short" });
+  };
 }
 
 export function MokaContentPanel({
@@ -98,6 +107,8 @@ export function MokaContentPanel({
 }: MokaContentPanelProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const tp = useTranslations("mesaDeTrabajo.mokaPanel");
+  const formatRelativeDate = useFormatRelativeDate();
 
   const [input, setInput]             = useState("");
   const [showHistory, setShowHistory] = useState(false);
@@ -129,10 +140,11 @@ export function MokaContentPanel({
     onContentDeleted,
   });
 
+  const tSugg = useTranslations("mesaDeTrabajo.mokaPanel.suggestions");
   // Sugerencias: prop explícita > dinámicas según items > defaults.
-  const dynamicSuggestions = useMemo(() => buildSuggestions(items), [items]);
-  const activeSuggestions = suggestions ?? (items !== undefined ? dynamicSuggestions : DEFAULT_SUGGESTIONS);
-  const activeGreeting = greeting ?? DEFAULT_GREETING;
+  const dynamicSuggestions = useMemo(() => buildSuggestions(items, tSugg as unknown as SuggestionT), [items, tSugg]);
+  const activeSuggestions = suggestions ?? (items !== undefined ? dynamicSuggestions : defaultSuggestions(tSugg as unknown as SuggestionT));
+  const activeGreeting = greeting ?? tp("greeting");
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -248,7 +260,7 @@ export function MokaContentPanel({
               onClick={() => setShowHistory(false)}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; (e.currentTarget as HTMLElement).style.color = textMain; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
-              title="Volver al chat"
+              title={tp("backToChat")}
             >
               <ArrowLeft size={14} />
             </button>
@@ -263,10 +275,10 @@ export function MokaContentPanel({
           )}
           <div>
             <p className="text-[13px] font-medium leading-none" style={{ color: textMain }}>
-              {showHistory ? "Conversaciones" : "Moka AI"}
+              {showHistory ? tp("conversations") : tp("name")}
             </p>
             <p className="text-[11px] leading-none mt-0.5" style={{ color: textSub }}>
-              {showHistory ? "Historial de chats" : "Asistente de contenido"}
+              {showHistory ? tp("chatHistory") : tp("subtitle")}
             </p>
           </div>
         </div>
@@ -279,7 +291,7 @@ export function MokaContentPanel({
               onClick={handleNewConversation}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; (e.currentTarget as HTMLElement).style.color = textMain; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
-              title="Nueva conversación"
+              title={tp("newConversation")}
             >
               <Plus size={14} />
             </button>
@@ -291,7 +303,7 @@ export function MokaContentPanel({
               onClick={openHistory}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; (e.currentTarget as HTMLElement).style.color = textMain; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
-              title="Historial de conversaciones"
+              title={tp("history")}
             >
               <History size={14} />
             </button>
@@ -301,7 +313,7 @@ export function MokaContentPanel({
                 onClick={onClose}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; (e.currentTarget as HTMLElement).style.color = textMain; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = textSub; }}
-                title="Cerrar Moka"
+                title={tp("close")}
               >
                 <X size={14} />
               </button>
@@ -327,7 +339,7 @@ export function MokaContentPanel({
               onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = inputBg}
             >
               <Plus size={14} style={{ color: textSub }} />
-              Nueva conversación
+              {tp("newConversation")}
             </button>
           </div>
 
@@ -335,12 +347,12 @@ export function MokaContentPanel({
           <div className="flex-1 px-3 pb-3 flex flex-col gap-1">
             {loadingSessions ? (
               <div className="flex items-center justify-center py-8">
-                <p className="text-[12px]" style={{ color: textSub }}>Cargando…</p>
+                <p className="text-[12px]" style={{ color: textSub }}>{tp("loading")}</p>
               </div>
             ) : sessions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <MessageSquare size={22} style={{ color: textSub, opacity: 0.5 }} />
-                <p className="text-[12px]" style={{ color: textSub }}>Sin conversaciones anteriores</p>
+                <p className="text-[12px]" style={{ color: textSub }}>{tp("emptyConversations")}</p>
               </div>
             ) : (
               sessions.map((s) => {
@@ -365,7 +377,7 @@ export function MokaContentPanel({
                       className="text-[12px] font-medium leading-tight truncate"
                       style={{ color: isActive ? textMain : isLight ? "rgba(17,17,17,0.7)" : "rgba(255,255,255,0.65)" }}
                     >
-                      {s.title || "Conversación sin título"}
+                      {s.title || tp("untitledConversation")}
                     </p>
                     <p className="text-[11px] mt-0.5" style={{ color: textSub }}>
                       {formatRelativeDate(s.updated_at)}
@@ -449,7 +461,7 @@ export function MokaContentPanel({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Preguntale a Moka…"
+                placeholder={tp("placeholder")}
                 rows={1}
                 className="flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none placeholder-opacity-40"
                 style={{ color: textMain }}
@@ -467,7 +479,7 @@ export function MokaContentPanel({
               </button>
             </div>
             <p className="text-[10px] text-center mt-1.5" style={{ color: textSub }}>
-              Enter para enviar · Shift+Enter nueva línea
+              {tp("hint")}
             </p>
           </div>
         </>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
-import type { ContentItem } from "@/types/content-plan";
+import type { ContentItem, ContentStatus, ContentType } from "@/types/content-plan";
 import { ScriptEditorV2 } from "./ScriptEditorV2";
 import { useScriptLayout } from "./ScriptLayoutContext";
 import { MokaContentPanel } from "./MokaContentPanel";
@@ -35,14 +36,35 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const router = useRouter();
+  const t = useTranslations("mesaDeTrabajo");
+  const locale = useLocale();
   const { sidebarCollapsed, setSidebarCollapsed, focusMode, setFocusMode, setActiveSibling, refreshSiblings } = useScriptLayout();
 
   const [title, setTitle]         = useState(item.title);
   const [scriptHtml, setScriptHtml] = useState(item.script ?? "");
+  const [status, setStatus]       = useState<ContentItem["status"]>(item.status);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [mokaOpen, setMokaOpen] = useState(false);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize del título: que crezca en alto según el texto, sin scroll horizontal.
+  // useLayoutEffect para que el ajuste ocurra antes del paint (sin flicker).
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    // Re-ajustar cuando cambia el ancho del contenedor (sidebar, Moka panel, resize).
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [title]);
   // Bumped whenever Moka rewrites our script so the editor remounts and
   // picks up the new content (Tiptap's `content` prop is initial-only).
   const [editorRevision, setEditorRevision] = useState(0);
@@ -53,8 +75,10 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   useEffect(() => {
     setTitle(item.title);
     setScriptHtml(item.script ?? "");
+    setStatus(item.status);
     setSaveState("idle");
     setConfirmDelete(false);
+    setStatusOpen(false);
     lastSaved.current = { title: item.title, script: item.script ?? "" };
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current);
@@ -69,20 +93,20 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     setActiveSibling({
       id: item.id,
       title: title || item.title,
-      status: item.status,
+      status,
       content_type: item.content_type,
       planned_date: item.planned_date,
       script: scriptHtml || item.script || null,
       updated_at: item.updated_at,
     });
     return () => setActiveSibling(null);
-  }, [item.id, item.status, item.content_type, item.planned_date, item.updated_at, item.title, item.script, title, scriptHtml, setActiveSibling]);
+  }, [item.id, item.content_type, item.planned_date, item.updated_at, item.title, item.script, title, scriptHtml, status, setActiveSibling]);
 
   // ── Auto-save ──────────────────────────────────────────────────────────────
   const saveTimer = useRef<number | null>(null);
   const lastSaved = useRef<{ title: string; script: string }>({ title: item.title, script: item.script ?? "" });
 
-  const persist = useCallback(async (partial: { title?: string; script?: string }) => {
+  const persist = useCallback(async (partial: { title?: string; script?: string; status?: ContentItem["status"] }) => {
     setSaveState("saving");
     try {
       const res = await fetch("/api/v1/content-plan", {
@@ -96,8 +120,41 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
       setSaveState("saved");
     } catch {
       setSaveState("error");
+      throw new Error("persist failed");
     }
   }, [item.id, workspaceId]);
+
+  // Cerrar el dropdown de status al click afuera o ESC.
+  const statusBtnRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!statusOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (statusBtnRef.current && !statusBtnRef.current.contains(e.target as Node)) {
+        setStatusOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setStatusOpen(false); };
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [statusOpen]);
+
+  // Cambio de status — optimistic + rollback + refresh del sidebar.
+  const handleStatusChange = useCallback(async (newStatus: ContentItem["status"]) => {
+    if (newStatus === status) { setStatusOpen(false); return; }
+    const prev = status;
+    setStatus(newStatus);
+    setStatusOpen(false);
+    try {
+      await persist({ status: newStatus });
+      refreshSiblings();
+    } catch {
+      setStatus(prev);
+    }
+  }, [status, persist, refreshSiblings]);
 
   // Schedule auto-save
   useEffect(() => {
@@ -152,10 +209,10 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     script_id: item.id,
     title: title || null,
     content_type: item.content_type,
-    status: item.status,
+    status,
     planned_date: item.planned_date,
     script: scriptHtml || null,
-  }), [item.id, item.content_type, item.status, item.planned_date, title, scriptHtml]);
+  }), [item.id, item.content_type, status, item.planned_date, title, scriptHtml]);
 
   // When Moka updates an item from within the editor:
   //  - if it's the active item, sync our local state and bump editor revision
@@ -166,11 +223,13 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     if (id === item.id) {
       const newScript = (updated.script as string | null | undefined) ?? "";
       const newTitle  = (updated.title  as string | null | undefined) ?? title;
+      const newStatus = updated.status as ContentItem["status"] | undefined;
       // Update our refs so the auto-save loop doesn't try to overwrite Moka's
       // change with our stale state.
       lastSaved.current = { title: newTitle, script: newScript };
       setScriptHtml(newScript);
       setTitle(newTitle);
+      if (newStatus) setStatus(newStatus);
       setEditorRevision((r) => r + 1);
     } else {
       void refreshSiblings();
@@ -207,20 +266,22 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   }
 
   // ── Theme tokens ───────────────────────────────────────────────────────────
-  const border   = isLight ? "rgba(17,17,17,0.08)" : "rgba(255,255,255,0.07)";
-  const textMain = isLight ? "#111111" : "rgba(255,255,255,0.92)";
-  const textSub  = isLight ? "rgba(17,17,17,0.50)" : "rgba(255,255,255,0.42)";
-  const labelCol = isLight ? "rgba(17,17,17,0.40)" : "rgba(255,255,255,0.32)";
+  const border    = isLight ? "rgba(17,17,17,0.08)" : "rgba(255,255,255,0.07)";
+  const textMain  = isLight ? "#111111" : "rgba(255,255,255,0.92)";
+  const textSub   = isLight ? "rgba(17,17,17,0.50)" : "rgba(255,255,255,0.42)";
+  const labelCol  = isLight ? "rgba(17,17,17,0.40)" : "rgba(255,255,255,0.32)";
+  const popoverBg = isLight ? "#ffffff" : "rgba(28,28,32,0.98)";
+  const hoverBg   = isLight ? "rgba(17,17,17,0.05)" : "rgba(255,255,255,0.06)";
 
-  const statusMeta = CONTENT_STATUSES.find((s) => s.value === item.status);
+  const statusMeta = CONTENT_STATUSES.find((s) => s.value === status);
   const typeMeta   = CONTENT_TYPES.find((t) => t.value === item.content_type);
 
   const saveLabel = useMemo(() => {
-    if (saveState === "saving")  return { text: "Guardando…",  icon: <Loader2 size={12} className="animate-spin" />, color: textSub };
-    if (saveState === "saved")   return { text: "Guardado",    icon: <Check size={12} />,                            color: "rgb(34,197,94)" };
-    if (saveState === "error")   return { text: "Error al guardar", icon: <AlertCircle size={12} />,                  color: "rgb(239,68,68)" };
+    if (saveState === "saving")  return { text: t("scripts.saving"),     icon: <Loader2 size={12} className="animate-spin" />, color: textSub };
+    if (saveState === "saved")   return { text: t("scripts.saved"),      icon: <Check size={12} />,                            color: "rgb(34,197,94)" };
+    if (saveState === "error")   return { text: t("scripts.saveError"),  icon: <AlertCircle size={12} />,                      color: "rgb(239,68,68)" };
     return null;
-  }, [saveState, textSub]);
+  }, [saveState, textSub, t]);
 
   const editorMaxW = focusMode ? 920 : 720;
 
@@ -237,7 +298,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
               {sidebarCollapsed && (
                 <button
                   onClick={() => setSidebarCollapsed(false)}
-                  title="Mostrar barra (⌘\\)"
+                  title={t("scripts.expandSidebar")}
                   className="w-7 h-7 rounded-md flex items-center justify-center transition-colors -ml-1 mr-1"
                   style={{ color: textSub }}
                   onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
@@ -253,11 +314,11 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
                 onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
                 onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
               >
-                Mesa de trabajo
+                {t("title")}
               </Link>
               <ChevronRight size={12} style={{ color: labelCol }} />
               <p className="text-[12.5px] truncate" style={{ color: textMain, maxWidth: 360 }}>
-                {title || "Sin título"}
+                {title || t("scripts.untitled")}
               </p>
             </>
           )}
@@ -273,26 +334,26 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
           {!focusMode && (
             <button
               onClick={() => setMokaOpen((v) => !v)}
-              title={mokaOpen ? "Cerrar Moka" : "Preguntar a Moka"}
+              title={mokaOpen ? t("scripts.closeMoka") : t("scripts.openMoka")}
               className="flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-md transition-colors cursor-pointer"
               style={{ color: mokaOpen ? textMain : textSub }}
               onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
               onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = mokaOpen ? textMain : textSub}
             >
               <Sparkles size={12} />
-              {mokaOpen ? "Cerrar Moka" : "Moka"}
+              {mokaOpen ? t("scripts.closeMoka") : t("scripts.moka")}
             </button>
           )}
           <button
             onClick={() => setFocusMode((v) => !v)}
-            title={focusMode ? "Salir del modo foco (⌘.)" : "Modo foco (⌘.)"}
+            title={focusMode ? t("scripts.exitFocusTitle") : t("scripts.focusModeTitle")}
             className="flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-md transition-colors cursor-pointer"
             style={{ color: textSub }}
             onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
             onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
           >
             {focusMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-            {focusMode ? "Cerrar" : "Modo foco"}
+            {focusMode ? t("scripts.exitFocus") : t("scripts.focusMode")}
           </button>
           {!focusMode && (
             <button
@@ -304,7 +365,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
               onMouseLeave={(e) => { if (!confirmDelete) (e.currentTarget as HTMLElement).style.color = textSub; }}
             >
               <Trash2 size={12} />
-              {confirmDelete ? "Confirmar" : "Eliminar"}
+              {confirmDelete ? t("scripts.confirmDelete") : t("scripts.delete")}
             </button>
           )}
         </div>
@@ -316,33 +377,88 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
           className="mx-auto px-8"
           style={{ maxWidth: editorMaxW, paddingTop: focusMode ? 80 : 64 }}
         >
-          <input
+          <textarea
+            ref={titleRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Sin título"
-            className="w-full outline-none bg-transparent"
+            onKeyDown={(e) => {
+              // Enter no debe meter saltos de línea en el título.
+              if (e.key === "Enter") e.preventDefault();
+            }}
+            placeholder={t("scripts.untitled")}
+            rows={1}
+            className="w-full outline-none bg-transparent resize-none overflow-hidden block"
             style={{
               fontSize: 40,
               fontWeight: 700,
               letterSpacing: "-0.025em",
-              lineHeight: 1.4,
-              paddingBottom: 8,
+              lineHeight: 1.2,
+              padding: 0,
+              margin: 0,
+              border: 0,
               color: textMain,
+              wordBreak: "break-word",
+              boxSizing: "content-box",
+              fontFamily: "inherit",
             }}
           />
 
           {!focusMode && (
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               {statusMeta && (
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusMeta.dot }} />
-                  <span className="text-[12px]" style={{ color: textSub }}>{statusMeta.label}</span>
+                <div ref={statusBtnRef} className="relative">
+                  <button
+                    onClick={() => setStatusOpen((v) => !v)}
+                    className="flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-md transition-colors cursor-pointer"
+                    style={{ background: statusOpen ? hoverBg : "transparent" }}
+                    onMouseEnter={(e) => { if (!statusOpen) (e.currentTarget as HTMLElement).style.background = hoverBg; }}
+                    onMouseLeave={(e) => { if (!statusOpen) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusMeta.dot }} />
+                    <span className="text-[12px]" style={{ color: textSub }}>{t(`status.${statusMeta.value}` as `status.${ContentStatus}`)}</span>
+                  </button>
+                  {statusOpen && (
+                    <div
+                      className="absolute z-50 mt-1 rounded-lg overflow-hidden shadow-lg"
+                      style={{
+                        top: "100%",
+                        left: 0,
+                        minWidth: 200,
+                        background: popoverBg,
+                        border: `1px solid ${border}`,
+                        backdropFilter: "blur(12px)",
+                      }}
+                    >
+                      {CONTENT_STATUSES.map((s) => {
+                        const isCurrent = s.value === status;
+                        return (
+                          <button
+                            key={s.value}
+                            onClick={() => handleStatusChange(s.value)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
+                            style={{
+                              background: isCurrent ? hoverBg : "transparent",
+                              color: textMain,
+                            }}
+                            onMouseEnter={(e) => { if (!isCurrent) (e.currentTarget as HTMLElement).style.background = hoverBg; }}
+                            onMouseLeave={(e) => { if (!isCurrent) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: s.dot }} />
+                            <span className="text-[12.5px]">{t(`status.${s.value}` as `status.${ContentStatus}`)}</span>
+                            {isCurrent && (
+                              <Check size={12} style={{ color: textSub, marginLeft: "auto" }} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
               {typeMeta && (
                 <>
                   <span style={{ color: labelCol }}>·</span>
-                  <span className="text-[12px]" style={{ color: textSub }}>{typeMeta.label}</span>
+                  <span className="text-[12px]" style={{ color: textSub }}>{t(`type.${typeMeta.value}` as `type.${ContentType}`)}</span>
                 </>
               )}
               {item.planned_date && (
@@ -351,7 +467,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
                   <div className="flex items-center gap-1.5">
                     <Calendar size={12} style={{ color: textSub }} />
                     <span className="text-[12px]" style={{ color: textSub }}>
-                      {new Date(item.planned_date + "T12:00:00").toLocaleDateString("es-AR", {
+                      {new Date(item.planned_date + "T12:00:00").toLocaleDateString(locale === "en" ? "en-US" : "es-AR", {
                         day: "numeric", month: "long", year: "numeric",
                       })}
                     </span>
@@ -360,7 +476,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
               )}
               <span style={{ color: labelCol }}>·</span>
               <span className="text-[12px] tabular-nums" style={{ color: textSub }}>
-                {countWords(scriptHtml)} palabras · ~{Math.max(1, Math.ceil(countWords(scriptHtml) / 130))} min lectura
+                {t("scripts.wordsCount", { count: countWords(scriptHtml) })} · {t("scripts.readTime", { minutes: Math.max(1, Math.ceil(countWords(scriptHtml) / 130)) })}
               </span>
             </div>
           )}
@@ -382,7 +498,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         open={!focusMode && mokaOpen}
         workspaceId={workspaceId}
         context={mokaContext}
-        greeting={`Estoy mirando "${title || "este guion"}". ¿En qué te ayudo?`}
+        greeting={title ? t("scripts.mokaGreeting", { title }) : t("scripts.mokaGreetingNoTitle")}
         suggestions={[
           "Reescribime el guion en tono más conversacional",
           "Mejorá el hook de las primeras dos líneas",

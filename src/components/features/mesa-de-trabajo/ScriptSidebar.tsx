@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft, Search, FileText, PanelLeftClose, ChevronRight, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES } from "@/types/content-plan";
 import type { ContentItem, ContentStatus } from "@/types/content-plan";
@@ -33,6 +34,7 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
   const pathname = usePathname();
   const activeId = extractActiveId(pathname) ?? "";
   const { activeSibling } = useScriptLayout();
+  const t = useTranslations("mesaDeTrabajo");
 
   // Merge the active sibling published from page.tsx so we can show items
   // that haven't been saved with content yet (and reflect live title edits).
@@ -159,11 +161,11 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = textSub; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
         >
           <ArrowLeft size={13} strokeWidth={2} />
-          Mesa de trabajo
+          {t("scripts.back")}
         </Link>
         <button
           onClick={onCollapse}
-          title="Colapsar barra (⌘\\)"
+          title={t("scripts.collapseSidebar")}
           className="w-7 h-7 rounded-md flex items-center justify-center transition-all"
           style={{ color: textSub }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = textMain; (e.currentTarget as HTMLElement).style.background = hoverBg; }}
@@ -185,7 +187,7 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar guiones…"
+            placeholder={t("scripts.searchPlaceholder")}
             className="w-full text-[12px] outline-none transition-all"
             style={{
               background: inputBg,
@@ -214,7 +216,7 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
         {grouped.every((g) => g.items.length === 0) && (
           <div className="px-4 py-6 text-center">
             <p className="text-[12px]" style={{ color: textSub }}>
-              {query ? "Sin resultados" : "Aún no escribiste ningún guion"}
+              {query ? t("scripts.emptyResults") : t("scripts.emptyAll")}
             </p>
           </div>
         )}
@@ -253,7 +255,7 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
                 >
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.dot }} />
                   <p className="text-[10.5px] uppercase tracking-widest" style={{ color: labelCol }}>
-                    {meta.label}
+                    {t(`status.${meta.value}` as `status.${ContentStatus}`)}
                   </p>
                   <span className="text-[10px] tabular-nums" style={{ color: textSub }}>
                     {items.length}
@@ -262,7 +264,7 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
                 <button
                   onClick={(e) => { e.stopPropagation(); void createInStatus(meta.value); }}
                   disabled={creating !== null}
-                  title={`Nuevo en ${meta.label}`}
+                  title={t("scripts.newInGroup", { label: t(`status.${meta.value}` as `status.${ContentStatus}`) })}
                   className="w-5 h-5 rounded flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-40"
                   style={{ color: textSub }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = textMain; }}
@@ -295,7 +297,7 @@ export function ScriptSidebar({ siblings, workspaceId, onCollapse }: ScriptSideb
                       className="text-[12.5px] truncate"
                       style={{ color: active ? textMain : textSub, fontWeight: active ? 500 : 400 }}
                     >
-                      {it.title || "Sin título"}
+                      {it.title || t("scripts.untitled")}
                     </p>
                   </Link>
                 );
