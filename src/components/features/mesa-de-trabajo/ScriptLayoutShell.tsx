@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { ScriptSidebar, type SidebarSibling } from "./ScriptSidebar";
@@ -72,15 +72,15 @@ export function ScriptLayoutShell({ siblings, workspaceId, children }: ScriptLay
     ? "fixed inset-0 z-[100] flex h-screen"
     : "flex h-full";
 
+  const contextValue = useMemo(() => ({
+    sidebarCollapsed, setSidebarCollapsed,
+    focusMode, setFocusMode,
+    activeSibling, setActiveSibling,
+    refreshSiblings,
+  }), [sidebarCollapsed, focusMode, activeSibling, refreshSiblings]);
+
   return (
-    <ScriptLayoutContext.Provider
-      value={{
-        sidebarCollapsed, setSidebarCollapsed,
-        focusMode, setFocusMode,
-        activeSibling, setActiveSibling,
-        refreshSiblings,
-      }}
-    >
+    <ScriptLayoutContext.Provider value={contextValue}>
       <div className={outerClass} style={{ background: bg }}>
         {!sidebarCollapsed && !focusMode && (
           <ScriptSidebar

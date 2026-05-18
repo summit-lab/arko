@@ -100,7 +100,9 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
       updated_at: item.updated_at,
     });
     return () => setActiveSibling(null);
-  }, [item.id, item.content_type, item.planned_date, item.updated_at, item.title, item.script, title, scriptHtml, status, setActiveSibling]);
+    // setActiveSibling es estable (useState dispatcher); no va en deps para evitar loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, item.content_type, item.planned_date, item.updated_at, item.title, item.script, title, scriptHtml, status]);
 
   // ── Auto-save ──────────────────────────────────────────────────────────────
   const saveTimer = useRef<number | null>(null);
