@@ -31,8 +31,8 @@ import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
-import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity } from '@/services/arko-ai-context';
-import { buildArkoSystemPrompt, buildReelContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
+import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity, loadPipelineSnapshot } from '@/services/arko-ai-context';
+import { buildArkoSystemPrompt, buildReelContextPrompt, buildScriptContextPrompt, buildPipelineContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
 import { getUserLanguage } from '@/i18n/server';
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -132,49 +132,61 @@ async function callLLMWithResilience(
 /** Human-readable labels for each tool, per locale. */
 const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
   es: {
-    query_reels: 'Analizando reels',
-    get_reel_details: 'Cargando detalle del reel',
-    get_account_insights: 'Consultando métricas de cuenta',
-    get_content_calendar: 'Analizando frecuencia de publicación',
-    get_audience_demographics: 'Cargando datos demográficos',
+    query_reels: 'Mirando tu contenido pasado',
+    get_reel_details: 'Mirando ese reel en detalle',
+    get_account_insights: 'Revisando tus métricas de cuenta',
+    get_content_calendar: 'Viendo tu ritmo de publicación',
+    get_audience_demographics: 'Mirando tu audiencia',
     compare_periods: 'Comparando períodos',
-    get_benchmarks: 'Consultando benchmarks',
-    get_goals: 'Revisando metas',
-    search_reels_by_topic: 'Buscando por tema',
-    get_top_hooks: 'Analizando mejores hooks',
-    get_topic_clusters: 'Mapeando clusters de temas',
-    get_competitor_analysis: 'Analizando competencia',
-    consult_specialist: 'Consultando especialista',
+    get_benchmarks: 'Cruzando con tus benchmarks',
+    get_goals: 'Mirando tus metas',
+    search_reels_by_topic: 'Buscando contenido por tema',
+    get_top_hooks: 'Revisando tus mejores hooks',
+    get_topic_clusters: 'Identificando temas que funcionan',
+    get_competitor_analysis: 'Mirando a tu competencia',
+    consult_specialist: 'Consultando con un especialista',
+    list_pipeline_items: 'Mirando tu pipeline',
+    add_content_to_pipeline: 'Agregando al pipeline',
+    update_content_item: 'Actualizando el item',
+    get_content_item: 'Cargando el item',
+    move_content_item: 'Moviendo de columna',
+    delete_content_item: 'Eliminando el item',
   },
   en: {
-    query_reels: 'Analyzing reels',
-    get_reel_details: 'Loading reel details',
-    get_account_insights: 'Querying account metrics',
-    get_content_calendar: 'Analyzing posting cadence',
-    get_audience_demographics: 'Loading demographics',
+    query_reels: 'Looking at your past content',
+    get_reel_details: 'Reviewing that reel in detail',
+    get_account_insights: 'Reviewing your account metrics',
+    get_content_calendar: 'Looking at your posting rhythm',
+    get_audience_demographics: 'Looking at your audience',
     compare_periods: 'Comparing periods',
-    get_benchmarks: 'Querying benchmarks',
-    get_goals: 'Reviewing goals',
-    search_reels_by_topic: 'Searching by topic',
-    get_top_hooks: 'Analyzing top hooks',
-    get_topic_clusters: 'Mapping topic clusters',
-    get_competitor_analysis: 'Analyzing competitors',
-    consult_specialist: 'Consulting specialist',
+    get_benchmarks: 'Cross-referencing your benchmarks',
+    get_goals: 'Reviewing your goals',
+    search_reels_by_topic: 'Searching content by topic',
+    get_top_hooks: 'Reviewing your best hooks',
+    get_topic_clusters: 'Identifying topics that work',
+    get_competitor_analysis: 'Looking at your competitors',
+    consult_specialist: 'Consulting a specialist',
+    list_pipeline_items: 'Looking at your pipeline',
+    add_content_to_pipeline: 'Adding to pipeline',
+    update_content_item: 'Updating the item',
+    get_content_item: 'Loading the item',
+    move_content_item: 'Moving column',
+    delete_content_item: 'Deleting the item',
   },
 };
 
 const STATUS_LABELS: Record<PromptLocale, { thinking: string; analyzing: string; processing: string; generating: string; synthesizing: string }> = {
   es: {
     thinking: 'Pensando...',
-    analyzing: 'Analizando tu pregunta...',
-    processing: 'Procesando datos...',
+    analyzing: 'Pensando tu pregunta...',
+    processing: 'Pensando...',
     generating: 'Generando respuesta...',
     synthesizing: 'Sintetizando respuesta...',
   },
   en: {
     thinking: 'Thinking...',
-    analyzing: 'Analyzing your question...',
-    processing: 'Processing data...',
+    analyzing: 'Thinking about your question...',
+    processing: 'Thinking...',
     generating: 'Generating response...',
     synthesizing: 'Synthesizing response...',
   },
@@ -241,6 +253,22 @@ export async function POST(request: Request) {
         // Validate context shape if provided
         const reelContext = context?.type === 'reel' && typeof context.reel_id === 'string' && typeof context.reel_data === 'string'
           ? context as { type: 'reel'; reel_id: string; reel_data: string; gemini_analysis: string | null }
+          : null;
+        const isMesaContext = context?.type === 'mesa-de-trabajo';
+
+        // Script context — sent on every message while the user is in the
+        // script editor. Stateless (not persisted on the session) since the
+        // script content itself is the source of truth in `content_plan`.
+        const scriptContext = context?.type === 'script' && typeof context.script_id === 'string'
+          ? context as {
+              type: 'script';
+              script_id: string;
+              title: string | null;
+              content_type: string | null;
+              status: string | null;
+              planned_date: string | null;
+              script: string | null;
+            }
           : null;
 
         const supabase = await createClient();
@@ -323,7 +351,11 @@ export async function POST(request: Request) {
           .limit(30);
 
         // Load workspace snapshot (ADN + benchmarks + top topics — cached 30min)
-        const snapshot = await loadWorkspaceSnapshot(supabase, auth.workspaceId);
+        // Also load pipeline snapshot in parallel when chat is opened from Mesa de Trabajo.
+        const [snapshot, pipelineSnapshot] = await Promise.all([
+          loadWorkspaceSnapshot(supabase, auth.workspaceId),
+          isMesaContext ? loadPipelineSnapshot(supabase, auth.workspaceId) : Promise.resolve<string | null>(null),
+        ]);
         // Forward-only language: each new generation uses the language stored
         // on the user that triggered this turn (profiles.language).
         userLocale = (await getUserLanguage(auth.userId)) as PromptLocale;
@@ -335,6 +367,24 @@ export async function POST(request: Request) {
         // Append reel-specific context if this is a reel session
         if (isReelSession && reelContextData) {
           systemPrompt += buildReelContextPrompt(reelContextData, reelGeminiData);
+        }
+
+        // Append script-editing context (stateless — comes from the client on
+        // every message while the user is editing a specific script).
+        if (scriptContext) {
+          systemPrompt += buildScriptContextPrompt({
+            script_id: scriptContext.script_id,
+            title: scriptContext.title,
+            content_type: scriptContext.content_type,
+            status: scriptContext.status,
+            planned_date: scriptContext.planned_date,
+            script: scriptContext.script,
+          });
+        }
+
+        // Append Mesa de Trabajo pipeline snapshot when chat is opened from that view
+        if (pipelineSnapshot) {
+          systemPrompt += buildPipelineContextPrompt(pipelineSnapshot);
         }
 
         // Build LLM messages from history
@@ -356,8 +406,8 @@ export async function POST(request: Request) {
 
         // ─── Route by message complexity ──────────────────────────────────────────
         const recentTexts = llmMessages.filter(m => m.role === 'user').map(m => m.content);
-        // Reel sessions always use the complex path (Claude Sonnet + tools)
-        const complexity = isReelSession ? 'complex' : classifyMessageComplexity(message, recentTexts);
+        // Reel, script, and Mesa de Trabajo sessions always use the complex path (Claude Sonnet + tools)
+        const complexity = (isReelSession || scriptContext || isMesaContext) ? 'complex' : classifyMessageComplexity(message, recentTexts);
 
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
@@ -456,14 +506,24 @@ export async function POST(request: Request) {
 
             const toolResults = await Promise.all(
               toolCalls.map(async (tc) => {
-                const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext, userLocale);
-                // Emit tool_done when each tool finishes
-                controller.enqueue(sseEvent({
-                  type: 'tool_done',
-                  tool: tc.name,
-                  label: tools[tc.name] || tc.name,
-                }));
-                return result;
+                try {
+                  const result = await executeArkoTool(supabase, auth.workspaceId, tc.name, tc.input, snapshot.adnContext, userLocale);
+                  controller.enqueue(sseEvent({
+                    type: 'tool_done',
+                    tool: tc.name,
+                    label: tools[tc.name] || tc.name,
+                  }));
+                  return result;
+                } catch (toolErr) {
+                  const errMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+                  console.error(`[chat] Tool "${tc.name}" failed:`, errMsg);
+                  controller.enqueue(sseEvent({
+                    type: 'tool_done',
+                    tool: tc.name,
+                    label: tools[tc.name] || tc.name,
+                  }));
+                  return { result: JSON.stringify({ error: `Tool "${tc.name}" failed: ${errMsg}` }) };
+                }
               })
             );
 
@@ -474,6 +534,15 @@ export async function POST(request: Request) {
                 const s = toolResults[t].specialistUsed!;
                 specialistsUsed.push({ domain: s.domain, tokensUsed: s.tokensUsed, latencyMs: s.latencyMs });
                 totalInputTokens += s.tokensUsed;
+              }
+              if (toolResults[t].contentAdded?.length) {
+                controller.enqueue(sseEvent({ type: 'content_added', items: toolResults[t].contentAdded }));
+              }
+              if (toolResults[t].contentUpdated) {
+                controller.enqueue(sseEvent({ type: 'content_updated', item: toolResults[t].contentUpdated }));
+              }
+              if (toolResults[t].contentDeleted) {
+                controller.enqueue(sseEvent({ type: 'content_deleted', id: toolResults[t].contentDeleted!.id }));
               }
             }
 
@@ -556,7 +625,9 @@ export async function POST(request: Request) {
 
         // Map known error patterns to user-friendly messages.
         const errCopy = ERROR_MESSAGES[userLocale];
-        let userMessage = errCopy.generic;
+        let userMessage = process.env.NODE_ENV === 'development'
+          ? `[DEV] ${errMsg}`
+          : errCopy.generic;
         const lowerErr = errMsg.toLowerCase();
         if (lowerErr.includes('context') && (lowerErr.includes('length') || lowerErr.includes('window') || lowerErr.includes('too long'))) {
           userMessage = errCopy.contextTooLong;

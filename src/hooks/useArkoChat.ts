@@ -13,9 +13,28 @@ export interface ReelChatContext {
   gemini_analysis: string | null;
 }
 
+export interface ScriptChatContext {
+  type: "script";
+  script_id: string;
+  title: string | null;
+  content_type: string | null;
+  status: string | null;
+  planned_date: string | null;
+  script: string | null;
+}
+
+export interface MesaDeTrabajoChatContext {
+  type: "mesa-de-trabajo";
+}
+
+export type ArkoChatContext = ReelChatContext | ScriptChatContext | MesaDeTrabajoChatContext;
+
 interface UseArkoChatOptions {
   workspaceId: string;
-  context?: ReelChatContext;
+  context?: ArkoChatContext;
+  onContentAdded?: (items: Record<string, unknown>[]) => void;
+  onContentUpdated?: (item: Record<string, unknown>) => void;
+  onContentDeleted?: (id: string) => void;
 }
 
 interface UseArkoChatReturn {
@@ -36,6 +55,9 @@ interface UseArkoChatReturn {
 export function useArkoChat({
   workspaceId,
   context,
+  onContentAdded,
+  onContentUpdated,
+  onContentDeleted,
 }: UseArkoChatOptions): UseArkoChatReturn {
   const t = useTranslations("arkoChat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -186,6 +208,20 @@ export function useArkoChat({
                   break;
                 }
 
+                case "content_added":
+                  if (onContentAdded && Array.isArray(event.items)) onContentAdded(event.items as Record<string, unknown>[]);
+                  break;
+
+                case "content_updated":
+                  if (onContentUpdated && event.item) onContentUpdated(event.item as Record<string, unknown>);
+                  break;
+
+                case "content_deleted": {
+                  const deletedId = (typeof event.id === "string" ? event.id : event.item?.id) as string | undefined;
+                  if (onContentDeleted && deletedId) onContentDeleted(deletedId);
+                  break;
+                }
+
                 case "error":
                   throw new Error(event.message || t("errors.server"));
               }
@@ -226,7 +262,7 @@ export function useArkoChat({
         setToolSteps([]);
       }
     },
-    [isLoading, workspaceId, context, updateSessionId, t],
+    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated, onContentDeleted],
   );
 
   return {
