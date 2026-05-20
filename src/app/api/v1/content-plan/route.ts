@@ -5,20 +5,19 @@
  * DELETE /api/v1/content-plan  — Elimina un item (?id= en query)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import type { ContentType, ContentStatus, ContentPlatform, ContentMetrics } from '@/types/content-plan';
 
 const VALID_STATUSES: ContentStatus[] = [
-  'idea', 'script', 'needs_recording', 'recorded',
-  'needs_editing', 'editing', 'scheduled', 'published',
+  'idea', 'ready_to_record', 'raw_footage', 'editing', 'ready_to_publish', 'published',
 ];
-const VALID_TYPES: ContentType[]     = ['reel', 'carousel', 'story'];
+const VALID_TYPES: ContentType[]         = ['reel', 'carousel', 'story', 'youtube_video'];
 const VALID_PLATFORMS: ContentPlatform[] = ['instagram', 'tiktok', 'youtube'];
 
-const BASE_SELECT = 'id, planned_date, title, description, platform, content_type, status, created_at, updated_at';
-const FULL_SELECT = `${BASE_SELECT}, script, source_type, source_ref, metrics`;
+const BASE_SELECT = 'id, planned_date, title, platform, content_type, status, created_at, updated_at';
+const FULL_SELECT = `${BASE_SELECT}, script, reference_url, raw_video_url, edited_video_url, source_type, source_ref, metrics`;
 
 export async function GET(request: Request) {
   try {
@@ -59,8 +58,10 @@ export async function POST(request: Request) {
       status?: string;
       platform?: string;
       planned_date?: string | null;
-      description?: string | null;
       script?: string | null;
+      reference_url?: string | null;
+      raw_video_url?: string | null;
+      edited_video_url?: string | null;
       source_type?: string;
       source_ref?: string | null;
     };
@@ -77,12 +78,11 @@ export async function POST(request: Request) {
     const platform = (body.platform ?? 'instagram') as ContentPlatform;
     if (!VALID_PLATFORMS.includes(platform)) return api400('Plataforma inválida');
 
-    // planned_date era NOT NULL en schema original; defaulteamos a hoy como fallback
     const planned_date = body.planned_date ?? new Date().toISOString().slice(0, 10);
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
-    // Paso 1: Insert base (siempre funciona, con o sin migración 100)
+    // Paso 1: insert con las columnas que siempre existen (compatible con cualquier versión del schema)
     const { data: inserted, error: insertError } = await supabase
       .from('content_plan')
       .insert({
@@ -92,24 +92,29 @@ export async function POST(request: Request) {
         status,
         platform,
         planned_date,
-        description: body.description?.trim() ?? null,
+        script:       body.script?.trim()  ?? null,
+        source_type:  body.source_type     ?? 'manual',
+        source_ref:   body.source_ref      ?? null,
       })
       .select('id')
       .single();
 
     if (insertError || !inserted) {
-      console.error('[content-plan POST] insert error:', insertError?.message, insertError?.code, insertError?.details);
-      return api500(`Error creando item: ${insertError?.message ?? 'no data'} (code: ${insertError?.code})`);
+      const msg = insertError?.message ?? 'sin respuesta';
+      console.error('[content-plan POST] insert error:', msg);
+      return api500(process.env.NODE_ENV === 'development' ? `Insert falló: ${msg}` : 'Error creando item');
     }
 
-    // Paso 2: Update con campos de migración 100 (falla silenciosamente si no existen)
-    const extras: Record<string, unknown> = { source_type: body.source_type ?? 'manual' };
-    if (body.script   !== undefined) extras.script    = body.script?.trim()  ?? null;
-    if (body.source_ref !== undefined) extras.source_ref = body.source_ref ?? null;
-    await supabase.from('content_plan').update(extras).eq('id', inserted.id);
-    // Ignoramos el error intencionalmente — las columnas pueden no existir aún
+    // Paso 2: update con columnas nuevas (migración 110) — falla silenciosamente si no existen
+    const newCols: Record<string, unknown> = {};
+    if (body.reference_url    !== undefined) newCols.reference_url    = body.reference_url?.trim()    ?? null;
+    if (body.raw_video_url    !== undefined) newCols.raw_video_url    = body.raw_video_url?.trim()    ?? null;
+    if (body.edited_video_url !== undefined) newCols.edited_video_url = body.edited_video_url?.trim() ?? null;
+    if (Object.keys(newCols).length > 0) {
+      await supabase.from('content_plan').update(newCols).eq('id', inserted.id);
+    }
 
-    // Paso 3: Devolver el item completo
+    // Paso 3: devolver el item completo (FULL_SELECT primero, BASE_SELECT como fallback)
     const { data: fullItem } = await supabase
       .from('content_plan').select(FULL_SELECT).eq('id', inserted.id).single();
     if (fullItem) return apiSuccess({ item: fullItem }, 201);
@@ -119,8 +124,10 @@ export async function POST(request: Request) {
     if (!baseItem) return api500('Error recuperando item creado');
     return apiSuccess({ item: baseItem }, 201);
 
-  } catch {
-    return api500('Error creando item');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[content-plan POST] catch:', msg);
+    return api500(process.env.NODE_ENV === 'development' ? `Error inesperado: ${msg}` : 'Error creando item');
   }
 }
 
@@ -136,8 +143,10 @@ export async function PATCH(request: Request) {
       status?: string;
       platform?: string;
       planned_date?: string | null;
-      description?: string | null;
       script?: string | null;
+      reference_url?: string | null;
+      raw_video_url?: string | null;
+      edited_video_url?: string | null;
       metrics?: ContentMetrics | null;
     };
 
@@ -161,45 +170,53 @@ export async function PATCH(request: Request) {
       if (!VALID_PLATFORMS.includes(body.platform as ContentPlatform)) return api400('Plataforma inválida');
       updates.platform = body.platform;
     }
-    if ('planned_date' in body) updates.planned_date = body.planned_date ?? null;
-    if ('description'  in body) updates.description  = body.description?.trim()  ?? null;
-    if ('script'       in body) updates.script        = body.script?.trim()        ?? null;
-    if ('metrics'      in body) updates.metrics       = body.metrics               ?? null;
+    if ('planned_date'    in body) updates.planned_date    = body.planned_date                  ?? null;
+    if ('script'          in body) updates.script          = body.script?.trim()                ?? null;
+    if ('reference_url'   in body) updates.reference_url   = body.reference_url?.trim()         ?? null;
+    if ('raw_video_url'   in body) updates.raw_video_url   = body.raw_video_url?.trim()         ?? null;
+    if ('edited_video_url'in body) updates.edited_video_url= body.edited_video_url?.trim()      ?? null;
+    if ('metrics'         in body) updates.metrics         = body.metrics                       ?? null;
 
     if (Object.keys(updates).length === 0) return api400('Nada que actualizar');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
-    // Intentar con FULL_SELECT; si falla por columnas nuevas, reintentar con BASE
-    const fullResult = await supabase
-      .from('content_plan')
-      .update(updates)
-      .eq('id', body.id)
-      .eq('workspace_id', auth.workspaceId)
-      .select(FULL_SELECT)
-      .single();
-
-    if (!fullResult.error) {
-      return fullResult.data ? apiSuccess({ item: fullResult.data }) : api400('Item no encontrado');
+    // Separar columnas base (siempre existen) de columnas nuevas (migración 110)
+    const NEW_COLS = ['reference_url', 'raw_video_url', 'edited_video_url'] as const;
+    const safeUpdates: Record<string, unknown> = {};
+    const newColUpdates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(updates)) {
+      if ((NEW_COLS as readonly string[]).includes(k)) newColUpdates[k] = v;
+      else safeUpdates[k] = v;
     }
 
-    // Fallback: quitar campos que requieren migración y reintentar
-    const safeUpdates = { ...updates };
-    delete safeUpdates.script;
-    delete safeUpdates.metrics;
-    if (Object.keys(safeUpdates).length === 0) return api400('Nada que actualizar');
+    // Aplicar columnas base
+    if (Object.keys(safeUpdates).length > 0) {
+      const { error } = await supabase
+        .from('content_plan')
+        .update(safeUpdates)
+        .eq('id', body.id)
+        .eq('workspace_id', auth.workspaceId);
+      if (error) return api500('Error actualizando item');
+    }
 
-    const baseResult = await supabase
-      .from('content_plan')
-      .update(safeUpdates)
-      .eq('id', body.id)
-      .eq('workspace_id', auth.workspaceId)
-      .select(BASE_SELECT)
-      .single();
+    // Aplicar columnas nuevas — falla silenciosamente si no existen
+    if (Object.keys(newColUpdates).length > 0) {
+      await supabase.from('content_plan').update(newColUpdates)
+        .eq('id', body.id).eq('workspace_id', auth.workspaceId);
+    }
 
-    if (baseResult.error) return api500('Error actualizando item');
-    if (!baseResult.data)  return api400('Item no encontrado');
-    return apiSuccess({ item: baseResult.data });
+    // Devolver item completo con fallback
+    const { data: fullItem } = await supabase
+      .from('content_plan').select(FULL_SELECT)
+      .eq('id', body.id).eq('workspace_id', auth.workspaceId).single();
+    if (fullItem) return apiSuccess({ item: fullItem });
+
+    const { data: baseItem } = await supabase
+      .from('content_plan').select(BASE_SELECT)
+      .eq('id', body.id).eq('workspace_id', auth.workspaceId).single();
+    if (!baseItem) return api400('Item no encontrado');
+    return apiSuccess({ item: baseItem });
 
   } catch {
     return api500('Error actualizando item');
@@ -215,7 +232,7 @@ export async function DELETE(request: Request) {
     const id  = url.searchParams.get('id');
     if (!id) return api400('El id es obligatorio');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { error } = await supabase
       .from('content_plan')
       .delete()

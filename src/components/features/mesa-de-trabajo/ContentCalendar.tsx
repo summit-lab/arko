@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_TYPES, CONTENT_STATUSES } from "@/types/content-plan";
-import type { ContentItem, ContentType, CalendarReel } from "@/types/content-plan";
+import type { ContentItem, ContentType, ContentStatus, CalendarReel } from "@/types/content-plan";
 
 interface ContentCalendarProps {
   items: ContentItem[];
@@ -15,33 +16,27 @@ interface ContentCalendarProps {
   onAddOnDate: (date: string) => void;
 }
 
-const DAYS   = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-const MONTHS = [
-  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
-  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
-];
+const DAY_KEYS   = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
-function getIgPill(type: CalendarReel["type"], isLight: boolean) {
+function getIgPillStyle(type: CalendarReel["type"], isLight: boolean) {
   switch (type) {
     case "carousel":
       return {
         bg:    isLight ? "rgba(99,102,241,0.12)"  : "rgba(99,102,241,0.20)",
         text:  isLight ? "rgba(67,56,202,0.90)"   : "rgba(165,180,252,0.95)",
-        label: "Carrusel",
       };
     case "story":
       return {
         bg:    isLight ? "rgba(251,146,60,0.12)"  : "rgba(251,146,60,0.20)",
         text:  isLight ? "rgba(194,65,12,0.90)"   : "rgba(253,186,116,0.95)",
-        label: "Historia",
       };
     default:
       return {
         bg:    isLight ? "rgba(225,48,108,0.10)"  : "rgba(225,48,108,0.18)",
         text:  isLight ? "rgba(180,20,80,0.85)"   : "rgba(255,150,180,0.9)",
-        label: "IG",
       };
   }
 }
@@ -56,6 +51,11 @@ export function ContentCalendar({
   const { theme } = useTheme();
   const isLight = theme === "light";
   const router = useRouter();
+  const t = useTranslations("mesaDeTrabajo");
+
+  const getPillLabel = (type: CalendarReel["type"]) =>
+    t(`calendar.pillLabel.${type === "carousel" ? "carousel" : type === "story" ? "story" : "reel"}` as
+      "calendar.pillLabel.carousel" | "calendar.pillLabel.story" | "calendar.pillLabel.reel");
 
   const today = new Date();
   const [year, setYear]   = useState(today.getFullYear());
@@ -114,7 +114,7 @@ export function ContentCalendar({
           <ChevronLeft size={16} />
         </button>
         <span className="text-[14px] font-medium min-w-[160px] text-center" style={{ color: textMain }}>
-          {MONTHS[month]} {year}
+          {t(`calendar.months.${MONTH_KEYS[month]}` as `calendar.months.${typeof MONTH_KEYS[number]}`)} {year}
         </span>
         <button
           onClick={nextMonth}
@@ -131,9 +131,9 @@ export function ContentCalendar({
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${border}` }}>
         {/* Day headers */}
         <div className="grid grid-cols-7" style={{ background: headerBg, borderBottom: `1px solid ${border}` }}>
-          {DAYS.map((d) => (
+          {DAY_KEYS.map((d) => (
             <div key={d} className="py-2.5 text-center text-[11px] font-semibold tracking-widest uppercase" style={{ color: textSub }}>
-              {d}
+              {t(`calendar.days.${d}` as `calendar.days.${typeof DAY_KEYS[number]}`)}
             </div>
           ))}
         </div>
@@ -202,8 +202,9 @@ export function ContentCalendar({
                 {/* Content plan items */}
                 <div className="flex flex-col gap-0.5 overflow-hidden">
                   {dayItems.slice(0, 2).map((item) => {
-                    const typeMeta   = CONTENT_TYPES.find((t) => t.value === item.content_type);
+                    const typeMeta   = CONTENT_TYPES.find((tp) => tp.value === item.content_type);
                     const statusMeta = CONTENT_STATUSES.find((s) => s.value === item.status);
+                    const typeLabel  = typeMeta ? t(`type.${typeMeta.value}` as `type.${ContentType}`) : item.content_type;
                     return (
                       <button
                         key={item.id}
@@ -215,16 +216,17 @@ export function ContentCalendar({
                             : statusMeta?.color ?? "rgba(255,255,255,0.06)",
                           color: isLight ? "#111111" : "rgba(255,255,255,0.78)",
                         }}
-                        title={item.title}
+                        title={`${statusMeta ? t(`status.${statusMeta.value}` as `status.${ContentStatus}`) + " · " : ""}${item.title}`}
                       >
-                        {typeMeta?.label} · {item.title}
+                        {typeLabel} · {item.title}
                       </button>
                     );
                   })}
 
                   {/* Published IG items — clickable, color by type */}
                   {dayReels.slice(0, 2).map((reel) => {
-                    const pill = getIgPill(reel.type, isLight);
+                    const pill = getIgPillStyle(reel.type, isLight);
+                    const pillLabel = getPillLabel(reel.type);
                     return reel.href ? (
                       <button
                         key={reel.id}
@@ -233,7 +235,7 @@ export function ContentCalendar({
                         style={{ background: pill.bg, color: pill.text }}
                         title={reel.caption}
                       >
-                        {pill.label} · {reel.caption}
+                        {pillLabel} · {reel.caption}
                       </button>
                     ) : (
                       <div
@@ -242,19 +244,19 @@ export function ContentCalendar({
                         style={{ background: pill.bg, color: pill.text }}
                         title={reel.caption}
                       >
-                        {pill.label} · {reel.caption}
+                        {pillLabel} · {reel.caption}
                       </div>
                     );
                   })}
 
                   {(dayItems.length + dayReels.length) > 4 && (
                     <span className="text-[10px] px-1.5" style={{ color: textSub }}>
-                      +{dayItems.length + dayReels.length - 4} más
+                      {t("calendar.legend.moreCount", { count: dayItems.length + dayReels.length - 4 })}
                     </span>
                   )}
                   {dayItems.length > 2 && dayReels.length === 0 && (
                     <span className="text-[10px] px-1.5" style={{ color: textSub }}>
-                      +{dayItems.length - 2} más
+                      {t("calendar.legend.moreCount", { count: dayItems.length - 2 })}
                     </span>
                   )}
                 </div>
@@ -268,14 +270,14 @@ export function ContentCalendar({
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm" style={{ background: isLight ? "rgba(17,17,17,0.10)" : "rgba(255,255,255,0.10)" }} />
-          <span className="text-[11px]" style={{ color: textSub }}>Planeado</span>
+          <span className="text-[11px]" style={{ color: textSub }}>{t("calendar.legend.planned")}</span>
         </div>
-        {(["reel", "carousel", "story"] as const).map((t) => {
-          const p = getIgPill(t, isLight);
+        {(["reel", "carousel", "story"] as const).map((tp) => {
+          const p = getIgPillStyle(tp, isLight);
           return (
-            <div key={t} className="flex items-center gap-1.5">
+            <div key={tp} className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-sm" style={{ background: p.bg }} />
-              <span className="text-[11px]" style={{ color: textSub }}>{p.label} publicado</span>
+              <span className="text-[11px]" style={{ color: textSub }}>{getPillLabel(tp)} {t("calendar.legend.publishedSuffix")}</span>
             </div>
           );
         })}
@@ -283,7 +285,7 @@ export function ContentCalendar({
           const n = filtered.filter((i) => !i.planned_date).length;
           return n > 0 ? (
             <span className="text-[11px] ml-auto" style={{ color: textSub }}>
-              {n} sin fecha asignada
+              {t("calendar.legend.noDate", { count: n })}
             </span>
           ) : null;
         })()}
