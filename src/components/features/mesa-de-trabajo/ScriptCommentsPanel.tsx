@@ -103,6 +103,7 @@ export function ScriptCommentsPanel({ open, onClose, scriptId, workspaceId, onCo
   const [comments, setComments]   = useState<Comment[]>([]);
   const [loading, setLoading]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
   const [text, setText]           = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -142,13 +143,14 @@ export function ScriptCommentsPanel({ open, onClose, scriptId, workspaceId, onCo
   const handleSubmit = async () => {
     if (!text.trim() || submitting) return;
     setSubmitting(true);
+    setSubmitError(false);
     try {
       const res = await fetch(`/api/v1/scripts/${scriptId}/comments`, {
         method: "POST",
         headers,
         body: JSON.stringify({ text: text.trim() }),
       });
-      if (!res.ok) return;
+      if (!res.ok) { setSubmitError(true); return; }
       const json = await res.json() as { data: { comment: Comment } };
       setComments((prev) => {
         const next = [...prev, json.data.comment];
@@ -157,6 +159,8 @@ export function ScriptCommentsPanel({ open, onClose, scriptId, workspaceId, onCo
       });
       setText("");
       textareaRef.current?.focus();
+    } catch {
+      setSubmitError(true);
     } finally {
       setSubmitting(false);
     }
@@ -300,7 +304,10 @@ export function ScriptCommentsPanel({ open, onClose, scriptId, workspaceId, onCo
               </button>
             </div>
           </div>
-          <p className="text-[10px] mt-1.5 text-center" style={{ color: textSub, opacity: 0.6 }}>⌘↵ para enviar</p>
+          {submitError
+            ? <p className="text-[10px] mt-1.5 text-center text-red-400">Error al enviar. Intentá de nuevo.</p>
+            : <p className="text-[10px] mt-1.5 text-center" style={{ color: textSub, opacity: 0.6 }}>⌘↵ para enviar</p>
+          }
         </div>
       </div>
     </>
