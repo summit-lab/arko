@@ -372,17 +372,29 @@ export const ARKO_TOOLS: LLMTool[] = [
   },
   {
     name: 'update_content_item',
-    description: 'Edita un item existente en la Mesa de Trabajo. Usá list_pipeline_items primero para obtener el ID. Úsala cuando el usuario quiera cambiar el estado, editar el título, agregar un script, o modificar cualquier campo de un contenido ya existente.',
+    description: 'Edita metadata de un item de la Mesa de Trabajo (estado, tipo, plataforma, fecha). NO usar para modificar `script` ni `title` — para eso usá `propose_script_change`, que pide confirmación al usuario antes de aplicar.',
     input_schema: {
       type: 'object',
       properties: {
         id:           { type: 'string', description: 'UUID del item (obligatorio)' },
-        title:        { type: 'string', description: 'Nuevo título (opcional)' },
         status:       { type: 'string', enum: ['idea', 'ready_to_record', 'raw_footage', 'editing', 'ready_to_publish', 'published'], description: 'Nuevo estado (opcional)' },
         content_type: { type: 'string', enum: ['reel', 'carousel', 'story', 'youtube_video'], description: 'Tipo (opcional)' },
         platform:     { type: 'string', enum: ['instagram', 'tiktok', 'youtube'], description: 'Plataforma (opcional)' },
         planned_date: { type: 'string', description: 'Fecha YYYY-MM-DD (opcional)' },
-        script:       { type: 'string', description: 'Guion completo del contenido. Puede ser HTML (con etiquetas <p>, <h1>, <h2>, <ul>, <li>, <strong>, <em>, <u>) o texto plano — el editor renderiza ambos.' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'propose_script_change',
+    description: 'Propone una modificación al script (guion) o al título de un item. CRÍTICO: NO aplica el cambio directamente — crea una propuesta que el usuario aprueba o rechaza desde la UI con un diff visual. Usá esta tool SIEMPRE que quieras reescribir, mejorar o modificar el contenido textual de un guion. El usuario va a ver tu propuesta lado a lado con su versión actual antes de aplicarla. Después de proponer, explicá brevemente qué cambiaste y esperá la decisión del usuario — NO asumas que se aplicó.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:              { type: 'string', description: 'UUID del item (obligatorio)' },
+        proposed_script: { type: 'string', description: 'Guion propuesto completo. HTML (con <p>, <h1>, <h2>, <ul>, <li>, <strong>, <em>, <u>) o texto plano.' },
+        proposed_title:  { type: 'string', description: 'Título propuesto (opcional, solo si querés cambiarlo)' },
+        rationale:       { type: 'string', description: 'Nota corta (1-2 oraciones) describiendo qué cambiaste y por qué. Se muestra al usuario en el preview.' },
       },
       required: ['id'],
     },
@@ -474,6 +486,7 @@ export interface ArkoToolResult {
   contentAdded?: Record<string, unknown>[];
   contentUpdated?: Record<string, unknown>;
   contentDeleted?: { id: string };
+  scriptChangePending?: Record<string, unknown>;
 }
 
 export async function executeArkoTool(
@@ -578,10 +591,18 @@ export async function executeArkoTool(
     case 'update_content_item': {
       const id = input.id as string;
       if (!id) return { result: JSON.stringify({ error: 'id requerido' }) };
-      const allowedFields = ['title', 'description', 'status', 'content_type', 'platform', 'planned_date', 'script'] as const;
+      // SOLO metadata. script/title destructivos van por propose_script_change.
+      const allowedFields = ['description', 'status', 'content_type', 'platform', 'planned_date'] as const;
       const updates: Record<string, unknown> = {};
       for (const key of allowedFields) {
         if (input[key] !== undefined) updates[key] = input[key];
+      }
+      if (input.script !== undefined || input.title !== undefined) {
+        return {
+          result: JSON.stringify({
+            error: 'Para modificar script o title usá propose_script_change (el usuario tiene que aprobar el cambio en un preview).',
+          }),
+        };
       }
       if (Object.keys(updates).length === 0) return { result: JSON.stringify({ error: 'Nada que actualizar' }) };
       const { data, error } = await supabase
@@ -595,6 +616,61 @@ export async function executeArkoTool(
       return {
         result: JSON.stringify({ updated: true, title: (data as Record<string, unknown>)?.title }),
         contentUpdated: data as Record<string, unknown>,
+      };
+    }
+    case 'propose_script_change': {
+      const id = input.id as string;
+      if (!id) return { result: JSON.stringify({ error: 'id requerido' }) };
+      const proposedScript = input.proposed_script as string | undefined;
+      const proposedTitle  = input.proposed_title  as string | undefined;
+      const rationale      = input.rationale        as string | undefined;
+      if (proposedScript === undefined && proposedTitle === undefined) {
+        return { result: JSON.stringify({ error: 'Hay que proponer al menos proposed_script o proposed_title' }) };
+      }
+
+      // Cargar item actual para snapshot del base
+      const { data: current, error: currErr } = await supabase
+        .from('content_plan')
+        .select('id, title, script')
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+      if (currErr || !current) return { result: JSON.stringify({ error: 'Item no encontrado' }) };
+
+      const baseScript = (current as { script?: string | null }).script ?? null;
+      const baseTitle  = (current as { title?: string | null }).title  ?? null;
+
+      // Si la propuesta es idéntica al actual, no crear pending
+      const willChangeScript = proposedScript !== undefined && proposedScript !== baseScript;
+      const willChangeTitle  = proposedTitle  !== undefined && proposedTitle  !== baseTitle;
+      if (!willChangeScript && !willChangeTitle) {
+        return { result: JSON.stringify({ error: 'La propuesta es idéntica a la versión actual.' }) };
+      }
+
+      const { data: pending, error: pendingErr } = await supabase
+        .from('content_plan_pending_changes')
+        .insert({
+          content_plan_id: id,
+          workspace_id: workspaceId,
+          base_script:    baseScript,
+          base_title:     baseTitle,
+          proposed_script: willChangeScript ? proposedScript : baseScript,
+          proposed_title:  willChangeTitle  ? proposedTitle  : baseTitle,
+          proposed_by_kind: 'moka',
+          rationale: rationale ?? null,
+        })
+        .select('id, content_plan_id, base_script, base_title, proposed_script, proposed_title, rationale, created_at, expires_at')
+        .single();
+
+      if (pendingErr) return { result: JSON.stringify({ error: pendingErr.message }) };
+
+      return {
+        result: JSON.stringify({
+          proposed: true,
+          pending_id: (pending as Record<string, unknown>)?.id,
+          note: 'Propuesta creada. El usuario va a ver un preview con diff y decidir si aplicar o descartar. No asumas que se aplicó — esperá la decisión del usuario.',
+        }),
+        scriptChangePending: pending as Record<string, unknown>,
       };
     }
     case 'get_content_item': {

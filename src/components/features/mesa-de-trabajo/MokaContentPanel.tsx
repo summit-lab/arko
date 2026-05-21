@@ -22,6 +22,7 @@ interface MokaContentPanelProps {
   onContentAdded?: (items: Record<string, unknown>[]) => void;
   onContentUpdated?: (item: Record<string, unknown>) => void;
   onContentDeleted?: (id: string) => void;
+  onScriptChangePending?: (pending: Record<string, unknown>) => void;
 }
 
 interface SessionMeta {
@@ -104,6 +105,7 @@ export function MokaContentPanel({
   onContentAdded,
   onContentUpdated,
   onContentDeleted,
+  onScriptChangePending,
 }: MokaContentPanelProps) {
   const { theme } = useTheme();
   const isLight = theme === "light";
@@ -138,6 +140,7 @@ export function MokaContentPanel({
     onContentAdded,
     onContentUpdated,
     onContentDeleted,
+    onScriptChangePending,
   });
 
   const tSugg = useTranslations("mesaDeTrabajo.mokaPanel.suggestions");

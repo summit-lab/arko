@@ -151,6 +151,7 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     get_content_item: 'Cargando el item',
     move_content_item: 'Moviendo de columna',
     delete_content_item: 'Eliminando el item',
+    propose_script_change: 'Preparando propuesta de cambio',
   },
   en: {
     query_reels: 'Looking at your past content',
@@ -172,6 +173,7 @@ const TOOL_LABELS: Record<PromptLocale, Record<string, string>> = {
     get_content_item: 'Loading the item',
     move_content_item: 'Moving column',
     delete_content_item: 'Deleting the item',
+    propose_script_change: 'Preparing change proposal',
   },
 };
 
@@ -543,6 +545,9 @@ export async function POST(request: Request) {
               }
               if (toolResults[t].contentDeleted) {
                 controller.enqueue(sseEvent({ type: 'content_deleted', id: toolResults[t].contentDeleted!.id }));
+              }
+              if (toolResults[t].scriptChangePending) {
+                controller.enqueue(sseEvent({ type: 'script_change_pending', pending: toolResults[t].scriptChangePending }));
               }
             }
 

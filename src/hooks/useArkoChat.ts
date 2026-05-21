@@ -35,6 +35,8 @@ interface UseArkoChatOptions {
   onContentAdded?: (items: Record<string, unknown>[]) => void;
   onContentUpdated?: (item: Record<string, unknown>) => void;
   onContentDeleted?: (id: string) => void;
+  /** Llamado cuando Moka propone un cambio de script vía propose_script_change. */
+  onScriptChangePending?: (pending: Record<string, unknown>) => void;
 }
 
 interface UseArkoChatReturn {
@@ -58,6 +60,7 @@ export function useArkoChat({
   onContentAdded,
   onContentUpdated,
   onContentDeleted,
+  onScriptChangePending,
 }: UseArkoChatOptions): UseArkoChatReturn {
   const t = useTranslations("arkoChat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -222,6 +225,12 @@ export function useArkoChat({
                   break;
                 }
 
+                case "script_change_pending":
+                  if (onScriptChangePending && event.pending) {
+                    onScriptChangePending(event.pending as Record<string, unknown>);
+                  }
+                  break;
+
                 case "error":
                   throw new Error(event.message || t("errors.server"));
               }
@@ -262,7 +271,7 @@ export function useArkoChat({
         setToolSteps([]);
       }
     },
-    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated, onContentDeleted],
+    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated, onContentDeleted, onScriptChangePending],
   );
 
   return {
