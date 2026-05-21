@@ -35,24 +35,32 @@ export function ContentCard({ item, onClick }: ContentCardProps) {
   const textMain    = isLight ? "#111111" : "rgba(255,255,255,0.85)";
   const textSub     = isLight ? "rgba(17,17,17,0.45)" : "rgba(255,255,255,0.38)";
 
+  const TYPE_ACCENT: Record<string, { border: string; glow: string; glowHover: string }> = {
+    reel:          { border: "rgba(139,92,246,0.55)",  glow: "rgba(139,92,246,0.12)",  glowHover: "rgba(139,92,246,0.22)" },
+    carousel:      { border: "rgba(14,165,233,0.55)",  glow: "rgba(14,165,233,0.12)",  glowHover: "rgba(14,165,233,0.22)" },
+    story:         { border: "rgba(251,146,60,0.55)",  glow: "rgba(251,146,60,0.12)",  glowHover: "rgba(251,146,60,0.22)" },
+    youtube_video: { border: "rgba(239,68,68,0.55)",   glow: "rgba(239,68,68,0.12)",   glowHover: "rgba(239,68,68,0.22)"  },
+  };
+  const accent = TYPE_ACCENT[item.content_type] ?? { border: cardBorder, glow: "transparent", glowHover: "transparent" };
+
   return (
     <button
       onClick={onClick}
       className="w-full text-left rounded-xl border transition-all duration-150 p-3 flex flex-col gap-2 group"
       style={{
         background: cardBg,
-        borderColor: cardBorder,
-        boxShadow: isLight ? "0 1px 3px rgba(0,0,0,0.04)" : "none",
+        borderColor: accent.border,
+        boxShadow: `0 4px 16px 0 ${accent.glow}`,
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget;
         el.style.background = cardHoverBg;
-        el.style.borderColor = cardHoverBorder;
+        el.style.boxShadow = `0 4px 20px 0 ${accent.glowHover}`;
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget;
         el.style.background = cardBg;
-        el.style.borderColor = cardBorder;
+        el.style.boxShadow = `0 4px 16px 0 ${accent.glow}`;
       }}
     >
       {/* Type + date row */}
