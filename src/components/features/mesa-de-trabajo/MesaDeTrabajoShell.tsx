@@ -126,6 +126,31 @@ export function MesaDeTrabajoShell({
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, [workspaceId]);
 
+  // Drag-and-drop within-column reorder — optimistic, persists position in DB
+  const handleReorder = useCallback(async (id: string, newPosition: number, status: ContentStatus) => {
+    // Update local positions optimistically: reassign 0..N-1 with dragged item at newPosition
+    setItems((all) => {
+      const col = [...all.filter((i) => i.status === status)].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      const without = col.filter((i) => i.id !== id);
+      const reordered = [
+        ...without.slice(0, newPosition),
+        col.find((i) => i.id === id)!,
+        ...without.slice(newPosition),
+      ].map((item, idx) => ({ ...item, position: idx }));
+      const reorderedMap = Object.fromEntries(reordered.map((i) => [i.id, i.position]));
+      return all.map((i) => i.status === status && reorderedMap[i.id] !== undefined
+        ? { ...i, position: reorderedMap[i.id] }
+        : i
+      );
+    });
+    // Persist only the moved item's new position
+    await fetch("/api/v1/content-plan", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-workspace-id": workspaceId },
+      body: JSON.stringify({ id, position: newPosition }),
+    });
+  }, [workspaceId]);
+
   // Drag-and-drop status change — optimistic + rollback
   const handleStatusChange = useCallback(async (id: string, newStatus: ContentStatus) => {
     const prevItem = items.find((i) => i.id === id);
@@ -257,6 +282,7 @@ export function MesaDeTrabajoShell({
               onCardClick={openEdit}
               onAddInColumn={(status) => openCreate(status)}
               onStatusChange={handleStatusChange}
+              onReorder={handleReorder}
             />
           ) : (
             <div className="h-full overflow-y-auto scrollbar-none pr-2">

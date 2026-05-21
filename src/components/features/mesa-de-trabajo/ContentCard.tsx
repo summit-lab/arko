@@ -35,13 +35,13 @@ export function ContentCard({ item, onClick }: ContentCardProps) {
   const textMain    = isLight ? "#111111" : "rgba(255,255,255,0.85)";
   const textSub     = isLight ? "rgba(17,17,17,0.45)" : "rgba(255,255,255,0.38)";
 
-  const TYPE_ACCENT: Record<string, { border: string; glow: string; glowHover: string }> = {
-    reel:          { border: "rgba(139,92,246,0.55)",  glow: "rgba(139,92,246,0.12)",  glowHover: "rgba(139,92,246,0.22)" },
-    carousel:      { border: "rgba(14,165,233,0.55)",  glow: "rgba(14,165,233,0.12)",  glowHover: "rgba(14,165,233,0.22)" },
-    story:         { border: "rgba(251,146,60,0.55)",  glow: "rgba(251,146,60,0.12)",  glowHover: "rgba(251,146,60,0.22)" },
-    youtube_video: { border: "rgba(239,68,68,0.55)",   glow: "rgba(239,68,68,0.12)",   glowHover: "rgba(239,68,68,0.22)"  },
+  const TYPE_ACCENT: Record<string, { border: string; shadow: string; shadowHover: string }> = {
+    reel:          { border: "rgba(139,92,246,0.22)", shadow: "0 0 0 1px rgba(139,92,246,0.18), 0 4px 20px rgba(139,92,246,0.18)", shadowHover: "0 0 0 1px rgba(139,92,246,0.35), 0 4px 24px rgba(139,92,246,0.28)" },
+    carousel:      { border: "rgba(14,165,233,0.22)",  shadow: "0 0 0 1px rgba(14,165,233,0.18),  0 4px 20px rgba(14,165,233,0.18)",  shadowHover: "0 0 0 1px rgba(14,165,233,0.35),  0 4px 24px rgba(14,165,233,0.28)"  },
+    story:         { border: "rgba(251,146,60,0.22)",  shadow: "0 0 0 1px rgba(251,146,60,0.18),  0 4px 20px rgba(251,146,60,0.18)",  shadowHover: "0 0 0 1px rgba(251,146,60,0.35),  0 4px 24px rgba(251,146,60,0.28)"  },
+    youtube_video: { border: "rgba(239,68,68,0.22)",   shadow: "0 0 0 1px rgba(239,68,68,0.18),   0 4px 20px rgba(239,68,68,0.18)",   shadowHover: "0 0 0 1px rgba(239,68,68,0.35),   0 4px 24px rgba(239,68,68,0.28)"   },
   };
-  const accent = TYPE_ACCENT[item.content_type] ?? { border: cardBorder, glow: "transparent", glowHover: "transparent" };
+  const accent = TYPE_ACCENT[item.content_type] ?? { border: cardBorder, shadow: "none", shadowHover: "none" };
 
   return (
     <button
@@ -50,17 +50,17 @@ export function ContentCard({ item, onClick }: ContentCardProps) {
       style={{
         background: cardBg,
         borderColor: accent.border,
-        boxShadow: `0 4px 16px 0 ${accent.glow}`,
+        boxShadow: accent.shadow,
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget;
         el.style.background = cardHoverBg;
-        el.style.boxShadow = `0 4px 20px 0 ${accent.glowHover}`;
+        el.style.boxShadow = accent.shadowHover;
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget;
         el.style.background = cardBg;
-        el.style.boxShadow = `0 4px 16px 0 ${accent.glow}`;
+        el.style.boxShadow = accent.shadow;
       }}
     >
       {/* Type + date row */}
