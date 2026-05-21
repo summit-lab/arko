@@ -41,6 +41,16 @@ export function ContentPipeline({
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) > 5) return;
       if (e.deltaY === 0) return;
+      // Si el target está dentro de un contenedor con scroll vertical, dejarlo scrollear.
+      let node = e.target as HTMLElement | null;
+      while (node && node !== el) {
+        const style = getComputedStyle(node);
+        if (
+          (style.overflowY === "auto" || style.overflowY === "scroll") &&
+          node.scrollHeight > node.clientHeight
+        ) return;
+        node = node.parentElement;
+      }
       e.preventDefault();
       el.scrollLeft += e.deltaY;
     };
