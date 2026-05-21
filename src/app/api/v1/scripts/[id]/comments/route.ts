@@ -5,7 +5,7 @@
  * DELETE /api/v1/scripts/[id]/comments  — Elimina un comentario (?commentId= en query)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 
@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (isAuthError(auth)) return auth;
 
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     const { data, error } = await supabase
       .from('script_comments')
@@ -42,11 +42,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!body.text?.trim()) return api400('El comentario no puede estar vacío');
     if (body.text.trim().length > 2000) return api400('El comentario es demasiado largo');
 
-    const supabase = await createClient();
-
-    // Obtener email del usuario para usarlo como nombre
-    const { data: { user } } = await supabase.auth.getUser();
+    // Obtener email del usuario — necesita createClient (auth context)
+    const clientSupabase = await createClient();
+    const { data: { user } } = await clientSupabase.auth.getUser();
     const authorName = user?.email ?? 'Usuario';
+
+    const supabase = createServiceClient();
 
     const { data, error } = await supabase
       .from('script_comments')
@@ -77,7 +78,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (!body.commentId) return api400('Falta commentId');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     const { data, error } = await supabase
       .from('script_comments')
@@ -106,7 +107,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     if (!commentId) return api400('Falta commentId');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     const { error } = await supabase
       .from('script_comments')
