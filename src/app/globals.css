@@ -374,6 +374,21 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading-local), "Manrope Bold", ui-sans-serif, system-ui, sans-serif;
   }
+  button:not([disabled]),
+  [role="button"],
+  [role="tab"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  [role="menuitem"],
+  [role="option"],
+  [role="combobox"],
+  a[href],
+  select,
+  label,
+  summary {
+    cursor: pointer;
+  }
 }
 
 /* ── Custom scrollbar — Glass style (global) ── */

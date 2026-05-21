@@ -1903,7 +1903,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
   if (loading) {
     return (
-      <div className="grid grid-cols-[240px_1fr_300px] gap-4 animate-pulse">
+      <div className="grid grid-cols-[240px_1fr] gap-4 animate-pulse">
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-white/[0.04]" />)}</div>
         <div className="space-y-3">
           <div className="h-24 rounded-xl bg-white/[0.025]" />
@@ -1911,7 +1911,6 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             {[1,2,3,4,5,6].map(i => <div key={i} className="rounded-xl bg-white/[0.025]" style={{ aspectRatio: "4/5" }} />)}
           </div>
         </div>
-        <div className="h-[400px] rounded-xl bg-white/[0.025]" />
       </div>
     );
   }
@@ -1951,7 +1950,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
           </div>
         )}
 
-        <div className="grid grid-cols-[240px_1fr_300px] gap-4 items-start">
+        <div className="grid grid-cols-[240px_1fr] gap-4 items-start">
 
           {/* ── Sidebar ── */}
           <div className="space-y-2">
@@ -2089,7 +2088,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
                     {paginatedReels.map((reel) => (
                       <ReelGalleryCard
                         key={reel.id}
@@ -2141,15 +2140,6 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             </div>
           )}
 
-          {/* ── Insights panel ── */}
-          {selected && (
-            <div className={`sticky top-4 space-y-3 transition-opacity duration-150 ${isPanelStale ? "opacity-40" : "opacity-100"}`}>
-              <p className="text-[10px] text-white/25 uppercase tracking-wider flex items-center gap-1.5">
-                <Brain size={10} /> {t("competitor.insights.heading")}
-              </p>
-              <InsightsPanel competitor={selected} myStats={myStats} myFollowerHistory={myFollowerHistory} />
-            </div>
-          )}
         </div>
       </div>
     </>

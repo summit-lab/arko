@@ -21,6 +21,13 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const activeTab = (params.tab as TabKey) || "reels";
   const dateRange = parseDateParams(params, "90d");
   const t = await getTranslations("instagram");
+  const tNav = await getTranslations("nav");
+  const TAB_TITLES: Partial<Record<TabKey, string>> = {
+    reels:       "Reels",
+    historias:   tNav("historias"),
+    competencia: tNav("competencia"),
+  };
+  const pageTitle = TAB_TITLES[activeTab] ?? t("pageTitle");
   const periodDays = dateRange.days;
   const periodStartIso = toISOStart(dateRange.from);
   // Upper bound exclusivo: para filtrar `published_at` entre dateRange.from y
@@ -420,7 +427,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="page-title tracking-[-0.04em]">{t("pageTitle")}</h1>
+          <h1 className="page-title tracking-[-0.04em]">{pageTitle}</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">
             {t("pageSubtitle")}
             {!hasRealData && connectionStatus !== "active" && (
