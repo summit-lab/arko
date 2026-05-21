@@ -34,6 +34,7 @@ export interface ContentItem {
   source_type?: 'manual' | 'ai_insight' | 'competitor_reel';
   source_ref?: string | null;
   metrics?: ContentMetrics | null;
+  position?: number;
   created_at: string;
   updated_at: string;
 }

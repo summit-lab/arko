@@ -16,7 +16,7 @@ const VALID_STATUSES: ContentStatus[] = [
 const VALID_TYPES: ContentType[]         = ['reel', 'carousel', 'story', 'youtube_video'];
 const VALID_PLATFORMS: ContentPlatform[] = ['instagram', 'tiktok', 'youtube'];
 
-const BASE_SELECT = 'id, planned_date, title, platform, content_type, status, created_at, updated_at';
+const BASE_SELECT = 'id, planned_date, title, platform, content_type, status, position, created_at, updated_at';
 const FULL_SELECT = `${BASE_SELECT}, script, reference_url, raw_video_url, edited_video_url, source_type, source_ref, metrics`;
 
 export async function GET(request: Request) {
@@ -148,6 +148,7 @@ export async function PATCH(request: Request) {
       raw_video_url?: string | null;
       edited_video_url?: string | null;
       metrics?: ContentMetrics | null;
+      position?: number;
     };
 
     if (!body.id) return api400('El id es obligatorio');
@@ -176,6 +177,7 @@ export async function PATCH(request: Request) {
     if ('raw_video_url'   in body) updates.raw_video_url   = body.raw_video_url?.trim()         ?? null;
     if ('edited_video_url'in body) updates.edited_video_url= body.edited_video_url?.trim()      ?? null;
     if ('metrics'         in body) updates.metrics         = body.metrics                       ?? null;
+    if ('position'        in body && typeof body.position === 'number') updates.position = body.position;
 
     if (Object.keys(updates).length === 0) return api400('Nada que actualizar');
 
