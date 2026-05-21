@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles } from "lucide-react";
+import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles, MessageSquare, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
@@ -11,6 +11,7 @@ import type { ContentItem, ContentStatus, ContentType } from "@/types/content-pl
 import { ScriptEditorV2 } from "./ScriptEditorV2";
 import { useScriptLayout } from "./ScriptLayoutContext";
 import { MokaContentPanel } from "./MokaContentPanel";
+import { ScriptCommentsPanel } from "./ScriptCommentsPanel";
 import type { ScriptChatContext } from "@/hooks/useArkoChat";
 
 const AUTOSAVE_DEBOUNCE = 600;
@@ -47,7 +48,10 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [mokaOpen, setMokaOpen] = useState(false);
+  const [mokaOpen, setMokaOpen]         = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
+  const [focusInputTrigger, setFocusInputTrigger] = useState(0);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize del título: que crezca en alto según el texto, sin scroll horizontal.
@@ -200,10 +204,11 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     return () => window.clearTimeout(t);
   }, [saveState]);
 
-  // Close Moka when entering focus mode (foco = no distractions)
+  // Close Moka and comments when entering focus mode (foco = no distractions)
   useEffect(() => {
     if (focusMode && mokaOpen) setMokaOpen(false);
-  }, [focusMode, mokaOpen]);
+    if (focusMode && commentsOpen) setCommentsOpen(false);
+  }, [focusMode, mokaOpen, commentsOpen]);
 
   // Build the context Moka receives on every message while editing this script
   const mokaContext = useMemo<ScriptChatContext>(() => ({
@@ -332,6 +337,41 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
               {saveLabel.icon}
               <span>{saveLabel.text}</span>
             </div>
+          )}
+          {!focusMode && (
+            <button
+              onClick={() => {
+                setCommentsOpen(true);
+                setFocusInputTrigger((n) => n + 1);
+              }}
+              title="Agregar comentario"
+              className="flex items-center gap-1 text-[11.5px] px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+              style={{ background: "rgba(139,92,246,0.12)", color: "rgb(167,139,250)", border: "1px solid rgba(139,92,246,0.2)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(139,92,246,0.2)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(139,92,246,0.12)"; }}
+            >
+              <Plus size={11} strokeWidth={2.5} />
+              Comentario
+            </button>
+          )}
+          {!focusMode && (
+            <button
+              onClick={() => setCommentsOpen((v) => !v)}
+              title="Comentarios"
+              className="relative flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-md transition-colors cursor-pointer"
+              style={{ color: commentsOpen ? textMain : textSub }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = commentsOpen ? textMain : textSub}
+            >
+              <MessageSquare size={12} />
+              Comentarios
+              {commentCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-semibold tabular-nums"
+                  style={{ background: "rgba(139,92,246,0.9)", color: "#fff" }}>
+                  {commentCount > 9 ? "9+" : commentCount}
+                </span>
+              )}
+            </button>
           )}
           {!focusMode && (
             <button
@@ -494,6 +534,16 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
           maxWidth={editorMaxW}
         />
       </div>
+
+      {/* Comments panel — slide-in desde la derecha */}
+      <ScriptCommentsPanel
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        scriptId={item.id}
+        workspaceId={workspaceId}
+        onCountChange={setCommentCount}
+        focusInputTrigger={focusInputTrigger}
+      />
 
       {/* Moka — slide-in modal with backdrop blur (managed by MokaContentPanel) */}
       <MokaContentPanel
