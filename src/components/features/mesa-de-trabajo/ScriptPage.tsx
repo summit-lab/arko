@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles, MessageSquare, Plus } from "lucide-react";
+import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles, MessageSquare, Plus, History } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
@@ -12,7 +12,19 @@ import { ScriptEditorV2 } from "./ScriptEditorV2";
 import { useScriptLayout } from "./ScriptLayoutContext";
 import { MokaContentPanel } from "./MokaContentPanel";
 import { ScriptCommentsPanel } from "./ScriptCommentsPanel";
+import { ScriptHistoryModal } from "./ScriptHistoryModal";
+import { ScriptChangePreviewModal } from "./ScriptChangePreviewModal";
 import type { ScriptChatContext } from "@/hooks/useArkoChat";
+
+interface PendingChange {
+  id: string;
+  content_plan_id: string;
+  base_script: string | null;
+  base_title: string | null;
+  proposed_script: string | null;
+  proposed_title: string | null;
+  rationale: string | null;
+}
 
 const AUTOSAVE_DEBOUNCE = 600;
 
@@ -52,6 +64,8 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0);
+  const [historyOpen, setHistoryOpen]   = useState(false);
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize del título: que crezca en alto según el texto, sin scroll horizontal.
@@ -256,6 +270,20 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     void refreshSiblings();
   }, [item.id, refreshSiblings, router]);
 
+  const handleMokaScriptChangePending = useCallback((pending: Record<string, unknown>) => {
+    // Solo mostramos preview si la propuesta es para el item que estamos editando.
+    if (pending.content_plan_id !== item.id) return;
+    setPendingChange({
+      id:               pending.id as string,
+      content_plan_id:  pending.content_plan_id as string,
+      base_script:      (pending.base_script      as string | null) ?? null,
+      base_title:       (pending.base_title       as string | null) ?? null,
+      proposed_script:  (pending.proposed_script  as string | null) ?? null,
+      proposed_title:   (pending.proposed_title   as string | null) ?? null,
+      rationale:        (pending.rationale        as string | null) ?? null,
+    });
+  }, [item.id]);
+
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setDeleting(true);
@@ -371,6 +399,19 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
                   {commentCount > 9 ? "9+" : commentCount}
                 </span>
               )}
+            </button>
+          )}
+          {!focusMode && (
+            <button
+              onClick={() => setHistoryOpen(true)}
+              title={t("scripts.historyBtn")}
+              className="flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-md transition-colors cursor-pointer"
+              style={{ color: textSub }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = textSub}
+            >
+              <History size={12} />
+              {t("scripts.historyBtn")}
             </button>
           )}
           {!focusMode && (
@@ -561,6 +602,39 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         onContentAdded={handleMokaContentAdded}
         onContentUpdated={handleMokaContentUpdated}
         onContentDeleted={handleMokaContentDeleted}
+        onScriptChangePending={handleMokaScriptChangePending}
+      />
+
+      {/* Preview de cambio propuesto por Moka */}
+      <ScriptChangePreviewModal
+        pending={pendingChange}
+        workspaceId={workspaceId}
+        onApply={(newScript, newTitle) => {
+          lastSaved.current = { title: newTitle ?? title, script: newScript };
+          setScriptHtml(newScript);
+          if (newTitle) setTitle(newTitle);
+          setEditorRevision((r) => r + 1);
+          setSaveState("saved");
+          setPendingChange(null);
+        }}
+        onReject={() => setPendingChange(null)}
+        onClose={() => setPendingChange(null)}
+      />
+
+      {/* Historial del guion */}
+      <ScriptHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        contentPlanId={item.id}
+        workspaceId={workspaceId}
+        currentScript={scriptHtml}
+        onRestored={(newScript, newTitle) => {
+          lastSaved.current = { title: newTitle ?? title, script: newScript };
+          setScriptHtml(newScript);
+          if (newTitle) setTitle(newTitle);
+          setEditorRevision((r) => r + 1);
+          setSaveState("saved");
+        }}
       />
     </div>
   );

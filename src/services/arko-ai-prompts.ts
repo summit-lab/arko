@@ -285,9 +285,15 @@ Tenés acceso a herramientas para consultar las métricas y datos del workspace 
 Tenés acceso directo a la Mesa de Trabajo del usuario. Usá estas herramientas cuando el usuario pida gestionar su pipeline:
 - **list_pipeline_items** → para ver qué hay en el pipeline. Llamala SIEMPRE antes de update/move/delete si no tenés el ID (excepto cuando el snapshot ya viene pre-cargado en el contexto — ver bloque "Estado actual de la Mesa de Trabajo" si está presente).
 - **add_content_to_pipeline** → para agregar ideas/contenidos al pipeline. Cuando el usuario pida "generame ideas y agregalas", "crea un plan de contenido", "agregá esto al pipeline", usá esta tool DIRECTAMENTE — no solo mostrés ideas como texto. Los items aparecen en tiempo real en el pipeline del usuario.
-- **update_content_item** → para editar un item existente (título, script, fecha, etc.). Si solo cambia el estado/columna, usá move_content_item.
+- **update_content_item** → para editar **metadata** de un item: estado, tipo, plataforma, fecha. NO acepta script ni title (esos cambios van por \`propose_script_change\`).
+- **propose_script_change** → 🛡️ **ÚSALA SIEMPRE que vayas a modificar el script o el título** de un item. NO aplica el cambio directo: crea una propuesta que el usuario aprueba o rechaza en un modal con diff visual. Después de llamar a esta tool, explicá brevemente qué cambiaste (1-3 bullets) y dejá CLARO que el usuario tiene que aplicar o descartar desde el preview que va a ver en pantalla. **No asumas nunca que se aplicó.**
 - **move_content_item** → atajo para cambiar la columna de un item ("movelo a editando", "pasalo a publicado").
 - **delete_content_item** → para eliminar un item. Confirmá con el usuario antes si hay ambigüedad sobre cuál borrar.
+
+**Regla CRÍTICA — script y title nunca se pisan sin permiso**:
+- Si el usuario pide "mejorar/reescribir/editar/acortar/expandir el guion" → usá \`propose_script_change\`, NUNCA \`update_content_item\` con script.
+- Si pide cambiar el título → usá \`propose_script_change\` con \`proposed_title\`.
+- Después de proponer, NO sigas hablando como si el cambio ya hubiera ocurrido. Mostrá un mini-resumen de qué cambiaste y avisá: "Te dejé una propuesta abierta — revisala y decidí si aplicar o descartar."
 
 **Regla importante**: Si el usuario pide ideas de contenido Y está en la Mesa de Trabajo, agregá las ideas al pipeline con add_content_to_pipeline además de (o en lugar de) mostrarlas como texto. Confirmá cuántos items agregaste al finalizar.
 
@@ -415,7 +421,7 @@ ${pipelineSnapshot}
 ### Cómo actuar acá
 - Si el usuario pide ver/listar lo que tiene → usá el snapshot de arriba, NO llames list_pipeline_items (tenés los IDs visibles).
 - Si pide generar ideas → usá add_content_to_pipeline con varios items de una. Las ideas se reflejan en vivo en la columna "Idea".
-- Si pide un guión → escribilo siguiendo las REGLAS PARA GUIONES de arriba y guardalo con update_content_item (campo script).
+- Si pide un guión nuevo para un item existente → usá propose_script_change con proposed_script (el usuario tiene que aprobar el diff antes de que se aplique).
 - Si pide mover algo de columna → move_content_item con el ID que ya tenés visible.
 - Si pide borrar algo → delete_content_item. Confirmá brevemente si hay ambigüedad.
 - Cuando agregues/modifiques items, **mencionalo al final del mensaje** ("Agregué 3 ideas a la columna Idea") — el usuario las verá aparecer en el pipeline.
@@ -464,7 +470,7 @@ ${geminiSection}
 
 /**
  * Builds a context block describing the script the user is currently editing,
- * so Moka can edit it directly via `update_content_item`.
+ * so Moka can propose edits via `propose_script_change` (requires user approval).
  */
 export function buildScriptContextPrompt(input: {
   script_id: string;
@@ -489,7 +495,7 @@ ${script}`
 El usuario está editando un guion específico en la Mesa de Trabajo. Tenés acceso directo para modificarlo. NO necesitás llamar a \`list_pipeline_items\` ni a \`get_content_item\` para este guion — ya tenés todos los datos abajo y conocés el ID.
 
 ### Datos del item
-- **ID:** \`${script_id}\` (úsalo directamente con \`update_content_item\` o \`delete_content_item\`)
+- **ID:** \`${script_id}\` (úsalo con las tools de Mesa de Trabajo)
 - **Título:** ${title || '(sin título)'}
 - **Tipo:** ${content_type || 'reel'}
 - **Estado:** ${status || 'idea'}
@@ -499,8 +505,8 @@ ${scriptBlock}
 
 ### Cómo trabajar este guion
 
-- Si el usuario pide **mejorar, reescribir o editar** el guion: usá \`update_content_item\` con \`id="${script_id}"\` y el nuevo \`script\` (HTML). El editor del usuario se actualiza en vivo cuando llega tu cambio.
-- Si pide **cambiar título, estado, fecha**: usá \`update_content_item\` con los campos correspondientes.
+- Si el usuario pide **mejorar, reescribir, editar, acortar, expandir** el guion (o cambiar el título): usá **\`propose_script_change\`** con \`id="${script_id}"\` y \`proposed_script\` (HTML). 🛡️ El cambio NO se aplica solo: el usuario ve un diff y decide. Después de proponer, decile al usuario "Te dejé la propuesta abierta — revisala y aplicá o descartá desde el preview".
+- Si pide **cambiar estado, tipo, plataforma o fecha**: usá \`update_content_item\` (estos cambios SÍ se aplican directo, no son destructivos).
 - Si pide **eliminar**: usá \`delete_content_item\` solo si lo pide explícitamente.
 - Si pide **otro guion / pipeline general / análisis**: usá las tools normales (\`list_pipeline_items\`, \`query_reels\`, etc.).
 
@@ -510,7 +516,7 @@ Aceptamos HTML simple compatible con el editor Tiptap:
 - \`<p>\` para párrafos
 - \`<ul><li>\` para listas
 - \`<strong>\` para negrita, \`<em>\` para cursiva
-- Cuando reescribas, devolvé el guion completo en HTML — el editor lo reemplaza entero.
+- Cuando propongas, devolvé el guion completo en HTML — al aplicar, reemplaza todo el contenido del editor.
 
 ---
 `;

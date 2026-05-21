@@ -229,7 +229,33 @@
       "wordsCount": "{count} palabras",
       "readTime": "~{minutes} min lectura",
       "mokaGreeting": "Estoy mirando \"{title}\". ¿En qué te ayudo?",
-      "mokaGreetingNoTitle": "Estoy mirando este guion. ¿En qué te ayudo?"
+      "mokaGreetingNoTitle": "Estoy mirando este guion. ¿En qué te ayudo?",
+      "historyBtn": "Historial"
+    },
+    "history": {
+      "title": "Historial del guion",
+      "subtitle": "Versiones anteriores. Podés restaurar cualquiera.",
+      "loading": "Cargando…",
+      "loadError": "Error cargando versiones.",
+      "empty": "Aún no hay versiones anteriores.",
+      "selectVersion": "Seleccioná una versión para verla.",
+      "sameAsCurrent": "Esta versión es idéntica a la actual.",
+      "restore": "Restaurar esta versión",
+      "restoring": "Restaurando…",
+      "restoreConfirm": "¿Restaurar esta versión? La versión actual quedará guardada en el historial.",
+      "restoreError": "Error restaurando la versión."
+    },
+    "diffPreview": {
+      "title": "Moka quiere modificar tu guion",
+      "subtitle": "Revisá los cambios antes de aplicarlos. Tu versión actual queda guardada en el historial.",
+      "current": "Tu versión actual",
+      "proposed": "Versión propuesta por Moka",
+      "apply": "Aplicar cambios",
+      "applying": "Aplicando…",
+      "reject": "Descartar",
+      "rejecting": "Descartando…",
+      "applyError": "Error aplicando los cambios.",
+      "rejectError": "Error descartando los cambios."
     },
     "mokaPanel": {
       "name": "Moka AI",
