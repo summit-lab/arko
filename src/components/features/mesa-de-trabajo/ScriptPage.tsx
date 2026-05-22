@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles, MessageSquare, Plus, History } from "lucide-react";
+import { Check, Loader2, AlertCircle, Calendar, ChevronRight, Trash2, PanelLeftOpen, Maximize2, Minimize2, Sparkles, MessageSquare, History } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
@@ -11,7 +11,7 @@ import type { ContentItem, ContentStatus, ContentType } from "@/types/content-pl
 import { ScriptEditorV2, type ScriptEditorV2Handle } from "./ScriptEditorV2";
 import { useScriptLayout } from "./ScriptLayoutContext";
 import { MokaContentPanel } from "./MokaContentPanel";
-import { ScriptCommentsPanel } from "./ScriptCommentsPanel";
+import { ScriptInlineCommentsPanel, type InlineComment } from "./ScriptInlineCommentsPanel";
 import { ScriptHistoryModal } from "./ScriptHistoryModal";
 import { ScriptChangePreviewModal } from "./ScriptChangePreviewModal";
 import type { ScriptChatContext } from "@/hooks/useArkoChat";
@@ -61,10 +61,20 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [mokaOpen, setMokaOpen]         = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentCount, setCommentCount] = useState(0);
-  const [focusInputTrigger, setFocusInputTrigger] = useState(0);
+  // Comentarios inline (estilo Notion/Docs) — single source of truth en este nivel.
+  const [comments, setComments] = useState<InlineComment[]>([]);
+  const [draftCommentId, setDraftCommentId]     = useState<string | null>(null);
+  const [draftQuotedText, setDraftQuotedText]   = useState<string | null>(null);
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen]   = useState(false);
+
+  const unresolvedCount = useMemo(() => comments.filter((c) => !c.resolved).length, [comments]);
+
+  // Versión estable basada en el largo del script — el panel usa esto como dep
+  // para recalcular `anchorTops`. Como solo cambia con +/- chars (no en cada keystroke
+  // pequeño dentro de un mismo párrafo si el largo total no cambia), evita recalcular
+  // posiciones DOM en cada tecla. El panel ya tiene debounce 300ms encima.
+  const commentsAnchorVersion = useMemo(() => `${item.id}:${scriptHtml.length}`, [item.id, scriptHtml.length]);
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
@@ -219,11 +229,29 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     return () => window.clearTimeout(t);
   }, [saveState]);
 
-  // Close Moka and comments when entering focus mode (foco = no distractions)
+  // Close Moka when entering focus mode (foco = no distractions)
   useEffect(() => {
     if (focusMode && mokaOpen) setMokaOpen(false);
-    if (focusMode && commentsOpen) setCommentsOpen(false);
-  }, [focusMode, mokaOpen, commentsOpen]);
+  }, [focusMode, mokaOpen]);
+
+  // Pre-cargar comentarios al montar (single source of truth — el panel no
+  // hace su propio fetch).
+  useEffect(() => {
+    let aborted = false;
+    setComments([]); // reset cuando cambia item.id
+    void (async () => {
+      try {
+        const res = await fetch(`/api/v1/scripts/${item.id}/comments`, {
+          headers: { "x-workspace-id": workspaceId },
+        });
+        if (!res.ok || aborted) return;
+        const data = await res.json();
+        const list = (data?.data?.comments ?? []) as InlineComment[];
+        if (!aborted) setComments(list);
+      } catch { /* silent */ }
+    })();
+    return () => { aborted = true; };
+  }, [item.id, workspaceId]);
 
   // Build the context Moka receives on every message while editing this script
   const mokaContext = useMemo<ScriptChatContext>(() => ({
@@ -449,40 +477,15 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
               <span>{saveLabel.text}</span>
             </div>
           )}
-          {!focusMode && (
-            <button
-              onClick={() => {
-                setCommentsOpen(true);
-                setFocusInputTrigger((n) => n + 1);
-              }}
-              title="Agregar comentario"
-              className="flex items-center gap-1 text-[11.5px] px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-              style={{ background: "rgba(139,92,246,0.12)", color: "rgb(167,139,250)", border: "1px solid rgba(139,92,246,0.2)" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(139,92,246,0.2)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(139,92,246,0.12)"; }}
-            >
-              <Plus size={11} strokeWidth={2.5} />
-              Comentario
-            </button>
-          )}
-          {!focusMode && (
-            <button
-              onClick={() => setCommentsOpen((v) => !v)}
-              title="Comentarios"
-              className="relative flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-md transition-colors cursor-pointer"
-              style={{ color: commentsOpen ? textMain : textSub }}
-              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = textMain}
-              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = commentsOpen ? textMain : textSub}
+          {!focusMode && unresolvedCount > 0 && (
+            <div
+              className="flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-md"
+              style={{ color: textSub }}
+              title={t("inlineComments.title")}
             >
               <MessageSquare size={12} />
-              Comentarios
-              {commentCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-semibold tabular-nums"
-                  style={{ background: "rgba(139,92,246,0.9)", color: "#fff" }}>
-                  {commentCount > 9 ? "9+" : commentCount}
-                </span>
-              )}
-            </button>
+              <span className="tabular-nums">{unresolvedCount}</span>
+            </div>
           )}
           {!focusMode && (
             <button
@@ -537,8 +540,11 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         </div>
       </div>
 
+      {/* Body: editor + comments panel inline */}
+      <div className="flex-1 flex flex-row min-h-0">
+
       {/* Title + metadata + editor */}
-      <div className="flex-1 overflow-y-auto scrollbar-none">
+      <div className="flex-1 overflow-y-auto scrollbar-none min-w-0">
         <div
           className="mx-auto px-8"
           style={{ maxWidth: editorMaxW, paddingTop: focusMode ? 80 : 64 }}
@@ -657,18 +663,38 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
           onChange={setScriptHtml}
           isLight={isLight}
           maxWidth={editorMaxW}
+          onCommentCreate={({ commentId, quotedText }) => {
+            setDraftCommentId(commentId);
+            setDraftQuotedText(quotedText);
+          }}
+          onCommentClick={(commentId) => setHighlightedCommentId(commentId)}
         />
       </div>
 
-      {/* Comments panel — slide-in desde la derecha */}
-      <ScriptCommentsPanel
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        scriptId={item.id}
-        workspaceId={workspaceId}
-        onCountChange={setCommentCount}
-        focusInputTrigger={focusInputTrigger}
-      />
+      {/* Comments panel inline (estilo Notion/Docs) — visible cuando hay comentarios o draft.
+          En mobile (<md) se oculta automáticamente para no comerse el editor. */}
+      {!focusMode && (comments.length > 0 || draftCommentId) && (
+        <div className="hidden md:block shrink-0" style={{ width: 320 }}>
+          <ScriptInlineCommentsPanel
+            scriptId={item.id}
+            workspaceId={workspaceId}
+            editorRef={editorRef}
+            comments={comments}
+            onCommentsChange={setComments}
+            scriptVersion={commentsAnchorVersion}
+            highlightedCommentId={highlightedCommentId}
+            onHighlightChange={setHighlightedCommentId}
+            draftCommentId={draftCommentId}
+            draftQuotedText={draftQuotedText}
+            onDraftResolved={() => {
+              setDraftCommentId(null);
+              setDraftQuotedText(null);
+            }}
+          />
+        </div>
+      )}
+
+      </div>{/* /Body */}
 
       {/* Moka — slide-in modal with backdrop blur (managed by MokaContentPanel) */}
       <MokaContentPanel
