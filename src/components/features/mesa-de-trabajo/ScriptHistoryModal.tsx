@@ -21,6 +21,7 @@ interface ScriptHistoryModalProps {
   contentPlanId: string;
   workspaceId: string;
   currentScript: string;
+  currentTitle: string;
   onRestored: (newScript: string, newTitle?: string) => void;
 }
 
@@ -41,13 +42,10 @@ function htmlToPreview(html: string, maxLen = 280): string {
   return text.slice(0, maxLen) + "…";
 }
 
-function authorLabel(kind: Version["changed_by_kind"]): string {
-  switch (kind) {
-    case "user":   return "Vos";
-    case "moka":   return "Moka AI";
-    case "system": return "Sistema";
-    default:       return "Desconocido";
-  }
+/** Devuelve la i18n-key correspondiente al kind. */
+function authorKey(kind: Version["changed_by_kind"]): "user" | "moka" | "system" | "unknown" {
+  if (kind === "user" || kind === "moka" || kind === "system") return kind;
+  return "unknown";
 }
 
 function AuthorIcon({ kind, size = 12 }: { kind: Version["changed_by_kind"]; size?: number }) {
@@ -62,6 +60,7 @@ export function ScriptHistoryModal({
   contentPlanId,
   workspaceId,
   currentScript,
+  currentTitle,
   onRestored,
 }: ScriptHistoryModalProps) {
   const { theme } = useTheme();
@@ -74,6 +73,14 @@ export function ScriptHistoryModal({
   const [error, setError]       = useState<string | null>(null);
   const [selected, setSelected] = useState<Version | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [restoreTitleToo, setRestoreTitleToo] = useState(false);
+
+  // Reset checkbox al cambiar de versión seleccionada.
+  useEffect(() => { setRestoreTitleToo(false); }, [selected?.id]);
+
+  const titleDiffers = !!selected
+    && (selected.title ?? "") !== currentTitle
+    && (selected.title ?? "").trim().length > 0;
 
   const fetchVersions = useCallback(async () => {
     setLoading(true);
@@ -116,7 +123,7 @@ export function ScriptHistoryModal({
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-workspace-id": workspaceId },
-          body: JSON.stringify({ restoreTitle: false }),
+          body: JSON.stringify({ restoreTitle: restoreTitleToo }),
         }
       );
       if (!res.ok) throw new Error("restore_failed");
@@ -129,7 +136,7 @@ export function ScriptHistoryModal({
     } finally {
       setRestoring(false);
     }
-  }, [selected, contentPlanId, workspaceId, onRestored, onClose, t]);
+  }, [selected, contentPlanId, workspaceId, onRestored, onClose, t, restoreTitleToo]);
 
   const dateFmt = useMemo(
     () => new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-AR", {
@@ -217,7 +224,7 @@ export function ScriptHistoryModal({
                 >
                   <div className="flex items-center gap-1.5 mb-1" style={{ color: textSub }}>
                     <AuthorIcon kind={v.changed_by_kind} />
-                    <span className="text-[11px] font-medium">{authorLabel(v.changed_by_kind)}</span>
+                    <span className="text-[11px] font-medium">{t(`history.author.${authorKey(v.changed_by_kind)}`)}</span>
                     <span style={{ color: labelCol }}>·</span>
                     <span className="text-[11px]">{dateFmt.format(new Date(v.created_at))}</span>
                   </div>
@@ -244,7 +251,7 @@ export function ScriptHistoryModal({
               <>
                 <div className="mb-4 flex items-center gap-2" style={{ color: textSub }}>
                   <AuthorIcon kind={selected.changed_by_kind} size={13} />
-                  <span className="text-[12px] font-medium">{authorLabel(selected.changed_by_kind)}</span>
+                  <span className="text-[12px] font-medium">{t(`history.author.${authorKey(selected.changed_by_kind)}`)}</span>
                   <span style={{ color: labelCol }}>·</span>
                   <span className="text-[12px]">{dateFmt.format(new Date(selected.created_at))}</span>
                 </div>
@@ -271,30 +278,43 @@ export function ScriptHistoryModal({
 
         {/* Footer */}
         <div
-          className="flex items-center justify-end gap-2 px-5 py-3 shrink-0"
+          className="flex items-center justify-between gap-3 px-5 py-3 shrink-0"
           style={{ borderTop: `1px solid ${border}` }}
         >
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-md text-[12.5px] transition-colors"
-            style={{ color: textSub }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          >
-            {t("modal.cancel")}
-          </button>
-          <button
-            onClick={handleRestore}
-            disabled={!selected || restoring || (selected?.script ?? "") === currentScript}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{
-              background: isLight ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.12)",
-              color: isLight ? "white" : "rgba(255,255,255,0.9)",
-            }}
-          >
-            <RotateCcw size={12} />
-            {restoring ? t("history.restoring") : t("history.restore")}
-          </button>
+          {titleDiffers ? (
+            <label className="flex items-center gap-2 text-[12px] cursor-pointer select-none" style={{ color: textSub }}>
+              <input
+                type="checkbox"
+                checked={restoreTitleToo}
+                onChange={(e) => setRestoreTitleToo(e.target.checked)}
+                className="cursor-pointer"
+              />
+              <span>{t("history.restoreTitleToo")}</span>
+            </label>
+          ) : <div />}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-md text-[12.5px] transition-colors"
+              style={{ color: textSub }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              {t("modal.cancel")}
+            </button>
+            <button
+              onClick={handleRestore}
+              disabled={!selected || restoring || (selected?.script ?? "") === currentScript}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: isLight ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.12)",
+                color: isLight ? "white" : "rgba(255,255,255,0.9)",
+              }}
+            >
+              <RotateCcw size={12} />
+              {restoring ? t("history.restoring") : t("history.restore")}
+            </button>
+          </div>
         </div>
       </div>
     </div>

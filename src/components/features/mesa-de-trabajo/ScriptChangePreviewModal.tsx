@@ -88,13 +88,27 @@ export function ScriptChangePreviewModal({
   const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cerrar con ESC = rechazar (no se considera "apply" para evitar accidentes)
+  // Cerrar sin acción = auto-reject silencioso para que la propuesta no quede
+  // colgada en DB consumiendo el slot del usuario.
+  const closeAndAutoReject = useCallback(async () => {
+    const id = pending?.id;
+    if (id) {
+      // Fire-and-forget — no esperamos al server para cerrar
+      void fetch(`/api/v1/script-changes/${id}/reject`, {
+        method: "POST",
+        headers: { "x-workspace-id": workspaceId },
+      }).catch(() => { /* silent */ });
+    }
+    onClose();
+  }, [pending?.id, workspaceId, onClose]);
+
+  // Cerrar con ESC = auto-reject
   useEffect(() => {
     if (!pending) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeAndAutoReject(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pending, onClose]);
+  }, [pending, closeAndAutoReject]);
 
   const baseLines     = useMemo(() => htmlToPlainLines(pending?.base_script ?? null),     [pending]);
   const proposedLines = useMemo(() => htmlToPlainLines(pending?.proposed_script ?? null), [pending]);
@@ -163,8 +177,16 @@ export function ScriptChangePreviewModal({
   const remText   = isLight ? "rgb(153,27,27)"       : "rgba(252,165,165,0.95)";
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="diff-preview-title"
+    >
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={() => { if (!applying && !rejecting) closeAndAutoReject(); }}
+      />
 
       <div
         className="relative w-full max-w-5xl rounded-2xl overflow-hidden flex flex-col"
@@ -188,13 +210,14 @@ export function ScriptChangePreviewModal({
               <Sparkles size={14} style={{ color: "rgb(139,92,246)" }} />
             </div>
             <div>
-              <p className="text-[14px] font-medium" style={{ color: textMain }}>{t("title")}</p>
+              <p id="diff-preview-title" className="text-[14px] font-medium" style={{ color: textMain }}>{t("title")}</p>
               <p className="text-[11.5px]" style={{ color: textSub }}>{t("subtitle")}</p>
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={closeAndAutoReject}
             disabled={applying || rejecting}
+            aria-label={t("reject")}
             className="w-8 h-8 rounded-md flex items-center justify-center transition-colors disabled:opacity-40"
             style={{ color: textSub }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; }}
@@ -232,10 +255,10 @@ export function ScriptChangePreviewModal({
         {titleChanged && (
           <div className="px-5 py-3 shrink-0" style={{ borderBottom: `1px solid ${border}` }}>
             <p className="text-[10.5px] uppercase tracking-widest mb-1.5" style={{ color: labelCol }}>
-              Título
+              {t("titleLabel")}
             </p>
             <p className="text-[13px] line-through mb-0.5" style={{ color: remText, background: remBg, padding: "2px 6px", borderRadius: 4, display: "inline-block" }}>
-              {pending.base_title || "(sin título)"}
+              {pending.base_title || t("untitledPlaceholder")}
             </p>
             <br />
             <p className="text-[13px]" style={{ color: addedText, background: addedBg, padding: "2px 6px", borderRadius: 4, display: "inline-block" }}>
@@ -245,10 +268,10 @@ export function ScriptChangePreviewModal({
         )}
 
         {/* Diff side-by-side */}
-        <div className="flex-1 min-h-0 grid grid-cols-2" style={{ borderBottom: `1px solid ${border}` }}>
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2" style={{ borderBottom: `1px solid ${border}` }}>
           <div
-            className="overflow-y-auto p-4 scrollbar-none"
-            style={{ borderRight: `1px solid ${border}`, background: sectionBg }}
+            className="overflow-y-auto p-4 scrollbar-none border-b md:border-b-0 md:border-r"
+            style={{ borderColor: border, background: sectionBg }}
           >
             <p className="text-[10.5px] uppercase tracking-widest mb-2 sticky top-0 pb-2"
               style={{ color: labelCol, background: sectionBg }}>
@@ -273,7 +296,7 @@ export function ScriptChangePreviewModal({
                 );
               })}
               {baseLines.length === 0 && (
-                <p className="text-[12px] italic" style={{ color: textSub }}>(vacío)</p>
+                <p className="text-[12px] italic" style={{ color: textSub }}>{t("emptyPlaceholder")}</p>
               )}
             </div>
           </div>
@@ -300,7 +323,7 @@ export function ScriptChangePreviewModal({
                 );
               })}
               {proposedLines.length === 0 && (
-                <p className="text-[12px] italic" style={{ color: textSub }}>(vacío)</p>
+                <p className="text-[12px] italic" style={{ color: textSub }}>{t("emptyPlaceholder")}</p>
               )}
             </div>
           </div>

@@ -264,6 +264,9 @@ interface ScriptEditorV2Props {
 export interface ScriptEditorV2Handle {
   /** Reemplaza el contenido del editor manteniendo la historia (Ctrl+Z deshace este cambio). */
   applyExternalContent: (html: string) => void;
+  /** Devuelve el HTML actual normalizado por TipTap. Útil tras un applyExternalContent
+   *  para sincronizar `lastSaved` y evitar auto-saves espurios por re-serialización. */
+  getHTML: () => string;
 }
 
 export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Props>(function ScriptEditorV2(
@@ -310,6 +313,7 @@ export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Pro
       if (!editor) return;
       editor.chain().focus().setContent(html || "<p></p>", { emitUpdate: true }).run();
     },
+    getHTML: () => editor?.getHTML() ?? "",
   }), [editor]);
 
   // Keyboard shortcut: Cmd/Ctrl+K → link prompt

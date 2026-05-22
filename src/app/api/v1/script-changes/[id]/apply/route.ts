@@ -22,41 +22,55 @@ export async function POST(request: Request, context: RouteContext) {
 
     const supabase = await createClient();
 
-    const { data: pending } = await supabase
+    // CAS atómico: marcamos como applied solo si todavía está pending y no expiró.
+    // Si dos clicks llegan en paralelo, solo uno gana — el otro recibe rowCount=0.
+    const nowIso = new Date().toISOString();
+    const { data: claimed, error: claimErr } = await supabase
       .from('content_plan_pending_changes')
-      .select('id, content_plan_id, proposed_script, proposed_title, status')
+      .update({ status: 'applied', resolved_at: nowIso })
       .eq('id', id)
       .eq('workspace_id', auth.workspaceId)
+      .eq('status', 'pending')
+      .gt('expires_at', nowIso)
+      .select('id, content_plan_id, proposed_script, proposed_title')
       .maybeSingle();
 
-    if (!pending) return api400('Pending change not found');
-    if (pending.status !== 'pending') return api400(`Cannot apply: status=${pending.status}`);
+    if (claimErr) return api500('Error reservando la propuesta');
+    if (!claimed) {
+      // Otra request lo agarró antes, o ya estaba applied/rejected/expired.
+      return api400('Cannot apply: already resolved or expired');
+    }
 
     // Aplicar al content_plan (el trigger guarda versión previa automáticamente)
     const updates: Record<string, unknown> = {};
-    if (pending.proposed_script !== null) updates.script = pending.proposed_script;
-    if (pending.proposed_title  !== null) updates.title  = pending.proposed_title;
+    if (claimed.proposed_script !== null) updates.script = claimed.proposed_script;
+    if (claimed.proposed_title  !== null) updates.title  = claimed.proposed_title;
 
     if (Object.keys(updates).length === 0) {
+      // Revert el claim (raro: pending sin valores propuestos)
+      await supabase
+        .from('content_plan_pending_changes')
+        .update({ status: 'rejected', resolved_at: nowIso })
+        .eq('id', id);
       return api400('Pending change has no proposed values');
     }
 
     const { data: updated, error: updateErr } = await supabase
       .from('content_plan')
       .update(updates)
-      .eq('id', pending.content_plan_id)
+      .eq('id', claimed.content_plan_id)
       .eq('workspace_id', auth.workspaceId)
       .select('id, planned_date, title, platform, content_type, status, position, script, reference_url, raw_video_url, edited_video_url, source_type, source_ref, metrics, created_at, updated_at')
       .single();
 
-    if (updateErr) return api500('Error aplicando el cambio');
-
-    // Marcar pending como applied
-    await supabase
-      .from('content_plan_pending_changes')
-      .update({ status: 'applied', resolved_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('workspace_id', auth.workspaceId);
+    if (updateErr) {
+      // Revert claim si el UPDATE final falla (consistency)
+      await supabase
+        .from('content_plan_pending_changes')
+        .update({ status: 'pending', resolved_at: null })
+        .eq('id', id);
+      return api500('Error aplicando el cambio');
+    }
 
     return apiSuccess({ item: updated, pendingId: id });
   } catch {
