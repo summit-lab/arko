@@ -269,6 +269,26 @@
       "untitledPlaceholder": "(sin título)",
       "emptyPlaceholder": "(vacío)"
     },
+    "inlineComments": {
+      "title": "Comentarios",
+      "loading": "Cargando…",
+      "empty": "Sin comentarios todavía",
+      "emptyHint": "Seleccioná texto y clickeá 💬 para comentar",
+      "draftPlaceholder": "Escribí tu comentario…",
+      "submit": "Comentar",
+      "submitting": "Enviando…",
+      "submitHint": "⌘+Enter para enviar · Esc para cancelar",
+      "cancel": "Cancelar",
+      "resolve": "Resolver",
+      "reopen": "Reabrir",
+      "resolved": "resueltos",
+      "resolvedLabel": "resuelto",
+      "showResolved": "Ver resueltos",
+      "hideResolved": "Ocultar resueltos",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar este comentario? Esta acción no se puede deshacer.",
+      "orphan": "huérfano:"
+    },
     "mokaPanel": {
       "name": "Moka AI",
       "subtitle": "Asistente de contenido",

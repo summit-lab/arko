@@ -269,6 +269,26 @@
       "untitledPlaceholder": "(untitled)",
       "emptyPlaceholder": "(empty)"
     },
+    "inlineComments": {
+      "title": "Comments",
+      "loading": "Loading…",
+      "empty": "No comments yet",
+      "emptyHint": "Select text and click 💬 to comment",
+      "draftPlaceholder": "Write your comment…",
+      "submit": "Comment",
+      "submitting": "Sending…",
+      "submitHint": "⌘+Enter to send · Esc to cancel",
+      "cancel": "Cancel",
+      "resolve": "Resolve",
+      "reopen": "Reopen",
+      "resolved": "resolved",
+      "resolvedLabel": "resolved",
+      "showResolved": "Show resolved",
+      "hideResolved": "Hide resolved",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this comment? This action cannot be undone.",
+      "orphan": "orphan:"
+    },
     "mokaPanel": {
       "name": "Moka AI",
       "subtitle": "Content assistant",

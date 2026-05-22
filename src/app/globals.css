@@ -778,3 +778,28 @@ html:not(.dark) .autofill-dark:-webkit-autofill:focus {
   &::-webkit-scrollbar { display: none; }
 }
 
+/* ─── Comentarios inline en el editor (estilo Google Docs / Notion) ──────── */
+.comment-mark {
+  background-color: rgba(254, 240, 138, 0.45);
+  border-bottom: 1.5px solid rgba(234, 179, 8, 0.55);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.comment-mark:hover {
+  background-color: rgba(253, 224, 71, 0.7);
+}
+.dark .comment-mark {
+  background-color: rgba(234, 179, 8, 0.22);
+  border-bottom-color: rgba(234, 179, 8, 0.55);
+}
+.dark .comment-mark:hover {
+  background-color: rgba(234, 179, 8, 0.35);
+}
+.comment-mark-flash {
+  animation: commentFlash 800ms ease-out;
+}
+@keyframes commentFlash {
+  0%   { background-color: rgba(250, 204, 21, 0.95); }
+  100% { background-color: rgba(254, 240, 138, 0.45); }
+}
+

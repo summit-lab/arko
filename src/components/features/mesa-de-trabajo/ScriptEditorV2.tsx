@@ -13,9 +13,10 @@ import { Suggestion } from "@tiptap/suggestion";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import {
   Bold, Italic, Underline as UnderlineIcon, Heading1, Heading2,
-  List, ListOrdered, Quote, Link2, Type,
+  List, ListOrdered, Quote, Link2, Type, MessageSquarePlus,
 } from "lucide-react";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
+import { CommentMark } from "./tiptap-comment-mark";
 
 // ─── Slash command items ──────────────────────────────────────────────────────
 
@@ -256,6 +257,13 @@ interface ScriptEditorV2Props {
   onChange: (html: string) => void;
   isLight: boolean;
   maxWidth?: number;
+  /** Llamado cuando el usuario clickea "Comentar" sobre una selección.
+   *  El padre genera el commentId y lo guarda en DB. El editor ya aplicó la marca
+   *  con ese commentId provisional, así que el padre solo debe persistir.
+   *  El texto citado se incluye para mostrar contexto. */
+  onCommentCreate?: (args: { commentId: string; quotedText: string }) => void;
+  /** Llamado cuando el usuario clickea sobre una marca de comentario existente. */
+  onCommentClick?: (commentId: string) => void;
 }
 
 /** Handle imperativo que el padre usa para inyectar cambios externos
@@ -267,10 +275,33 @@ export interface ScriptEditorV2Handle {
   /** Devuelve el HTML actual normalizado por TipTap. Útil tras un applyExternalContent
    *  para sincronizar `lastSaved` y evitar auto-saves espurios por re-serialización. */
   getHTML: () => string;
+  /** Quita la marca de comentario del documento (cuando el comentario se borra). */
+  removeCommentMark: (commentId: string) => void;
+  /** Scrollea el editor hasta el primer span con ese commentId. */
+  scrollToComment: (commentId: string) => void;
+  /** Devuelve el rect de cada marca de comentario, para sincronizar el panel lateral. */
+  getCommentAnchorRects: () => Array<{ commentId: string; top: number }>;
+}
+
+/** Genera un UUID v4-like para identificar comentarios. Prefiere `crypto.randomUUID`
+ *  cuando está disponible (HTTPS o localhost). En fallback combina time + 16 bytes
+ *  random de crypto.getRandomValues para minimizar colisiones (~10^-19). */
+function generateCommentId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return (crypto as { randomUUID: () => string }).randomUUID();
+  }
+  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
+    const bytes = new Uint8Array(16);
+    (crypto as Crypto).getRandomValues(bytes);
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `c-${hex}`;
+  }
+  // Último recurso (entornos sin Web Crypto API)
+  return `c-${Date.now()}-${Math.random().toString(36).slice(2, 14)}-${Math.random().toString(36).slice(2, 14)}`;
 }
 
 export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Props>(function ScriptEditorV2(
-  { initialHtml, onChange, isLight, maxWidth = 720 },
+  { initialHtml, onChange, isLight, maxWidth = 720, onCommentCreate, onCommentClick },
   ref,
 ) {
   const [showColors, setShowColors] = useState(false);
@@ -292,6 +323,7 @@ export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Pro
         autolink: true,
         HTMLAttributes: { class: "tiptap-link" },
       }),
+      CommentMark,
       createSlashCommand(isLight),
     ],
     content: initialHtml || "<p></p>",
@@ -314,7 +346,52 @@ export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Pro
       editor.chain().focus().setContent(html || "<p></p>", { emitUpdate: true }).run();
     },
     getHTML: () => editor?.getHTML() ?? "",
+    removeCommentMark: (commentId: string) => {
+      if (!editor) return;
+      editor.chain().focus().removeCommentById(commentId).run();
+    },
+    scrollToComment: (commentId: string) => {
+      if (typeof document === "undefined") return;
+      const el = document.querySelector(`[data-comment-id="${commentId}"]`) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Flash sutil
+        el.classList.add("comment-mark-flash");
+        window.setTimeout(() => el.classList.remove("comment-mark-flash"), 800);
+      }
+    },
+    getCommentAnchorRects: () => {
+      if (typeof document === "undefined") return [];
+      const nodes = document.querySelectorAll<HTMLElement>("[data-comment-id]");
+      // Agrupamos por commentId (un comentario puede aparecer en varios spans
+      // si el rango cruza nodos) y devolvemos el top del primero.
+      const byId = new Map<string, number>();
+      for (const node of nodes) {
+        const id = node.getAttribute("data-comment-id");
+        if (!id || byId.has(id)) continue;
+        const rect = node.getBoundingClientRect();
+        byId.set(id, rect.top + window.scrollY);
+      }
+      return Array.from(byId.entries()).map(([commentId, top]) => ({ commentId, top }));
+    },
   }), [editor]);
+
+  // Click en una marca de comentario → callback al padre.
+  useEffect(() => {
+    if (!editor || !onCommentClick) return;
+    const dom = editor.view.dom;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const mark = target.closest("[data-comment-id]") as HTMLElement | null;
+      if (mark) {
+        const id = mark.getAttribute("data-comment-id");
+        if (id) onCommentClick(id);
+      }
+    };
+    dom.addEventListener("click", handler);
+    return () => dom.removeEventListener("click", handler);
+  }, [editor, onCommentClick]);
 
   // Keyboard shortcut: Cmd/Ctrl+K → link prompt
   useEffect(() => {
@@ -479,6 +556,25 @@ export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Pro
               </div>
             )}
           </div>
+          {/* Comentar */}
+          {onCommentCreate && (
+            <>
+              <div className="w-px h-4 mx-0.5" style={{ background: border }} />
+              {bubbleBtn(
+                false,
+                () => {
+                  const { from, to, empty } = editor.state.selection;
+                  if (empty) return;
+                  const quotedText = editor.state.doc.textBetween(from, to, " ");
+                  const newId = generateCommentId();
+                  editor.chain().focus().setComment(newId).run();
+                  onCommentCreate({ commentId: newId, quotedText });
+                },
+                "Comentar",
+                <MessageSquarePlus size={13} />,
+              )}
+            </>
+          )}
         </BubbleMenu>
       )}
 
