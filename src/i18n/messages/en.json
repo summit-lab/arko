@@ -230,7 +230,8 @@
       "readTime": "~{minutes} min read",
       "mokaGreeting": "I'm looking at \"{title}\". How can I help?",
       "mokaGreetingNoTitle": "I'm looking at this script. How can I help?",
-      "historyBtn": "History"
+      "historyBtn": "History",
+      "pendingForOther": "Moka proposed changes for another script. Want to go review them now?"
     },
     "history": {
       "title": "Script history",
@@ -243,7 +244,15 @@
       "restore": "Restore this version",
       "restoring": "Restoring…",
       "restoreConfirm": "Restore this version? The current one will be saved in history.",
-      "restoreError": "Error restoring the version."
+      "restoreError": "Error restoring the version.",
+      "restoreTitleToo": "Restore the title too",
+      "author": {
+        "user":    "You",
+        "moka":    "Moka AI",
+        "system":  "System",
+        "unknown": "Unknown"
+      },
+      "untitledPlaceholder": "(untitled)"
     },
     "diffPreview": {
       "title": "Moka wants to modify your script",
@@ -255,7 +264,10 @@
       "reject": "Discard",
       "rejecting": "Discarding…",
       "applyError": "Error applying changes.",
-      "rejectError": "Error discarding changes."
+      "rejectError": "Error discarding changes.",
+      "titleLabel": "Title",
+      "untitledPlaceholder": "(untitled)",
+      "emptyPlaceholder": "(empty)"
     },
     "mokaPanel": {
       "name": "Moka AI",

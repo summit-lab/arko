@@ -8,7 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
 import type { ContentItem, ContentStatus, ContentType } from "@/types/content-plan";
-import { ScriptEditorV2 } from "./ScriptEditorV2";
+import { ScriptEditorV2, type ScriptEditorV2Handle } from "./ScriptEditorV2";
 import { useScriptLayout } from "./ScriptLayoutContext";
 import { MokaContentPanel } from "./MokaContentPanel";
 import { ScriptCommentsPanel } from "./ScriptCommentsPanel";
@@ -83,9 +83,10 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [title]);
-  // Bumped whenever Moka rewrites our script so the editor remounts and
-  // picks up the new content (Tiptap's `content` prop is initial-only).
-  const [editorRevision, setEditorRevision] = useState(0);
+  // Ref imperativo al editor TipTap. Permite aplicar cambios externos
+  // (de Moka, de "Restaurar versión") manteniendo el undo stack —
+  // Ctrl+Z deshace esos cambios igual que el typing manual.
+  const editorRef = useRef<ScriptEditorV2Handle>(null);
 
   // When item.id changes (navigated to a different script), reset local state
   // and the lastSaved baseline so we don't auto-save the previous item's content
@@ -238,6 +239,16 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   // When Moka updates an item from within the editor:
   //  - if it's the active item, sync our local state and bump editor revision
   //  - if it's another item, refresh the siblings list so the sidebar reflects it
+  // Helper para cancelar auto-save pendiente cuando aplicamos un cambio externo.
+  // Sin esto, un timer encolado por edición previa podría disparar después del
+  // applyExternalContent y persistir un estado intermedio.
+  const cancelPendingAutoSave = useCallback(() => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+  }, []);
+
   const handleMokaContentUpdated = useCallback((updated: Record<string, unknown>) => {
     const id = updated.id as string | undefined;
     if (!id) return;
@@ -245,17 +256,30 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
       const newScript = (updated.script as string | null | undefined) ?? "";
       const newTitle  = (updated.title  as string | null | undefined) ?? title;
       const newStatus = updated.status as ContentItem["status"] | undefined;
-      // Update our refs so the auto-save loop doesn't try to overwrite Moka's
-      // change with our stale state.
+      const scriptChanged = newScript !== lastSaved.current.script;
+      // Cancelar auto-save pendiente: no queremos que un timer queued sobrescriba
+      // el cambio que estamos aplicando ahora.
+      cancelPendingAutoSave();
       lastSaved.current = { title: newTitle, script: newScript };
-      setScriptHtml(newScript);
+      if (scriptChanged) setScriptHtml(newScript);
       setTitle(newTitle);
       if (newStatus) setStatus(newStatus);
-      setEditorRevision((r) => r + 1);
+      // Solo tocamos el editor si el script efectivamente cambió. Si solo cambió
+      // metadata (status/type/date), evitamos meter una transacción inútil al
+      // undo stack y perder cursor/selección del usuario.
+      if (scriptChanged && editorRef.current) {
+        editorRef.current.applyExternalContent(newScript);
+        // TipTap puede normalizar el HTML al re-serializarlo: sincronizamos
+        // lastSaved con lo que el editor realmente tiene para evitar un
+        // auto-save falso por diferencia de whitespace/atributos.
+        const normalized = editorRef.current.getHTML() ?? newScript;
+        lastSaved.current.script = normalized;
+        setScriptHtml(normalized);
+      }
     } else {
       void refreshSiblings();
     }
-  }, [item.id, title, refreshSiblings]);
+  }, [item.id, title, refreshSiblings, cancelPendingAutoSave]);
 
   const handleMokaContentAdded = useCallback((items: Record<string, unknown>[]) => {
     if (items.length > 0) void refreshSiblings();
@@ -271,18 +295,77 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
   }, [item.id, refreshSiblings, router]);
 
   const handleMokaScriptChangePending = useCallback((pending: Record<string, unknown>) => {
-    // Solo mostramos preview si la propuesta es para el item que estamos editando.
-    if (pending.content_plan_id !== item.id) return;
-    setPendingChange({
+    const targetId = pending.content_plan_id as string;
+    const normalized: PendingChange = {
       id:               pending.id as string,
-      content_plan_id:  pending.content_plan_id as string,
+      content_plan_id:  targetId,
       base_script:      (pending.base_script      as string | null) ?? null,
       base_title:       (pending.base_title       as string | null) ?? null,
       proposed_script:  (pending.proposed_script  as string | null) ?? null,
       proposed_title:   (pending.proposed_title   as string | null) ?? null,
       rationale:        (pending.rationale        as string | null) ?? null,
-    });
-  }, [item.id]);
+    };
+    if (targetId === item.id) {
+      // Si ya hay una propuesta abierta y llega otra nueva del mismo item,
+      // auto-rechazamos la vieja (fire-and-forget) y mostramos la nueva.
+      // Esto evita que la primera quede "pending" en DB sin nunca ser resuelta.
+      setPendingChange((prev) => {
+        if (prev && prev.id !== normalized.id) {
+          void fetch(`/api/v1/script-changes/${prev.id}/reject`, {
+            method: "POST",
+            headers: { "x-workspace-id": workspaceId },
+          }).catch(() => { /* silent */ });
+        }
+        return normalized;
+      });
+      return;
+    }
+    // Propuesta para otro guion. Persistimos en sessionStorage para que cuando
+    // el usuario navegue al item correcto, ScriptPage la levante y abra el modal.
+    // Avisamos al usuario con confirm que ofrece navegar ya mismo.
+    try {
+      window.sessionStorage.setItem(`pendingScriptChange:${targetId}`, JSON.stringify(normalized));
+    } catch { /* sessionStorage puede estar bloqueado */ }
+    const go = window.confirm(t("scripts.pendingForOther"));
+    if (go) {
+      window.dispatchEvent(new Event("nav:start"));
+      router.push(`/mesa-de-trabajo/${targetId}/guion`);
+    }
+  }, [item.id, router, t, workspaceId]);
+
+  // Al montar (o cambiar de item), si hay una pending guardada para este guion → abrir modal.
+  // Primero la validamos contra el server (puede estar applied/rejected/expired desde otra tab).
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(`pendingScriptChange:${item.id}`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as PendingChange;
+      window.sessionStorage.removeItem(`pendingScriptChange:${item.id}`);
+      // Refresh contra server para confirmar que sigue pending.
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/script-changes/${parsed.id}`, {
+            headers: { "x-workspace-id": workspaceId },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          const fresh = data?.data?.pending as (PendingChange & { status?: string; expires_at?: string }) | undefined;
+          if (!fresh) return;
+          if (fresh.status !== "pending") return;
+          if (fresh.expires_at && new Date(fresh.expires_at).getTime() < Date.now()) return;
+          setPendingChange({
+            id:               fresh.id,
+            content_plan_id:  fresh.content_plan_id,
+            base_script:      fresh.base_script,
+            base_title:       fresh.base_title,
+            proposed_script:  fresh.proposed_script,
+            proposed_title:   fresh.proposed_title,
+            rationale:        fresh.rationale,
+          });
+        } catch { /* silent */ }
+      })();
+    } catch { /* ignore */ }
+  }, [item.id, workspaceId]);
 
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return; }
@@ -568,8 +651,9 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         </div>
 
         <ScriptEditorV2
-          key={`${item.id}:${editorRevision}`}
-          initialHtml={scriptHtml}
+          ref={editorRef}
+          key={item.id}
+          initialHtml={item.script ?? ""}
           onChange={setScriptHtml}
           isLight={isLight}
           maxWidth={editorMaxW}
@@ -610,10 +694,18 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         pending={pendingChange}
         workspaceId={workspaceId}
         onApply={(newScript, newTitle) => {
-          lastSaved.current = { title: newTitle ?? title, script: newScript };
-          setScriptHtml(newScript);
+          cancelPendingAutoSave();
+          const effectiveTitle = newTitle ?? title;
+          lastSaved.current = { title: effectiveTitle, script: newScript };
           if (newTitle) setTitle(newTitle);
-          setEditorRevision((r) => r + 1);
+          if (editorRef.current) {
+            editorRef.current.applyExternalContent(newScript);
+            const normalized = editorRef.current.getHTML() ?? newScript;
+            lastSaved.current.script = normalized;
+            setScriptHtml(normalized);
+          } else {
+            setScriptHtml(newScript);
+          }
           setSaveState("saved");
           setPendingChange(null);
         }}
@@ -628,11 +720,20 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         contentPlanId={item.id}
         workspaceId={workspaceId}
         currentScript={scriptHtml}
+        currentTitle={title}
         onRestored={(newScript, newTitle) => {
-          lastSaved.current = { title: newTitle ?? title, script: newScript };
-          setScriptHtml(newScript);
+          cancelPendingAutoSave();
+          const effectiveTitle = newTitle ?? title;
+          lastSaved.current = { title: effectiveTitle, script: newScript };
           if (newTitle) setTitle(newTitle);
-          setEditorRevision((r) => r + 1);
+          if (editorRef.current) {
+            editorRef.current.applyExternalContent(newScript);
+            const normalized = editorRef.current.getHTML() ?? newScript;
+            lastSaved.current.script = normalized;
+            setScriptHtml(normalized);
+          } else {
+            setScriptHtml(newScript);
+          }
           setSaveState("saved");
         }}
       />

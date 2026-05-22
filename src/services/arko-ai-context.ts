@@ -640,11 +640,18 @@ export async function executeArkoTool(
       const baseScript = (current as { script?: string | null }).script ?? null;
       const baseTitle  = (current as { title?: string | null }).title  ?? null;
 
-      // Si la propuesta es idéntica al actual, no crear pending
+      // Si la propuesta es idéntica al actual, no creamos pending — devolvemos
+      // un noop "success" para que Moka responda al usuario en texto natural
+      // ("ya está como lo pediste") en lugar de mostrar un error JSON.
       const willChangeScript = proposedScript !== undefined && proposedScript !== baseScript;
       const willChangeTitle  = proposedTitle  !== undefined && proposedTitle  !== baseTitle;
       if (!willChangeScript && !willChangeTitle) {
-        return { result: JSON.stringify({ error: 'La propuesta es idéntica a la versión actual.' }) };
+        return {
+          result: JSON.stringify({
+            noop: true,
+            note: 'La propuesta es idéntica al estado actual del guion. No se creó nada nuevo. Avisale al usuario que su versión ya refleja el cambio.',
+          }),
+        };
       }
 
       const { data: pending, error: pendingErr } = await supabase

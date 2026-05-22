@@ -21,23 +21,18 @@ export async function POST(request: Request, context: RouteContext) {
 
     const supabase = await createClient();
 
-    const { data: pending } = await supabase
-      .from('content_plan_pending_changes')
-      .select('id, status')
-      .eq('id', id)
-      .eq('workspace_id', auth.workspaceId)
-      .maybeSingle();
-
-    if (!pending) return api400('Pending change not found');
-    if (pending.status !== 'pending') return api400(`Cannot reject: status=${pending.status}`);
-
-    const { error } = await supabase
+    // CAS atómico igual que apply
+    const { data: rejected, error } = await supabase
       .from('content_plan_pending_changes')
       .update({ status: 'rejected', resolved_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('workspace_id', auth.workspaceId);
+      .eq('workspace_id', auth.workspaceId)
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle();
 
     if (error) return api500('Error descartando el cambio');
+    if (!rejected) return api400('Cannot reject: already resolved');
 
     return apiSuccess({ pendingId: id });
   } catch {
