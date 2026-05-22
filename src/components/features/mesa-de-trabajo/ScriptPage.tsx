@@ -8,7 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { CONTENT_STATUSES, CONTENT_TYPES } from "@/types/content-plan";
 import type { ContentItem, ContentStatus, ContentType } from "@/types/content-plan";
-import { ScriptEditorV2 } from "./ScriptEditorV2";
+import { ScriptEditorV2, type ScriptEditorV2Handle } from "./ScriptEditorV2";
 import { useScriptLayout } from "./ScriptLayoutContext";
 import { MokaContentPanel } from "./MokaContentPanel";
 import { ScriptCommentsPanel } from "./ScriptCommentsPanel";
@@ -83,9 +83,10 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [title]);
-  // Bumped whenever Moka rewrites our script so the editor remounts and
-  // picks up the new content (Tiptap's `content` prop is initial-only).
-  const [editorRevision, setEditorRevision] = useState(0);
+  // Ref imperativo al editor TipTap. Permite aplicar cambios externos
+  // (de Moka, de "Restaurar versión") manteniendo el undo stack —
+  // Ctrl+Z deshace esos cambios igual que el typing manual.
+  const editorRef = useRef<ScriptEditorV2Handle>(null);
 
   // When item.id changes (navigated to a different script), reset local state
   // and the lastSaved baseline so we don't auto-save the previous item's content
@@ -245,13 +246,13 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
       const newScript = (updated.script as string | null | undefined) ?? "";
       const newTitle  = (updated.title  as string | null | undefined) ?? title;
       const newStatus = updated.status as ContentItem["status"] | undefined;
-      // Update our refs so the auto-save loop doesn't try to overwrite Moka's
-      // change with our stale state.
+      // Update refs so the auto-save loop doesn't try to overwrite Moka's change.
       lastSaved.current = { title: newTitle, script: newScript };
       setScriptHtml(newScript);
       setTitle(newTitle);
       if (newStatus) setStatus(newStatus);
-      setEditorRevision((r) => r + 1);
+      // Aplicamos el contenido al editor SIN remount → undo stack preservado.
+      editorRef.current?.applyExternalContent(newScript);
     } else {
       void refreshSiblings();
     }
@@ -568,8 +569,9 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
         </div>
 
         <ScriptEditorV2
-          key={`${item.id}:${editorRevision}`}
-          initialHtml={scriptHtml}
+          ref={editorRef}
+          key={item.id}
+          initialHtml={item.script ?? ""}
           onChange={setScriptHtml}
           isLight={isLight}
           maxWidth={editorMaxW}
@@ -613,7 +615,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
           lastSaved.current = { title: newTitle ?? title, script: newScript };
           setScriptHtml(newScript);
           if (newTitle) setTitle(newTitle);
-          setEditorRevision((r) => r + 1);
+          editorRef.current?.applyExternalContent(newScript);
           setSaveState("saved");
           setPendingChange(null);
         }}
@@ -632,7 +634,7 @@ export function ScriptPage({ item, workspaceId }: ScriptPageProps) {
           lastSaved.current = { title: newTitle ?? title, script: newScript };
           setScriptHtml(newScript);
           if (newTitle) setTitle(newTitle);
-          setEditorRevision((r) => r + 1);
+          editorRef.current?.applyExternalContent(newScript);
           setSaveState("saved");
         }}
       />

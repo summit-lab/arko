@@ -258,7 +258,18 @@ interface ScriptEditorV2Props {
   maxWidth?: number;
 }
 
-export function ScriptEditorV2({ initialHtml, onChange, isLight, maxWidth = 720 }: ScriptEditorV2Props) {
+/** Handle imperativo que el padre usa para inyectar cambios externos
+ *  (ej. cuando Moka aplica una propuesta, o cuando se restaura una versión)
+ *  SIN perder el undo stack del editor. */
+export interface ScriptEditorV2Handle {
+  /** Reemplaza el contenido del editor manteniendo la historia (Ctrl+Z deshace este cambio). */
+  applyExternalContent: (html: string) => void;
+}
+
+export const ScriptEditorV2 = forwardRef<ScriptEditorV2Handle, ScriptEditorV2Props>(function ScriptEditorV2(
+  { initialHtml, onChange, isLight, maxWidth = 720 },
+  ref,
+) {
   const [showColors, setShowColors] = useState(false);
 
   const editor = useEditor({
@@ -289,6 +300,17 @@ export function ScriptEditorV2({ initialHtml, onChange, isLight, maxWidth = 720 
     },
     immediatelyRender: false,
   });
+
+  // Expongo el método applyExternalContent al padre.
+  // Usa setContent dentro de un chain con focus para que ProseMirror registre la
+  // transacción en el undo stack — así Ctrl+Z deshace los cambios de Moka como
+  // si fueran ediciones normales.
+  useImperativeHandle(ref, () => ({
+    applyExternalContent: (html: string) => {
+      if (!editor) return;
+      editor.chain().focus().setContent(html || "<p></p>", { emitUpdate: true }).run();
+    },
+  }), [editor]);
 
   // Keyboard shortcut: Cmd/Ctrl+K → link prompt
   useEffect(() => {
@@ -461,4 +483,4 @@ export function ScriptEditorV2({ initialHtml, onChange, isLight, maxWidth = 720 
       </div>
     </div>
   );
-}
+});
