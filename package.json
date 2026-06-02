@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:meta-parity": "node scripts/check-meta-parity.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
     "postinstall": "node scripts/install-hooks.mjs"
   },
