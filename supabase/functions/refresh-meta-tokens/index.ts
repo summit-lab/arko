@@ -87,26 +87,55 @@ async function refreshOne(
   const exchange = (await res.json().catch(() => ({}))) as MetaTokenExchangeResponse;
 
   if (!res.ok || exchange.error || !exchange.access_token) {
-    // Meta rejected — token is revoked / app paused / user changed password.
-    // Auto-mark as expired so UI banner surfaces it.
     const errorCode = exchange.error?.code;
+    const errorType = exchange.error?.type;
     const errorMsg = exchange.error?.message ?? `HTTP ${res.status}`;
+
+    // Distinguir un token GENUINAMENTE muerto (revocado / password cambiado /
+    // app removida) de un fallo TRANSITORIO de Meta (5xx, rate-limit). Antes se
+    // marcaba 'expired' ante CUALQUIER fallo → un hipo de Meta desconectaba al
+    // cliente sin razón (banner falso de "reconectá Instagram").
+    //   - needs_reauth real: OAuthException o code 190/102/104/467.
+    //   - transitorio: 5xx, rate-limit (4/17/32/341/613) → NO tocar la conexión;
+    //     el cron reintenta en la próxima ventana.
+    const REAUTH_CODES = new Set([190, 102, 104, 467]);
+    const RATE_LIMIT_CODES = new Set([4, 17, 32, 341, 613]);
+    const isReauth = errorType === "OAuthException" || (errorCode != null && REAUTH_CODES.has(errorCode));
+    const isTransient =
+      res.status >= 500 ||
+      res.status === 429 ||
+      (errorCode != null && RATE_LIMIT_CODES.has(errorCode));
+
+    if (isReauth && !isTransient) {
+      // Token muerto de verdad → marcar expired para que la UI lo muestre.
+      console.warn(
+        `[refresh-meta-tokens] ${conn.workspace_id} (@${conn.ig_username}) token needs reauth: code=${errorCode} type=${errorType} msg=${errorMsg}`,
+      );
+      await supabase
+        .from("meta_connections")
+        .update({
+          status: "expired",
+          last_error: `auto_refresh_failed: ${errorMsg.slice(0, 200)}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", conn.id);
+      return {
+        workspace_id: conn.workspace_id,
+        ig_username: conn.ig_username,
+        outcome: "expired",
+        detail: errorMsg.slice(0, 200),
+      };
+    }
+
+    // Fallo transitorio → NO cambiar status. Loguear y reintentar en la próxima corrida.
     console.warn(
-      `[refresh-meta-tokens] ${conn.workspace_id} (@${conn.ig_username}) Meta rejected refresh: code=${errorCode} msg=${errorMsg}`,
+      `[refresh-meta-tokens] ${conn.workspace_id} (@${conn.ig_username}) transient refresh failure (no status change): code=${errorCode} status=${res.status} msg=${errorMsg}`,
     );
-    await supabase
-      .from("meta_connections")
-      .update({
-        status: "expired",
-        last_error: `auto_refresh_failed: ${errorMsg.slice(0, 200)}`,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", conn.id);
     return {
       workspace_id: conn.workspace_id,
       ig_username: conn.ig_username,
-      outcome: "expired",
-      detail: errorMsg.slice(0, 200),
+      outcome: "error",
+      detail: `transient: ${errorMsg.slice(0, 180)}`,
     };
   }
 
