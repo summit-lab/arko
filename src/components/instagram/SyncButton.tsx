@@ -44,36 +44,33 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
     setErrorMsg(null);
 
     try {
-      // Quick sync — latest 12 reels + insights (~3-5s)
-      const stepsParam = currentTab === "metrics" ? "account" : "quick";
-      const quickRes = await fetch(
-        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=${stepsParam}`,
+      // 1. Check rápido (~1-2s): valida token/conexión. Antes el botón esperaba
+      //    el "quick sync" entero (a veces ~30s); ahora solo valida y dispara el
+      //    sync de fondo, sin bloquear.
+      const checkRes = await fetch(
+        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=check`,
         { method: "POST" }
       );
-      const quickJson = await quickRes.json();
+      const checkJson = await checkRes.json();
 
-      if (!quickRes.ok || quickJson.data?.status === "error") {
+      if (!checkRes.ok || checkJson.error === "TOKEN_EXPIRED" || checkJson.data?.status === "error") {
         setPhase("error");
-        if (quickJson.error === "TOKEN_EXPIRED") {
+        if (checkJson.error === "TOKEN_EXPIRED") {
           setErrorMsg(t("sync.tokenExpired"));
         } else {
-          setErrorMsg(quickJson.message || quickJson.data?.error || t("sync.quickError"));
+          setErrorMsg(checkJson.message || checkJson.data?.error || t("sync.quickError"));
         }
         return;
       }
 
-      // Quick done — mostrar la primera página (los más nuevos) al instante
-      router.refresh();
-
-      if (stepsParam === "account") {
-        setPhase("done");
-        return;
-      }
-
-      // Disparar full sync en background y trackearlo: mientras corre, el edge
-      // escribe los reels por página y el useEffect de arriba va refrescando.
+      // 2. Full sync en background, ORDENADO según la vista: reels-first en la
+      //    pestaña de reels (el edge los streamea por página → los más nuevos
+      //    aparecen primero), account-first en métricas. La página ya muestra los
+      //    reels actuales; el useEffect refresca cada 4s y los nuevos van llegando
+      //    solos. No se bloquea esperando nada.
+      const first = currentTab === "metrics" ? "account" : "reels";
       fetch(
-        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all`,
+        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all&first=${first}`,
         { method: "POST" }
       ).catch(() => { /* background, non-blocking */ });
 
@@ -83,7 +80,7 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
       setPhase("error");
       setErrorMsg(t("sync.networkError"));
     }
-  }, [workspaceId, currentTab, router, t, startTracking]);
+  }, [workspaceId, currentTab, t, startTracking]);
 
   const isLoading = phase === "quick" || phase === "syncing";
 

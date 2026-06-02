@@ -57,29 +57,31 @@ export async function POST(request: Request) {
 
     const url = new URL(request.url);
     const steps = url.searchParams.get('steps') || 'all';
+    // Orden de prioridad del sync según la vista (pestaña): 'reels' o 'account'.
+    // El primero se sincroniza primero → se ve llegar antes en esa vista.
+    const first = url.searchParams.get('first');
 
     const supabase = await createClient();
     const syncHeaders = { 'x-sync-secret': env.SYNC_SECRET ?? '' };
 
     // ─── Heavy sync fire-and-forget + step-chaining ─────────────────
-    // Supabase Edge tiene timeout de 150s por invocación. Antes hacíamos
-    // UNA sola invocación con steps=all → si un user tenía muchos reels,
-    // el edge moría antes de terminar y pasos posteriores nunca corrían.
+    // Supabase Edge tiene timeout de ~150s por invocación. Encadenamos pasos
+    // GRANULARES (reels y ads separados, cada uno con su budget), igual que el
+    // cron particionado, para que reels + ads no compitan por el límite.
     //
-    // Ahora cuando `steps=all`, encadenamos 3 invocaciones secuenciales,
-    // cada una con SU propio budget de 150s:
-    //   1. account (~15s)     — followers, impressions, reach (KPIs top)
-    //   2. media   (0-300s)   — reels + ads + benchmarks (el pesado); si
-    //                           muere, account ya actualizó el dashboard
-    //   3. stories (~30s)     — stories sequences
+    // El ORDEN depende de la vista (param `first`):
+    //   - reels-first (pestaña de reels): reels → account → ads → stories.
+    //     El edge streamea los reels por página → los más nuevos aparecen primero.
+    //   - account-first (métricas / default): account → reels → ads → stories.
     //
-    // Si alguna falla, logueamos pero seguimos con la siguiente. Así un
-    // fallo aislado no bloquea el sync del resto.
-    const isHeavySync = steps === 'all' || steps === 'media' || steps === 'account';
+    // Si un paso falla, seguimos con el siguiente (un fallo aislado no bloquea el resto).
+    const isHeavySync = steps === 'all' || steps === 'media' || steps === 'reels' || steps === 'account';
 
     if (isHeavySync) {
       const stepsChain = steps === 'all'
-        ? ['account', 'media', 'stories']
+        ? (first === 'reels'
+            ? ['reels', 'account', 'ads', 'stories']
+            : ['account', 'reels', 'ads', 'stories'])
         : [steps];
 
       // `after()` difiere la ejecución hasta después que la response salió.
