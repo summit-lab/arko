@@ -8,6 +8,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 import { env, getAppUrl, getMetaRedirectUri } from '@/lib/env';
+import { GRAPH_BASE } from '@/lib/meta/constants';
+
+// NOTA: el flujo OAuth maneja cada fallo con un redirect específico
+// (/onboarding?error=...), no lanzando excepciones. Por eso NO usa metaFetch()
+// del cliente Meta (que lanza MetaApiError): el control-flow por-redirect es
+// deliberado para OAuth. Sí se centraliza GRAPH_BASE para no duplicar la versión.
 
 function getWorkspaceIdFromState(stateParam: string | null) {
   if (!stateParam) {
@@ -68,7 +74,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
 
     // Step 2: Exchange code for short-lived access token (PRD 4.3)
-    const tokenUrl = new URL('https://graph.facebook.com/v25.0/oauth/access_token');
+    const tokenUrl = new URL(`${GRAPH_BASE}/oauth/access_token`);
     tokenUrl.searchParams.set('client_id', env.META_APP_ID!);
     tokenUrl.searchParams.set('redirect_uri', getMetaRedirectUri());
     tokenUrl.searchParams.set('client_secret', env.META_APP_SECRET!);
@@ -86,7 +92,7 @@ export async function GET(request: Request) {
     const shortLivedToken = tokenData.access_token;
 
     // Exchange for long-lived token (60 days)
-    const longLivedUrl = new URL('https://graph.facebook.com/v25.0/oauth/access_token');
+    const longLivedUrl = new URL(`${GRAPH_BASE}/oauth/access_token`);
     longLivedUrl.searchParams.set('grant_type', 'fb_exchange_token');
     longLivedUrl.searchParams.set('client_id', env.META_APP_ID!);
     longLivedUrl.searchParams.set('client_secret', env.META_APP_SECRET!);
@@ -99,7 +105,7 @@ export async function GET(request: Request) {
 
     // Step 3-4: Validate token + check permissions (PRD 4.3)
     const permissionsRes = await fetch(
-      `https://graph.facebook.com/v25.0/me/permissions?access_token=${accessToken}`
+      `${GRAPH_BASE}/me/permissions?access_token=${accessToken}`
     );
     const permissionsData = await permissionsRes.json();
     const grantedPermissions = (permissionsData.data || [])
@@ -109,13 +115,13 @@ export async function GET(request: Request) {
     // Step 5: Discover assets (PRD 4.3)
     // Get FB user ID
     const meRes = await fetch(
-      `https://graph.facebook.com/v25.0/me?fields=id,name&access_token=${accessToken}`
+      `${GRAPH_BASE}/me?fields=id,name&access_token=${accessToken}`
     );
     const meData = await meRes.json();
 
     // List pages
     const pagesRes = await fetch(
-      `https://graph.facebook.com/v25.0/${meData.id}/accounts?fields=id,name,access_token&access_token=${accessToken}`
+      `${GRAPH_BASE}/${meData.id}/accounts?fields=id,name,access_token&access_token=${accessToken}`
     );
     const pagesData = await pagesRes.json();
     const page = pagesData.data?.[0]; // First page
@@ -126,7 +132,7 @@ export async function GET(request: Request) {
     if (page) {
       // Resolve IG business account from page
       const igRes = await fetch(
-        `https://graph.facebook.com/v25.0/${page.id}?fields=instagram_business_account{id,username}&access_token=${accessToken}`
+        `${GRAPH_BASE}/${page.id}?fields=instagram_business_account{id,username}&access_token=${accessToken}`
       );
       const igData = await igRes.json();
       igBusinessAccountId = igData.instagram_business_account?.id || null;
@@ -143,7 +149,7 @@ export async function GET(request: Request) {
 
     // List ad accounts
     const adAccountsRes = await fetch(
-      `https://graph.facebook.com/v25.0/${meData.id}/adaccounts?fields=id,name,account_status&access_token=${accessToken}`
+      `${GRAPH_BASE}/${meData.id}/adaccounts?fields=id,name,account_status&access_token=${accessToken}`
     );
     const adAccountsData = await adAccountsRes.json();
     const adAccountIds = (adAccountsData.data || [])
