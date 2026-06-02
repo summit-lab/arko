@@ -7,6 +7,19 @@
 
 ## [unreleased] — 2026-06-02
 
+### Perf — Sync IG: fetch incremental + fix del cuello de botella Apify (F2.5-5)
+
+**Apify (el cuello de botella REAL, medido en vivo):** el enrichment de duración de videos corría **secuencial** con timeout de 30s → cuando Apify falla/tarda (Franco: 4 de 5 reels timeouteando) dominaba el sync con ~120s de espera. Ahora corre **en paralelo** (5 a la vez) + timeout 30s→15s. **Franco: 124.7s → 31.2s.**
+
+**Fetch incremental:** el sync re-bajaba TODO el historial de media cada vez (~90s en cuentas grandes) aunque lo nuevo fueran 2 reels. Ahora **corta la paginación** al llegar a media ya conocida (Meta devuelve newest-first). Los reels viejos refrescan insights vía selección **desde la DB** (decay), no por el fetch. **PROVIDA (2970 reels): 155s → 16.5s** (corta tras 1 página, refresca 30 insights, 0 pérdida).
+
+**Gotcha resuelto:** el lookup de reels conocidos venía capado a 1000 filas (`db-max-rows` de PostgREST) con orden UUID random → en cuentas >1000 reels el corte no disparaba y faltaba cobertura de insights. Se **pagina el lookup** por rangos para traer todos + backstop de páginas. (Lo destapó el test en PROVIDA — por eso se prueba en cuentas grandes.)
+
+Paridad verificada en vivo (ac331157, Franco, PROVIDA): mismo conteo de reels, insights refrescados, 0 errores. `snapshotDailyMetrics` intacto (ya leía de la DB).
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `fetchAllMedia` con corte incremental (`onPage`→boolean); `existingReels` paginado (chunks de 1000); selección de insights desde la DB por decay; Apify enrichment en paralelo + timeout 15s.
+
 ### Perf — Sync IG: particionar el cron para eliminar timeouts del edge (F2.5-5 Phase 0)
 
 **Problema (verificado en Prod, `sync_jobs` últimos 7d):** el cron `sync-instagram-all` mandaba UNA invocación `steps=all` que corría account + reels + ads en el mismo edge (~150s de límite). En cuentas grandes, reels (p95 120.9s) + ads (p95 104.9s) superan los 150s → el edge muere, el `sync_job` queda en `running` y el watchdog lo marca `failed` a los 30 min. Resultado: `full_sync` 46% de fallo (Franco 25, PROVIDA 19 por timeout), `ads_insights` 35%.
