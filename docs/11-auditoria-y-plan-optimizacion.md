@@ -63,8 +63,9 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 | **F2.2** | Fix split tokens 85/15 fabricado en costos IA | 🟡 Diferido | El TOTAL de costo es correcto; solo el split input/output es estimado. Requiere capturar `promptTokenCount`/`candidatesTokenCount` en `competitor-analysis.service.ts` + 4 rutas → va con F2.5 (capa IA) |
 | **F2.3** | Dedup de scrapes Apify (guard `last_scraped_at`) | ⬜ | Control de costo. Medio riesgo (toca scraping de 6 clientes) |
 | **F2.4** | Centralizar `META_GRAPH_VERSION` | ⬜ Diferido | No hay drift (v25.0 uniforme; el `v22.0` es solo comentario). Va con el cliente Meta unificado |
-| **F2.5/F2.6** | Clientes unificados Meta/Apify + adapter Gemini en `callLLM` + convención API | ⬜ | §4–§7. Refactor grande, feature por feature, con feature flags. NO apurar con clientes vivos |
-| **API** | getWorkspaceId sin verificar membership · `/api/sales` vs `/v1` · zero-Zod | ⬜ | Pendiente real (verificado). Va con la reorg de API (F2.5+) |
+| **F2.5** | Cliente Meta Graph unificado | 📋 **Diseñado, no empezado** | Plan completo en `docs/implementation-plans/f2.5-cliente-meta-unificado.md` (6 fases, recon Opus verificado). Arrancar en sesión dedicada. Descubrió un 🐞 bug: refresh-meta-tokens marca `expired` ante errores transitorios |
+| **F2.6** | Cliente Apify + adapter Gemini en `callLLM` | ⬜ | §4–§7. Refactor grande, feature por feature. NO apurar con clientes vivos |
+| **API** | getWorkspaceId sin verificar membership · `/api/sales` vs `/v1` · zero-Zod | ⬜ | Pendiente real (verificado). Va con la reorg de API |
 
 ### Deudas de SEGURIDAD aún abiertas (importantes)
 - 🟡 **Rotar las claves Supabase** (Dev+Prod). El PR #97 frenó la propagación pero las claves siguen vivas y en el historial de git. Requiere runbook coordinado (Vercel + 4 edge secrets con `--no-verify-jwt`). El usuario lo postergó conscientemente (repo privado, círculo de confianza). Ver §12.
