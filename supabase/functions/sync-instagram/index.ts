@@ -991,93 +991,36 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       }
     }
 
-    // ── followers_total reconstruction ─────────────────────────────
-    // Strategy:
-    //   1. Today = real profile snapshot (currentFollowersTotal)
-    //   2. Days with Meta delta (follower_count defined, even if 0): walk backwards
-    //      from today subtracting deltas to reconstruct cumulative total
-    //   3. Gap days (between last Meta delta and today): interpolate linearly
-    //   4. Always overwrite followers_total — recomputed values are more accurate
-    //      than stale interpolations from previous syncs
+    // ── followers_total: snapshot diario del TOTAL REAL (Fase 3) ───────────
+    // Antes se RECONSTRUÍA followers_total hacia atrás restando deltas de Meta,
+    // lo que se rompía cuando un delta era anómalo (cuenta suspendida/reactivada
+    // → Meta reporta +6615 en un día y deformaba toda la curva histórica).
+    //
+    // Ahora seguimos el mismo patrón probado de competitor_follower_snapshots:
+    // guardar UNA fila por día con el TOTAL REAL del perfil (profileData.
+    // followers_count). El crecimiento "nuevos por día" se calcula en la capa de
+    // lectura como resta de totales reales (src/lib/follower-metrics.ts:
+    // dailyNewFromTotals). Cada día queda capturado real; el día de hoy se pisa
+    // en cada corrida del cron (cada 6h) con el valor más reciente. Los días
+    // pasados NO se reescriben (el loop ya no toca followers_total), así cada
+    // snapshot histórico queda congelado tal como se capturó.
+    //
+    // El histórico previo a este cambio sigue siendo reconstruido (Meta no da
+    // histórico de totales) y queda cubierto por el saneo de lectura; sale de la
+    // ventana visible a medida que se acumulan capturas reales.
     const currentFollowersTotal = profileData?.followers_count ?? 0;
     const syncDate = new Date().toISOString().split("T")[0];
-    const sortedDates = [...dayMap.keys()].sort();
 
-    // Compute followers_total for each day
-    const followersTotalByDate = new Map<string, number>();
-
-    if (currentFollowersTotal > 0 && sortedDates.length > 0) {
-      // Find the last day with a real delta from Meta (any day that has follower_count defined)
-      let lastDeltaIdx = -1;
-      for (let i = sortedDates.length - 1; i >= 0; i--) {
-        if (dayMap.get(sortedDates[i])?.follower_count != null) {
-          lastDeltaIdx = i;
-          break;
-        }
-      }
-
-      // Sum known deltas AND count only the days that actually reported one.
-      // Meta often leaves interior days without follower_count (especially for
-      // small accounts), so `lastDeltaIdx + 1` overcounts the denominator and
-      // dilutes avgDailyGrowth → underestimates the gap growth → inflates
-      // historical totals.
-      let sumAllDeltas = 0;
-      let numDeltaDays = 0;
-      for (let i = 0; i <= lastDeltaIdx; i++) {
-        const d = dayMap.get(sortedDates[i])?.follower_count;
-        if (d != null) {
-          sumAllDeltas += d;
-          numDeltaDays++;
-        }
-      }
-
-      // Estimate the growth during the "gap" (days after lastDeltaIdx without a
-      // reported delta) proportionally to observed growth in the known window.
-      const numGapDays = sortedDates.length - 1 - lastDeltaIdx;
-      const avgDailyGrowth = numDeltaDays > 0 ? sumAllDeltas / numDeltaDays : 0;
-      const estimatedGapGrowth = Math.round(avgDailyGrowth * numGapDays);
-
-      // Compute the total at lastDeltaIdx. Clamp to >= 0 to prevent absurd
-      // back-projection if a single spiky delta extrapolates wildly.
-      const totalAtLastDelta = Math.max(0, currentFollowersTotal - estimatedGapGrowth);
-
-      // Walk backwards from totalAtLastDelta through days with real deltas
-      followersTotalByDate.set(syncDate, currentFollowersTotal);
-      let runningTotal = totalAtLastDelta;
-      for (let i = lastDeltaIdx; i >= 0; i--) {
-        followersTotalByDate.set(sortedDates[i], Math.max(0, runningTotal));
-        runningTotal -= (dayMap.get(sortedDates[i])?.follower_count ?? 0);
-      }
-
-      // Interpolate gap days (between lastDeltaIdx and today) with a straight line
-      if (lastDeltaIdx >= 0 && lastDeltaIdx < sortedDates.length - 1) {
-        const gapStartTotal = totalAtLastDelta;
-        const gapEndTotal = currentFollowersTotal;
-
-        if (numGapDays > 0) {
-          const dailyIncrement = (gapEndTotal - gapStartTotal) / numGapDays;
-          for (let i = lastDeltaIdx + 1; i < sortedDates.length; i++) {
-            const stepsFromStart = i - lastDeltaIdx;
-            followersTotalByDate.set(sortedDates[i], Math.max(0, Math.round(gapStartTotal + dailyIncrement * stepsFromStart)));
-          }
-        }
-      }
-    }
-
-    console.log(`[account-sync] followers_total snapshot: ${currentFollowersTotal} for ${syncDate}, computed for ${followersTotalByDate.size} days`);
+    console.log(`[account-sync] followers_total real snapshot: ${currentFollowersTotal} for ${syncDate}`);
 
     for (const [date, metrics] of dayMap) {
-      const computedFt = followersTotalByDate.get(date);
-      const ftPayload = (computedFt != null && computedFt > 0)
-        ? { followers_total: computedFt }
-        : {};
-
       const { error } = await supabase.from("ig_account_insights").upsert({
         workspace_id: workspaceId, metric_date: date,
         impressions: metrics.views ?? metrics.content_views ?? 0,
         reach: metrics.reach ?? 0, profile_views: metrics.profile_views ?? 0,
         follower_count: metrics.follower_count ?? 0,
-        ...ftPayload,
+        // followers_total NO se escribe acá: solo lo setea el snapshot real de
+        // hoy (abajo). Días pasados quedan congelados con lo ya capturado.
         follows_count: profileData?.follows_count ?? 0, media_count: profileData?.media_count ?? 0,
         accounts_engaged: metrics.accounts_engaged ?? 0,
         total_interactions: (metrics.likes ?? 0) + (metrics.comments ?? 0) + (metrics.shares ?? 0) + (metrics.saves ?? 0),
@@ -1092,7 +1035,10 @@ async function syncAccountInsights(supabase: any, workspaceId: string, syncJobId
       else result.daysUpserted++;
     }
 
-    // Always upsert today's snapshot with the real followers_total
+    // Snapshot del TOTAL REAL para HOY. Es la ÚNICA escritura de followers_total.
+    // Guard > 0: si Meta falla o devuelve 0, NO pisa el total real con un 0
+    // (deja el día sin snapshot en vez de corromper). dailyNewFromTotals en la
+    // lectura salta los días sin total y resta contra el último día válido.
     if (currentFollowersTotal > 0) {
       await supabase
         .from("ig_account_insights")
