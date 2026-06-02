@@ -21,6 +21,18 @@
 - `supabase/functions/sync-instagram/index.ts` — nuevo step `reels` (reels + benchmark, sin ads); ads solo en `all`/`media`. Aditivo: no cambia los paths existentes (botón y workspaces no-canary intactos).
 - `supabase/migrations/20260602050000_partition_scheduled_ig_sync.sql` — `trigger_scheduled_sync` con split canary + URL dinámica; `trigger_scheduled_stories_sync` URL dinámica.
 
+### Perf/UX — Sync IG streaming: la primera página de reels aparece en segundos (F2.5-5)
+
+**Antes:** el full sync bajaba TODO el historial de media (`fetchAllMedia`, ~90s en cuentas grandes) y recién después escribía los reels → no se veía nada hasta el final.
+
+**Ahora (streaming):** el edge escribe cada página de reels apenas la baja (newest-first) → los más nuevos aparecen en ~3-5s y el resto va llegando. NO cambia qué datos se traen (se siguen paginando todas las páginas para insights/snapshot), solo CUÁNDO se escriben → paridad verificada en vivo (ac331157: 111 reels antes/después, 111 thumbnails, 0 errores). El `SyncButton` ahora refresca cada 4s mientras el sync corre, así los reels aparecen solos.
+
+**No incluido (va aparte, con canary + paridad):** el corte incremental (dejar de re-paginar el historial completo) — el ahorro de tiempo crudo. Toca la semántica del snapshot diario de reels viejos.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `fetchAllMedia` con callback `onPage`; `syncInstagramReels` escribe por página (thumbnails + upsert + progreso) en vez de bajar-todo-y-después-escribir. Phase 2 (insights/Apify/snapshot/carruseles) intacto.
+- `src/components/instagram/SyncButton.tsx` — trackea el full sync con `useSyncJobProgress` y refresca cada 4s mientras corre (reveal progresivo).
+
 ### Fix — Seguidores: gráfico de "nuevos por día" por resta de totales reales + saneo de anomalías
 
 **Arquitectura (estilo Metricool):** el gráfico de "nuevos seguidores por día" del dashboard ahora se calcula como **resta de totales reales** (`followers_total[hoy] − [ayer]`) en vez de confiar en el delta `follower_count` que Meta reporta. Robusto por diseño: si los totales son reales, la resta nunca produce un salto espurio. Es el mismo patrón que ya usa el módulo de competidores (`competitor_follower_snapshots`). Validado con datos reales: emanuelmdzz pasa de mostrar +6615 a un máximo de +68.
