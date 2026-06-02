@@ -7,6 +7,20 @@
 
 ## [unreleased] — 2026-06-02
 
+### Perf — Sync IG: particionar el cron para eliminar timeouts del edge (F2.5-5 Phase 0)
+
+**Problema (verificado en Prod, `sync_jobs` últimos 7d):** el cron `sync-instagram-all` mandaba UNA invocación `steps=all` que corría account + reels + ads en el mismo edge (~150s de límite). En cuentas grandes, reels (p95 120.9s) + ads (p95 104.9s) superan los 150s → el edge muere, el `sync_job` queda en `running` y el watchdog lo marca `failed` a los 30 min. Resultado: `full_sync` 46% de fallo (Franco 25, PROVIDA 19 por timeout), `ads_insights` 35%.
+
+**Fix:** el cron ahora dispara invocaciones SEPARADAS por step (`account` / `reels` / `ads`), cada una con su propio budget de ~150s — el mismo patrón que el botón ya usa via `after()`. Rollout por **canary**: arranca con un solo workspace (ac331157) y se hace ramp agregando IDs al array `canary_ws` del trigger.
+
+**Colateral:** los 2 triggers de IG (`trigger_scheduled_sync`, `trigger_scheduled_stories_sync`) usan URL dinámica (`current_setting('app.settings.supabase_project_ref')`) en vez de hardcodear el ref de Prod — antes, en Dev disparaban el edge de PROD.
+
+**No incluido (Phase 0 quirúrgica, va después detrás de flag + paridad):** migración a `metaFetch` (retry/backoff), doble-fetch 90d de ads, colapso de account 30→1 llamada. La conexión rota de Nacho (`object does not exist`, 100% de fallo) es un bug separado de re-auth, no de timeout.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — nuevo step `reels` (reels + benchmark, sin ads); ads solo en `all`/`media`. Aditivo: no cambia los paths existentes (botón y workspaces no-canary intactos).
+- `supabase/migrations/20260602050000_partition_scheduled_ig_sync.sql` — `trigger_scheduled_sync` con split canary + URL dinámica; `trigger_scheduled_stories_sync` URL dinámica.
+
 ### Fix — Seguidores: gráfico de "nuevos por día" por resta de totales reales + saneo de anomalías
 
 **Arquitectura (estilo Metricool):** el gráfico de "nuevos seguidores por día" del dashboard ahora se calcula como **resta de totales reales** (`followers_total[hoy] − [ayer]`) en vez de confiar en el delta `follower_count` que Meta reporta. Robusto por diseño: si los totales son reales, la resta nunca produce un salto espurio. Es el mismo patrón que ya usa el módulo de competidores (`competitor_follower_snapshots`). Validado con datos reales: emanuelmdzz pasa de mostrar +6615 a un máximo de +68.

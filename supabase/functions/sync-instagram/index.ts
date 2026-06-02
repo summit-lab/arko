@@ -165,8 +165,15 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Step 2+3: Media + Ads ──
-    if (steps === "all" || steps === "media") {
+    // ── Step 2(+3): Media (reels) + Ads ──
+    // 'reels' = SOLO reels + benchmark (sin ads). 'media'/'all' = reels + ads + benchmark.
+    // El cron particionado (trigger_scheduled_sync) dispara 'reels' y 'ads' por
+    // separado para que cada uno tenga su propio budget de ~150s del edge y no
+    // timeoutee al meterlos en UNA sola invocación (causa del ~46% de fallo en
+    // full_sync de cuentas grandes: reels p95 120.9s + ads p95 104.9s > 150s).
+    // El botón y los workspaces no-canary siguen usando 'media' (reels+ads
+    // juntos), sin cambios de comportamiento.
+    if (steps === "all" || steps === "media" || steps === "reels") {
       const { data: reelsJob } = await supabase
         .from("sync_jobs")
         .insert({ workspace_id, job_type: "full_sync", status: "queued" })
@@ -179,7 +186,9 @@ Deno.serve(async (req: Request) => {
 
       reelsResult = await syncInstagramReels(supabase, workspace_id, reelsJob.id, connection.ig_business_account_id, accessToken);
 
-      if (connection.ad_account_ids?.length) {
+      // Ads SOLO en 'all'/'media' (NO en 'reels'-only). El cron particionado
+      // dispara ads como invocación 'ads' separada.
+      if ((steps === "all" || steps === "media") && connection.ad_account_ids?.length) {
         const { data: adsJob } = await supabase
           .from("sync_jobs")
           .insert({ workspace_id, job_type: "ads_insights", status: "queued" })
