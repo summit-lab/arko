@@ -165,8 +165,15 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Step 2+3: Media + Ads ──
-    if (steps === "all" || steps === "media") {
+    // ── Step 2(+3): Media (reels) + Ads ──
+    // 'reels' = SOLO reels + benchmark (sin ads). 'media'/'all' = reels + ads + benchmark.
+    // El cron particionado (trigger_scheduled_sync) dispara 'reels' y 'ads' por
+    // separado para que cada uno tenga su propio budget de ~150s del edge y no
+    // timeoutee al meterlos en UNA sola invocación (causa del ~46% de fallo en
+    // full_sync de cuentas grandes: reels p95 120.9s + ads p95 104.9s > 150s).
+    // El botón y los workspaces no-canary siguen usando 'media' (reels+ads
+    // juntos), sin cambios de comportamiento.
+    if (steps === "all" || steps === "media" || steps === "reels") {
       const { data: reelsJob } = await supabase
         .from("sync_jobs")
         .insert({ workspace_id, job_type: "full_sync", status: "queued" })
@@ -179,7 +186,9 @@ Deno.serve(async (req: Request) => {
 
       reelsResult = await syncInstagramReels(supabase, workspace_id, reelsJob.id, connection.ig_business_account_id, accessToken);
 
-      if (connection.ad_account_ids?.length) {
+      // Ads SOLO en 'all'/'media' (NO en 'reels'-only). El cron particionado
+      // dispara ads como invocación 'ads' separada.
+      if ((steps === "all" || steps === "media") && connection.ad_account_ids?.length) {
         const { data: adsJob } = await supabase
           .from("sync_jobs")
           .insert({ workspace_id, job_type: "ads_insights", status: "queued" })
@@ -501,11 +510,8 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
   try {
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
 
-    const allMediaRaw = await fetchAllMedia(igAccountId, accessToken);
-    const allMedia = allMediaRaw.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
-    await supabase.from("sync_jobs").update({ total_items: allMedia.length }).eq("id", syncJobId);
-
-    // Get existing reels with metrics timestamps + published_at for decay tiers
+    // Get existing reels with metrics timestamps + published_at for decay tiers.
+    // Se trae ANTES de paginar porque el upsert ahora corre por página (streaming).
     const { data: existingReels } = await supabase
       .from("reels")
       .select("ig_media_id, published_at, reel_metrics(fetched_at)")
@@ -522,63 +528,83 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
     const MAX_INSIGHTS_PER_SYNC = 30;
     let insightsFetchCount = 0;
 
-    // ── Phase 0.5: Fetch carousel thumbnails (first child image) ──
-    const carouselsNoThumb = allMedia.filter((m) => m.media_type === "CAROUSEL_ALBUM" && !m.thumbnail_url && !m.media_url);
-    if (carouselsNoThumb.length > 0) {
-      const thumbMap = new Map<string, string>();
-      const childFetches = carouselsNoThumb.slice(0, 50).map(async (m) => {
-        try {
-          const res = await fetch(`${GRAPH_BASE}/${m.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=1&access_token=${accessToken}`);
-          const data = await res.json();
-          const firstChild = data?.data?.[0];
-          if (firstChild) {
-            const thumbUrl = firstChild.thumbnail_url || firstChild.media_url || null;
-            if (thumbUrl) thumbMap.set(m.id, thumbUrl);
-          }
-        } catch { /* non-critical */ }
-      });
-      await Promise.all(childFetches);
-      // Inject thumbnails into allMedia
-      for (const m of allMedia) {
-        if (thumbMap.has(m.id)) m.thumbnail_url = thumbMap.get(m.id);
-      }
-    }
-
-    // ── Phase 1: Batch upsert all reels (fast, no API calls) ──
+    // ── Phases 0.5 + 1 STREAMED: por cada página de media (newest-first) bajamos
+    //    thumbnails de carruseles y hacemos upsert YA, en vez de esperar a paginar
+    //    todo el historial. Así los reels más nuevos aparecen en la UI en segundos.
+    //    NO cambia QUÉ datos se traen (fetchAllMedia sigue paginando todo para que
+    //    Phase 2/insights/snapshot operen sobre la lista completa), solo CUÁNDO se
+    //    escriben → paridad de datos preservada. ──
     const UPSERT_BATCH = 20;
+    const CAROUSEL_THUMB_CAP = 50; // tope global de fetches de children (como antes)
     const reelIdMap = new Map<string, string>(); // ig_media_id → reel uuid
-    for (let i = 0; i < allMedia.length; i += UPSERT_BATCH) {
-      const batch = allMedia.slice(i, i + UPSERT_BATCH);
-      const rows = batch.map((media) => ({
-        workspace_id: workspaceId,
-        ig_media_id: media.id,
-        caption: media.caption || null,
-        media_type: media.media_type,
-        media_product_type: media.media_product_type,
-        permalink: media.permalink || null,
-        media_url: media.media_url || null,
-        thumbnail_url: media.thumbnail_url || media.media_url || null,
-        is_shared_to_feed: media.is_shared_to_feed ?? null,
-        published_at: media.timestamp || null,
-        reel_type: classifyReelType(media),
-        sync_status: "synced",
-      }));
+    let mediaUpserted = 0;
+    let carouselThumbFetches = 0;
 
-      const { data: upserted, error: batchError } = await supabase
-        .from("reels")
-        .upsert(rows, { onConflict: "workspace_id,ig_media_id" })
-        .select("id, ig_media_id");
+    const processPage = async (page: IGMedia[]) => {
+      const pageMedia = page.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
+      if (pageMedia.length === 0) return;
 
-      if (batchError) {
-        result.errors.push(`Batch upsert [${i}..${i + batch.length}]: ${batchError.message}`);
-        result.reelsSkipped += batch.length;
-      } else {
-        result.reelsSynced += (upserted?.length ?? 0);
-        for (const r of upserted || []) {
-          reelIdMap.set(r.ig_media_id, r.id);
+      // Carousel thumbnails (first child) para los carruseles de ESTA página,
+      // respetando el tope global de 50 fetches.
+      const carouselsNoThumb = pageMedia
+        .filter((m) => m.media_type === "CAROUSEL_ALBUM" && !m.thumbnail_url && !m.media_url)
+        .slice(0, Math.max(0, CAROUSEL_THUMB_CAP - carouselThumbFetches));
+      if (carouselsNoThumb.length > 0) {
+        carouselThumbFetches += carouselsNoThumb.length;
+        await Promise.all(carouselsNoThumb.map(async (m) => {
+          try {
+            const res = await fetch(`${GRAPH_BASE}/${m.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=1&access_token=${accessToken}`);
+            const data = await res.json();
+            const firstChild = data?.data?.[0];
+            const thumbUrl = firstChild ? (firstChild.thumbnail_url || firstChild.media_url || null) : null;
+            if (thumbUrl) m.thumbnail_url = thumbUrl; // muta el objeto (misma ref que en allMedia)
+          } catch { /* non-critical */ }
+        }));
+      }
+
+      // Upsert de esta página (batches de 20, sin llamadas a API)
+      for (let i = 0; i < pageMedia.length; i += UPSERT_BATCH) {
+        const batch = pageMedia.slice(i, i + UPSERT_BATCH);
+        const rows = batch.map((media) => ({
+          workspace_id: workspaceId,
+          ig_media_id: media.id,
+          caption: media.caption || null,
+          media_type: media.media_type,
+          media_product_type: media.media_product_type,
+          permalink: media.permalink || null,
+          media_url: media.media_url || null,
+          thumbnail_url: media.thumbnail_url || media.media_url || null,
+          is_shared_to_feed: media.is_shared_to_feed ?? null,
+          published_at: media.timestamp || null,
+          reel_type: classifyReelType(media),
+          sync_status: "synced",
+        }));
+
+        const { data: upserted, error: batchError } = await supabase
+          .from("reels")
+          .upsert(rows, { onConflict: "workspace_id,ig_media_id" })
+          .select("id, ig_media_id");
+
+        if (batchError) {
+          result.errors.push(`Batch upsert: ${batchError.message}`);
+          result.reelsSkipped += batch.length;
+        } else {
+          result.reelsSynced += (upserted?.length ?? 0);
+          for (const r of upserted || []) {
+            reelIdMap.set(r.ig_media_id, r.id);
+          }
         }
       }
-    }
+
+      // Progreso parcial: reels escritos hasta ahora → la UI los ve llegar.
+      mediaUpserted += pageMedia.length;
+      await supabase.from("sync_jobs").update({ processed_items: mediaUpserted }).eq("id", syncJobId);
+    };
+
+    // Pagina todo el historial PERO escribe cada página apenas llega (streaming).
+    const allMediaRaw = await fetchAllMedia(igAccountId, accessToken, processPage);
+    const allMedia = allMediaRaw.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
+    await supabase.from("sync_jobs").update({ total_items: allMedia.length }).eq("id", syncJobId);
 
     // ── Phase 2: Fetch insights using data decay tiers ──
     // Hot (<7d) → stale after 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d
@@ -1584,7 +1610,11 @@ async function snapshotDailyMetrics(supabase: any, workspaceId: string): Promise
 // GRAPH API HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-async function fetchAllMedia(igAccountId: string, accessToken: string): Promise<IGMedia[]> {
+async function fetchAllMedia(
+  igAccountId: string,
+  accessToken: string,
+  onPage?: (page: IGMedia[]) => Promise<void>,
+): Promise<IGMedia[]> {
   const fields = "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed";
   const allMedia: IGMedia[] = [];
   let url: string | null = `${GRAPH_BASE}/${igAccountId}/media?fields=${fields}&limit=50&access_token=${accessToken}`;
@@ -1593,7 +1623,15 @@ async function fetchAllMedia(igAccountId: string, accessToken: string): Promise<
     const res = await fetch(url);
     const data = await res.json();
     if (data.error) throw new Error(`IG API error: ${data.error.message}`);
-    if (data.data) allMedia.push(...data.data);
+    const page: IGMedia[] = data.data || [];
+    if (page.length > 0) {
+      allMedia.push(...page);
+      // Streaming: procesar/escribir esta página apenas llega (Meta devuelve
+      // newest-first), para que los reels nuevos aparezcan en la UI en segundos
+      // en vez de esperar a paginar todo el historial. NO cambia qué se trae
+      // (se siguen paginando todas las páginas), solo cuándo se escribe.
+      if (onPage) await onPage(page);
+    }
     url = data.paging?.next || null;
   }
   return allMedia;

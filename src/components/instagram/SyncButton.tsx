@@ -1,22 +1,43 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { RefreshCw, Check, AlertCircle } from "lucide-react";
+import { useSyncJobProgress } from "@/hooks/useSyncJobProgress";
 
 interface SyncButtonProps {
   workspaceId: string;
   currentTab?: string;
 }
 
-type SyncPhase = "idle" | "quick" | "done" | "error";
+type SyncPhase = "idle" | "quick" | "syncing" | "done" | "error";
 
 export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
   const router = useRouter();
   const t = useTranslations("igAdvanced");
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { isActive, status, startTracking } = useSyncJobProgress(workspaceId);
+
+  // Mientras el sync de fondo corre, el edge va escribiendo los reels por página
+  // (streaming). Refrescamos los server components cada 4s para que esos reels
+  // aparezcan solos, dando sensación de carga progresiva.
+  useEffect(() => {
+    if (!isActive) return;
+    const id = setInterval(() => router.refresh(), 4000);
+    return () => clearInterval(id);
+  }, [isActive, router]);
+
+  // Al terminar el full sync: refresco final + estado del botón.
+  useEffect(() => {
+    if (status === "completed") {
+      router.refresh();
+      setPhase("done");
+    } else if (status === "failed") {
+      setPhase("error");
+    }
+  }, [status, router]);
 
   const handleSync = useCallback(async () => {
     setPhase("quick");
@@ -41,32 +62,35 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
         return;
       }
 
-      // Quick done — refresh server components to show fresh data
+      // Quick done — mostrar la primera página (los más nuevos) al instante
+      router.refresh();
+
       if (stepsParam === "account") {
         setPhase("done");
-        router.refresh();
         return;
       }
 
-      // Fire full sync in background (fire-and-forget)
+      // Disparar full sync en background y trackearlo: mientras corre, el edge
+      // escribe los reels por página y el useEffect de arriba va refrescando.
       fetch(
         `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all`,
         { method: "POST" }
       ).catch(() => { /* background, non-blocking */ });
 
-      setPhase("done");
-      router.refresh();
+      setPhase("syncing");
+      startTracking();
     } catch {
       setPhase("error");
       setErrorMsg(t("sync.networkError"));
     }
-  }, [workspaceId, currentTab, router, t]);
+  }, [workspaceId, currentTab, router, t, startTracking]);
 
-  const isLoading = phase === "quick";
+  const isLoading = phase === "quick" || phase === "syncing";
 
   const label = {
     idle: t("sync.button.idle"),
     quick: t("sync.button.quick"),
+    syncing: t("sync.button.quick"),
     done: t("sync.button.done"),
     error: t("sync.button.idle"),
   }[phase];
