@@ -201,3 +201,14 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 
 ## Ruta
  `/instagram` con tabs: `?tab=dashboard` (default) | `?tab=reels` | `?tab=posts` | `?tab=metrics` (demografía)
+
+## Seguidores: arquitectura de "total real diario" (en migración)
+
+**Problema:** Meta solo entrega el total de seguidores de HOY (`followers_count` del perfil) + deltas diarios de ~30 días (`follower_count` insight). El histórico de totales NO existe en la API. Por eso el sync **reconstruía** `followers_total` hacia atrás (resta encadenada de deltas anclada al total de hoy, `sync-instagram/index.ts:994-1065`). Esa reconstrucción es frágil: un delta anómalo (ej. una cuenta suspendida y reactivada hace que Meta reporte +6615 en un día) deforma toda la curva.
+
+**Arquitectura objetivo (estilo Metricool, ya probada en competidores):** guardar el total REAL del perfil como snapshot diario y calcular "nuevos por día" como resta `followers_total[hoy] − [ayer]`. Es exactamente lo que hace `competitor_follower_snapshots` (1 fila/día, total real, upsert idempotente por fecha) — ver `src/services/competitor-scraper.service.ts:523-533`.
+
+**Estado de la migración:**
+- ✅ **Fase 1-2 (lectura):** el gráfico de "nuevos por día" del dashboard usa `dailyNewFromTotals` (resta de totales reales, `src/lib/follower-metrics.ts`). La curva de total (IGMetrics) lee `followers_total` directo. El helper `follower-metrics.ts` sanea outliers como red de seguridad para el histórico viejo reconstruido y glitches en vivo.
+- ⬜ **Fase 3 (escritor, pendiente — toca edge Deno):** en `sync-instagram/index.ts`, eliminar el bloque de reconstrucción (`:994-1065`), quitar `ftPayload` del loop por-día (`:1069-1093`) y mantener solo el upsert del snapshot real de hoy (`:1095-1103`, que ya guarda `profileData.followers_count`). Resultado: cada día se captura el total real, una fila por día (`onConflict workspace_id,metric_date`, el cron de cada 6h pisa con el valor más reciente). El histórico viejo NO se puede des-reconstruir (límite de Meta) → queda como la mejor reconstrucción posible, cubierto por el saneo de lectura, y sale de la ventana visible a medida que se acumulan capturas reales. Requiere redeploy con `--no-verify-jwt`, Dev-first.
+- ⬜ **Fase 4 (opcional):** UPDATE quirúrgico de los días-valle ya persistidos (ej. ac331157 2026-05-27) solo si un cliente nota el escalón pese al saneo de lectura. DML acotado, sin DDL.

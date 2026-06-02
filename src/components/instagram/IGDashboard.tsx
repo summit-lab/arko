@@ -13,6 +13,7 @@ import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import { CountUp } from "@/components/ui/CountUp";
 import { useChartTheme } from "@/hooks/useChartTheme";
+import { sanitizeDailyFollowerDeltas } from "@/lib/follower-metrics";
 
 // Thumbnail with onError fallback — Meta CDN URLs expire after hours/days,
 // so broken-image alt text was leaking into the UI as visible caption text.
@@ -223,7 +224,9 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
   // resulting false dips (e.g. "-1579 in one day, +400 next day") are not
   // real — Meta's own IG panel doesn't show them. `follower_count` is the
   // same daily delta Meta surfaces natively, so it's the honest source.
-  const effectiveFollowerChange = sorted.map((d) => d.follower_count ?? 0);
+  // Saneado: clampea a 0 los días anómalos (recuperación tras suspensión /
+  // glitch de Meta) para que un +6615/+30864 no infle el total del período.
+  const effectiveFollowerChange = sanitizeDailyFollowerDeltas(sorted).map((d) => d.newFollowers);
 
   const totalFollowersGained = effectiveFollowerChange.reduce((s, v) => s + v, 0);
   const followersGainedPeriod = effectiveFollowerChange.reduce((s, v) => s + v, 0);

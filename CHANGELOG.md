@@ -7,6 +7,25 @@
 
 ## [unreleased] — 2026-06-02
 
+### Fix — Seguidores: gráfico de "nuevos por día" por resta de totales reales + saneo de anomalías
+
+**Arquitectura (estilo Metricool):** el gráfico de "nuevos seguidores por día" del dashboard ahora se calcula como **resta de totales reales** (`followers_total[hoy] − [ayer]`) en vez de confiar en el delta `follower_count` que Meta reporta. Robusto por diseño: si los totales son reales, la resta nunca produce un salto espurio. Es el mismo patrón que ya usa el módulo de competidores (`competitor_follower_snapshots`). Validado con datos reales: emanuelmdzz pasa de mostrar +6615 a un máximo de +68.
+
+**Capa de lectura (red de seguridad):** helper `src/lib/follower-metrics.ts` que sanea outliers al mostrar, conservando los datos reales en la DB. Cubre el histórico viejo (que sigue siendo reconstruido) y glitches en vivo:
+- Detecta el "valle" de suspensión (colapso + rebote) y lo excluye de diffs, curva y snapshot de total.
+- Umbral adaptativo `max(500, 8 × mediana)` para clampear deltas anómalos donde aún se usa el delta crudo (IGDashboard).
+
+**Pendiente (Fase 3, edge function):** dejar de reconstruir `followers_total` en `sync-instagram` y guardar solo el total real diario. Eso completa la migración para que el histórico futuro se capture perfecto. Requiere redeploy Deno con `--no-verify-jwt`, Dev-first.
+
+**Alcance del bug (verificado en Prod):** afectaba a 2 de 6 workspaces — emanuelmdzz (+6615 el 27/5) y un cliente (+30864 el 25/5). No es bug de sync: son datos reales anómalos que Meta devuelve tras suspensión/reactivación.
+
+Aplicado en las superficies de seguidores: dashboard (gráfico de nuevos/día por resta + KPIs + total + mes), Header (snapshot), Instagram shell (snapshot), IGMetrics (curva de total), IGDashboard (deltas, con clamp del helper hasta la Fase 3). Cuentas sanas no se ven afectadas (regresión verificada). Diseño respaldado por recon multi-agente; plan completo en `docs/features/ig-intelligence.md`.
+
+#### Archivos
+- `src/lib/follower-metrics.ts` (nuevo) — helper: `dailyNewFromTotals` (resta de totales), detección de valle, umbral adaptativo. Lógica pura tipada.
+- `src/app/(dashboard)/page.tsx` — gráfico de nuevos/día por resta de totales reales.
+- `src/app/(dashboard)/instagram/page.tsx`, `src/components/layout/Header.tsx`, `src/components/instagram/IGMetrics.tsx`, `src/components/instagram/IGDashboard.tsx` — consumen el helper.
+
 ### Security — Hardening: policy en data_deletion_requests + search_path en funciones
 
 Cierra dos clases de lint del advisor de Supabase, sin cambiar comportamiento:

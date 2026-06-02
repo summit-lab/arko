@@ -11,6 +11,7 @@ import { FollowerGrowthChart } from "@/components/dashboard/FollowerGrowthChart"
 import { CountUp } from "@/components/ui/CountUp";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
+import { dailyNewFromTotals, sumCleanFollowerDeltas, cleanFollowersTotalSeries } from "@/lib/follower-metrics";
 import type { DateRange } from "@/types/date-filter";
 import { Suspense } from "react";
 
@@ -297,12 +298,16 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   if (adsMessagingPrev.error) console.error('[dashboard] adsMessagingPrev error:', adsMessagingPrev.error);
   if (storiesForCalendar.error) console.error('[dashboard] storiesForCalendar error:', storiesForCalendar.error);
 
-  // ─── Follower growth chart data (from Query 3: daily follower_count) ───
-  const rawFollowerGrowth = (insightsPeriodFollows.data ?? []).map((r) => {
+  // ─── Follower growth chart data (from Query 3) ───
+  // "Nuevos por día" = resta de totales REALES (followers_total[hoy] − [ayer]),
+  // estilo Metricool. Robusto por diseño: no depende del delta follower_count de
+  // Meta (que se dispara tras suspensión/reactivación). El valle de suspensión se
+  // excluye dentro de dailyNewFromTotals.
+  const rawFollowerGrowth = dailyNewFromTotals(insightsPeriodFollows.data ?? []).map((r) => {
     const d = new Date(r.metric_date + "T00:00:00Z");
     return {
       date: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
-      newFollowers: r.follower_count || 0,
+      newFollowers: r.newFollowers,
     };
   });
   // Trim trailing zeros — Meta has 24-48h delay so last 1-2 days may read as 0
@@ -335,13 +340,14 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   };
 
   // Follower growth over SELECTED period: prefer followers_total diff, fallback to follower_count sum (Fix 3.2)
+  // Excluye el valle de suspensión de los diffs y los deltas anómalos de la suma.
   const periodFollowerRows = insightsPeriodFollows.data ?? [];
-  const withFt = periodFollowerRows.filter((r) => (r.followers_total || 0) > 0);
+  const withFt = cleanFollowersTotalSeries(periodFollowerRows).filter((r) => (r.followers_total || 0) > 0);
   const firstFt = withFt[0]?.followers_total ?? 0;
   const lastFt = withFt[withFt.length - 1]?.followers_total ?? 0;
   const newFollowsWindow = lastFt > firstFt
     ? lastFt - firstFt
-    : periodFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+    : sumCleanFollowerDeltas(periodFollowerRows);
 
   // ─── Process 90d reels (calendar + top sales) ───
 
@@ -466,12 +472,13 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   const monthSumSaves = monthRows.reduce((s, r) => s + (r.saves || 0), 0);
 
   // Followers gained this month: followers_total diff (preferred), fallback to follower_count sum
-  const monthWithFt = monthRows.filter((r) => (r.followers_total || 0) > 0);
+  // Saneado: excluye valle de suspensión de los diffs y deltas anómalos de la suma.
+  const monthWithFt = cleanFollowersTotalSeries(monthRows).filter((r) => (r.followers_total || 0) > 0);
   const monthFirstFt = monthWithFt[0]?.followers_total ?? 0;
   const monthLastFt = monthWithFt[monthWithFt.length - 1]?.followers_total ?? 0;
   const followersGainedMonth = monthLastFt > monthFirstFt
     ? monthLastFt - monthFirstFt
-    : monthRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+    : sumCleanFollowerDeltas(monthRows);
 
   const engRateMonth = monthSumReach > 0
     ? (monthSumInteractions / monthSumReach) * 100
