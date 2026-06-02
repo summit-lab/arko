@@ -43,12 +43,14 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 | **Red de seguridad** | Arreglar hook pre-commit (eximía `docs/` + regex de JWT rota) | ✅ | PR #97 (merged) |
 | **Red de seguridad** | Secret-scanning (gitleaks) en CI | ✅ | PR #97 (merged) |
 | **F0** | `reel_computed` → SECURITY INVOKER (único ERROR de seguridad) | ✅ Dev+Prod | PR #98 (merged) |
-| **F0** | Policy en `data_deletion_requests` (RLS sin policy) | ✅ Dev+Prod | PR #99 (open) |
-| **F0** | `search_path` fijo en ~19 funciones | ✅ Dev+Prod | PR #99 (open) |
+| **F0** | Policy en `data_deletion_requests` (RLS sin policy) | ✅ Dev+Prod | PR #99 (merged) |
+| **F0** | `search_path` fijo en ~19 funciones | ✅ Dev+Prod | PR #99 (merged) |
 | **F0** | Cron `sync-ads-metrics` cada minuto | ❌ No existía | Alucinación de la auditoría; los 8 crons reales son sanos |
-| **F0** | Limpieza repo (`adn-call.txt`, `gcm-diagnose.log`, `notes.md`, `original-*.webp`) | ⬜ | — |
-| **F0** | Borrar ruta muerta `reels/[id]/analyze` + alias `arkoai-analyze` + huérfanos `reel_diagnostics` | ⬜ | — |
-| **F0** | Consolidar los 2 endpoints de data-deletion en 1 | ⬜ | — |
+| **F0** | Limpieza repo (`adn-call.txt`, `gcm-diagnose.log`, `notes.md`, `original-*.webp`) + `.gitignore` (`*.log`) | ✅ | PR limpieza |
+| **F0** | Borrar ruta muerta `reels/[id]/analyze` (0 callers, tabla vacía) | ✅ | PR limpieza |
+| **F0** | Alias `arkoai-analyze` | ❌ NO borrar | Lo llama el front (`GeminiAnalysis.tsx:117`) — verificado, se mantiene |
+| **F0** | Huérfanos `reel_diagnostics` | ❌ N/A | Tabla VACÍA en Dev+Prod (0 filas) — nada que limpiar |
+| **F0** | Consolidar los 2 endpoints de data-deletion en 1 | 🟡 Bloqueado | Requiere confirmar URL en dashboard de Meta (compliance). Evidencia: el vivo es `/api/v1/auth/meta/data-deletion` (`APP_REVIEW_META.md:637`) |
 | **F1** | Índices compuestos `(workspace_id, date)` en métricas diarias | ⬜ | §8 |
 | **F1** | Unique + FK index en `content_plan_versions` | ⬜ | §8 |
 | **F1** | Unificar familia de métricas + retención ad/yt | ⬜ | §8 |
