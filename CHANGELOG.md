@@ -5,6 +5,25 @@
  
 ---
 
+## [unreleased] — 2026-06-02
+
+### Security — `reel_computed` ahora es SECURITY INVOKER (fix de aislamiento por tenant)
+
+La vista `public.reel_computed` corría como **SECURITY DEFINER** (permisos del creador), por lo que podía leer filas de `reels`/`reel_metrics` de cualquier workspace salteando la RLS. El advisor de Supabase lo marcaba como el único lint **nivel ERROR**.
+
+Fix: `ALTER VIEW public.reel_computed SET (security_invoker = on)` — la vista ahora aplica la RLS del usuario que consulta.
+
+- **Sin impacto en datos ni columnas.** Verificado en Dev y Prod: conteo de filas y suma de `views_total` idénticos antes/después (Prod: 6.079 reels / 6 workspaces / 9.188.868 views, sin cambios).
+- Advisor de seguridad: **0 ERROR-level** tras el fix (antes 1).
+- Reversible: `ALTER VIEW public.reel_computed SET (security_invoker = off)`.
+- Parte de la Fase 0 del plan de auditoría (`docs/11-auditoria-y-plan-optimizacion.md`).
+
+#### Archivos
+- `supabase/migrations/20260602000000_reel_computed_security_invoker.sql` — la migración (aplicada en Dev `hrsvglgswatwklivkoyp` y Prod `zphvrohosizkbrnxtppj`).
+- `docs/DB_SCHEMA.md` — nota sobre el modo de seguridad de la vista.
+
+---
+
 ## [unreleased] — 2026-04-23
 
 ### Added — Ventas: botón editar en la tabla

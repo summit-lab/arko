@@ -98,7 +98,7 @@ erDiagram
 **Views:**
 | View | Descripción |
 |------|-------------|
-| `reel_computed` | Views totales, ratios derivados, retention_ratio (PRD 6.2-6.3) |
+| `reel_computed` | Views totales, ratios derivados, retention_ratio (PRD 6.2-6.3). **`security_invoker = on`** — aplica la RLS del usuario que consulta (ver migración `20260602000000`). |
 
 ---
 
