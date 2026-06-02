@@ -7,6 +7,24 @@
 
 ## [unreleased] — 2026-06-02
 
+### Security — Hardening: policy en data_deletion_requests + search_path en funciones
+
+Cierra dos clases de lint del advisor de Supabase, sin cambiar comportamiento:
+
+- **`data_deletion_requests`** tenía RLS activada pero **sin ninguna policy** (lint INFO `rls_enabled_no_policy`). Se agregó una policy RESTRICTIVE que niega acceso a `anon`/`authenticated` (la tabla solo la usa la edge function de borrado vía `service_role`, que bypassa RLS).
+- **~19 funciones** tenían `search_path` mutable (lint WARN `function_search_path_mutable`). Se les fijó `search_path`. Las que descifran tokens (`get_meta_access_token`, `get_google_*`, `save_*`) llevan `public, extensions, pg_temp` porque `pgcrypto` vive en `extensions` — sin eso se rompía el descifrado.
+
+Verificado en Dev y Prod: los lints desaparecen y el descifrado de tokens sigue OK (probado contra las 6 conexiones Meta activas de Prod — ejecutan sin error).
+
+**No incluido (a propósito):** el lint `security_definer_function_executable` (anon/authenticated pueden llamar estas funciones vía RPC). Revocar `EXECUTE` rompería el sync, porque `instagram-sync`, `ig-account-sync`, `ads-sync`, `meta/explorer` y `token-refresh` de Google llaman a `get_meta/google_*` con la sesión del usuario (rol `authenticated`), no con `service_role`. Cerrarlo requiere primero mover esas llamadas al admin client → queda como ítem de fase posterior (`docs/11`).
+
+#### Archivos
+- `supabase/migrations/20260602010000_harden_rls_and_function_search_path.sql` — aplicada en Dev `hrsvglgswatwklivkoyp` y Prod `zphvrohosizkbrnxtppj`.
+
+---
+
+## [unreleased] — 2026-06-02
+
 ### Security — `reel_computed` ahora es SECURITY INVOKER (fix de aislamiento por tenant)
 
 La vista `public.reel_computed` corría como **SECURITY DEFINER** (permisos del creador), por lo que podía leer filas de `reels`/`reel_metrics` de cualquier workspace salteando la RLS. El advisor de Supabase lo marcaba como el único lint **nivel ERROR**.
