@@ -25,6 +25,46 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 
 ---
 
+## 0. Tablero de progreso (fuente de verdad del avance)
+
+> Última actualización: **2026-06-02**. Este tablero se actualiza en CADA cambio. ✅ hecho · 🟡 en curso · ⬜ pendiente · ❌ descartado.
+
+### Decisiones de gobernanza tomadas
+- ✅ **Fin del "prelaunch / directo a Prod".** Se volvió a **Dev→Prod con confirmación explícita** para Prod (hay clientes reales). Probar siempre en Dev `hrsvglgswatwklivkoyp` primero.
+- ✅ **Flujo branch → PR → main** (nunca push directo a `main`; el merge lo hace siempre un humano).
+- ✅ **Sin PITR** (el usuario decidió no pagarlo aún) → se compensa con: probar en Dev primero, snapshot antes/después, cambios no destructivos y reversibles.
+- ✅ **Auth git multi-cuenta** resuelta (GCM + usuario en la URL del remote).
+
+### Avance por fase
+
+| Fase | Ítem | Estado | Evidencia |
+|------|------|--------|-----------|
+| **Red de seguridad** | Sacar claves Supabase de `docs/05` → placeholders | ✅ | PR #97 (merged) |
+| **Red de seguridad** | Arreglar hook pre-commit (eximía `docs/` + regex de JWT rota) | ✅ | PR #97 (merged) |
+| **Red de seguridad** | Secret-scanning (gitleaks) en CI | ✅ | PR #97 (merged) |
+| **F0** | `reel_computed` → SECURITY INVOKER (único ERROR de seguridad) | ✅ Dev+Prod | PR #98 (merged) |
+| **F0** | Policy en `data_deletion_requests` (RLS sin policy) | ✅ Dev+Prod | PR #99 (merged) |
+| **F0** | `search_path` fijo en ~19 funciones | ✅ Dev+Prod | PR #99 (merged) |
+| **F0** | Cron `sync-ads-metrics` cada minuto | ❌ No existía | Alucinación de la auditoría; los 8 crons reales son sanos |
+| **F0** | Limpieza repo (`adn-call.txt`, `gcm-diagnose.log`, `notes.md`, `original-*.webp`) + `.gitignore` (`*.log`) | ✅ | PR limpieza |
+| **F0** | Borrar ruta muerta `reels/[id]/analyze` (0 callers, tabla vacía) | ✅ | PR limpieza |
+| **F0** | Alias `arkoai-analyze` | ❌ NO borrar | Lo llama el front (`GeminiAnalysis.tsx:117`) — verificado, se mantiene |
+| **F0** | Huérfanos `reel_diagnostics` | ❌ N/A | Tabla VACÍA en Dev+Prod (0 filas) — nada que limpiar |
+| **F0** | Consolidar los 2 endpoints de data-deletion en 1 | 🟡 Bloqueado | Requiere confirmar URL en dashboard de Meta (compliance). Evidencia: el vivo es `/api/v1/auth/meta/data-deletion` (`APP_REVIEW_META.md:637`) |
+| **F1** | Índices compuestos `(workspace_id, date)` en métricas diarias | ⬜ | §8 |
+| **F1** | Unique + FK index en `content_plan_versions` | ⬜ | §8 |
+| **F1** | Unificar familia de métricas + retención ad/yt | ⬜ | §8 |
+| **F2+** | Cliente Meta unificado, Apify, IA, convención API, reorg | ⬜ | §4–§7, §10 |
+
+### Deudas de SEGURIDAD aún abiertas (importantes)
+- 🟡 **Rotar las claves Supabase** (Dev+Prod). El PR #97 frenó la propagación pero las claves siguen vivas y en el historial de git. Requiere runbook coordinado (Vercel + 4 edge secrets con `--no-verify-jwt`). El usuario lo postergó conscientemente (repo privado, círculo de confianza). Ver §12.
+- 🟡 **`security_definer_function_executable`** (anon/authenticated pueden llamar funciones SECURITY DEFINER vía RPC). **No se puede cerrar con un REVOKE** sin romper el sync: `instagram-sync`, `ig-account-sync`, `ads-sync`, `meta/explorer` y `token-refresh` llaman a `get_meta/google_*` con la sesión del usuario (rol `authenticated`), no `service_role`. Requiere mover esas llamadas al admin client primero → fase posterior.
+
+### Hallazgos de la auditoría que resultaron FALSOS (no se actúa)
+Ver tabla en la Nota metodológica de arriba: tokens NO en texto plano (ya cifrados con pgcrypto), versión es v25.0 (no v23.0), Prod NO atrás en migraciones, proyecto `pvxdbszzytltvxhumkqz` inexistente, cron de ads cada minuto inexistente.
+
+---
+
 ## 1. Resumen ejecutivo
 
 Arko es un SaaS multi-tenant **bien concebido en sus cimientos** que acumuló deuda estructural por "apagar incendios y agregar parches". Los huesos son buenos y conviene decirlo con la misma honestidad que los problemas:
@@ -365,13 +405,14 @@ Dropear los índices bare por `date` que el advisor reporta unused.
 
 ### Checklist de auditoría RLS
 
-- [ ] Re-correr `get_advisors(security)` y `get_advisors(performance)` en Prod **en vivo** y guardar el output como baseline.
-- [ ] **D1:** redefinir `public.reel_computed` como `SECURITY INVOKER` (o reemplazar por función con RLS correcta); verificar con el advisor que el ERROR desaparece.
-- [ ] **D2:** agregar policies a `data_deletion_requests` (o documentar acceso solo `service_role` con policy explícita).
-- [ ] **D3:** fijar `search_path` en todas las funciones reportadas (`ALTER FUNCTION ... SET search_path = ''` / esquema explícito).
-- [ ] Toda tabla tenant-scoped tiene RLS habilitado y la policy filtra por **membership** (`is_workspace_member`), no solo `auth.uid()`.
+- [x] Re-correr `get_advisors(security)` en Prod en vivo (baseline tomado 2026-06-02: 1 ERROR + 1 INFO + ~60 WARN).
+- [x] **D1:** `reel_computed` → `SECURITY INVOKER`. Aplicado Dev+Prod, 0 ERROR tras el fix, datos idénticos. (PR #98)
+- [x] **D2:** policy en `data_deletion_requests` (RESTRICTIVE deny anon/authenticated; service_role bypassa). (PR #99)
+- [x] **D3:** `search_path` fijo en ~19 funciones (las de tokens con `extensions` para no romper el descifrado). (PR #99)
+- [ ] Toda tabla tenant-scoped tiene RLS habilitado y la policy filtra por **membership** (`is_workspace_member`), no solo `auth.uid()`. *(auditoría pendiente)*
 - [ ] Verificar que `service_role` (edge functions) no expone datos cross-tenant.
 - [ ] Verificar que el data-deletion callback cascadea sobre **todas** las tablas derivadas del tenant.
+- [ ] `get_advisors(performance)` en Prod para el plan de índices de la Fase 1.
 
 ---
 
@@ -404,13 +445,13 @@ Dropear los índices bare por `date` que el advisor reporta unused.
 
 ## 11. Quick wins inmediatos
 
-1. **Rotar las claves Supabase** (Dev+Prod) y sacarlas de `docs/05-environments-guide.md` — es el riesgo más alto y está en el repo.
-2. **Fix `reel_computed`** (único ERROR de seguridad en vivo) + policies en `data_deletion_requests`.
-3. **Borrar basura raíz:** `adn-call.txt`, `gcm-diagnose.log`, `original-*.webp`, `notes.md` (revisar `.gitignore`).
-4. **Consolidar los 2 endpoints de data-deletion** en uno registrado en Meta.
-5. **`META_GRAPH_VERSION` único** + arreglar el `v22.0` suelto.
-6. **Mapear las 3 rutas de análisis de reel** y borrar la muerta + el alias; limpiar `reel_diagnostics` huérfanos.
-7. **Bajar la frecuencia** del cron `sync-ads-metrics` (de cada minuto a lo que el negocio necesite).
+1. ✅ **Sacar claves Supabase de `docs/05`** → placeholders. (PR #97) · 🟡 **Rotarlas** sigue pendiente (ver §12).
+2. ✅ **Fix `reel_computed`** (único ERROR) + ✅ **policy `data_deletion_requests`**. (PR #98, #99)
+3. ⬜ **Borrar basura raíz:** `adn-call.txt`, `gcm-diagnose.log`, `original-*.webp`, `notes.md` (revisar `.gitignore`).
+4. ⬜ **Consolidar los 2 endpoints de data-deletion** en uno registrado en Meta.
+5. ⬜ **`META_GRAPH_VERSION` único** + arreglar el `v22.0` suelto.
+6. ⬜ **Mapear las 3 rutas de análisis de reel** y borrar la muerta + el alias; limpiar `reel_diagnostics` huérfanos.
+7. ❌ ~~Bajar el cron `sync-ads-metrics`~~ — **no existe** (alucinación de la auditoría; los 8 crons reales son sanos).
 
 ---
 
