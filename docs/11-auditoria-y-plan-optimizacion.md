@@ -46,11 +46,12 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 | **F0** | Policy en `data_deletion_requests` (RLS sin policy) | ✅ Dev+Prod | PR #99 (merged) |
 | **F0** | `search_path` fijo en ~19 funciones | ✅ Dev+Prod | PR #99 (merged) |
 | **F0** | Cron `sync-ads-metrics` cada minuto | ❌ No existía | Alucinación de la auditoría; los 8 crons reales son sanos |
-| **F0** | Limpieza repo (`adn-call.txt`, `gcm-diagnose.log`, `notes.md`, `original-*.webp`) + `.gitignore` (`*.log`) | ✅ | PR limpieza |
-| **F0** | Borrar ruta muerta `reels/[id]/analyze` (0 callers, tabla vacía) | ✅ | PR limpieza |
+| **F0** | Limpieza repo (`adn-call.txt`, `gcm-diagnose.log`, `notes.md`, `original-*.webp`) + `.gitignore` (`*.log`) | ✅ | PR #100 (merged) |
+| **F0** | Borrar ruta muerta `reels/[id]/analyze` (0 callers, tabla vacía) | ✅ | PR #100 (merged) |
 | **F0** | Alias `arkoai-analyze` | ❌ NO borrar | Lo llama el front (`GeminiAnalysis.tsx:117`) — verificado, se mantiene |
 | **F0** | Huérfanos `reel_diagnostics` | ❌ N/A | Tabla VACÍA en Dev+Prod (0 filas) — nada que limpiar |
-| **F0** | Consolidar los 2 endpoints de data-deletion en 1 | 🟡 Bloqueado | Requiere confirmar URL en dashboard de Meta (compliance). Evidencia: el vivo es `/api/v1/auth/meta/data-deletion` (`APP_REVIEW_META.md:637`) |
+| **F0** | Consolidar los 2 endpoints de data-deletion en 1 + corregir dominios (arko→moka) | ✅ | PR #101 (merged). Vivo: `/api/v1/auth/meta/data-deletion` (confirmado por el usuario en dashboard Meta: `app.usemoka.io/...`) |
+| **Bug fix** | Seguidores: anomalía por suspensión/reactivación de Meta (+6615/+30864 en un día). Afectaba 2/6 workspaces | ✅ Dev+Prod | Ver sección "Rediseño de seguidores" abajo |
 | **F1** | Índices compuestos `(workspace_id, date)` en métricas diarias | ⬜ | §8 |
 | **F1** | Unique + FK index en `content_plan_versions` | ⬜ | §8 |
 | **F1** | Unificar familia de métricas + retención ad/yt | ⬜ | §8 |
@@ -59,6 +60,14 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 ### Deudas de SEGURIDAD aún abiertas (importantes)
 - 🟡 **Rotar las claves Supabase** (Dev+Prod). El PR #97 frenó la propagación pero las claves siguen vivas y en el historial de git. Requiere runbook coordinado (Vercel + 4 edge secrets con `--no-verify-jwt`). El usuario lo postergó conscientemente (repo privado, círculo de confianza). Ver §12.
 - 🟡 **`security_definer_function_executable`** (anon/authenticated pueden llamar funciones SECURITY DEFINER vía RPC). **No se puede cerrar con un REVOKE** sin romper el sync: `instagram-sync`, `ig-account-sync`, `ads-sync`, `meta/explorer` y `token-refresh` llaman a `get_meta/google_*` con la sesión del usuario (rol `authenticated`), no `service_role`. Requiere mover esas llamadas al admin client primero → fase posterior.
+- 🟡 **`SYNC_SECRET` compartido entre Dev y Prod.** Verificado 2026-06-02: el mismo secret funciona para invocar el edge de ambos proyectos. Idealmente cada ambiente tiene el suyo. Resolver junto con la rotación de claves.
+
+### Rediseño de seguidores (bug de suspensión/reactivación de Meta) — COMPLETADO 2026-06-02
+- **Causa:** cuando Meta suspende y reactiva una cuenta, devuelve el total recuperado como delta diario (+6615/+30864 en un día). El sync RECONSTRUÍA `followers_total` restando deltas → un delta basura deformaba toda la curva. Afectaba 2/6 workspaces (emanuelmdzz, Francisco).
+- ✅ **Lectura (PR #103, merged):** el gráfico "nuevos/día" del dashboard usa `dailyNewFromTotals` (resta de totales reales, estilo Metricool). Helper `src/lib/follower-metrics.ts` sanea anomalías (valle de suspensión + umbral adaptativo `max(500, 8×mediana)`) como red de seguridad. Validado: emanuelmdzz +6615→+68; PROVIDA +2502 (crecimiento real) se respeta; cuentas sanas sin cambios.
+- ✅ **Escritor (PR #104, merged + deployado Dev+Prod):** `sync-instagram` dejó de reconstruir; guarda 1 snapshot/día con el total real (patrón de `competitor_follower_snapshots`). Verificado en Prod: hoy se actualiza con total real, días pasados quedan congelados (no recalculados), 0 errores de sync.
+- **Histórico viejo:** no se puede des-reconstruir (Meta solo da el total de hoy). Queda cubierto por el saneo de lectura y sale de la ventana visible al acumularse capturas reales. Detalle en `docs/features/ig-intelligence.md`.
+- 🟡 **Observabilidad pendiente:** 2 workspaces (PROVIDA, Nacho `c4df25d9`) están sin sync hace días — no hay alerta de "workspace sin sync en X días". Candidato para una fase de observabilidad.
 
 ### Hallazgos de la auditoría que resultaron FALSOS (no se actúa)
 Ver tabla en la Nota metodológica de arriba: tokens NO en texto plano (ya cifrados con pgcrypto), versión es v25.0 (no v23.0), Prod NO atrás en migraciones, proyecto `pvxdbszzytltvxhumkqz` inexistente, cron de ads cada minuto inexistente.
