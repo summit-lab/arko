@@ -31,7 +31,9 @@
 
 #### Archivos
 - `supabase/functions/sync-instagram/index.ts` — `fetchAllMedia` con callback `onPage`; `syncInstagramReels` escribe por página (thumbnails + upsert + progreso) en vez de bajar-todo-y-después-escribir. Phase 2 (insights/Apify/snapshot/carruseles) intacto.
-- `src/components/instagram/SyncButton.tsx` — trackea el full sync con `useSyncJobProgress` y refresca cada 4s mientras corre (reveal progresivo).
+- `src/components/instagram/SyncButton.tsx` — check rápido (~1-2s) en vez de esperar el quick entero (~30s); dispara el full en background y refresca cada 4s (no bloquea). Orden por pestaña: reels-first en `reels`, account-first en `metrics`.
+- `src/app/api/v1/sync/instagram/route.ts` — pasos granulares ordenados por vista (param `first`): `reels→account→ads→stories` o `account→reels→…` (consistente con el cron particionado).
+- `src/hooks/useSyncJobProgress.ts` — guard `sawActive`: no corta el tracking con un `full_sync` completado de una corrida anterior.
 
 ### Fix — Seguidores: gráfico de "nuevos por día" por resta de totales reales + saneo de anomalías
 

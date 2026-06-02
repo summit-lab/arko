@@ -27,6 +27,9 @@ export function useSyncJobProgress(workspaceId: string): SyncJobProgress {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const onCompleteRef = useRef<(() => void) | null>(null);
+  // Solo concluimos "completed" si vimos correr el job nuevo: evita que un
+  // full_sync completado de una corrida anterior corte el tracking apenas arranca.
+  const sawActiveRef = useRef(false);
 
   const stopTracking = useCallback(() => {
     setTracking(false);
@@ -58,11 +61,15 @@ export function useSyncJobProgress(workspaceId: string): SyncJobProgress {
       );
 
       if (activeJob) {
+        sawActiveRef.current = true;
         setStatus(activeJob.status as JobStatus);
         const total = activeJob.total_items || 0;
         const processed = activeJob.processed_items || 0;
         setProgress(total > 0 ? Math.min(Math.round((processed / total) * 100), 99) : 0);
       } else {
+        // Si todavía no vimos arrancar el job nuevo, no concluir con uno viejo:
+        // un full_sync completado de ANTES cortaría el tracking al instante.
+        if (!sawActiveRef.current) return;
         // Check if the most recent full_sync completed
         const lastJob = jobs.find(
           (j: { job_type: string }) => j.job_type === "full_sync"
@@ -84,6 +91,7 @@ export function useSyncJobProgress(workspaceId: string): SyncJobProgress {
     setStatus("queued");
     setProgress(0);
     startTimeRef.current = Date.now();
+    sawActiveRef.current = false;
 
     // Start polling immediately, then every 4 seconds
     poll();
