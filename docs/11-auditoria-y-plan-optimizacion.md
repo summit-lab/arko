@@ -27,7 +27,9 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 
 ## 0. Tablero de progreso (fuente de verdad del avance)
 
-> Última actualización: **2026-06-02**. Este tablero se actualiza en CADA cambio. ✅ hecho · 🟡 en curso · ⬜ pendiente · ❌ descartado.
+> Última actualización: **2026-06-02**. Este tablero se actualiza en CADA cambio. ✅ hecho · 🟡 en curso/diferido · ⬜ pendiente · ❌ descartado.
+>
+> **Estado global:** Red de seguridad ✅ · F0 ✅ · Bug seguidores ✅ · **F1 (base de datos) ✅ COMPLETA** (advisor de performance Prod sin WARN) · F2 parcial (F2.1 ✅; el resto = refactor grande, documentado abajo, NO apurar con clientes vivos).
 
 ### Decisiones de gobernanza tomadas
 - ✅ **Fin del "prelaunch / directo a Prod".** Se volvió a **Dev→Prod con confirmación explícita** para Prod (hay clientes reales). Probar siempre en Dev `hrsvglgswatwklivkoyp` primero.
@@ -51,14 +53,24 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 | **F0** | Alias `arkoai-analyze` | ❌ NO borrar | Lo llama el front (`GeminiAnalysis.tsx:117`) — verificado, se mantiene |
 | **F0** | Huérfanos `reel_diagnostics` | ❌ N/A | Tabla VACÍA en Dev+Prod (0 filas) — nada que limpiar |
 | **F0** | Consolidar los 2 endpoints de data-deletion en 1 | 🟡 Bloqueado | Requiere confirmar URL en dashboard de Meta (compliance). Evidencia: el vivo es `/api/v1/auth/meta/data-deletion` (`APP_REVIEW_META.md:637`) |
-| **F1** | Índices compuestos `(workspace_id, date)` en métricas diarias | ⬜ | §8 |
-| **F1** | Unique + FK index en `content_plan_versions` | ⬜ | §8 |
-| **F1** | Unificar familia de métricas + retención ad/yt | ⬜ | §8 |
-| **F2+** | Cliente Meta unificado, Apify, IA, convención API, reorg | ⬜ | §4–§7, §10 |
+| **F0** | Consolidar data-deletion + dominios arko→moka | ✅ | PR #101 (merged) |
+| **Bug** | Seguidores: anomalía suspensión/reactivación (lectura por resta de totales + escritor snapshot real) | ✅ Dev+Prod | PR #103 + #104 (merged) |
+| **F1.1/F1.2** | Índices de cobertura para 11 FKs sin índice | ✅ Dev+Prod | PR #107 |
+| **F1.5** | `auth_rls_initplan` (20 policies, 13 tablas): `auth.uid()` → `(select auth.uid())` | ✅ Dev+Prod | PR #109. Advisor 20→0 |
+| **F1.6** | `multiple_permissive_policies` (12 tablas): fusionar admin+member | ✅ Dev+Prod | PR #110. Advisor 75→0 |
+| **F2.1** | Borrar 3 servicios Node de sync muertos (~1650 líneas) | ✅ | PR #106 |
+| **F1** | ✅ **COMPLETA** — advisor de performance de Prod: 0 WARN (solo quedan `unused_index` INFO, tenant-scoping legítimo a conservar) | ✅ | — |
+| **F2.2** | Fix split tokens 85/15 fabricado en costos IA | 🟡 Diferido | El TOTAL de costo es correcto; solo el split input/output es estimado. Requiere capturar `promptTokenCount`/`candidatesTokenCount` en `competitor-analysis.service.ts` + 4 rutas → va con F2.5 (capa IA) |
+| **F2.3** | Dedup de scrapes Apify (guard `last_scraped_at`) | ⬜ | Control de costo. Medio riesgo (toca scraping de 6 clientes) |
+| **F2.4** | Centralizar `META_GRAPH_VERSION` | ⬜ Diferido | No hay drift (v25.0 uniforme; el `v22.0` es solo comentario). Va con el cliente Meta unificado |
+| **F2.5/F2.6** | Clientes unificados Meta/Apify + adapter Gemini en `callLLM` + convención API | ⬜ | §4–§7. Refactor grande, feature por feature, con feature flags. NO apurar con clientes vivos |
+| **API** | getWorkspaceId sin verificar membership · `/api/sales` vs `/v1` · zero-Zod | ⬜ | Pendiente real (verificado). Va con la reorg de API (F2.5+) |
 
 ### Deudas de SEGURIDAD aún abiertas (importantes)
 - 🟡 **Rotar las claves Supabase** (Dev+Prod). El PR #97 frenó la propagación pero las claves siguen vivas y en el historial de git. Requiere runbook coordinado (Vercel + 4 edge secrets con `--no-verify-jwt`). El usuario lo postergó conscientemente (repo privado, círculo de confianza). Ver §12.
-- 🟡 **`security_definer_function_executable`** (anon/authenticated pueden llamar funciones SECURITY DEFINER vía RPC). **No se puede cerrar con un REVOKE** sin romper el sync: `instagram-sync`, `ig-account-sync`, `ads-sync`, `meta/explorer` y `token-refresh` llaman a `get_meta/google_*` con la sesión del usuario (rol `authenticated`), no `service_role`. Requiere mover esas llamadas al admin client primero → fase posterior.
+- 🟡 **`security_definer_function_executable`** (anon/authenticated pueden llamar funciones SECURITY DEFINER vía RPC). **No se puede cerrar con un REVOKE** sin romper el sync: `meta/explorer` y `token-refresh` (Google) llaman a `get_meta/google_*` con la sesión del usuario (rol `authenticated`), no `service_role` (los 3 servicios Node que también lo hacían se borraron en PR #106, pero estos 2 callers vivos quedan). Requiere mover esas llamadas al admin client primero → fase posterior.
+- 🟡 **Observabilidad / alertas de sync.** No hay alerta de "workspace sin sync en X días". Hoy 2 workspaces (PROVIDA, Nacho `c4df25d9`) están sin syncear hace días y nadie se entera salvo mirando. Candidato para una fase de observabilidad (Sentry/logs + alerta de needs_reauth + failed-sync por tenant).
+- 🟡 **`SYNC_SECRET` compartido Dev/Prod** (verificado: el mismo secret invoca el edge de ambos). Resolver con la rotación de claves.
 
 ### Hallazgos de la auditoría que resultaron FALSOS (no se actúa)
 Ver tabla en la Nota metodológica de arriba: tokens NO en texto plano (ya cifrados con pgcrypto), versión es v25.0 (no v23.0), Prod NO atrás en migraciones, proyecto `pvxdbszzytltvxhumkqz` inexistente, cron de ads cada minuto inexistente.
