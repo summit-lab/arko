@@ -11,6 +11,22 @@ on:
       - main
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Necesitamos el historial del PR para escanear solo los commits nuevos.
+          fetch-depth: 0
+
+      - name: Scan new commits for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # Sin escaneo del historial completo: solo el rango de commits del PR/push,
+          # así las claves viejas ya commiteadas no rompen el CI (se rotan aparte).
+
   validate:
     runs-on: ubuntu-latest
 
