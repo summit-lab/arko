@@ -47,6 +47,9 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Check Meta client parity (Node ↔ Deno copies)
+        run: npm run check:meta-parity
+
       - name: Run typecheck
         run: npx tsc --noEmit
 
