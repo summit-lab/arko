@@ -1,6 +1,7 @@
 import { TrendingUp, Eye, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
+import { latestCleanFollowersTotal } from "@/lib/follower-metrics";
 import { cache } from "react";
 import { HeaderClient } from "./HeaderClient";
 
@@ -42,13 +43,14 @@ export async function Header() {
       // Vistas = SUM(impressions) account-level — misma metrica que IG nativo.
       const { data: insights } = await supabase
         .from("ig_account_insights")
-        .select("followers_total, total_interactions, impressions")
+        .select("metric_date, follower_count, followers_total, total_interactions, impressions")
         .eq("workspace_id", workspaceId)
         .order("metric_date", { ascending: false })
         .limit(90);
       if (insights && insights.length > 0) {
-        const latest = insights[0];
-        if (latest.followers_total > 0) headerFollowers = fmtHeader(latest.followers_total);
+        // Snapshot saneado: último followers_total NO afectado por valle de suspensión.
+        const cleanTotal = latestCleanFollowersTotal(insights);
+        if (cleanTotal > 0) headerFollowers = fmtHeader(cleanTotal);
         const totalInteractions = insights.reduce((s, d) => s + (d.total_interactions ?? 0), 0);
         const totalImpressions = insights.reduce((s, d) => s + (d.impressions ?? 0), 0);
         if (totalImpressions > 0) {

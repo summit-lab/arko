@@ -7,6 +7,24 @@
 
 ## [unreleased] — 2026-06-02
 
+### Fix — Saneamiento de anomalías de seguidores (suspensión/reactivación de Meta)
+
+Cuando Instagram suspende y reactiva una cuenta, Meta devuelve datos imposibles: el `follower_count` diario reporta de golpe TODOS los seguidores recuperados (ej. +6615, +30864 en un día) y el `followers_total` cae a ~0 durante la suspensión y rebota. El dashboard dibujaba "+6600 seguidores en un día" e inflaba los KPIs de crecimiento.
+
+**Alcance real (verificado en Prod):** afectaba a 2 de 6 workspaces — emanuelmdzz (+6615 el 27/5) y un cliente (+30864 el 25/5). No es bug de sync: son datos reales anómalos de Meta.
+
+**Fix (capa de lectura, sin tocar DB):** nuevo helper `src/lib/follower-metrics.ts` que sanea la serie al mostrarla, conservando los datos reales en la DB:
+- **Deltas diarios:** umbral adaptativo `max(500, 8 × mediana)`. Clampea a 0 el pico aislado de recuperación sin esconder crecimiento legítimo (el crecimiento sostenido sube la mediana → sube el techo). Validado con datos reales: filtra 6615/30864, deja pasar los máximos legítimos (248/714).
+- **followers_total:** detecta el "valle" de suspensión (colapso + rebote) y lo excluye de los diffs y del snapshot de total.
+
+Aplicado en las 5 superficies que muestran seguidores: dashboard principal (gráfico + KPIs + total + mes), Header, Instagram shell (snapshot), IGMetrics (curva) e IGDashboard (deltas del período). Cuentas sanas no se ven afectadas (control de regresión verificado).
+
+**Pendiente (fase 2, mayor riesgo):** endurecer el escritor (edge function `sync-instagram`) para que la reconstrucción de `followers_total` no se contamine con deltas imposibles a futuro. No urgente: el lector ya neutraliza la visualización.
+
+#### Archivos
+- `src/lib/follower-metrics.ts` (nuevo) — helper de saneamiento, lógica pura tipada.
+- `src/app/(dashboard)/page.tsx`, `src/app/(dashboard)/instagram/page.tsx`, `src/components/layout/Header.tsx`, `src/components/instagram/IGMetrics.tsx`, `src/components/instagram/IGDashboard.tsx` — consumen el helper.
+
 ### Security — Hardening: policy en data_deletion_requests + search_path en funciones
 
 Cierra dos clases de lint del advisor de Supabase, sin cambiar comportamiento:

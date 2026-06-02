@@ -6,6 +6,7 @@ import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, toISOStart, nextDay } from "@/lib/date-utils";
+import { latestCleanFollowersTotal } from "@/lib/follower-metrics";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
@@ -298,8 +299,9 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     // ── Process insights ──
     if (insightsResult?.data) {
       dailyInsights = insightsResult.data.filter((d) => d.impressions > 0 || d.reach > 0);
-      const latestDay = [...insightsResult.data].sort((a, b) => b.metric_date.localeCompare(a.metric_date))[0];
-      if (latestDay?.followers_total) totalFollowers = latestDay.followers_total;
+      // Snapshot saneado: ignora el valle de followers_total por suspensión.
+      const cleanTotal = latestCleanFollowersTotal(insightsResult.data);
+      if (cleanTotal > 0) totalFollowers = cleanTotal;
     }
 
     // ── Process demographics ──

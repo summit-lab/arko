@@ -12,6 +12,7 @@ import {
 import { useTranslations, useLocale } from "next-intl";
 import { CountUp } from "@/components/ui/CountUp";
 import { useChartTheme } from "@/hooks/useChartTheme";
+import { cleanFollowersTotalSeries } from "@/lib/follower-metrics";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,7 +222,9 @@ export function IGMetrics({ dailyInsights, demographics }: IGMetricsProps) {
 
   // Follower curve: only use days that have a real followers_total snapshot (> 0).
   // This builds forward from the day the account was connected.
-  const daysWithFollowers = sorted.filter((d) => d.followers_total > 0);
+  // Saneado: excluye el valle de followers_total por suspensión (recuperación
+  // tras suspensión / glitch de Meta), para que la curva y el diff no salten.
+  const daysWithFollowers = cleanFollowersTotalSeries(sorted).filter((d) => d.followers_total > 0);
   const firstFt = daysWithFollowers[0]?.followers_total ?? 0;
   const lastFt = daysWithFollowers[daysWithFollowers.length - 1]?.followers_total ?? 0;
   const totalFollowersGainedFromSnapshots = lastFt - firstFt;
