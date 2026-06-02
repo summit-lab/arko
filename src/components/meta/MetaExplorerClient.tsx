@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Send, Copy, Clock, Zap, ChevronDown, ChevronUp } from "lucide-react";
+import { META_GRAPH_VERSION } from "@/lib/meta/constants";
 
 interface ExplorerResponse {
   data?: {
@@ -410,7 +411,7 @@ export function MetaExplorerClient({ workspaceId, initialConnection, recentMedia
           </label>
           <div className="flex items-center gap-2">
             <span className="flex-shrink-0 rounded bg-white/10 px-2.5 py-2 text-xs font-mono text-zinc-400">
-              graph.facebook.com/v25.0
+              graph.facebook.com/{META_GRAPH_VERSION}
             </span>
             <input
               type="text"

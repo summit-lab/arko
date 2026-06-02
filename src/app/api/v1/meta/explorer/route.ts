@@ -11,8 +11,13 @@ import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { env } from '@/lib/env';
-const GRAPH_API_VERSION = 'v25.0';
-const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+import { GRAPH_BASE } from '@/lib/meta/constants';
+
+// NOTA: este endpoint es un proxy de DEBUG: su propósito es devolver el JSON
+// CRUDO de Meta tal cual (incluido cuando Meta responde un error) + meta_status,
+// elapsed_ms y resolved_url. Por eso NO usa metaFetch() del cliente Meta (que
+// lanza MetaApiError ante errores de Graph): acá queremos exponer el error, no
+// tirarlo. Sí usamos GRAPH_BASE centralizado para no duplicar la versión.
 
 export async function POST(request: Request) {
   try {
