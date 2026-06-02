@@ -11,7 +11,7 @@ import { FollowerGrowthChart } from "@/components/dashboard/FollowerGrowthChart"
 import { CountUp } from "@/components/ui/CountUp";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
-import { sanitizeDailyFollowerDeltas, sumCleanFollowerDeltas, cleanFollowersTotalSeries } from "@/lib/follower-metrics";
+import { dailyNewFromTotals, sumCleanFollowerDeltas, cleanFollowersTotalSeries } from "@/lib/follower-metrics";
 import type { DateRange } from "@/types/date-filter";
 import { Suspense } from "react";
 
@@ -298,9 +298,12 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   if (adsMessagingPrev.error) console.error('[dashboard] adsMessagingPrev error:', adsMessagingPrev.error);
   if (storiesForCalendar.error) console.error('[dashboard] storiesForCalendar error:', storiesForCalendar.error);
 
-  // ─── Follower growth chart data (from Query 3: daily follower_count) ───
-  // Sanea anomalías (recuperación tras suspensión / glitch de Meta) antes de graficar.
-  const rawFollowerGrowth = sanitizeDailyFollowerDeltas(insightsPeriodFollows.data ?? []).map((r) => {
+  // ─── Follower growth chart data (from Query 3) ───
+  // "Nuevos por día" = resta de totales REALES (followers_total[hoy] − [ayer]),
+  // estilo Metricool. Robusto por diseño: no depende del delta follower_count de
+  // Meta (que se dispara tras suspensión/reactivación). El valle de suspensión se
+  // excluye dentro de dailyNewFromTotals.
+  const rawFollowerGrowth = dailyNewFromTotals(insightsPeriodFollows.data ?? []).map((r) => {
     const d = new Date(r.metric_date + "T00:00:00Z");
     return {
       date: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,

@@ -7,23 +7,24 @@
 
 ## [unreleased] — 2026-06-02
 
-### Fix — Saneamiento de anomalías de seguidores (suspensión/reactivación de Meta)
+### Fix — Seguidores: gráfico de "nuevos por día" por resta de totales reales + saneo de anomalías
 
-Cuando Instagram suspende y reactiva una cuenta, Meta devuelve datos imposibles: el `follower_count` diario reporta de golpe TODOS los seguidores recuperados (ej. +6615, +30864 en un día) y el `followers_total` cae a ~0 durante la suspensión y rebota. El dashboard dibujaba "+6600 seguidores en un día" e inflaba los KPIs de crecimiento.
+**Arquitectura (estilo Metricool):** el gráfico de "nuevos seguidores por día" del dashboard ahora se calcula como **resta de totales reales** (`followers_total[hoy] − [ayer]`) en vez de confiar en el delta `follower_count` que Meta reporta. Robusto por diseño: si los totales son reales, la resta nunca produce un salto espurio. Es el mismo patrón que ya usa el módulo de competidores (`competitor_follower_snapshots`). Validado con datos reales: emanuelmdzz pasa de mostrar +6615 a un máximo de +68.
 
-**Alcance real (verificado en Prod):** afectaba a 2 de 6 workspaces — emanuelmdzz (+6615 el 27/5) y un cliente (+30864 el 25/5). No es bug de sync: son datos reales anómalos de Meta.
+**Capa de lectura (red de seguridad):** helper `src/lib/follower-metrics.ts` que sanea outliers al mostrar, conservando los datos reales en la DB. Cubre el histórico viejo (que sigue siendo reconstruido) y glitches en vivo:
+- Detecta el "valle" de suspensión (colapso + rebote) y lo excluye de diffs, curva y snapshot de total.
+- Umbral adaptativo `max(500, 8 × mediana)` para clampear deltas anómalos donde aún se usa el delta crudo (IGDashboard).
 
-**Fix (capa de lectura, sin tocar DB):** nuevo helper `src/lib/follower-metrics.ts` que sanea la serie al mostrarla, conservando los datos reales en la DB:
-- **Deltas diarios:** umbral adaptativo `max(500, 8 × mediana)`. Clampea a 0 el pico aislado de recuperación sin esconder crecimiento legítimo (el crecimiento sostenido sube la mediana → sube el techo). Validado con datos reales: filtra 6615/30864, deja pasar los máximos legítimos (248/714).
-- **followers_total:** detecta el "valle" de suspensión (colapso + rebote) y lo excluye de los diffs y del snapshot de total.
+**Pendiente (Fase 3, edge function):** dejar de reconstruir `followers_total` en `sync-instagram` y guardar solo el total real diario. Eso completa la migración para que el histórico futuro se capture perfecto. Requiere redeploy Deno con `--no-verify-jwt`, Dev-first.
 
-Aplicado en las 5 superficies que muestran seguidores: dashboard principal (gráfico + KPIs + total + mes), Header, Instagram shell (snapshot), IGMetrics (curva) e IGDashboard (deltas del período). Cuentas sanas no se ven afectadas (control de regresión verificado).
+**Alcance del bug (verificado en Prod):** afectaba a 2 de 6 workspaces — emanuelmdzz (+6615 el 27/5) y un cliente (+30864 el 25/5). No es bug de sync: son datos reales anómalos que Meta devuelve tras suspensión/reactivación.
 
-**Pendiente (fase 2, mayor riesgo):** endurecer el escritor (edge function `sync-instagram`) para que la reconstrucción de `followers_total` no se contamine con deltas imposibles a futuro. No urgente: el lector ya neutraliza la visualización.
+Aplicado en las superficies de seguidores: dashboard (gráfico de nuevos/día por resta + KPIs + total + mes), Header (snapshot), Instagram shell (snapshot), IGMetrics (curva de total), IGDashboard (deltas, con clamp del helper hasta la Fase 3). Cuentas sanas no se ven afectadas (regresión verificada). Diseño respaldado por recon multi-agente; plan completo en `docs/features/ig-intelligence.md`.
 
 #### Archivos
-- `src/lib/follower-metrics.ts` (nuevo) — helper de saneamiento, lógica pura tipada.
-- `src/app/(dashboard)/page.tsx`, `src/app/(dashboard)/instagram/page.tsx`, `src/components/layout/Header.tsx`, `src/components/instagram/IGMetrics.tsx`, `src/components/instagram/IGDashboard.tsx` — consumen el helper.
+- `src/lib/follower-metrics.ts` (nuevo) — helper: `dailyNewFromTotals` (resta de totales), detección de valle, umbral adaptativo. Lógica pura tipada.
+- `src/app/(dashboard)/page.tsx` — gráfico de nuevos/día por resta de totales reales.
+- `src/app/(dashboard)/instagram/page.tsx`, `src/components/layout/Header.tsx`, `src/components/instagram/IGMetrics.tsx`, `src/components/instagram/IGDashboard.tsx` — consumen el helper.
 
 ### Security — Hardening: policy en data_deletion_requests + search_path en funciones
 

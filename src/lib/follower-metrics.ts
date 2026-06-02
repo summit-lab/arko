@@ -143,3 +143,35 @@ export function latestCleanFollowersTotal(rows: InsightRow[]): number {
   const latest = clean.reduce((a, b) => (a.metric_date >= b.metric_date ? a : b));
   return latest.followers_total ?? 0;
 }
+
+export interface DailyNewFollowers {
+  metric_date: string;
+  newFollowers: number;
+}
+
+/**
+ * "Nuevos seguidores por día" calculado como RESTA de totales reales
+ * (followers_total[hoy] − followers_total[ayer]), estilo Metricool — en vez de
+ * confiar en el delta `follower_count` que Meta reporta (que se dispara tras una
+ * suspensión/reactivación). Es robusto por diseño: si los totales son reales, la
+ * resta nunca produce un salto espurio.
+ *
+ * Excluye los días en valle de suspensión (cleanFollowersTotalSeries) para que
+ * el salto del rebote no se cuente, y clampea a 0 cualquier resta negativa
+ * (followers_total no debería bajar; si baja es ruido de Meta).
+ *
+ * Ordena por metric_date ascendente. La primera fila no produce punto (no tiene
+ * día previo contra el cual restar).
+ */
+export function dailyNewFromTotals<T extends InsightRow>(rows: T[]): DailyNewFollowers[] {
+  const clean = cleanFollowersTotalSeries(rows)
+    .filter((r) => (r.followers_total ?? 0) > 0)
+    .sort((a, b) => a.metric_date.localeCompare(b.metric_date));
+  const out: DailyNewFollowers[] = [];
+  for (let i = 1; i < clean.length; i++) {
+    const prev = clean[i - 1].followers_total ?? 0;
+    const curr = clean[i].followers_total ?? 0;
+    out.push({ metric_date: clean[i].metric_date, newFollowers: Math.max(0, curr - prev) });
+  }
+  return out;
+}
