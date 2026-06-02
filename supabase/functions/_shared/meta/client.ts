@@ -125,7 +125,7 @@ export async function metaFetchPaged<Item = unknown>(
   opts: MetaFetchOptions,
 ): Promise<Item[]> {
   const out: Item[] = [];
-  let first = await metaFetch<Item[]>(path, opts);
+  const first = await metaFetch<Item[]>(path, opts);
   if (Array.isArray(first.data)) out.push(...first.data);
   let next = first.paging?.next ?? null;
   // Las páginas siguientes ya traen el access_token embebido en la URL.
