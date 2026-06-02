@@ -116,7 +116,7 @@ Supabase → Dev Arko
 
 ```
 APP_ENV=production
-NEXT_PUBLIC_APP_URL=https://www.usearko.io
+NEXT_PUBLIC_APP_URL=https://www.usemoka.io
 Supabase → Prod Arko
 ```
 
@@ -150,7 +150,7 @@ Supabase → Prod Arko
 12. CI corre automaticamente
 13. Si CI pasa → UN HUMANO mergea (nunca la IA)
 14. Vercel deploya Production automaticamente
-15. Verificar en www.usearko.io
+15. Verificar en www.usemoka.io
 ```
 
 ### 4.3 Desarrollo con cambios de DB
@@ -206,7 +206,7 @@ Supabase → Prod Arko
 | Ambiente Vercel | Rama | Supabase | URL |
 |----------------|------|----------|-----|
 | **Preview** | `develop` (y cualquier otra rama) | Dev Arko | `arko-git-develop-*.vercel.app` |
-| **Production** | `main` | Prod Arko | `www.usearko.io` |
+| **Production** | `main` | Prod Arko | `www.usemoka.io` |
 
 ### Variables de entorno en Vercel
 
