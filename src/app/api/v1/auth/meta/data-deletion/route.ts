@@ -3,6 +3,11 @@
  * Meta data deletion callback — called by Meta when a user requests
  * deletion of their data via Facebook settings.
  *
+ * ⚠️ ÚNICO endpoint oficial de data-deletion. Es la URL registrada en el
+ * dashboard de Meta (https://app.usemoka.io/api/v1/auth/meta/data-deletion).
+ * El endpoint legacy /api/data-deletion-callback fue eliminado (2026-06-02):
+ * solo loggeaba, nunca se registró en Meta. NO recrear un segundo endpoint.
+ *
  * Meta requires this endpoint to return a confirmation_code and a URL
  * where the user can check the status of their deletion request.
  *

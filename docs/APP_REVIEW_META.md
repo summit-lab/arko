@@ -95,9 +95,9 @@ requests to /{ig-user-id} and /{ig-user-id}/media.
 #### 🧪 Reviewer Instructions — copiar literal
 
 ```
-1. Open https://usearko.io in a browser.
+1. Open https://usemoka.io in a browser.
 2. Click "Iniciar sesión" and log in with the test credentials provided:
-   Email: review@usearko.io
+   Email: review@usemoka.io
    Password: [provided in private review channel]
 3. After login, click "Conectar Instagram" on the dashboard.
 4. You will be redirected to Facebook Login. Authenticate with the test
@@ -571,7 +571,7 @@ Si el reviewer te pregunta por stories específicamente en el feedback, le respo
 
 ## 7. Privacy Policy — contenido obligatorio
 
-Publicá en `https://usearko.io/privacy` con estos bloques mínimos:
+Publicá en `https://usemoka.io/privacy` con estos bloques mínimos:
 
 ### 7.1 Data collected
 
@@ -630,11 +630,11 @@ Users can request immediate deletion by:
 1. Disconnecting the Meta integration from the Moka Settings page — triggers
    immediate deletion of access tokens and queued deletion of cached data.
 
-2. Emailing privacy@usearko.io with subject "Data Deletion Request". We
+2. Emailing privacy@usemoka.io with subject "Data Deletion Request". We
    respond and confirm deletion within 7 business days.
 
 3. Using Meta's Data Deletion Callback URL:
-   https://usearko.io/api/v1/meta/data-deletion
+   https://app.usemoka.io/api/v1/auth/meta/data-deletion
    Called automatically when a user removes Moka from their Facebook apps
    list. Our callback returns a confirmation URL and code per Meta's spec.
 ```
@@ -643,7 +643,7 @@ Users can request immediate deletion by:
 
 ## 8. Terms of Service — mínimos requeridos
 
-Publicá en `https://usearko.io/terms`:
+Publicá en `https://usemoka.io/terms`:
 
 - Definición del servicio (analytics read-only IG + Ads, multi-tenant SaaS)
 - Usuario garantiza tener autorización para conectar las cuentas Meta
@@ -712,7 +712,7 @@ Meta exige credenciales funcionales. NO mandar tu cuenta personal.
 
 ### 10.5 Cuenta Moka
 
-1. Crear user en Moka con email `review@usearko.io`
+1. Crear user en Moka con email `review@usemoka.io`
 2. Connect con el test user de Facebook
 3. Correr sync manual al menos 1 vez
 4. Verificar que todos los dashboards cargan con data
@@ -728,8 +728,8 @@ Facebook Page: Moka Review Account
 Ad account ID: act_XXXXXXXXX
 
 --- Moka test account ---
-URL: https://usearko.io
-Email: review@usearko.io
+URL: https://usemoka.io
+Email: review@usemoka.io
 Password: [STRONG_PASSWORD]
 ```
 
