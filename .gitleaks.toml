@@ -1,0 +1,22 @@
+# Config de gitleaks para ARKO — usado por el CI (.github/workflows/ci.yml)
+# Escanea SOLO los commits nuevos de cada PR (no el historial), así no bloquea
+# por las claves viejas que siguen en la historia hasta que se roten.
+title = "ARKO gitleaks"
+
+[extend]
+useDefault = true
+
+# Regla extra: JWTs de Supabase (anon / service_role). El header HS256 de Supabase
+# es siempre el mismo; lo importante son los 3 segmentos completos del JWT.
+[[rules]]
+id = "supabase-jwt"
+description = "Supabase anon/service_role JWT"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}'''
+keywords = ["eyJhbGci"]
+
+[allowlist]
+description = "Rutas con valores de ejemplo / no secretos"
+paths = [
+  '''\.env\.example''',
+  '''scripts/git-hooks/pre-commit''',  # contiene las regex de detección, no secretos
+]

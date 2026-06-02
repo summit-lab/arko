@@ -196,18 +196,22 @@ Esas variables también se configuran en el panel de Vercel.
 
 ## Claves Supabase por proyecto
 
-### Dev Arko (local + staging)
+> ⚠️ **Las claves NO se guardan acá.** Obtenelas desde el dashboard de Supabase de cada proyecto:
+> **Supabase → (proyecto) → Project Settings → API Keys.**
+> Pegalas en `.env.local` (que está gitignoreado) o en las env vars de Vercel — nunca en este doc ni en ningún archivo trackeado.
+
+### Dev Arko (local + staging) — `hrsvglgswatwklivkoyp`
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://hrsvglgswatwklivkoyp.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyODE2NTgsImV4cCI6MjA4OTg1NzY1OH0.A5q2JZ21gWdz0claQ37IWFeKjVLNmgA8cAdHAWYNV9w
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI4MTY1OCwiZXhwIjoyMDg5ODU3NjU4fQ.XJIzfhuv3IxdAagcpvtdciGRrsZsLpffvQ8_IpPT6FM
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<obtener del dashboard de Supabase>
+SUPABASE_SERVICE_ROLE_KEY=<obtener del dashboard — secreto, solo server>
 ```
 
-### Prod Arko (production)
+### Prod Arko (production) — `zphvrohosizkbrnxtppj`
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://zphvrohosizkbrnxtppj.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwaHZyb2hvc2l6a2Jybnh0cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjY4MTgsImV4cCI6MjA4OTgwMjgxOH0.ot3t_O6EY_yRGVcUaQ2sGadCaASDtr1007J-xk5B2gw
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwaHZyb2hvc2l6a2Jybnh0cHBqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDIyNjgxOCwiZXhwIjoyMDg5ODAyODE4fQ.pq4rdGlsGYPHG37ViVpYwNjBW5YNz7JErqEXCiTHkWU
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<obtener del dashboard de Supabase>
+SUPABASE_SERVICE_ROLE_KEY=<obtener del dashboard — secreto, solo server>
 ```
 
 ---
