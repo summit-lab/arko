@@ -51,10 +51,16 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 | **F0** | Alias `arkoai-analyze` | ❌ NO borrar | Lo llama el front (`GeminiAnalysis.tsx:117`) — verificado, se mantiene |
 | **F0** | Huérfanos `reel_diagnostics` | ❌ N/A | Tabla VACÍA en Dev+Prod (0 filas) — nada que limpiar |
 | **F0** | Consolidar los 2 endpoints de data-deletion en 1 | 🟡 Bloqueado | Requiere confirmar URL en dashboard de Meta (compliance). Evidencia: el vivo es `/api/v1/auth/meta/data-deletion` (`APP_REVIEW_META.md:637`) |
-| **F1** | Índices compuestos `(workspace_id, date)` en métricas diarias | ⬜ | §8 |
-| **F1** | Unique + FK index en `content_plan_versions` | ⬜ | §8 |
-| **F1** | Unificar familia de métricas + retención ad/yt | ⬜ | §8 |
-| **F2+** | Cliente Meta unificado, Apify, IA, convención API, reorg | ⬜ | §4–§7, §10 |
+| **F1.1/F1.2** | Índices de cobertura para 11 FKs sin índice (`unindexed_foreign_keys`) | ✅ Dev+Prod | PR #107 |
+| **F2.1** | Borrar 3 servicios Node de sync muertos (~1650 líneas, 0 imports) | ✅ | PR #106 |
+| **F1.5** | `auth_rls_initplan` (20 policies, 13 tablas): envolver `auth.uid()` en `(select …)` | ⬜ | El mayor impacto de escala. SQL listo en el plan del workflow |
+| **F1.6** | `multiple_permissive_policies` (12 tablas): fusionar admin+member en 1 policy | ⬜ | google_connections el peor caso |
+| **F1.3** | Drop de índices genuinamente redundantes (cubiertos por UNIQUE) — NO los `*_workspace` | ⬜ | revisar lista |
+| **F1** | Índices compuestos `(workspace_id, date)` en métricas diarias | ⬜ | §8 — verificar cuáles faltan (ig_account_insights ya tocada) |
+| **F2.2** | Fix split tokens 85/15 fabricado en 3 rutas IA + logging en hooks/classify | ⬜ | bajo riesgo |
+| **F2.3** | Dedup de scrapes Apify (guard `last_scraped_at`) — control de costo | ⬜ | medio |
+| **F2.4** | Centralizar `META_GRAPH_VERSION` | ⬜ Diferido | No hay drift hoy (v25.0 uniforme; el `v22.0` es solo un comentario). Va junto con el cliente Meta unificado, no como quick-win |
+| **F2.5/F2.6** | Cliente Meta/Apify unificado, adapter Gemini en callLLM, convención API | ⬜ | §4–§7 |
 
 ### Deudas de SEGURIDAD aún abiertas (importantes)
 - 🟡 **Rotar las claves Supabase** (Dev+Prod). El PR #97 frenó la propagación pero las claves siguen vivas y en el historial de git. Requiere runbook coordinado (Vercel + 4 edge secrets con `--no-verify-jwt`). El usuario lo postergó conscientemente (repo privado, círculo de confianza). Ver §12.
