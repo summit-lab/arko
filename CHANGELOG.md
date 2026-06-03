@@ -7,12 +7,20 @@
 
 ## [unreleased] — 2026-06-02
 
-### Fix — Sync IG: el botón ya no dispara ~228 requests por sync
+### Perf/UX — Sync IG: recompensa rápida (primera página en ~4s + "Listo")
 
-El `SyncButton` hacía `router.refresh()` **cada 4s** mientras sincronizaba (para el reveal progresivo). Cada refresco re-bajaba TODA la página (RSC) + re-disparaba los prefetch del sidebar (`*_rsc`) → **~228 requests por sync** (verificado en Network). Ahora hace **UN solo refresco al completar** el sync. El reveal progresivo en vivo (reels apareciendo uno a uno) queda para una impl. client-side de la grilla (sin re-fetch de toda la página).
+**Lo que se pidió:** al sincronizar, que la primera página de reels se dibuje y marque "Listo" en 3-4s, y el resto siga por detrás.
+
+**Antes:** el botón esperaba el full sync entero (~30-50s) para marcar "Listo" + hacía `router.refresh()` **cada 4s** → **~228 requests por sync** (re-bajaba toda la página RSC + re-disparaba los prefetch del sidebar).
+
+**Ahora:** click → `quick` sync (primeros 12 reels + métricas, **medido 4.1s**) → pinta la primera página + "Listo" → el RESTO (todos los reels + account + stories) corre en segundo plano fire-and-forget, sin tracking ni refresh en loop (adiós storm de 228 requests). **`ads` va último** (no se usa en vistas en tiempo real). Apify queda en el background, no bloquea el quick.
 
 #### Archivos
-- `src/components/instagram/SyncButton.tsx` — saca el `setInterval(router.refresh, 4000)`; refresco único en `status === "completed"`.
+- `supabase/functions/sync-instagram/index.ts` — `handleQuickSync` sin stories/carousel-children (quick lean ~4s; eso va al full de fondo).
+- `src/app/api/v1/sync/instagram/route.ts` — cadena de fondo con `ads` último (`reels→account→stories→ads`).
+- `src/components/instagram/SyncButton.tsx` — quick pinta + "Listo", resto fire-and-forget (sin hook/tracking/refresh-loop).
+
+**Pendiente:** la vista de métricas (`account`) todavía tarda ~28s (30 llamadas serial a Meta); su recompensa rápida necesita colapsar esas llamadas (optimización aparte).
 
 ### Perf — Sync IG: fetch incremental + fix del cuello de botella Apify (F2.5-5)
 

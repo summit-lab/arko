@@ -78,10 +78,12 @@ export async function POST(request: Request) {
     const isHeavySync = steps === 'all' || steps === 'media' || steps === 'reels' || steps === 'account';
 
     if (isHeavySync) {
+      // ads SIEMPRE último: no se usa en ninguna vista en tiempo real, así que
+      // se sincroniza al final, de fondo, sin demorar lo que el usuario mira.
       const stepsChain = steps === 'all'
         ? (first === 'reels'
-            ? ['reels', 'account', 'ads', 'stories']
-            : ['account', 'reels', 'ads', 'stories'])
+            ? ['reels', 'account', 'stories', 'ads']
+            : ['account', 'reels', 'stories', 'ads'])
         : [steps];
 
       // `after()` difiere la ejecución hasta después que la response salió.

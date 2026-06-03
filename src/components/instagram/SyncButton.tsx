@@ -1,85 +1,72 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { RefreshCw, Check, AlertCircle } from "lucide-react";
-import { useSyncJobProgress } from "@/hooks/useSyncJobProgress";
 
 interface SyncButtonProps {
   workspaceId: string;
   currentTab?: string;
 }
 
-type SyncPhase = "idle" | "quick" | "syncing" | "done" | "error";
+type SyncPhase = "idle" | "quick" | "done" | "error";
 
 export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
   const router = useRouter();
   const t = useTranslations("igAdvanced");
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const { status, startTracking } = useSyncJobProgress(workspaceId);
-
-  // Al terminar el full sync: UN solo router.refresh() + estado del botón.
-  // (Antes refrescábamos cada 4s → re-bajaba TODA la página RSC + re-disparaba
-  // los prefetch del sidebar = ~228 requests por sync. Un refresco al cierre alcanza.)
-  useEffect(() => {
-    if (status === "completed") {
-      router.refresh();
-      setPhase("done");
-    } else if (status === "failed") {
-      setPhase("error");
-    }
-  }, [status, router]);
 
   const handleSync = useCallback(async () => {
     setPhase("quick");
     setErrorMsg(null);
 
     try {
-      // 1. Check rápido (~1-2s): valida token/conexión. Antes el botón esperaba
-      //    el "quick sync" entero (a veces ~30s); ahora solo valida y dispara el
-      //    sync de fondo, sin bloquear.
-      const checkRes = await fetch(
-        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=check`,
+      // 1. QUICK = recompensa rápida: trae los primeros ~12 reels (o el account
+      //    en la vista de métricas) + sus métricas (~3-5s). Apenas vuelve, pinta
+      //    la primera página y marca "Listo". Feedback en segundos.
+      const stepsParam = currentTab === "metrics" ? "account" : "quick";
+      const res = await fetch(
+        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=${stepsParam}`,
         { method: "POST" }
       );
-      const checkJson = await checkRes.json();
+      const json = await res.json();
 
-      if (!checkRes.ok || checkJson.error === "TOKEN_EXPIRED" || checkJson.data?.status === "error") {
+      if (!res.ok || json.error === "TOKEN_EXPIRED" || json.data?.status === "error") {
         setPhase("error");
-        if (checkJson.error === "TOKEN_EXPIRED") {
-          setErrorMsg(t("sync.tokenExpired"));
-        } else {
-          setErrorMsg(checkJson.message || checkJson.data?.error || t("sync.quickError"));
-        }
+        setErrorMsg(
+          json.error === "TOKEN_EXPIRED"
+            ? t("sync.tokenExpired")
+            : (json.message || json.data?.error || t("sync.quickError"))
+        );
         return;
       }
 
-      // 2. Full sync en background, ORDENADO según la vista: reels-first en la
-      //    pestaña de reels, account-first en métricas. La página ya muestra los
-      //    reels actuales; al COMPLETAR el sync se hace UN refresco (useEffect de
-      //    status). El botón queda "Actualizando" hasta el cierre.
+      // Pinta la primera página + "Listo" YA.
+      router.refresh();
+      setPhase("done");
+
+      // 2. El RESTO en segundo plano (todos los reels + account + stories, y ads
+      //    ÚLTIMO). Fire-and-forget: no esperamos, no trackeamos, no refrescamos
+      //    en loop (eso era lo que generaba ~228 requests). Lo que sincroniza
+      //    aparece en la próxima carga/navegación.
       const first = currentTab === "metrics" ? "account" : "reels";
       fetch(
         `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all&first=${first}`,
         { method: "POST" }
       ).catch(() => { /* background, non-blocking */ });
-
-      setPhase("syncing");
-      startTracking();
     } catch {
       setPhase("error");
       setErrorMsg(t("sync.networkError"));
     }
-  }, [workspaceId, currentTab, t, startTracking]);
+  }, [workspaceId, currentTab, router, t]);
 
-  const isLoading = phase === "quick" || phase === "syncing";
+  const isLoading = phase === "quick";
 
   const label = {
     idle: t("sync.button.idle"),
     quick: t("sync.button.quick"),
-    syncing: t("sync.button.quick"),
     done: t("sync.button.done"),
     error: t("sync.button.idle"),
   }[phase];
