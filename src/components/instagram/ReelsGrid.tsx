@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "./ReelThumbnail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Heart, Bookmark, MessageCircle, Share2,
-  Play, Clock, ArrowUpRight, Megaphone, AlertTriangle,
+  Clock, ArrowUpRight, Megaphone, AlertTriangle,
   UserPlus, ChevronDown, ArrowUpDown, Check, TrendingUp,
   ExternalLink, DollarSign, Eye,
 } from "lucide-react";
@@ -652,7 +652,7 @@ export function ReelsGrid({ reels, summary, benchmarksByType }: ReelsGridProps) 
               {t("reels.empty")}
             </div>
           )}
-          {filtered.slice(0, page * PAGE_SIZE).map((reel) => {
+          {filtered.slice(0, page * PAGE_SIZE).map((reel, idx) => {
             const multiple = computeMultiple(reel) ?? 0;
             const isPromoted = reel.has_ads || reel.views_paid > 0;
             // Inline styles so colors survive any light-mode CSS overrides (pill sits on a dark thumbnail).
@@ -697,20 +697,12 @@ export function ReelsGrid({ reels, summary, benchmarksByType }: ReelsGridProps) 
                   className="relative w-full overflow-hidden bg-muted block"
                   style={{ aspectRatio: "4/5" }}
                 >
-                  {reel.thumbnail_url ? (
-                    <Image
-                      src={reel.thumbnail_url}
-                      alt=""
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
-                      loading="lazy"
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Play size={24} className="text-white/10" />
-                    </div>
-                  )}
+                  {/* Primera fila (idx<5) priority: arranca eager para el above-the-fold */}
+                  <ReelThumbnail
+                    src={reel.thumbnail_url}
+                    priority={idx < 5}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
                   {/* Gradient overlay bottom */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   {/* Badges top-left — inline styles only, to survive light-mode overrides */}

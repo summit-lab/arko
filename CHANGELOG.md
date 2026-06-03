@@ -5,7 +5,38 @@
  
 ---
 
-## [unreleased] — 2026-06-02
+## [unreleased] — 2026-06-03
+
+### Perf — Contenido sin 10s de skeleton (Suspense streaming) + portadas que ya no cargan "de a 2-3" (re-host + getClaims)
+
+Diagnóstico (workflow multi-agente Opus): con los `loading.tsx` ya puestos, el skeleton aparecía al instante pero el **contenido tardaba ~10s** y las **portadas cargaban de a 2-3** con 502 intermitente. Dos causas raíz, atacadas de raíz (sin parches):
+
+**1) Los 10s de skeleton — el page `await`-eaba TODA la data de TODAS las tabs antes de pintar.**
+La IG page fetcheaba competencia (embed de 3 niveles: 50 reels × 12 campos de texto AI × 90 snapshots por competidor — la query más cara de la pantalla) + referencias + `reference_reel_analysis` (3er await secuencial), todo en el critical path, aunque la tab default es **reels**. Ahora:
+- **Competencia y referencias streamean via `<Suspense>`**: `CompetitorsLoader` / `ReferencesLoader` (Server Components async) cargan su data pesada FUERA del critical path y llegan como slots a `InstagramShell`. La tab reels pinta apenas terminan SUS queries; el resto llega por detrás sin bloquear.
+- **`auth.getUser()` → `auth.getClaims()`** en middleware (round-trip de red en CADA request, ANTES del streaming) + Header + admin layout + fallback de `getWorkspaceId`. getClaims valida el JWT **localmente** (ES256 via JWKS) → saca ~0.2-0.6s del piso de cada render y descomprime el cap de 10 conexiones del Auth server bajo concurrencia. Fallback a `getUser()` si no hay claims (nadie queda afuera por un edge case).
+
+**2) Portadas "de a 2-3" + 502 — los reels propios pasaban por el optimizer de `next/image` con URLs efímeras de Meta.**
+Cada `/_next/image?url=scontent...` re-bajaba la imagen de Meta + re-encodeaba (1 invocación serverless por portada, serializadas por el cap de ~6 conexiones del browser) y devolvía **502** cuando la URL firmada de scontent ya había expirado (los reels nunca se re-hosteaban, a diferencia de las historias). Ahora:
+- **Re-host de thumbnails de reels a Storage** (`reel-media`, bucket privado nuevo): el sync replica `archiveStoryMedia` (`archiveReelThumbnails`). El page los sirve **storage-first** (signed URLs batch, URL estable que no expira, sin re-fetch a Meta) con fallback al thumbnail crudo mientras se re-hostea. Backfill **acotado** (revisión adversarial): corre **post-`completed`** (fuera del path crítico del sync), 12/sync, con **budget de 25s** y `fetch` con **`AbortSignal.timeout(8000)`** (un socket colgado no es excepción → sin timeout el `try/catch` no lo atrapaba y dejaba el sync "running" hasta el watchdog). Mismo timeout aplicado a `archiveStoryMedia`.
+- **Componente `ReelThumbnail`** (`<img>` + `onError` + `priority` en la primera fila, fuera del optimizer) reemplaza a `next/image` en ReelsGrid, PublicacionesGrid e IGDashboard. Mata el goteo y el 502; cae a placeholder en vez de hueco roto.
+- **Dashboard**: reels storage-first (RecentReelsStrip + thumbnails de ventas).
+- **`next.config`**: `minimumCacheTTL` 24h + `formats: webp` + hostname `**.fbcdn.net` (competencia).
+
+**Pendiente (follow-up):** partición `<Suspense>` de la dashboard home (refactor del `getDashboardData` monolítico con agregados cruzados — el getClaims + queries paralelas ya bajan su tiempo); migrar StoriesGrid + PostDetailView a `ReelThumbnail`.
+
+#### DB (Dev + Prod)
+- Migración `20260603000000_create_reel_media_bucket` — bucket privado `reel-media` + policy `workspace_members_read_reel_media` (espejo de story-media). La columna `reels.media_storage_path` ya existía.
+
+#### Archivos
+- `src/lib/supabase/auth-claims.ts` (nuevo) — `getAuthUser()` con getClaims + fallback getUser; usado en `middleware.ts`, `Header.tsx`, `(admin)/layout.tsx`, `lib/workspace.ts`.
+- `supabase/functions/sync-instagram/index.ts` — `archiveReelThumbnails` (Phase 5, try/catch, nunca rompe el sync). **Deployado a Prod con `--no-verify-jwt`.**
+- `src/components/instagram/ReelThumbnail.tsx` (nuevo), `CompetitorsLoader.tsx` (nuevo), `ReferencesLoader.tsx` (nuevo).
+- `src/components/instagram/InstagramShell.tsx` — slots streameados (competenciaSlot/referenciasSlot) en vez de data pesada inline.
+- `src/app/(dashboard)/instagram/page.tsx` — competencia/referencias fuera del Promise.all + reels storage-first.
+- `src/app/(dashboard)/page.tsx` — reels storage-first.
+- `src/components/instagram/ReelsGrid.tsx`, `PublicacionesGrid.tsx`, `IGDashboard.tsx` — `ReelThumbnail` (fuera del optimizer).
+- `next.config.ts` — cache + webp + fbcdn.
 
 ### Perf/UX — Navegación más veloz: skeletons instantáneos + feedback de click + prefetch
 

@@ -768,12 +768,27 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       result.errors.push(`Carousel children: ${err instanceof Error ? err.message : String(err)}`);
     }
 
+    // Marcamos completed ANTES del re-host de thumbnails (abajo), asi el archival
+    // NO esta en el path critico: el job ya figura terminado para la UI y el
+    // watchdog aunque el archival siga (o lo mate el limite de la edge function).
     await supabase.from("sync_jobs").update({
       status: "completed",
       processed_items: totalWork,
       completed_at: new Date().toISOString(),
       metadata: result as unknown as Record<string, unknown>,
     }).eq("id", syncJobId);
+
+    // ── Phase 5 (post-completed, best-effort): Re-host de thumbnails de reels ──
+    // Las URLs de scontent.cdninstagram.com son firmadas y expiran (horas/dias);
+    // re-hostear da una URL estable desde el CDN de Supabase, sin re-fetch a Meta ni
+    // 502 del optimizer. Backfill gradual y ACOTADO (12/sync + budget de tiempo +
+    // fetch con timeout), corre DESPUES del completed para nunca colgar el sync.
+    // Solo en el sync completo, nunca en el quick (que debe seguir en ~4s).
+    try {
+      await archiveReelThumbnails(supabase, workspaceId);
+    } catch (err) {
+      console.warn(`[sync] reel thumbnail archival: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     return result;
   } catch (err) {
@@ -1417,8 +1432,10 @@ async function archiveStoryMedia(
 
         if (!sourceUrl) { stats.skippedNoSource++; return; }
 
-        // Download the image (Meta CDN URL — may 403 if expired)
-        const imgRes = await fetch(sourceUrl);
+        // Download the image (Meta CDN URL — may 403 if expired). Con TIMEOUT: un
+        // socket colgado no es excepcion y dejaria el await pegado (el try/catch no
+        // lo atraparia). AbortSignal.timeout -> AbortError que el catch SI atrapa.
+        const imgRes = await fetch(sourceUrl, { signal: AbortSignal.timeout(8000) });
         if (!imgRes.ok) { stats.skippedFetchFailed++; return; }
 
         const buffer = await imgRes.arrayBuffer();
@@ -1460,6 +1477,93 @@ async function archiveStoryMedia(
   }
 
   console.log(`[archiveStoryMedia] workspace=${workspaceId} stats=${JSON.stringify(stats)}`);
+  return stats;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REEL THUMBNAIL ARCHIVAL — Download reel covers to Storage
+// ═══════════════════════════════════════════════════════════════
+// Espeja archiveStoryMedia para reels/posts/carruseles. thumbnail_url ya viene
+// coalescido (thumbnail_url || media_url) en el upsert, asi que es la mejor portada
+// disponible. Bucket privado reel-media; el path `${workspace_id}/${ig_media_id}.jpg`
+// lo sirve la policy workspace_members_read_reel_media.
+
+// deno-lint-ignore no-explicit-any
+async function archiveReelThumbnails(
+  supabase: any,
+  workspaceId: string,
+): Promise<{ attempted: number; uploaded: number; skippedTooBig: number; skippedFetchFailed: number; skippedNoSource: number; uploadErrors: number }> {
+  const stats = { attempted: 0, uploaded: 0, skippedTooBig: 0, skippedFetchFailed: 0, skippedNoSource: 0, uploadErrors: 0 };
+
+  // Reels sin re-host todavia. Newest-first para priorizar lo que el usuario ve
+  // arriba en la grilla. Backfill gradual y ACOTADO: 12 por sync (corre post-completed,
+  // best-effort; se completa en varios syncs sin pegarle al budget del sync de reels).
+  const { data: reelsNeedingArchival } = await supabase
+    .from("reels")
+    .select("id, ig_media_id, thumbnail_url, media_url")
+    .eq("workspace_id", workspaceId)
+    .is("media_storage_path", null)
+    .not("thumbnail_url", "is", null)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(12);
+
+  if (!reelsNeedingArchival?.length) return stats;
+
+  const MAX_BYTES = 5 * 1024 * 1024;  // 5MB — los thumbnails de IG son 300KB-2MB tipico
+  // Budget de tiempo: aunque corre post-completed, cortamos a los 25s para no consumir
+  // el wall-clock de la edge function (que comparten ads + otros workspaces del cron).
+  const BUDGET_MS = 25000;
+  const archivalStart = Date.now();
+
+  const CONCURRENCY = 3;
+  for (let i = 0; i < reelsNeedingArchival.length; i += CONCURRENCY) {
+    if (Date.now() - archivalStart > BUDGET_MS) break;  // resto en el proximo sync
+    const batch = reelsNeedingArchival.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (reel: { id: string; ig_media_id: string; thumbnail_url: string | null; media_url: string | null }) => {
+      stats.attempted++;
+      try {
+        const sourceUrl = reel.thumbnail_url || reel.media_url;
+        if (!sourceUrl) { stats.skippedNoSource++; return; }
+
+        // Descarga desde el CDN de Meta con TIMEOUT: un socket colgado no es excepcion,
+        // asi que sin esto el try/catch no lo atrapa y el await quedaria pegado.
+        // AbortSignal.timeout -> AbortError (lo atrapa el catch) y seguimos.
+        const imgRes = await fetch(sourceUrl, { signal: AbortSignal.timeout(8000) });
+        if (!imgRes.ok) { stats.skippedFetchFailed++; return; }
+
+        const buffer = await imgRes.arrayBuffer();
+        const imageBytes = new Uint8Array(buffer);
+        if (imageBytes.byteLength > MAX_BYTES) { stats.skippedTooBig++; return; }
+
+        const isWebp = sourceUrl.toLowerCase().includes(".webp");
+        const ext = isWebp ? "webp" : "jpg";
+        const storagePath = `${workspaceId}/${reel.ig_media_id}.${ext}`;
+        const contentType = isWebp ? "image/webp" : "image/jpeg";
+
+        const { error: uploadError } = await supabase.storage
+          .from("reel-media")
+          .upload(storagePath, imageBytes, { contentType, upsert: true });
+
+        if (uploadError) {
+          stats.uploadErrors++;
+          console.warn(`[archiveReelThumbnails] upload failed for ${reel.ig_media_id}: ${uploadError.message}`);
+          return;
+        }
+
+        await supabase
+          .from("reels")
+          .update({ media_storage_path: storagePath })
+          .eq("id", reel.id);
+
+        stats.uploaded++;
+      } catch (err) {
+        stats.uploadErrors++;
+        console.warn(`[archiveReelThumbnails] unexpected error for reel ${reel.ig_media_id}:`, err instanceof Error ? err.message : String(err));
+      }
+    }));
+  }
+
+  console.log(`[archiveReelThumbnails] workspace=${workspaceId} stats=${JSON.stringify(stats)}`);
   return stats;
 }
 

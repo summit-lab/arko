@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-claims";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { NavProgressBar } from "@/components/layout/NavigationProvider";
@@ -11,7 +12,7 @@ export default async function AdminLayout({
 }) {
   // Double-check admin role (middleware already checks, this is defense-in-depth)
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase); // getClaims (JWT local) + fallback getUser
 
   if (!user) redirect("/login");
 

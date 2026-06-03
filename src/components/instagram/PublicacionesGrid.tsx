@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "./ReelThumbnail";
 import {
   Heart, Bookmark, MessageCircle, Share2, Eye,
   Images, Grid2X2, ExternalLink, TrendingUp, Check, ChevronDown,
@@ -352,19 +352,15 @@ function PostCard({ post }: { post: Post }) {
     >
       {/* Thumbnail */}
       <div className="relative overflow-hidden" style={{ aspectRatio: "1/1" }}>
-        {post.thumbnail_url ? (
-          <Image
-            src={post.thumbnail_url}
-            alt={post.caption?.slice(0, 30) || t("posts.postAlt")}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-            sizes="200px"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full bg-white/[0.03]">
-            <Grid2X2 className="h-8 w-8 text-white/10" />
-          </div>
-        )}
+        <ReelThumbnail
+          src={post.thumbnail_url}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+          placeholder={
+            <div className="flex items-center justify-center h-full bg-white/[0.03]">
+              <Grid2X2 className="h-8 w-8 text-white/10" />
+            </div>
+          }
+        />
 
         {/* Type badge */}
         <div
