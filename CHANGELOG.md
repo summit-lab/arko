@@ -7,6 +7,20 @@
 
 ## [unreleased] — 2026-06-02
 
+### Perf/UX — Navegación más veloz: skeletons instantáneos + feedback de click + prefetch
+
+Diagnóstico (workflow multi-agente Opus): la lentitud de navegación NO es la DB (queries 5-15ms por EXPLAIN), es la capa de app. Esta tanda ataca lo de **menor riesgo / mayor impacto percibido**:
+- **`loading.tsx` faltantes** en `/ventas` y `/meta` → antes Next esperaba el RSC entero (queries) antes de pintar = "6s en blanco TOTAL"; ahora skeleton al instante.
+- **NavProgressBar visible**: era una barra blanca de 2px **invisible en tema light** → ahora `h-[3px]` + color por tema. Da **feedback inmediato al click** (clave para que no se sienta "muerto" y no haga falta doble-click).
+- **Sidebar**: `router.prefetch(href)` en `onMouseEnter` (destino caliente → 1er click navega rápido) + `cursor-pointer`.
+
+**Pendiente (mayor impacto, más delicado, PR propio):** sacar `auth.getUser()` del middleware (round-trip de red en CADA request, ANTES del streaming del skeleton) → `getClaims()` (valida el JWT local). Es la causa raíz del residual del "6s".
+
+#### Archivos
+- `src/app/(dashboard)/ventas/loading.tsx`, `src/app/(dashboard)/meta/loading.tsx` (nuevos).
+- `src/components/layout/NavigationProvider.tsx` — barra de progreso visible por tema (h-[3px]).
+- `src/components/layout/Sidebar.tsx` — `router.prefetch` en hover + `cursor-pointer`.
+
 ### Fix — Competencia + Referencias: el scrape ya no tira "Unexpected token 'A'... is not valid JSON"
 
 `POST /competitors/[id]/scrape` corría TODO sincrónico (~120s) → el gateway de Vercel cortaba la respuesta con un **504 en texto plano** ("An error occurred...") y el cliente crasheaba al hacer `res.json()` → `Unexpected token 'A'... is not valid JSON`, **aunque el scrape sí hubiera arrancado** (Apify corría igual). Ahora:
