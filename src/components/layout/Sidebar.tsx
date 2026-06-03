@@ -222,7 +222,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
       <Link
         href={linkHref}
         onClick={(e) => handleNav(item.href, e, item.tab)}
-        className={`group relative flex items-center gap-3.5 px-3 ${height} rounded-lg transition-all duration-200 overflow-hidden ${
+        onMouseEnter={() => router.prefetch(linkHref)}
+        className={`group relative flex items-center gap-3.5 px-3 ${height} rounded-lg transition-all duration-200 overflow-hidden cursor-pointer ${
           isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"
         }`}
       >
