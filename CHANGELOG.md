@@ -7,6 +7,21 @@
 
 ## [unreleased] — 2026-06-02
 
+### Perf/UX — Sync IG: recompensa rápida (primera página en ~4s + "Listo")
+
+**Lo que se pidió:** al sincronizar, que la primera página de reels se dibuje y marque "Listo" en 3-4s, y el resto siga por detrás.
+
+**Antes:** el botón esperaba el full sync entero (~30-50s) para marcar "Listo" + hacía `router.refresh()` **cada 4s** → **~228 requests por sync** (re-bajaba toda la página RSC + re-disparaba los prefetch del sidebar).
+
+**Ahora:** click → `quick` sync (primeros 12 reels + métricas, **medido 4.1s**) → pinta la primera página + "Listo" → el RESTO (todos los reels + account + stories) corre en segundo plano fire-and-forget, sin tracking ni refresh en loop (adiós storm de 228 requests). **`ads` va último** (no se usa en vistas en tiempo real). Apify queda en el background, no bloquea el quick.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `handleQuickSync` sin stories/carousel-children (quick lean ~4s; eso va al full de fondo).
+- `src/app/api/v1/sync/instagram/route.ts` — cadena de fondo con `ads` último (`reels→account→stories→ads`).
+- `src/components/instagram/SyncButton.tsx` — quick pinta + "Listo", resto fire-and-forget (sin hook/tracking/refresh-loop).
+
+**Pendiente:** la vista de métricas (`account`) todavía tarda ~28s (30 llamadas serial a Meta); su recompensa rápida necesita colapsar esas llamadas (optimización aparte).
+
 ### Perf — Sync IG: fetch incremental + fix del cuello de botella Apify (F2.5-5)
 
 **Apify (el cuello de botella REAL, medido en vivo):** el enrichment de duración de videos corría **secuencial** con timeout de 30s → cuando Apify falla/tarda (Franco: 4 de 5 reels timeouteando) dominaba el sync con ~120s de espera. Ahora corre **en paralelo** (5 a la vez) + timeout 30s→15s. **Franco: 124.7s → 31.2s.**

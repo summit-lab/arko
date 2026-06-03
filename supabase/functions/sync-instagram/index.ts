@@ -425,23 +425,10 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       }));
     }
 
-    // 5) Sync carousel children (background, non-blocking for quick response)
-    try {
-      await syncCarouselChildren(supabase, workspaceId, media, reelIdMap, accessToken);
-    } catch { /* non-critical */ }
-
-    // 6) Sync stories inline (so they appear on router.refresh)
-    let storiesResult: StoriesSyncResult = { storiesFetched: 0, sequencesUpserted: 0, slidesUpserted: 0, errors: [] };
-    try {
-      const { data: storiesJob } = await supabase
-        .from("sync_jobs")
-        .insert({ workspace_id: workspaceId, job_type: "stories_sync", status: "queued" })
-        .select("id")
-        .single();
-      if (storiesJob) {
-        storiesResult = await syncStories(supabase, workspaceId, storiesJob.id, igAccountId, accessToken);
-      }
-    } catch { /* non-critical */ }
+    // QUICK = recompensa rápida: solo los reels nuevos + sus métricas, para pintar
+    // la primera página en ~3-5s y marcar "Listo". Stories, carousel-children y
+    // Apify NO corren acá — van en el full sync de fondo que dispara el botón
+    // después. El resto sigue por detrás sin bloquear.
 
     return jsonResponse({
       status: "completed",
@@ -450,8 +437,6 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
       reels_synced: upserted?.length ?? 0,
       insights_fetched: insightsFetched,
       insights_skipped: insightsSkipped,
-      stories_fetched: storiesResult.storiesFetched,
-      stories_slides: storiesResult.slidesUpserted,
     });
   } catch (err) {
     return jsonResponse({
