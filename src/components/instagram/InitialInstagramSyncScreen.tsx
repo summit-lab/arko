@@ -16,12 +16,18 @@ type SyncPhase = {
   description: string;
 };
 
+// Techo de progreso por fase: la barra trepa hacia acá y NUNCA retrocede.
+// (0 Validar, 1 Descargar, 2 Procesar métricas+Ads, 3 Armar dashboard.)
+const PHASE_TARGETS = [22, 48, 75, 95];
+
 export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialInstagramSyncScreenProps) {
   const router = useRouter();
   const t = useTranslations("igAdvanced");
   const [phaseIndex, setPhaseIndex] = useState(0);
+  const [progress, setProgress] = useState(6);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isSyncing, setIsSyncing] = useState(true);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const PHASES: SyncPhase[] = useMemo(() => [
@@ -43,25 +49,29 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
     },
   ], [t]);
 
-  const progress = useMemo(() => {
-    const baseProgress = ((phaseIndex + 1) / PHASES.length) * 100;
-    return Math.max(8, Math.min(92, baseProgress));
-  }, [phaseIndex]);
-
+  // Reloj de tiempo transcurrido.
   useEffect(() => {
-    const phaseTimer = window.setInterval(() => {
-      setPhaseIndex((current) => (current < PHASES.length - 1 ? current + 1 : current));
-    }, 4500);
-
     const elapsedTimer = window.setInterval(() => {
       setElapsedSeconds((current) => current + 1);
     }, 1000);
-
-    return () => {
-      window.clearInterval(phaseTimer);
-      window.clearInterval(elapsedTimer);
-    };
+    return () => window.clearInterval(elapsedTimer);
   }, []);
+
+  // Barra de progreso: trepa SUAVE hacia el techo de la fase actual y NUNCA va
+  // para atrás. Está desacoplada de la fase (que ahora la deriva SOLO el poller
+  // real), así se siente viva sin los saltos hacia atrás que causaba el timer
+  // tonto que antes peleaba con el poller (avanzaba a 3 y el poller la devolvía a 2).
+  useEffect(() => {
+    if (done) {
+      setProgress(100);
+      return;
+    }
+    const target = PHASE_TARGETS[phaseIndex] ?? 95;
+    const id = window.setInterval(() => {
+      setProgress((p) => (p >= target ? p : Math.min(target, p + Math.max(0.5, (target - p) * 0.05))));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [phaseIndex, done]);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,10 +125,13 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
 
           // Sólo consideramos jobs iniciados DESPUÉS del kickoff (con 10s de
           // margen) para ignorar jobs viejos que puedan estar running/orphan.
-          const relevant = jobs.filter(
-            (j: { started_at: string }) =>
-              new Date(j.started_at).getTime() >= startedAt - 10_000
-          );
+          // Jobs de ESTE sync (ignora viejos/orphan). Usa started_at o, si todavía
+          // está queued (started_at null), created_at. Margen amplio por clock-skew
+          // entre el reloj del cliente y el del servidor.
+          const relevant = jobs.filter((j: { started_at: string | null; created_at: string }) => {
+            const ts = new Date(j.started_at ?? j.created_at).getTime();
+            return Number.isFinite(ts) && ts >= startedAt - 15_000;
+          });
 
           const findJob = (type: string) =>
             relevant.find((j: { job_type: string }) => j.job_type === type);
@@ -127,15 +140,20 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
           const mediaJob = findJob("full_sync");
           const storiesJob = findJob("stories_sync");
 
-          // Fase 2 = "Descargando contenidos" (cuando account está por terminar)
-          // Fase 3 = "Procesando métricas y Ads" (cuando account completó y media arrancó)
-          // Fase 4 = "Armando dashboard" (cuando media completó)
+          // La fase la deriva SOLO la realidad (jobs) y es MONOTÓNICA: nunca va
+          // para atrás. bump() solo sube — así se elimina el "marca 3 y vuelve a 2".
+          //   1 = "Descargando contenidos" (account/media corriendo)
+          //   2 = "Procesando métricas y Ads" (account completó, media procesando)
+          //   3 = "Armando dashboard" (media completó)
+          const bump = (stage: number) =>
+            setPhaseIndex((prev) => (stage > prev ? stage : prev));
+
           if (mediaJob?.status === "completed") {
-            setPhaseIndex(3);
+            bump(3);
           } else if (accountJob?.status === "completed") {
-            setPhaseIndex(2);
+            bump(2);
           } else if (accountJob?.status === "running" || mediaJob?.status === "running") {
-            setPhaseIndex(1);
+            bump(1);
           }
 
           // Account + media listos → el dashboard tiene todo lo esencial.
@@ -153,6 +171,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
             }
 
             setPhaseIndex(PHASES.length - 1);
+            setDone(true);
             window.dispatchEvent(new Event("nav:start"));
             router.replace("/instagram");
             router.refresh();

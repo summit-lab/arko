@@ -7,6 +7,16 @@
 
 ## [unreleased] — 2026-06-03
 
+### Fix — Pantalla de conexión inicial: el progreso ya no va y vuelve para atrás
+
+`InitialInstagramSyncScreen` tenía **dos fuentes peleando por la fase actual**: un timer tonto que avanzaba 0→1→2→3 cada 4.5s ignorando la realidad, y el poller que la deriva de los `sync_jobs` reales. El timer empujaba a "Armando dashboard" (fase 3) y el poller la devolvía a "Procesando métricas" (fase 2) → el indicador **saltaba 3→2**, los checks no matcheaban la realidad y la barra retrocedía. Ahora:
+- **Se eliminó el timer auto-avance.** La fase la deriva **solo el poller** (jobs reales) y es **monótona** (`bump()` solo sube — nunca retrocede).
+- **Barra desacoplada**: trepa suave hacia el techo de la fase actual (`PHASE_TARGETS`) y nunca va para atrás, así se siente viva sin saltos.
+- **Filtro de jobs robusto**: `started_at ?? created_at` (antes un job aún `queued` con `started_at` null quedaba afuera) + margen de 15s por clock-skew.
+
+#### Archivos
+- `src/components/instagram/InitialInstagramSyncScreen.tsx` — fase monótona desde el poller, barra con creep, sin timer dueling.
+
 ### Perf — Contenido sin 10s de skeleton (Suspense streaming) + portadas que ya no cargan "de a 2-3" (re-host + getClaims)
 
 Diagnóstico (workflow multi-agente Opus): con los `loading.tsx` ya puestos, el skeleton aparecía al instante pero el **contenido tardaba ~10s** y las **portadas cargaban de a 2-3** con 502 intermitente. Dos causas raíz, atacadas de raíz (sin parches):
