@@ -498,8 +498,10 @@ function HookCard({
         `/api/v1/references/${hook.referenceId}/reels/${encodeURIComponent(hook.shortCode)}/analyze?workspace_id=${workspaceId}`,
         { method: "POST" }
       );
-      const json = await res.json() as { data?: { analysis: ReelAnalysis } };
-      if (res.ok && json.data?.analysis) {
+      // Parseo seguro: si el route timeoutea (504) la respuesta es texto plano,
+      // no JSON → res.json() crasheaba con "Unexpected token". Leemos texto + parse.
+      const json = await res.text().then((tx) => { try { return JSON.parse(tx) as { data?: { analysis: ReelAnalysis } }; } catch { return null; } });
+      if (res.ok && json?.data?.analysis) {
         onAnalysisUpdate(hook.referenceId, json.data.analysis);
       }
     } finally {
@@ -732,8 +734,10 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
 
   async function handleScrapeRef(id: string) {
     const res = await fetch(`/api/v1/references/${id}/scrape?workspace_id=${workspaceId}`, { method: "POST" });
-    const json = await res.json() as { data?: { scraped_data: ScrapedProfile; scraped_reels: ScrapedReel[] } };
-    if (res.ok && json.data) {
+    // Parseo seguro: el scrape (Apify) puede timeoutear y devolver un 504 en texto
+    // plano → res.json() crasheaba con "Unexpected token". Leemos texto + parse.
+    const json = await res.text().then((tx) => { try { return JSON.parse(tx) as { data?: { scraped_data: ScrapedProfile; scraped_reels: ScrapedReel[] } }; } catch { return null; } });
+    if (res.ok && json?.data) {
       setReferences((prev) => prev.map((r) => r.id === id ? {
         ...r,
         scraped_data: json.data!.scraped_data,
@@ -745,8 +749,9 @@ export function ReferencesTab({ workspaceId, initialReferences }: { workspaceId:
 
   async function handleAnalyzeAllRef(id: string) {
     const res = await fetch(`/api/v1/references/${id}/analyze-all?workspace_id=${workspaceId}`, { method: "POST" });
-    const json = await res.json() as { data?: { analyses: ReelAnalysis[] } };
-    if (res.ok && json.data) {
+    // Parseo seguro (ver handleScrapeRef): nunca crashear si la respuesta es un 504 en texto.
+    const json = await res.text().then((tx) => { try { return JSON.parse(tx) as { data?: { analyses: ReelAnalysis[] } }; } catch { return null; } });
+    if (res.ok && json?.data) {
       setReferences((prev) => prev.map((r) => r.id === id
         ? { ...r, reference_reel_analysis: json.data!.analyses }
         : r));

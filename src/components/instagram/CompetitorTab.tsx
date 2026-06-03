@@ -1641,49 +1641,25 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
         : c,
     ));
     try {
-      const scrapeRes = await fetch(`/api/v1/competitors/${competitorId}/scrape`, { method: "POST", headers });
-      if (!scrapeRes.ok) {
-        const err = await scrapeRes.json() as { error?: string };
-        throw new Error(err.error ?? t("competitor.errors.scraping"));
+      // El scrape + análisis corren en BACKGROUND (el route responde al instante).
+      // Solo DISPARAMOS; el polling de scrape_progress/analysis_status muestra el
+      // progreso y refresca al terminar. NO leemos el body con .json(): si Vercel
+      // devolviera un 504 en texto plano, .json() crasheaba con
+      // "Unexpected token 'A'... is not valid JSON" (el bug que viste).
+      const res = await fetch(`/api/v1/competitors/${competitorId}/scrape`, { method: "POST", headers });
+      if (!res.ok) {
+        // Leer como TEXTO para no crashear. Igual el route ya marcó 'analyzing' y
+        // el scrape arranca de fondo → dejamos que el polling tome el control.
+        const txt = await res.text().catch(() => "");
+        let msg = t("competitor.errors.scraping");
+        try { const j = JSON.parse(txt); msg = j?.error ?? j?.message ?? msg; } catch { /* no-JSON (504/HTML): el scrape igual arrancó */ }
+        console.warn("[competitor-scrape] kickoff non-ok:", res.status, msg);
       }
-      const scrapeJson = await scrapeRes.json() as { data?: { reels_inserted?: number } };
-      const newReels = scrapeJson.data?.reels_inserted ?? 0;
-
-      // setScraping(null) temprano — el spinner del botón puede apagarse,
-      // el polling se encarga de mostrar el progress del analyze que sigue.
-      setScraping(null);
-
-      if (newReels > 0) {
-        // NO llamamos load() acá: entre scrape terminado e analyze iniciado,
-        // el server queda momentáneamente en 'idle' y load() apagaría el
-        // polling justo antes de que el analyze levante analysis_status de
-        // nuevo a 'analyzing'. Mantenemos el state local optimistic y
-        // dejamos que el useEffect de polling refresque al detectar la
-        // transición analyzing→idle cuando el analyze termine.
-        // Belt-and-suspenders: cuando la analyze fetch resuelve (success o
-        // failure), forzamos un load() también desde acá. El polling ya lo
-        // intenta, pero si la transición se le pasa (timing raro), este .then
-        // garantiza que la UI tenga la data fresca sin que el usuario tenga
-        // que refrescar manualmente.
-        fetch(`/api/v1/competitors/${competitorId}/analyze`, { method: "POST", headers })
-          .then(() => load())
-          .catch((err) => {
-            console.warn('[competitor-analyze] background analyze failed:', err);
-            void load();
-          });
-      } else {
-        // No hay reels para analizar — reset local + refetch ya.
-        setCompetitors((prev) => prev.map((c) =>
-          c.id === competitorId
-            ? { ...c, analysis_status: "idle", scrape_progress: null }
-            : c,
-        ));
-        await load();
-      }
-      return;
+      // Éxito (o 504 con el scrape ya en curso): el polling se encarga del resto.
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("competitor.errors.analyze"));
-      // Reset optimistic state tras un error.
+      // Error de red REAL en el disparo → el scrape no arrancó, reset.
+      console.warn("[competitor-scrape] kickoff network error:", err);
+      setError(t("competitor.errors.scraping"));
       setCompetitors((prev) => prev.map((c) =>
         c.id === competitorId
           ? { ...c, analysis_status: "idle", scrape_progress: null }
@@ -1692,7 +1668,7 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
     } finally {
       setScraping(null);
     }
-  }, [headers, load, t]);
+  }, [headers, t]);
 
   const handleAnalyzeReel = useCallback(async (competitorId: string, reelId: string) => {
     setAnalyzingReels((prev) => new Set(prev).add(reelId));
