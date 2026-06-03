@@ -510,39 +510,59 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
   try {
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
 
-    // Get existing reels with metrics timestamps + published_at for decay tiers.
-    // Se trae ANTES de paginar porque el upsert ahora corre por página (streaming).
-    const { data: existingReels } = await supabase
-      .from("reels")
-      .select("ig_media_id, published_at, reel_metrics(fetched_at)")
-      .eq("workspace_id", workspaceId);
+    // Get existing reels (id, tipo, published_at, fetched_at) ANTES de paginar la
+    // media, para (a) el corte incremental y (b) la selección de insights por decay.
+    // PostgREST devuelve máx 1000 filas por request (db-max-rows), así que PAGINAMOS
+    // por rangos para traer TODOS — sino en cuentas grandes (PROVIDA ~2970) el lookup
+    // venía incompleto (1000 random por el UUID) → el corte no disparaba y faltaba
+    // cobertura de insights. Para PROVIDA son 3 queries rápidas.
+    const existingReels: any[] = [];
+    {
+      const EXISTING_PAGE = 1000;
+      let existingFrom = 0;
+      while (true) {
+        const { data: chunk } = await supabase
+          .from("reels")
+          .select("id, ig_media_id, media_product_type, published_at, reel_metrics(fetched_at)")
+          .eq("workspace_id", workspaceId)
+          .range(existingFrom, existingFrom + EXISTING_PAGE - 1);
+        if (!chunk || chunk.length === 0) break;
+        existingReels.push(...chunk);
+        if (chunk.length < EXISTING_PAGE) break;
+        existingFrom += EXISTING_PAGE;
+      }
+    }
 
-    // Build lookup: ig_media_id → { fetched_at, published_at }
-    const existingMetricsLookup = new Map<string, { fetched_at: string | null; published_at: string | null }>();
+    // Build lookup: ig_media_id → { reelId, mediaProductType, fetched_at, published_at }.
+    // Incluye reelId + tipo para poder elegir QUÉ reels refrescar (insights) DESDE
+    // la DB por decay, sin depender de que el fetch incremental los haya bajado.
+    const existingMetricsLookup = new Map<string, { reelId: string; mediaProductType: string; fetched_at: string | null; published_at: string | null }>();
     for (const r of existingReels || []) {
       const metricsArr = r.reel_metrics as Array<{ fetched_at: string }> | null;
       const fetchedAt = Array.isArray(metricsArr) ? metricsArr[0]?.fetched_at : null;
-      existingMetricsLookup.set(r.ig_media_id, { fetched_at: fetchedAt, published_at: r.published_at });
+      existingMetricsLookup.set(r.ig_media_id, { reelId: r.id, mediaProductType: r.media_product_type, fetched_at: fetchedAt, published_at: r.published_at });
     }
 
     const MAX_INSIGHTS_PER_SYNC = 30;
     let insightsFetchCount = 0;
 
-    // ── Phases 0.5 + 1 STREAMED: por cada página de media (newest-first) bajamos
-    //    thumbnails de carruseles y hacemos upsert YA, en vez de esperar a paginar
-    //    todo el historial. Así los reels más nuevos aparecen en la UI en segundos.
-    //    NO cambia QUÉ datos se traen (fetchAllMedia sigue paginando todo para que
-    //    Phase 2/insights/snapshot operen sobre la lista completa), solo CUÁNDO se
-    //    escriben → paridad de datos preservada. ──
+    // ── Phases 0.5 + 1 STREAMED + INCREMENTAL: por cada página de media
+    //    (newest-first) bajamos thumbnails de carruseles y hacemos upsert YA.
+    //    Además cortamos la paginación cuando una página es 100% media que ya
+    //    teníamos (lo nuevo está arriba) → un sync diario con pocos reels nuevos
+    //    baja ~1 página en vez de todo el historial. Los reels viejos refrescan
+    //    insights vía la selección desde la DB (más abajo), no por este fetch. ──
     const UPSERT_BATCH = 20;
     const CAROUSEL_THUMB_CAP = 50; // tope global de fetches de children (como antes)
     const reelIdMap = new Map<string, string>(); // ig_media_id → reel uuid
     let mediaUpserted = 0;
     let carouselThumbFetches = 0;
+    let pagesProcessed = 0;
+    const MAX_INCREMENTAL_PAGES = 20; // backstop por si el lookup viniera incompleto
 
-    const processPage = async (page: IGMedia[]) => {
+    const processPage = async (page: IGMedia[]): Promise<boolean> => {
       const pageMedia = page.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
-      if (pageMedia.length === 0) return;
+      if (pageMedia.length === 0) return true;
 
       // Carousel thumbnails (first child) para los carruseles de ESTA página,
       // respetando el tope global de 50 fetches.
@@ -599,6 +619,16 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       // Progreso parcial: reels escritos hasta ahora → la UI los ve llegar.
       mediaUpserted += pageMedia.length;
       await supabase.from("sync_jobs").update({ processed_items: mediaUpserted }).eq("id", syncJobId);
+
+      // INCREMENTAL: cortamos si la página es 100% media que YA teníamos (Meta da
+      // newest-first → lo nuevo está arriba) O si llegamos al tope de páginas
+      // (backstop). Nunca en el 1er sync (lookup vacío). Los reels viejos refrescan
+      // insights vía la selección desde la DB (abajo), no por este fetch.
+      pagesProcessed++;
+      const allKnown = pageMedia.every((m) => existingMetricsLookup.has(m.id));
+      const firstSync = existingMetricsLookup.size === 0;
+      if (!firstSync && (allKnown || pagesProcessed >= MAX_INCREMENTAL_PAGES)) return false;
+      return true;
     };
 
     // Pagina todo el historial PERO escribe cada página apenas llega (streaming).
@@ -606,23 +636,33 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
     const allMedia = allMediaRaw.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
     await supabase.from("sync_jobs").update({ total_items: allMedia.length }).eq("id", syncJobId);
 
-    // ── Phase 2: Fetch insights using data decay tiers ──
-    // Hot (<7d) → stale after 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d
-    const mediaNeedingInsights = allMedia.filter((m) => {
-      if (!reelIdMap.has(m.id)) return false;
-      const existing = existingMetricsLookup.get(m.id);
-      const publishedAt = m.timestamp || existing?.published_at || null;
-      return isInsightStale(publishedAt, existing?.fetched_at ?? null);
-    });
+    // ── Phase 2: Fetch insights por decay tiers — selección DESDE LA DB ──
+    // Hot (<7d) → stale 1h, Warm (7-30d) → 24h, Cold (>30d) → 7d.
+    // Antes la lista salía de la media bajada; con el fetch incremental eso
+    // saltearía los reels viejos. Ahora se arma desde la DB (existingMetricsLookup)
+    // + los reels nuevos de este sync, así los viejos refrescan en su ciclo aunque
+    // no se hayan bajado esta vez. Mismo cap (30) y orden (newest-first) que antes.
+    const insightCandidates: Array<{ id: string; media_product_type: string; timestamp: string | null; reelId: string }> = [];
+    for (const [igMediaId, info] of existingMetricsLookup) {
+      if (isInsightStale(info.published_at, info.fetched_at)) {
+        insightCandidates.push({ id: igMediaId, media_product_type: info.mediaProductType, timestamp: info.published_at, reelId: info.reelId });
+      }
+    }
+    // Reels nuevos descubiertos en este sync (no estaban en la DB → sin métricas aún)
+    for (const m of allMedia) {
+      if (!existingMetricsLookup.has(m.id) && reelIdMap.has(m.id)) {
+        insightCandidates.push({ id: m.id, media_product_type: m.media_product_type, timestamp: m.timestamp ?? null, reelId: reelIdMap.get(m.id)! });
+      }
+    }
 
     // Sort by priority: hot first, then warm, then cold
-    mediaNeedingInsights.sort((a, b) => {
+    insightCandidates.sort((a, b) => {
       const ageA = a.timestamp ? Date.now() - new Date(a.timestamp).getTime() : Infinity;
       const ageB = b.timestamp ? Date.now() - new Date(b.timestamp).getTime() : Infinity;
       return ageA - ageB; // newest first
     });
 
-    const insightsToFetch = mediaNeedingInsights.slice(0, MAX_INSIGHTS_PER_SYNC);
+    const insightsToFetch = insightCandidates.slice(0, MAX_INSIGHTS_PER_SYNC);
 
     // Update progress: total = media upserted + insights to fetch
     const totalWork = allMedia.length + insightsToFetch.length;
@@ -643,7 +683,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
             : await fetchPostInsights(media.id, accessToken);
 
           if (insights) {
-            const reelId = reelIdMap.get(media.id)!;
+            const reelId = media.reelId;
             const { error: metricsError } = await supabase.from("reel_metrics").upsert({
               reel_id: reelId,
               workspace_id: workspaceId,
@@ -696,7 +736,11 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
         .single();
       const ownerId = wsOwner?.owner_id;
 
-      for (const reel of reelsMissingDuration || []) {
+      // En PARALELO (antes era secuencial → 5 reels × hasta 30s = hasta 150s en el
+      // camino crítico cuando Apify falla/timeoutea; se midió a Franco con 4 timeouts
+      // = ~120s). En paralelo el paso tarda lo del más lento, no la suma. Es
+      // enrichment OPCIONAL (duración de video): nunca debe dominar el sync.
+      await Promise.all((reelsMissingDuration || []).map(async (reel) => {
         try {
           const t0 = Date.now();
           const duration = await fetchApifyReelDuration(reel.permalink!, apifyToken);
@@ -722,7 +766,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
             result.durationsEnriched++;
           }
         } catch { /* non-blocking */ }
-      }
+      }));
     }
 
     // ── Snapshot daily metrics for time-series charts ──
@@ -1613,7 +1657,7 @@ async function snapshotDailyMetrics(supabase: any, workspaceId: string): Promise
 async function fetchAllMedia(
   igAccountId: string,
   accessToken: string,
-  onPage?: (page: IGMedia[]) => Promise<void>,
+  onPage?: (page: IGMedia[]) => Promise<boolean | void>,
 ): Promise<IGMedia[]> {
   const fields = "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed";
   const allMedia: IGMedia[] = [];
@@ -1626,11 +1670,14 @@ async function fetchAllMedia(
     const page: IGMedia[] = data.data || [];
     if (page.length > 0) {
       allMedia.push(...page);
-      // Streaming: procesar/escribir esta página apenas llega (Meta devuelve
-      // newest-first), para que los reels nuevos aparezcan en la UI en segundos
-      // en vez de esperar a paginar todo el historial. NO cambia qué se trae
-      // (se siguen paginando todas las páginas), solo cuándo se escribe.
-      if (onPage) await onPage(page);
+      // Streaming + incremental: procesamos/escribimos esta página apenas llega
+      // (Meta devuelve newest-first → los nuevos aparecen en segundos). Si onPage
+      // devuelve false (página 100% conocida), cortamos la paginación: lo de abajo
+      // es más viejo y ya lo tenemos.
+      if (onPage) {
+        const keepGoing = await onPage(page);
+        if (keepGoing === false) break;
+      }
     }
     url = data.paging?.next || null;
   }
@@ -1986,7 +2033,8 @@ async function fetchApifyReelDuration(reelUrl: string, apifyToken: string): Prom
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ includeDownloadedVideo: false, includeSharesCount: false, includeTranscript: false, resultsLimit: 1, skipPinnedPosts: false, username: [normalized] }),
-      signal: AbortSignal.timeout(30000),
+      // 15s: los scrapes exitosos tardan ~5-7s; 30s solo alargaba los fallidos.
+      signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) return null;
     const data = await response.json() as ApifyReelItem[];
