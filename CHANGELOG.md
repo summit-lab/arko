@@ -7,6 +7,13 @@
 
 ## [unreleased] — 2026-06-02
 
+### Fix — Sync IG: el botón ya no dispara ~228 requests por sync
+
+El `SyncButton` hacía `router.refresh()` **cada 4s** mientras sincronizaba (para el reveal progresivo). Cada refresco re-bajaba TODA la página (RSC) + re-disparaba los prefetch del sidebar (`*_rsc`) → **~228 requests por sync** (verificado en Network). Ahora hace **UN solo refresco al completar** el sync. El reveal progresivo en vivo (reels apareciendo uno a uno) queda para una impl. client-side de la grilla (sin re-fetch de toda la página).
+
+#### Archivos
+- `src/components/instagram/SyncButton.tsx` — saca el `setInterval(router.refresh, 4000)`; refresco único en `status === "completed"`.
+
 ### Perf — Sync IG: fetch incremental + fix del cuello de botella Apify (F2.5-5)
 
 **Apify (el cuello de botella REAL, medido en vivo):** el enrichment de duración de videos corría **secuencial** con timeout de 30s → cuando Apify falla/tarda (Franco: 4 de 5 reels timeouteando) dominaba el sync con ~120s de espera. Ahora corre **en paralelo** (5 a la vez) + timeout 30s→15s. **Franco: 124.7s → 31.2s.**

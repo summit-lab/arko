@@ -18,18 +18,11 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
   const t = useTranslations("igAdvanced");
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const { isActive, status, startTracking } = useSyncJobProgress(workspaceId);
+  const { status, startTracking } = useSyncJobProgress(workspaceId);
 
-  // Mientras el sync de fondo corre, el edge va escribiendo los reels por página
-  // (streaming). Refrescamos los server components cada 4s para que esos reels
-  // aparezcan solos, dando sensación de carga progresiva.
-  useEffect(() => {
-    if (!isActive) return;
-    const id = setInterval(() => router.refresh(), 4000);
-    return () => clearInterval(id);
-  }, [isActive, router]);
-
-  // Al terminar el full sync: refresco final + estado del botón.
+  // Al terminar el full sync: UN solo router.refresh() + estado del botón.
+  // (Antes refrescábamos cada 4s → re-bajaba TODA la página RSC + re-disparaba
+  // los prefetch del sidebar = ~228 requests por sync. Un refresco al cierre alcanza.)
   useEffect(() => {
     if (status === "completed") {
       router.refresh();
@@ -64,10 +57,9 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
       }
 
       // 2. Full sync en background, ORDENADO según la vista: reels-first en la
-      //    pestaña de reels (el edge los streamea por página → los más nuevos
-      //    aparecen primero), account-first en métricas. La página ya muestra los
-      //    reels actuales; el useEffect refresca cada 4s y los nuevos van llegando
-      //    solos. No se bloquea esperando nada.
+      //    pestaña de reels, account-first en métricas. La página ya muestra los
+      //    reels actuales; al COMPLETAR el sync se hace UN refresco (useEffect de
+      //    status). El botón queda "Actualizando" hasta el cierre.
       const first = currentTab === "metrics" ? "account" : "reels";
       fetch(
         `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all&first=${first}`,
