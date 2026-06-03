@@ -1,5 +1,6 @@
 import { TrendingUp, Eye, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-claims";
 import { getWorkspaceId } from "@/lib/workspace";
 import { latestCleanFollowersTotal } from "@/lib/follower-metrics";
 import { cache } from "react";
@@ -13,9 +14,9 @@ function fmtHeader(n: number): string {
 
 const getUserProfile = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims (JWT local) en vez de getUser (red); el SELECT a profiles sigue
+  // siendo la fuente de verdad del rol/nombre (defense-in-depth intacto).
+  const user = await getAuthUser(supabase);
 
   if (!user) return { user: null, profile: null };
 

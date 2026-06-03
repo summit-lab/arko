@@ -768,6 +768,17 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       result.errors.push(`Carousel children: ${err instanceof Error ? err.message : String(err)}`);
     }
 
+    // ── Phase 5: Re-host de thumbnails de reels a Storage ──
+    // Las URLs de scontent.cdninstagram.com son firmadas y expiran (horas/dias);
+    // re-hostear da una URL estable servida desde el CDN de Supabase, sin re-fetch
+    // a Meta ni 502 del optimizer. Backfill gradual (50 por sync). Solo en el sync
+    // completo, nunca en el quick (que debe seguir en ~4s).
+    try {
+      await archiveReelThumbnails(supabase, workspaceId);
+    } catch (err) {
+      result.errors.push(`Reel thumbnails: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     await supabase.from("sync_jobs").update({
       status: "completed",
       processed_items: totalWork,
@@ -1460,6 +1471,85 @@ async function archiveStoryMedia(
   }
 
   console.log(`[archiveStoryMedia] workspace=${workspaceId} stats=${JSON.stringify(stats)}`);
+  return stats;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REEL THUMBNAIL ARCHIVAL — Download reel covers to Storage
+// ═══════════════════════════════════════════════════════════════
+// Espeja archiveStoryMedia para reels/posts/carruseles. thumbnail_url ya viene
+// coalescido (thumbnail_url || media_url) en el upsert, asi que es la mejor portada
+// disponible. Bucket privado reel-media; el path `${workspace_id}/${ig_media_id}.jpg`
+// lo sirve la policy workspace_members_read_reel_media.
+
+// deno-lint-ignore no-explicit-any
+async function archiveReelThumbnails(
+  supabase: any,
+  workspaceId: string,
+): Promise<{ attempted: number; uploaded: number; skippedTooBig: number; skippedFetchFailed: number; skippedNoSource: number; uploadErrors: number }> {
+  const stats = { attempted: 0, uploaded: 0, skippedTooBig: 0, skippedFetchFailed: 0, skippedNoSource: 0, uploadErrors: 0 };
+
+  // Reels sin re-host todavia. Newest-first para priorizar lo que el usuario ve
+  // arriba en la grilla. Backfill gradual: 50 por sync (se completa en pocos syncs).
+  const { data: reelsNeedingArchival } = await supabase
+    .from("reels")
+    .select("id, ig_media_id, thumbnail_url, media_url")
+    .eq("workspace_id", workspaceId)
+    .is("media_storage_path", null)
+    .not("thumbnail_url", "is", null)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(50);
+
+  if (!reelsNeedingArchival?.length) return stats;
+
+  const MAX_BYTES = 5 * 1024 * 1024;  // 5MB — los thumbnails de IG son 300KB-2MB tipico
+
+  const CONCURRENCY = 3;
+  for (let i = 0; i < reelsNeedingArchival.length; i += CONCURRENCY) {
+    const batch = reelsNeedingArchival.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (reel: { id: string; ig_media_id: string; thumbnail_url: string | null; media_url: string | null }) => {
+      stats.attempted++;
+      try {
+        const sourceUrl = reel.thumbnail_url || reel.media_url;
+        if (!sourceUrl) { stats.skippedNoSource++; return; }
+
+        // Descarga desde el CDN de Meta (puede 403 si ya expiro → se reintenta en el proximo sync)
+        const imgRes = await fetch(sourceUrl);
+        if (!imgRes.ok) { stats.skippedFetchFailed++; return; }
+
+        const buffer = await imgRes.arrayBuffer();
+        const imageBytes = new Uint8Array(buffer);
+        if (imageBytes.byteLength > MAX_BYTES) { stats.skippedTooBig++; return; }
+
+        const isWebp = sourceUrl.toLowerCase().includes(".webp");
+        const ext = isWebp ? "webp" : "jpg";
+        const storagePath = `${workspaceId}/${reel.ig_media_id}.${ext}`;
+        const contentType = isWebp ? "image/webp" : "image/jpeg";
+
+        const { error: uploadError } = await supabase.storage
+          .from("reel-media")
+          .upload(storagePath, imageBytes, { contentType, upsert: true });
+
+        if (uploadError) {
+          stats.uploadErrors++;
+          console.warn(`[archiveReelThumbnails] upload failed for ${reel.ig_media_id}: ${uploadError.message}`);
+          return;
+        }
+
+        await supabase
+          .from("reels")
+          .update({ media_storage_path: storagePath })
+          .eq("id", reel.id);
+
+        stats.uploaded++;
+      } catch (err) {
+        stats.uploadErrors++;
+        console.warn(`[archiveReelThumbnails] unexpected error for reel ${reel.ig_media_id}:`, err instanceof Error ? err.message : String(err));
+      }
+    }));
+  }
+
+  console.log(`[archiveReelThumbnails] workspace=${workspaceId} stats=${JSON.stringify(stats)}`);
   return stats;
 }
 

@@ -162,7 +162,7 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
     supabase
       .from("reels")
       .select(`
-        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount, thumbnail_url,
+        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount, thumbnail_url, media_storage_path,
         reel_metrics (views_org, likes_total, comments_total, shares_total, saves_total),
         reel_metrics_paid (views_paid)
       `)
@@ -201,7 +201,7 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
       .select(`
         amount_total, amount_collected, source_type, source_label, payment_status,
         reel_id, story_sequence_id,
-        reels(id, caption, auto_title, thumbnail_url, media_type),
+        reels(id, caption, auto_title, thumbnail_url, media_storage_path, media_type),
         ig_story_sequences(id, published_at, ig_story_slides(slide_index, thumbnail_url, media_url, media_storage_path))
       `)
       .eq("workspace_id", workspaceId)
@@ -349,6 +349,29 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
     ? lastFt - firstFt
     : sumCleanFollowerDeltas(periodFollowerRows);
 
+  // ─── Storage-first para portadas de reels (reel-media) ───
+  // El thumbnail crudo de scontent expira; preferimos el re-host estable de
+  // reel-media. Firmamos todos los media_storage_path (reels 90d + reels embebidos
+  // en ventas) en UN batch. Fallback al thumbnail crudo si el reel aun no se re-hosteo.
+  const reelStoragePaths = new Set<string>();
+  for (const r of (reels90d.data ?? []) as Array<{ media_storage_path?: string | null }>) {
+    if (r.media_storage_path) reelStoragePaths.add(r.media_storage_path);
+  }
+  for (const s of (salesCurrent.data ?? []) as Array<{ reels?: { media_storage_path?: string | null } | null }>) {
+    if (s.reels?.media_storage_path) reelStoragePaths.add(s.reels.media_storage_path);
+  }
+  const reelSignedUrls = new Map<string, string>();
+  if (reelStoragePaths.size > 0) {
+    const { data: signed } = await supabase.storage
+      .from("reel-media")
+      .createSignedUrls([...reelStoragePaths], 3600);
+    for (const su of signed ?? []) {
+      if (su.signedUrl && su.path) reelSignedUrls.set(su.path, su.signedUrl);
+    }
+  }
+  const reelThumb = (storagePath: string | null | undefined, raw: string | null | undefined): string | null =>
+    (storagePath ? reelSignedUrls.get(storagePath) ?? null : null) || raw || null;
+
   // ─── Process 90d reels (calendar + top sales) ───
 
   const reels = (reels90d.data ?? []).map((r) => {
@@ -364,7 +387,7 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
       media_type: (r as { media_type?: string }).media_type,
       reel_type: r.reel_type,
       has_ads: r.has_ads,
-      thumbnail_url: (r as { thumbnail_url?: string | null }).thumbnail_url ?? null,
+      thumbnail_url: reelThumb((r as { media_storage_path?: string | null }).media_storage_path, (r as { thumbnail_url?: string | null }).thumbnail_url),
       views_org: viewsOrg,
       views_paid: viewsPaid,
       views_total: viewsOrg + viewsPaid,
@@ -569,7 +592,7 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
         key: `reel:${s.reels.id}`,
         type: isPost ? "post" : "reel",
         label: autoTitle || captionShort || (isPost ? t("calendar.postUntitled") : t("calendar.reelUntitled")),
-        thumbnailUrl: s.reels.thumbnail_url ?? null,
+        thumbnailUrl: reelThumb((s.reels as { media_storage_path?: string | null }).media_storage_path, s.reels.thumbnail_url),
       };
     }
     // Historia embebida — para la portada, usamos el primer slide (slide_index=0).

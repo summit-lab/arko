@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -9,7 +8,7 @@ import {
   Eye, Users, TrendingUp, Heart, MessageSquare, Bookmark,
   Trophy, Play, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
-import Image from "next/image";
+import { ReelThumbnail } from "./ReelThumbnail";
 import { useTranslations, useLocale } from "next-intl";
 import { CountUp } from "@/components/ui/CountUp";
 import { useChartTheme } from "@/hooks/useChartTheme";
@@ -20,24 +19,10 @@ import { sanitizeDailyFollowerDeltas } from "@/lib/follower-metrics";
 // When the Image fails to load, swap to the same placeholder used when
 // thumbnail_url is null.
 function ReelThumb({ src, idx }: { src: string | null; idx: number }) {
-  const [errored, setErrored] = useState(false);
-  const showImage = src && !errored;
   return (
     <div className="relative w-[100px] h-[140px] rounded-lg overflow-hidden mb-2 transition-transform duration-200 group-hover:scale-[1.03] bg-white/[0.04] border border-white/[0.06]">
-      {showImage ? (
-        <Image
-          src={src}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="100px"
-          onError={() => setErrored(true)}
-        />
-      ) : (
-        <div className="flex items-center justify-center h-full">
-          <Play className="h-5 w-5 text-white/15" />
-        </div>
-      )}
+      {/* <img> robusto fuera del optimizer (ver ReelThumbnail). Top reels = above-the-fold → priority. */}
+      <ReelThumbnail src={src} priority={idx < 5} placeholderSize={20} />
       <div
         className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold backdrop-blur-sm"
         style={{ backgroundColor: "rgba(0,0,0,0.72)", color: "#ffffff" }}
@@ -520,19 +505,7 @@ export function IGDashboard({ dailyInsights, reels, totalFollowers, periodDays =
             <div className="flex gap-4">
               {/* Thumbnail */}
               <div className="relative w-[90px] h-[160px] rounded-lg overflow-hidden flex-shrink-0 bg-white/[0.04]">
-                {bestReel.thumbnail_url ? (
-                  <Image
-                    src={bestReel.thumbnail_url}
-                    alt={t("dashboard.bestReelAlt")}
-                    fill
-                    className="object-cover"
-                    sizes="90px"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <Play className="h-6 w-6 text-white/20" />
-                  </div>
-                )}
+                <ReelThumbnail src={bestReel.thumbnail_url} priority placeholderSize={24} />
               </div>
               {/* Metrics */}
               <div className="flex flex-col justify-between flex-1 min-w-0">

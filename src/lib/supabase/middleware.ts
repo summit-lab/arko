@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthUser } from './auth-claims'
 
 // Public routes: no auth required
 const PUBLIC_ROUTES = ['/login', '/invite', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
@@ -36,11 +37,12 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very
-  // hard to debug issues with users being randomly logged out.
-
-  const { data: { user } } = await supabase.auth.getUser()
+  // Do not run code between createServerClient and the auth call below.
+  // A simple mistake could make it very hard to debug issues with users
+  // being randomly logged out.
+  // getAuthUser usa getClaims (validacion local del JWT, sin round-trip a Auth en
+  // cada request) y cae a getUser solo si no hay claims — ver auth-claims.ts.
+  const user = await getAuthUser(supabase)
 
   const pathname = request.nextUrl.pathname
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
