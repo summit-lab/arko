@@ -1586,13 +1586,27 @@ async function refreshReelBenchmarks(supabase: any, workspaceId: string) {
 async function snapshotDailyMetrics(supabase: any, workspaceId: string): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
 
-  // Fetch all reels with their current organic + paid metrics
-  const { data: reels, error } = await supabase
-    .from("reels")
-    .select("id, reel_metrics(views_org, reach_org, impressions_org, likes_total, comments_total, shares_total, saves_total, total_interactions, avg_watch_time_sec), reel_metrics_paid(views_paid, impressions_paid, reach_paid, spend_cents)")
-    .eq("workspace_id", workspaceId);
+  // Fetch ALL reels con sus métricas actuales. PAGINAMOS por rangos: PostgREST
+  // devuelve máx 1000 filas (db-max-rows), y sin esto el snapshot diario cubría
+  // solo 1000 reels en cuentas grandes (PROVIDA ~2970) → time-series incompleto.
+  const reels: any[] = [];
+  {
+    const SNAP_PAGE = 1000;
+    let snapFrom = 0;
+    while (true) {
+      const { data: chunk, error } = await supabase
+        .from("reels")
+        .select("id, reel_metrics(views_org, reach_org, impressions_org, likes_total, comments_total, shares_total, saves_total, total_interactions, avg_watch_time_sec), reel_metrics_paid(views_paid, impressions_paid, reach_paid, spend_cents)")
+        .eq("workspace_id", workspaceId)
+        .range(snapFrom, snapFrom + SNAP_PAGE - 1);
+      if (error || !chunk || chunk.length === 0) break;
+      reels.push(...chunk);
+      if (chunk.length < SNAP_PAGE) break;
+      snapFrom += SNAP_PAGE;
+    }
+  }
 
-  if (error || !reels?.length) return;
+  if (!reels.length) return;
 
   // Build upsert rows — one per reel for today
   // deno-lint-ignore no-explicit-any

@@ -7,6 +7,13 @@
 
 ## [unreleased] — 2026-06-02
 
+### Fix — Sync IG: snapshot diario completo en cuentas grandes (F2.5-5 Tanda 0)
+
+`snapshotDailyMetrics` traía los reels con un `.select()` sin paginar → PostgREST lo capaba a 1000 filas (orden UUID random) → en cuentas grandes el time-series diario cubría solo ~34% de los reels (PROVIDA: 1000 de 2971). Ahora **pagina por rangos** → cobertura completa. Verificado en vivo: PROVIDA pasó de **1000 → 2921** filas de snapshot hoy.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `snapshotDailyMetrics` pagina el SELECT de reels por rangos de 1000 (mismo patrón que el lookup de incremental).
+
 ### Perf/UX — Sync IG: recompensa rápida (primera página en ~4s + "Listo")
 
 **Lo que se pidió:** al sincronizar, que la primera página de reels se dibuje y marque "Listo" en 3-4s, y el resto siga por detrás.
