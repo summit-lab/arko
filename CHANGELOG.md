@@ -7,6 +7,17 @@
 
 ## [unreleased] — 2026-06-02
 
+### Fix — Competencia: el scrape ya no tira "Unexpected token 'A'... is not valid JSON"
+
+`POST /competitors/[id]/scrape` corría TODO sincrónico (~120s) → el gateway de Vercel cortaba la respuesta con un **504 en texto plano** ("An error occurred...") y el cliente crasheaba al hacer `res.json()` → `Unexpected token 'A'... is not valid JSON`, **aunque el scrape sí hubiera arrancado** (Apify corría igual). Ahora:
+- El route **responde al instante** y corre scrape + analyze en `after()` (fire-and-forget); `maxDuration` 120→300 para cubrir ambos.
+- El **analyze se encadena server-side** (antes lo disparaba el cliente con un 2º fetch → si el cliente se caía/timeouteaba, el análisis no corría).
+- El cliente **solo dispara + pollea** `scrape_progress`/`analysis_status`; lee la respuesta como **texto** (nunca crashea con `.json()` sobre un 504). El progreso en vivo ya existía.
+
+#### Archivos
+- `src/app/api/v1/competitors/[id]/scrape/route.ts` — fire-and-forget + analyze encadenado en `after()`.
+- `src/components/instagram/CompetitorTab.tsx` — kickoff + poll, parseo seguro (sin `.json()` fatal).
+
 ### Fix — Sync IG: snapshot diario completo en cuentas grandes (F2.5-5 Tanda 0)
 
 `snapshotDailyMetrics` traía los reels con un `.select()` sin paginar → PostgREST lo capaba a 1000 filas (orden UUID random) → en cuentas grandes el time-series diario cubría solo ~34% de los reels (PROVIDA: 1000 de 2971). Ahora **pagina por rangos** → cobertura completa. Verificado en vivo: PROVIDA pasó de **1000 → 2921** filas de snapshot hoy.
