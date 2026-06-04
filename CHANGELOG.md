@@ -7,6 +7,13 @@
 
 ## [unreleased] — 2026-06-03
 
+### Fix — DateFilter: el calendario ya no se corta por la derecha en pantallas chicas
+
+El panel del `DateFilter` estaba anclado al borde izquierdo del trigger (`left-0`) y abría hacia la derecha; como el filtro vive en el extremo derecho del header y el calendario mide 296px, en resoluciones chicas se cortaba contra el borde de la pantalla. Ahora se ancla al borde derecho (`right-0` → abre hacia adentro) + `max-w-[calc(100vw-1rem)]` como red de seguridad. Afecta a todas las pantallas que usan el filtro (dashboard, instagram, ads, ventas, youtube).
+
+#### Archivos
+- `src/components/ui/DateFilter.tsx` — dropdown `right-0` + max-width viewport-safe.
+
 ### Feat — Recuperar contraseña (self-service)
 
 Antes el login era solo email/password sin forma de recuperar la clave (un cliente quedó afuera). Ahora flujo completo con Supabase Auth:

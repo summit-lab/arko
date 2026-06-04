@@ -284,9 +284,13 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
       </button>
 
       {/* ── Dropdown Panel ── */}
+      {/* Anclado al borde DERECHO del trigger (right-0): el DateFilter vive en el
+          extremo derecho del header, así que abre hacia ADENTRO. Con left-0 el
+          calendario (296px) se desbordaba por la derecha en pantallas chicas.
+          max-w-[calc(100vw-1rem)] como red de seguridad para que nunca corte. */}
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl"
+          className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl max-w-[calc(100vw-1rem)]"
           style={{
             zIndex: 9999,
             minWidth: 200,
