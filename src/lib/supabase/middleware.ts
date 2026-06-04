@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthUser } from './auth-claims'
 
 // Public routes: no auth required
-const PUBLIC_ROUTES = ['/login', '/invite', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
+const PUBLIC_ROUTES = ['/login', '/invite', '/forgot-password', '/reset-password', '/auth/confirm', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({

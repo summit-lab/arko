@@ -1051,6 +1051,7 @@
       "passwordLabel": "Contraseña",
       "submit": "Ingresar",
       "submitting": "Ingresando…",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
       "inviteOnly": "Acceso solo por invitación."
     },
     "invite": {
@@ -1068,6 +1069,33 @@
     "errors": {
       "invitationInvalid": "Invitación inválida o expirada",
       "emailMismatch": "El email no coincide con la invitación"
+    },
+    "forgot": {
+      "title": "Recuperar contraseña",
+      "subtitle": "Te enviamos un link para restablecerla",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tu@email.com",
+      "submit": "Enviar link",
+      "submitting": "Enviando…",
+      "backToLogin": "Volver a iniciar sesión",
+      "sentTitle": "Revisá tu email",
+      "sentBody": "Si existe una cuenta con ese email, te enviamos un link para restablecer tu contraseña. Revisá también la carpeta de spam."
+    },
+    "reset": {
+      "title": "Nueva contraseña",
+      "subtitle": "Elegí una contraseña nueva para tu cuenta",
+      "passwordLabel": "Nueva contraseña",
+      "passwordPlaceholder": "Mínimo 6 caracteres",
+      "confirmLabel": "Repetir contraseña",
+      "submit": "Guardar contraseña",
+      "submitting": "Guardando…",
+      "requestNew": "Pedir un link nuevo",
+      "errors": {
+        "tooShort": "La contraseña debe tener al menos 6 caracteres",
+        "mismatch": "Las contraseñas no coinciden",
+        "sessionMissing": "El link expiró o ya fue usado. Pedí uno nuevo.",
+        "generic": "No se pudo actualizar la contraseña. Probá de nuevo."
+      }
     }
   },
   "igShell": {
