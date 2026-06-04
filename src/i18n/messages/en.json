@@ -1051,6 +1051,7 @@
       "passwordLabel": "Password",
       "submit": "Sign in",
       "submitting": "Signing in…",
+      "forgotPassword": "Forgot your password?",
       "inviteOnly": "Invitation-only access."
     },
     "invite": {
@@ -1068,6 +1069,33 @@
     "errors": {
       "invitationInvalid": "Invalid or expired invitation",
       "emailMismatch": "Email doesn't match the invitation"
+    },
+    "forgot": {
+      "title": "Reset password",
+      "subtitle": "We'll email you a link to reset it",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@email.com",
+      "submit": "Send link",
+      "submitting": "Sending…",
+      "backToLogin": "Back to sign in",
+      "sentTitle": "Check your email",
+      "sentBody": "If an account exists for that email, we've sent a link to reset your password. Check your spam folder too."
+    },
+    "reset": {
+      "title": "New password",
+      "subtitle": "Choose a new password for your account",
+      "passwordLabel": "New password",
+      "passwordPlaceholder": "At least 6 characters",
+      "confirmLabel": "Repeat password",
+      "submit": "Save password",
+      "submitting": "Saving…",
+      "requestNew": "Request a new link",
+      "errors": {
+        "tooShort": "Password must be at least 6 characters",
+        "mismatch": "Passwords don't match",
+        "sessionMissing": "The link expired or was already used. Request a new one.",
+        "generic": "Couldn't update the password. Please try again."
+      }
     }
   },
   "igShell": {

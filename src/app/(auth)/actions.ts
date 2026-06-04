@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/config'
+import { getAppUrl } from '@/lib/env'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -115,6 +116,55 @@ export async function registerWithInvite(formData: FormData) {
     path: '/',
   })
 
+  redirect('/')
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = ((formData.get('email') as string) ?? '').trim()
+
+  // Mensaje neutro siempre (anti-enumeración): nunca revelamos si el email existe.
+  if (!email) return { ok: true }
+
+  const supabase = await createClient()
+  // El link del mail vuelve a /auth/confirm, que canjea el token y manda a
+  // /reset-password con la sesión de recuperación ya activa.
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${getAppUrl()}/auth/confirm?next=/reset-password`,
+  })
+
+  // No exponemos el error al cliente (anti-enumeración + no filtrar rate-limit del
+  // email nativo de Supabase). Lo logueamos para diagnóstico.
+  if (error) {
+    console.error('[auth] resetPasswordForEmail:', error.message)
+  }
+
+  return { ok: true }
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = (formData.get('password') as string) ?? ''
+  const confirm = (formData.get('confirm') as string) ?? ''
+  const t = await getTranslations('auth.reset.errors')
+
+  if (password.length < 6) return { error: t('tooShort') }
+  if (password !== confirm) return { error: t('mismatch') }
+
+  const supabase = await createClient()
+  // updateUser usa la sesión de recuperación que dejó /auth/confirm en las cookies.
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) {
+    // Sin sesión de recuperación (link viejo, ya usado, o abierto en otro browser).
+    const sessionMissing = /session|missing|jwt|token|expired/i.test(error.message)
+    return { error: sessionMissing ? t('sessionMissing') : t('generic') }
+  }
+
+  // Contraseña nueva OK → limpiamos cookies cacheadas y entramos con la sesión fresca.
+  const cookieStore = await cookies()
+  cookieStore.delete('arko_workspace_id')
+  cookieStore.delete('arko_user_role')
+  cookieStore.delete('arko_onboarding_completed')
+  revalidatePath('/', 'layout')
   redirect('/')
 }
 

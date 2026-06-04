@@ -4,19 +4,20 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { login } from '../actions'
-import { LogIn, Eye, EyeOff } from 'lucide-react'
+import { updatePassword } from '../actions'
+import { Lock, Eye, EyeOff } from 'lucide-react'
 
-export default function LoginPage() {
-  const t = useTranslations('auth.login')
+export default function ResetPasswordPage() {
+  const t = useTranslations('auth.reset')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [show, setShow] = useState(false)
 
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)
-    const result = await login(formData)
+    const result = await updatePassword(formData)
+    // Éxito → el server action redirige a "/". Solo manejamos el error acá.
     if (result?.error) {
       setError(result.error)
       setLoading(false)
@@ -35,7 +36,7 @@ export default function LoginPage() {
           priority
         />
         <h1 className="page-title text-2xl">{t('title')}</h1>
-        <p className="text-muted-foreground text-sm mt-2">{t('subtitle')}</p>
+        <p className="text-muted-foreground text-sm mt-2 text-center">{t('subtitle')}</p>
       </div>
 
       <form action={handleSubmit} className="space-y-5">
@@ -46,20 +47,6 @@ export default function LoginPage() {
         )}
 
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-foreground/80">
-            {t('emailLabel')}
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            placeholder={t('emailPlaceholder')}
-            className="w-full bg-input/40 dark:bg-white/5 border border-border dark:border-white/10 rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-all"
-          />
-        </div>
-
-        <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium text-foreground/80">
             {t('passwordLabel')}
           </label>
@@ -67,49 +54,58 @@ export default function LoginPage() {
             <input
               id="password"
               name="password"
-              type={showPassword ? 'text' : 'password'}
+              type={show ? 'text' : 'password'}
               required
-              placeholder="••••••••"
+              minLength={6}
+              placeholder={t('passwordPlaceholder')}
               className="w-full bg-input/40 dark:bg-white/5 border border-border dark:border-white/10 rounded-lg px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-all"
             />
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setShow(!show)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          <div className="flex justify-end">
-            <Link
-              href="/forgot-password"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t('forgotPassword')}
-            </Link>
-          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="confirm" className="text-sm font-medium text-foreground/80">
+            {t('confirmLabel')}
+          </label>
+          <input
+            id="confirm"
+            name="confirm"
+            type={show ? 'text' : 'password'}
+            required
+            minLength={6}
+            placeholder={t('passwordPlaceholder')}
+            className="w-full bg-input/40 dark:bg-white/5 border border-border dark:border-white/10 rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-all"
+          />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          style={{ color: "#ffffff" }}
+          style={{ color: '#ffffff' }}
           className="w-full flex items-center justify-center gap-2 bg-[#3a1f04] hover:bg-[#4a2a08] border border-[#3a1f04]/40 rounded-lg px-4 py-3 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <div className="h-4 w-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
           ) : (
-            <LogIn className="h-4 w-4" />
+            <Lock className="h-4 w-4" />
           )}
           {loading ? t('submitting') : t('submit')}
         </button>
-      </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          {t('inviteOnly')}
-        </p>
-      </div>
+        <Link
+          href="/forgot-password"
+          className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {t('requestNew')}
+        </Link>
+      </form>
     </div>
   )
 }

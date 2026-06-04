@@ -7,6 +7,31 @@
 
 ## [unreleased] — 2026-06-03
 
+### Fix — DateFilter: el calendario ya no se corta por la derecha en pantallas chicas
+
+El panel del `DateFilter` estaba anclado al borde izquierdo del trigger (`left-0`) y abría hacia la derecha; como el filtro vive en el extremo derecho del header y el calendario mide 296px, en resoluciones chicas se cortaba contra el borde de la pantalla. Ahora se ancla al borde derecho (`right-0` → abre hacia adentro) + `max-w-[calc(100vw-1rem)]` como red de seguridad. Afecta a todas las pantallas que usan el filtro (dashboard, instagram, ads, ventas, youtube).
+
+#### Archivos
+- `src/components/ui/DateFilter.tsx` — dropdown `right-0` + max-width viewport-safe.
+
+### Feat — Recuperar contraseña (self-service)
+
+Antes el login era solo email/password sin forma de recuperar la clave (un cliente quedó afuera). Ahora flujo completo con Supabase Auth:
+- **`/login`** → link "¿Olvidaste tu contraseña?".
+- **`/forgot-password`** → ingresás email → `resetPasswordForEmail` (mensaje neutro siempre, anti-enumeración).
+- **`/auth/confirm`** (route handler) → canjea el token del link (PKCE `code` o `token_hash`) → setea la sesión de recuperación → redirige a `/reset-password`. `next` sanitizado (solo paths relativos) para evitar open-redirect.
+- **`/reset-password`** → nueva contraseña + confirmar → `updateUser` → entra.
+- Middleware: las 3 rutas son públicas. i18n es/en.
+
+**Requiere config en Supabase (dashboard):** Auth → URL Configuration → Redirect URLs: agregar `{APP_URL}/auth/confirm` (+ localhost para dev). Recomendado: SMTP propio (Resend) — el email nativo está rate-limited y cae en spam.
+
+#### Archivos
+- `src/app/(auth)/forgot-password/page.tsx`, `src/app/(auth)/reset-password/page.tsx` (nuevos).
+- `src/app/auth/confirm/route.ts` (nuevo) — canje de token PKCE/token_hash.
+- `src/app/(auth)/actions.ts` — `requestPasswordReset` + `updatePassword`.
+- `src/app/(auth)/login/page.tsx` — link a forgot-password.
+- `src/lib/supabase/middleware.ts` — rutas públicas. `src/i18n/messages/{es,en}.json`.
+
 ### Perf — Contenido sin 10s de skeleton (Suspense streaming) + portadas que ya no cargan "de a 2-3" (re-host + getClaims)
 
 Diagnóstico (workflow multi-agente Opus): con los `loading.tsx` ya puestos, el skeleton aparecía al instante pero el **contenido tardaba ~10s** y las **portadas cargaban de a 2-3** con 502 intermitente. Dos causas raíz, atacadas de raíz (sin parches):
