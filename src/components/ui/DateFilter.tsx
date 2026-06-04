@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Check } from "lucide-react";
@@ -195,20 +196,53 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
   const [tempFrom, setTempFrom] = useState<Date | null>(null);
   const [tempTo, setTempTo] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Posición fija del panel (se renderiza en un portal a <body>): así nunca lo
+  // recorta un overflow del layout ni un ancestro con transform, y lo clampeamos
+  // al viewport para que NO se corte en ninguna resolución.
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Close on outside click
+  // Close on outside click — el panel vive en un portal (fuera de containerRef),
+  // así que chequeamos AMBOS refs para no cerrarlo al clickear adentro del panel.
   useEffect(() => {
     if (!isOpen) return;
     function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setView("presets");
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setIsOpen(false);
+      setView("presets");
     }
     // Use click (not mousedown) so inner clicks register first
     document.addEventListener("click", handler, true);
     return () => document.removeEventListener("click", handler, true);
   }, [isOpen]);
+
+  // Posiciona el panel debajo del trigger, alineado a su borde derecho, pero
+  // CLAMPEADO al viewport (8px de margen) para que nunca se salga ni se corte —
+  // incluso si el trigger queda pegado/detrás del borde en pantallas chicas.
+  useEffect(() => {
+    if (!isOpen) { setPos(null); return; }
+    const place = () => {
+      const trigger = containerRef.current;
+      if (!trigger) return;
+      const r = trigger.getBoundingClientRect();
+      const pw = panelRef.current?.offsetWidth ?? 300;
+      const margin = 8;
+      const gap = 6;
+      let left = r.right - pw; // alinear borde derecho del panel con el del trigger
+      left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
+      const top = Math.max(margin, r.bottom + gap);
+      setPos({ top, left });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [isOpen, view]);
 
   const applyRange = useCallback((range: DateRange) => {
     setActiveRange(range);
@@ -284,16 +318,21 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
       </button>
 
       {/* ── Dropdown Panel ── */}
-      {/* Anclado al borde DERECHO del trigger (right-0): el DateFilter vive en el
-          extremo derecho del header, así que abre hacia ADENTRO. Con left-0 el
-          calendario (296px) se desbordaba por la derecha en pantallas chicas.
-          max-w-[calc(100vw-1rem)] como red de seguridad para que nunca corte. */}
-      {isOpen && (
+      {/* Se renderiza en un PORTAL a <body> con position:fixed y posición clampeada
+          al viewport (ver useLayoutEffect). Antes era absolute dentro del header:
+          en pantallas chicas / con overflow del layout, el trigger quedaba pegado al
+          borde y el calendario (296px) se cortaba. Fixed+clamp+portal lo evita
+          siempre, sin importar la resolución ni ancestros con transform. */}
+      {isOpen && createPortal(
         <div
-          className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl max-w-[calc(100vw-1rem)]"
+          ref={panelRef}
+          className="fixed rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto"
           style={{
             zIndex: 9999,
             minWidth: 200,
+            top: pos?.top ?? 0,
+            left: pos?.left ?? 0,
+            visibility: pos ? "visible" : "hidden",
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -388,7 +427,8 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
               </div>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
