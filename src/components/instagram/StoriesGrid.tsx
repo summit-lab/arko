@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "./ReelThumbnail";
 import {
   Eye, MessageCircle, Image as ImageIcon, TrendingDown,
   ChevronLeft, ChevronRight, BookImage, ArrowLeft,
@@ -454,29 +454,23 @@ function StoriesSidebar({
 }
 
 // ─── Slide thumbnail with onError fallback ───────────────────────────────────
-// Shared between StoryCard and SequenceDetail. Meta CDN URLs expire and then
-// next/image returns 403 — without this, the thumb just shows as blank.
+// Shared between StoryCard and SequenceDetail. Renders via ReelThumbnail
+// (<img> directo, fuera del optimizer de next/image): las signed URLs de
+// story-media cambian en cada render (cache del optimizer siempre miss) y las
+// URLs crudas de Meta expiran (403/502 via optimizer).
 
-function SlideImage({ thumb, index, sizes }: { thumb: string | null; index: number; sizes: string }) {
+function SlideImage({ thumb, index }: { thumb: string | null; index: number }) {
   const t = useTranslations("igGrids");
-  const [failed, setFailed] = useState(false);
-  const show = !!thumb && !failed;
-  if (!show) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2">
-        <ImageIcon className="h-6 w-6 text-white/10" />
-        <span className="text-[9px] text-white/15 uppercase tracking-wider">{t("stories.slide")} {index + 1}</span>
-      </div>
-    );
-  }
   return (
-    <Image
-      src={thumb!}
-      alt={`${t("stories.slide")} ${index + 1}`}
-      fill
-      className="object-cover"
-      sizes={sizes}
-      onError={() => setFailed(true)}
+    <ReelThumbnail
+      key={thumb ?? index}
+      src={thumb}
+      placeholder={
+        <div className="flex flex-col items-center justify-center h-full gap-2">
+          <ImageIcon className="h-6 w-6 text-white/10" />
+          <span className="text-[9px] text-white/15 uppercase tracking-wider">{t("stories.slide")} {index + 1}</span>
+        </div>
+      }
     />
   );
 }
@@ -490,39 +484,31 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
   const thumb = firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
   const rate = completionRate(seq.slides);
   const isActive = !seq.archived && !!seq.expires_at && new Date(seq.expires_at) > new Date();
-  // Meta CDN URLs expire after hours, so next/image proxy 403s for stale ones.
-  // Track load errors and swap to the placeholder instead of leaving the card
-  // visually empty.
-  const [imageFailed, setImageFailed] = useState(false);
-  const showImage = !!thumb && !imageFailed;
 
   return (
     <div
       onClick={onClick}
       className={`${glassCardClass} group rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl`}
     >
-      {/* Thumbnail */}
+      {/* Thumbnail — ReelThumbnail (<img> + onError) en vez de next/image: las
+          signed URLs rotan por render (cache del optimizer siempre miss) y las
+          URLs crudas de Meta expiran. Cae al placeholder si falla. */}
       <div
         className="relative w-full overflow-hidden bg-white/[0.03]"
         style={{ aspectRatio: "9/16", maxHeight: 240 }}
       >
-        {showImage ? (
-          <Image
-            src={thumb!}
-            alt={`${t("stories.storyAlt")} ${fmtDateShort(seq.published_at, locale)}`}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-            sizes="(max-width: 768px) 50vw, 200px"
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-2">
-            <BookImage className="h-7 w-7 text-white/10" />
-            {seq._demo && (
-              <span className="text-[9px] text-white/20 uppercase tracking-wider">{t("stories.example")}</span>
-            )}
-          </div>
-        )}
+        <ReelThumbnail
+          src={thumb}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+          placeholder={
+            <div className="flex flex-col items-center justify-center h-full gap-2">
+              <BookImage className="h-7 w-7 text-white/10" />
+              {seq._demo && (
+                <span className="text-[9px] text-white/20 uppercase tracking-wider">{t("stories.example")}</span>
+              )}
+            </div>
+          }
+        />
 
         {/* Slide count */}
         <div
@@ -736,7 +722,7 @@ function SequenceDetail({
                         boxShadow: chart.isDark ? "0 8px 32px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.08)",
                       }}
                     >
-                      <SlideImage thumb={thumb} index={i} sizes="176px" />
+                      <SlideImage thumb={thumb} index={i} />
 
                       {/* Slide number pill */}
                       <div

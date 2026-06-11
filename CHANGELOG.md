@@ -5,6 +5,30 @@
  
 ---
 
+## [unreleased] — 2026-06-11
+
+### Perf — Portadas instantáneas: historias, detalle de posts y ventas fuera del optimizer de next/image (F1 del plan post re-auditoría)
+
+Cierra el pendiente declarado "migrar StoriesGrid + PostDetailView a ReelThumbnail" y lo extiende a /ventas. Diagnóstico (re-auditoría multi-agente 2026-06-11, verificada adversarialmente): las portadas de historias seguían pasando por el optimizer de `next/image` con **signed URLs que rotan en cada render** → cache del optimizer 0% hit, 1 transformación facturable por card POR VISITA, carga "de a 2-3" — el mismo bug ya arreglado en reels (PR #127). El detalle de post/carrusel usaba URLs crudas de Meta expiradas sin fallback (502/hueco roto), y /ventas mostraba miniaturas rotas en tabla y pickers.
+
+- **StoriesGrid** (`StoryCard`, `SlideImage`) y **PostDetailView** (`CarouselGallery` + strip) → `ReelThumbnail` (`<img>` directo + onError → placeholder). 0 requests a `/_next/image` en historias y detalle de posts.
+- **Detalle de post/carrusel storage-first**: `[id]/page.tsx` ahora selecciona y firma `media_storage_path` del post padre (la tabla `reels` ya lo archiva) — portada estable aunque la URL de Meta haya expirado. Los slides hijos quedan con URL cruda + onError hasta que `carousel_slides` tenga su columna de re-host (F3 del plan).
+- **/ventas storage-first**: las 3 queries (ventas con reel embebido, picker de reels, picker de historias) seleccionan `media_storage_path` y sirven signed URLs estables; `VentasClient` y `SaleForm` renderizan con `ReelThumbnail`.
+- **Helper compartido `src/lib/storage-thumbs.ts`** (`signStorageThumbs` + `pickThumb`): consolida el bloque de firmado batch que estaba copy-pasteado 4 veces (home reels/stories + instagram reels/stories) con 2 firmas ya divergentes. Único punto de verdad de TTL y fallback.
+- **Firmado en paralelo**: los 2 `createSignedUrls` (reel-media y story-media) que eran awaits SERIALES en el critical path de /instagram y de la home ahora corren en `Promise.all` (~150-400ms menos de TTFB de contenido por request).
+- **`ssr:false` eliminado de los tabs de InstagramShell** (manteniendo `dynamic()` = code-splitting intacto): el cold load de /instagram ya no muestra skeleton-hasta-hidratar — el HTML inicial trae las cards y el browser pide las imágenes de inmediato. Los charts recharts siguen apareciendo al hidratar (limitación conocida, aceptable).
+- **Docs**: nueva sección §11 "UX optimista y performance percibida" en `docs/08-design-system.md` (cierra el puntero roto de CLAUDE.md §6): ReelThumbnail, storage-first, Suspense loaders, getAuthUser, quick sync.
+
+#### Archivos
+- `src/lib/storage-thumbs.ts` (nuevo) — `signStorageThumbs` + `pickThumb`.
+- `src/components/instagram/StoriesGrid.tsx`, `PostDetailView.tsx` — `ReelThumbnail` en vez de `next/image`.
+- `src/components/instagram/InstagramShell.tsx` — `dynamic()` sin `ssr:false` (5 tabs).
+- `src/app/(dashboard)/instagram/page.tsx`, `src/app/(dashboard)/page.tsx` — helper compartido + firmado de buckets en paralelo.
+- `src/app/(dashboard)/instagram/[id]/page.tsx` — portada del post storage-first.
+- `src/app/(dashboard)/ventas/page.tsx` — `media_storage_path` + firmado batch en las 3 queries.
+- `src/app/(dashboard)/ventas/VentasClient.tsx`, `src/components/sales/SaleForm.tsx` — `ReelThumbnail`.
+- `docs/08-design-system.md` — §11 patrones de performance percibida + archivos clave.
+
 ## [unreleased] — 2026-06-03
 
 ### Fix — DateFilter: panel en portal+fixed clampeado al viewport (el `right-0` no alcanzaba)

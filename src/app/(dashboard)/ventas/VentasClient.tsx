@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "@/components/instagram/ReelThumbnail";
 import { useLocale, useTranslations } from "next-intl";
 import {
   DollarSign, Plus, TrendingUp, Clock,
@@ -385,7 +385,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                       <div className="col-span-3 flex items-center gap-2.5 min-w-0">
                         {s.reels?.thumbnail_url ? (
                           <div className="relative h-9 w-6 rounded overflow-hidden shrink-0">
-                            <Image src={s.reels.thumbnail_url} alt="" fill className="object-cover" sizes="24px" />
+                            <ReelThumbnail src={s.reels.thumbnail_url} placeholderSize={10} />
                           </div>
                         ) : (
                           <div
@@ -545,7 +545,7 @@ export function VentasClient({ initialSales, reelsForPicker, storiesForPicker }:
                         <span className="text-[10px] text-white/20 w-4 shrink-0 mt-0.5">{i + 1}</span>
                         {s.reels?.thumbnail_url && (
                           <div className="relative h-10 w-7 rounded overflow-hidden shrink-0">
-                            <Image src={s.reels.thumbnail_url} alt="" fill className="object-cover" sizes="28px" />
+                            <ReelThumbnail src={s.reels.thumbnail_url} placeholderSize={10} />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">

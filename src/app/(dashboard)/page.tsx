@@ -12,6 +12,7 @@ import { CountUp } from "@/components/ui/CountUp";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
 import { dailyNewFromTotals, sumCleanFollowerDeltas, cleanFollowersTotalSeries } from "@/lib/follower-metrics";
+import { signStorageThumbs, pickThumb } from "@/lib/storage-thumbs";
 import type { DateRange } from "@/types/date-filter";
 import { Suspense } from "react";
 
@@ -349,10 +350,11 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
     ? lastFt - firstFt
     : sumCleanFollowerDeltas(periodFollowerRows);
 
-  // ─── Storage-first para portadas de reels (reel-media) ───
-  // El thumbnail crudo de scontent expira; preferimos el re-host estable de
-  // reel-media. Firmamos todos los media_storage_path (reels 90d + reels embebidos
-  // en ventas) en UN batch. Fallback al thumbnail crudo si el reel aun no se re-hosteo.
+  // ─── Storage-first para portadas (reel-media + story-media) ───
+  // El thumbnail crudo de scontent expira; preferimos el re-host estable.
+  // Firmado batch + fallback via helper compartido (src/lib/storage-thumbs).
+  // Los DOS buckets se firman EN PARALELO (antes story-media se firmaba mas
+  // abajo como segundo await serial).
   const reelStoragePaths = new Set<string>();
   for (const r of (reels90d.data ?? []) as Array<{ media_storage_path?: string | null }>) {
     if (r.media_storage_path) reelStoragePaths.add(r.media_storage_path);
@@ -360,17 +362,18 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   for (const s of (salesCurrent.data ?? []) as Array<{ reels?: { media_storage_path?: string | null } | null }>) {
     if (s.reels?.media_storage_path) reelStoragePaths.add(s.reels.media_storage_path);
   }
-  const reelSignedUrls = new Map<string, string>();
-  if (reelStoragePaths.size > 0) {
-    const { data: signed } = await supabase.storage
-      .from("reel-media")
-      .createSignedUrls([...reelStoragePaths], 3600);
-    for (const su of signed ?? []) {
-      if (su.signedUrl && su.path) reelSignedUrls.set(su.path, su.signedUrl);
+  const storyStoragePaths = new Set<string>();
+  for (const s of (salesCurrent.data ?? []) as Array<{ ig_story_sequences?: { ig_story_slides?: Array<{ media_storage_path?: string | null }> } | null }>) {
+    for (const slide of s.ig_story_sequences?.ig_story_slides ?? []) {
+      if (slide.media_storage_path) storyStoragePaths.add(slide.media_storage_path);
     }
   }
+  const [reelSignedUrls, storySignedUrls] = await Promise.all([
+    signStorageThumbs(supabase, "reel-media", reelStoragePaths),
+    signStorageThumbs(supabase, "story-media", storyStoragePaths),
+  ]);
   const reelThumb = (storagePath: string | null | undefined, raw: string | null | undefined): string | null =>
-    (storagePath ? reelSignedUrls.get(storagePath) ?? null : null) || raw || null;
+    pickThumb(reelSignedUrls, storagePath, raw);
 
   // ─── Process 90d reels (calendar + top sales) ───
 
@@ -557,27 +560,8 @@ async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   // ("Instagram", "CTA Bio", etc). Si el usuario quiere verlas aparte, se
   // podría agregar un panel "Fuentes sin contenido" en el sidebar.
 
-  // Storage-first para portadas de historia: el media_url/thumbnail_url que
-  // devuelve Meta es un CDN firmado que expira a los ~5-7 días y queda roto.
-  // El archivador de sync-instagram guarda una copia en el bucket
-  // "story-media" y popula media_storage_path — generamos signed URLs en
-  // bulk y preferimos ese link sobre el CDN volátil.
-  const storyStoragePaths = new Set<string>();
-  for (const s of salesCurrentRows) {
-    const slides = s.ig_story_sequences?.ig_story_slides ?? [];
-    for (const slide of slides) {
-      if (slide.media_storage_path) storyStoragePaths.add(slide.media_storage_path);
-    }
-  }
-  const storySignedUrls = new Map<string, string>();
-  if (storyStoragePaths.size > 0) {
-    const { data: signed } = await supabase.storage
-      .from("story-media")
-      .createSignedUrls([...storyStoragePaths], 3600);
-    for (const su of signed ?? []) {
-      if (su.signedUrl && su.path) storySignedUrls.set(su.path, su.signedUrl);
-    }
-  }
+  // Storage-first para portadas de historia: storySignedUrls ya se firmó
+  // arriba (en paralelo con reel-media) via signStorageThumbs.
 
   type MaterialKey = { key: string; type: string; label: string; thumbnailUrl: string | null };
   const materialOf = (s: typeof salesCurrentRows[number]): MaterialKey | null => {

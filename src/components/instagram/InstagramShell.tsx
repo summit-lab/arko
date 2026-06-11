@@ -15,11 +15,15 @@ const TabSkeleton = () => (
   </div>
 );
 
-// Lazy-load ALL tab content — only hydrate JS when user visits the tab
-const ReelsGrid = dynamic(() => import("./ReelsGrid").then(m => ({ default: m.ReelsGrid })), { ssr: false, loading: TabSkeleton });
-const StoriesGrid = dynamic(() => import("./StoriesGrid").then(m => ({ default: m.StoriesGrid })), { ssr: false, loading: TabSkeleton });
-const PublicacionesGrid = dynamic(() => import("./PublicacionesGrid").then(m => ({ default: m.PublicacionesGrid })), { ssr: false, loading: TabSkeleton });
-const IGMetricsClient = dynamic(() => import("./IGMetricsClient").then(m => ({ default: m.IGMetricsClient })), { ssr: false, loading: TabSkeleton });
+// Lazy-load ALL tab content (code-splitting): el chunk JS se baja recien al
+// visitar la tab. SIN ssr:false — con ssr:false el cold load mostraba skeleton
+// hasta hidratar aunque la data ya habia viajado en el payload del Server
+// Component; ahora el HTML inicial trae las cards y el browser pide las
+// imagenes de inmediato (los charts recharts igual aparecen al hidratar).
+const ReelsGrid = dynamic(() => import("./ReelsGrid").then(m => ({ default: m.ReelsGrid })), { loading: TabSkeleton });
+const StoriesGrid = dynamic(() => import("./StoriesGrid").then(m => ({ default: m.StoriesGrid })), { loading: TabSkeleton });
+const PublicacionesGrid = dynamic(() => import("./PublicacionesGrid").then(m => ({ default: m.PublicacionesGrid })), { loading: TabSkeleton });
+const IGMetricsClient = dynamic(() => import("./IGMetricsClient").then(m => ({ default: m.IGMetricsClient })), { loading: TabSkeleton });
 // CompetitorTab y ReferencesTab ya NO se cargan aca: se renderizan server-side en
 // CompetitorsLoader/ReferencesLoader (streameados via <Suspense> desde el page) y
 // llegan como slots — asi su data pesada no bloquea el paint de la tab reels.
@@ -28,7 +32,6 @@ const IGMetricsClient = dynamic(() => import("./IGMetricsClient").then(m => ({ d
 const IGDashboard = dynamic(
   () => import("./IGDashboard").then((m) => ({ default: m.IGDashboard })),
   {
-    ssr: false,
     loading: () => (
       <div className="grid grid-cols-12 gap-5 animate-pulse">
         <div className="col-span-12 lg:col-span-8 h-[320px] rounded-xl bg-white/[0.025]" />
