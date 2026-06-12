@@ -138,6 +138,44 @@ Para gráficos y pies, aplicar al contenedor wrapper:
 
 Colores disponibles: `cyan`, `violet`, `rose`, `emerald`.
 
+## 11. UX optimista y performance percibida
+
+> Referenciado por CLAUDE.md §6. Estos patrones ya se pagaron con debugging caro — **no reintroducir los anti-patrones**.
+
+### Imágenes externas → `ReelThumbnail`, NUNCA `next/image`
+
+**Regla:** toda imagen cuya URL venga de Meta (scontent/cdninstagram, expira en horas/días) o sea una **signed URL de Storage** (cambia en cada render) se renderiza con `ReelThumbnail` (`src/components/instagram/ReelThumbnail.tsx`): `<img>` directo + `onError` → placeholder + `loading="lazy"` (o `priority` para above-the-fold).
+
+**Por qué:** el optimizer de `next/image` cachea por URL → con signed URLs que rotan el cache es 0% hit: 1 transformación facturable por imagen POR VISITA, portadas cargando "de a 2-3", y 502/403 cuando la URL de Meta ya expiró. Bug original arreglado en ReelsGrid/PublicacionesGrid (PR #127) y extendido a StoriesGrid/PostDetailView/ventas.
+
+### Portadas → storage-first (`src/lib/storage-thumbs.ts`)
+
+El sync re-hostea thumbnails en Storage (`reel-media` para reels/posts, `story-media` para slides de historias) porque las URLs crudas de Meta expiran. En los Server Components:
+
+1. Seleccionar `media_storage_path` en la query.
+2. Firmar TODOS los paths en UN batch por bucket con `signStorageThumbs(supabase, bucket, paths)` — si hay varios buckets, en `Promise.all` (nunca awaits seriales).
+3. Resolver con `pickThumb(map, storagePath, rawUrl)` — signed primero, cruda de fallback.
+
+### Data pesada de tabs no-default → `<Suspense>` + Loader
+
+La data que no bloquea la tab default se carga en un Server Component async propio (patrón `CompetitorsLoader`/`ReferencesLoader`) streameado vía `<Suspense>` como slot. El page NUNCA `await`-ea data de tabs secundarias en el critical path.
+
+### Lazy tabs: `dynamic()` SÍ, `ssr:false` NO
+
+`dynamic(() => import(...))` mantiene el code-splitting (el chunk baja al visitar la tab). Pero `ssr:false` hace que el cold load muestre skeleton hasta hidratar aunque la data ya viajó en el payload — sin `ssr:false`, el HTML inicial trae las cards y el browser pide las imágenes de inmediato.
+
+### Auth en paths calientes → `getAuthUser()`
+
+`getAuthUser()` de `src/lib/supabase/auth-claims.ts` valida el JWT localmente (`getClaims`, ES256 vía JWKS) con fallback a `getUser()`. Nunca `auth.getUser()` directo en middleware/layouts/headers: es un round-trip de red por request (~0.2-0.6s) ANTES del streaming.
+
+### Sync / acciones largas → recompensa rápida + fire-and-forget
+
+- Click → feedback inmediato (`useTransition` + `isPending`, `NavProgressBar`, `cursor-pointer`).
+- Recompensa rápida en ~3-4s (ej: quick sync pinta la primera página y marca "Listo"); el resto corre en background **fire-and-forget**.
+- NUNCA `router.refresh()` en loop/intervalo (causó storms de ~228 requests por sync).
+- Respuestas de rutas largas: parsear como texto + try-JSON (un 504 del gateway devuelve texto plano y `res.json()` crashea).
+- `loading.tsx` en toda ruta del dashboard (skeleton instantáneo).
+
 ---
 
 ## Archivos clave
@@ -145,6 +183,8 @@ Colores disponibles: `cyan`, `violet`, `rose`, `emerald`.
 | Archivo | Rol |
 |---------|-----|
 | `src/app/globals.css` | `.glass-card`, `.glass-section`, `.glass-panel`, `.stat-*`, `.neon-line-*`, `.pill-badge` |
+| `src/components/instagram/ReelThumbnail.tsx` | Portadas robustas (`<img>` + onError, fuera del optimizer) — §11 |
+| `src/lib/storage-thumbs.ts` | Firmado batch storage-first (`signStorageThumbs` / `pickThumb`) — §11 |
 | `src/components/instagram/IGMetrics.tsx` | Implementación completa liquid glass |
 | `src/components/instagram/InstagramTabs.tsx` | Tabs glassmorphic |
 | `src/components/instagram/PeriodFilter.tsx` | Filtro glassmorphic |

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
+import { signStorageThumbs, pickThumb } from "@/lib/storage-thumbs";
 import { VentasClient } from "./VentasClient";
 
 export default async function VentasPage() {
@@ -35,7 +36,7 @@ export default async function VentasPage() {
           id, source_type, source_label, amount_total, amount_collected,
           payment_type, payment_status, sale_date, payment_method, notes,
           client_name, reel_id,
-          reels (id, caption, thumbnail_url, permalink),
+          reels (id, caption, thumbnail_url, media_storage_path, permalink),
           sale_installments (due_date, paid_at, amount)
         `)
         .eq("workspace_id", workspaceId)
@@ -47,7 +48,7 @@ export default async function VentasPage() {
       // impone su propio hard cap por defecto (1000) si lo pedimos sin .limit().
       supabase
         .from("reels")
-        .select("id, caption, thumbnail_url, published_at")
+        .select("id, caption, thumbnail_url, media_storage_path, published_at")
         .eq("workspace_id", workspaceId)
         .gte("published_at", ninetyDaysAgo)
         .order("published_at", { ascending: false })
@@ -56,7 +57,7 @@ export default async function VentasPage() {
         .from("ig_story_sequences")
         .select(`
           id, published_at, total_impressions, total_reach,
-          ig_story_slides (thumbnail_url, slide_index)
+          ig_story_slides (thumbnail_url, media_storage_path, slide_index)
         `)
         .eq("workspace_id", workspaceId)
         .gte("published_at", ninetyDaysAgo)
@@ -64,18 +65,57 @@ export default async function VentasPage() {
         .limit(500),
     ]);
 
-    if (salesResult.data) {
-      sales = salesResult.data.map((s) => ({
-        ...s,
-        reels: Array.isArray(s.reels) ? (s.reels[0] ?? null) : s.reels,
-        installments: Array.isArray(s.sale_installments) ? s.sale_installments : [],
-      })) as typeof sales;
+    // ── Storage-first (mismo patrón que /instagram y la home) ──
+    // Las URLs crudas de scontent expiran en horas/días → miniaturas rotas en
+    // la tabla, Top contenido y los pickers de Nueva Venta. Preferimos el
+    // re-host estable (reel-media / story-media), firmado en UN batch por
+    // bucket, los dos buckets en paralelo. Fallback a la URL cruda si el media
+    // aún no se re-hosteó.
+    type ReelEmbed = { id: string; caption: string | null; thumbnail_url: string | null; media_storage_path: string | null; permalink: string | null };
+    const reelPaths: Array<string | null> = [];
+    for (const s of (salesResult.data ?? []) as Array<{ reels: ReelEmbed | ReelEmbed[] | null }>) {
+      const r = Array.isArray(s.reels) ? (s.reels[0] ?? null) : s.reels;
+      reelPaths.push(r?.media_storage_path ?? null);
     }
-    if (reelsResult.data) reelsForPicker = reelsResult.data;
+    for (const r of (reelsResult.data ?? []) as Array<{ media_storage_path: string | null }>) {
+      reelPaths.push(r.media_storage_path);
+    }
+    const storyPaths: Array<string | null> = [];
+    for (const seq of (storiesResult.data ?? []) as Array<{ ig_story_slides: Array<{ media_storage_path: string | null }> | null }>) {
+      for (const sl of seq.ig_story_slides ?? []) storyPaths.push(sl.media_storage_path);
+    }
+    const [reelSigned, storySigned] = await Promise.all([
+      signStorageThumbs(supabase, "reel-media", reelPaths),
+      signStorageThumbs(supabase, "story-media", storyPaths),
+    ]);
+
+    if (salesResult.data) {
+      sales = salesResult.data.map((s) => {
+        const r = (Array.isArray(s.reels) ? (s.reels[0] ?? null) : s.reels) as ReelEmbed | null;
+        return {
+          ...s,
+          reels: r
+            ? { id: r.id, caption: r.caption, thumbnail_url: pickThumb(reelSigned, r.media_storage_path, r.thumbnail_url), permalink: r.permalink }
+            : null,
+          installments: Array.isArray(s.sale_installments) ? s.sale_installments : [],
+        };
+      }) as typeof sales;
+    }
+    if (reelsResult.data) {
+      reelsForPicker = (reelsResult.data as Array<{
+        id: string; caption: string | null; thumbnail_url: string | null;
+        media_storage_path: string | null; published_at: string | null;
+      }>).map((r) => ({
+        id: r.id,
+        caption: r.caption,
+        thumbnail_url: pickThumb(reelSigned, r.media_storage_path, r.thumbnail_url),
+        published_at: r.published_at,
+      }));
+    }
     if (storiesResult.data) {
       storiesForPicker = (storiesResult.data as Array<{
         id: string; published_at: string; total_impressions: number; total_reach: number;
-        ig_story_slides: Array<{ thumbnail_url: string | null; slide_index: number }>;
+        ig_story_slides: Array<{ thumbnail_url: string | null; media_storage_path: string | null; slide_index: number }>;
       }>).map((seq) => {
         const slides = Array.isArray(seq.ig_story_slides) ? seq.ig_story_slides : [];
         const first = [...slides].sort((a, b) => a.slide_index - b.slide_index)[0];
@@ -85,7 +125,7 @@ export default async function VentasPage() {
           total_impressions: seq.total_impressions,
           total_reach: seq.total_reach,
           slide_count: slides.length,
-          first_thumbnail: first?.thumbnail_url ?? null,
+          first_thumbnail: pickThumb(storySigned, first?.media_storage_path, first?.thumbnail_url),
         };
       });
     }

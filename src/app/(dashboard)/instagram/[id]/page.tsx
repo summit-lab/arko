@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import { getWorkspaceId } from "@/lib/workspace";
+import { signStorageThumbs, pickThumb } from "@/lib/storage-thumbs";
 import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemini-analysis-persistence.service";
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 import { InstagramBackButton } from "@/components/instagram/InstagramBackButton";
@@ -265,7 +266,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         supabase
           .from("reels")
           .select(`
-            id, caption, permalink, thumbnail_url, media_url, published_at,
+            id, caption, permalink, thumbnail_url, media_url, media_storage_path, published_at,
             media_type, media_product_type,
             reel_metrics (impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, views_org)
           `)
@@ -285,6 +286,17 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
         type PostMetrics = { impressions_org: number | null; reach_org: number | null; likes_total: number; comments_total: number; shares_total: number; saves_total: number; views_org: number | null };
         const m = Array.isArray(rawM) ? (rawM as PostMetrics[])[0] : (rawM as PostMetrics | null);
 
+        // Storage-first: la portada del post/carrusel padre ya se archiva en
+        // reel-media (archiveReelThumbnails cubre la tabla reels) — firmamos el
+        // path para servir una URL estable en vez de la cruda de scontent que
+        // expira. Los slides del carrusel siguen con URL cruda + onError hasta
+        // que carousel_slides tenga su propia columna de re-host (F3 del plan).
+        const postSignedMap = await signStorageThumbs(
+          supabase,
+          "reel-media",
+          [postData.media_storage_path as string | null]
+        );
+
         // For posts/carousels: views_org is typically null (posts don't have "views").
         // Use impressions as the primary volume metric for engagement rate.
         const impressions = m?.impressions_org ?? 0;
@@ -295,7 +307,7 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           id: postData.id,
           caption: postData.caption,
           permalink: postData.permalink,
-          thumbnail_url: postData.thumbnail_url,
+          thumbnail_url: pickThumb(postSignedMap, postData.media_storage_path as string | null, postData.thumbnail_url),
           media_url: postData.media_url,
           published_at: postData.published_at,
           media_type: postData.media_type,

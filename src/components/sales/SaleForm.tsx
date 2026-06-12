@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "@/components/instagram/ReelThumbnail";
 import { useLocale, useTranslations } from "next-intl";
 import { Search, Check, X, Play, ArrowRight } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
@@ -597,9 +597,11 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                       className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all text-left ${form.reel_id === r.id ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                     >
                       <div className="h-9 w-6 rounded overflow-hidden shrink-0 bg-white/[0.04]">
-                        {r.thumbnail_url
-                          ? <Image src={r.thumbnail_url} alt="" width={24} height={36} className="object-cover w-full h-full" />
-                          : <Play className="h-3 w-3 text-white/20 m-auto mt-2" />}
+                        <ReelThumbnail
+                          src={r.thumbnail_url}
+                          className="object-cover w-full h-full"
+                          placeholder={<Play className="h-3 w-3 text-white/20 m-auto mt-2" />}
+                        />
                       </div>
                       <span className="text-[11px] font-light text-white/60 truncate flex-1 leading-snug">
                         {r.caption?.slice(0, 65) || t("untitled")}
@@ -635,14 +637,15 @@ export function SaleForm({ reels, stories, onSuccess, onCancel, defaultSourceTyp
                           className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all text-left ${selected ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                         >
                           <div className="h-10 w-7 rounded overflow-hidden shrink-0 bg-white/[0.04]">
-                            {seq.first_thumbnail ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={seq.first_thumbnail} alt="" className="object-cover w-full h-full" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Play className="h-3 w-3 text-white/15" />
-                              </div>
-                            )}
+                            <ReelThumbnail
+                              src={seq.first_thumbnail}
+                              className="object-cover w-full h-full"
+                              placeholder={
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Play className="h-3 w-3 text-white/15" />
+                                </div>
+                              }
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[11px] font-light text-white/60 leading-snug">{dateStr}</p>
