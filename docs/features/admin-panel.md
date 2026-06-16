@@ -1,7 +1,7 @@
 # Admin Panel + Sistema de Invitaciones
 
 > **Estado:** Implementado (v0.11.0)
-> **Migraciones:** `20260325000015_invitations_and_onboarding.sql`, `20260325000016_fix_profiles_admin_rls_recursion.sql`
+> **Migraciones:** `20260325000015_invitations_and_onboarding.sql`, `20260325000016_fix_profiles_admin_rls_recursion.sql`, `20260616120000_trial_plans.sql`
 > **Ruta:** `/admin`, `/admin/clients`, `/admin/invitations`
 
 ---
@@ -104,7 +104,42 @@ Ver detalle completo en `docs/DB_SCHEMA.md`.
 
 ---
 
-## 8. Diseño
+## 8. Trials (30 / 60 / 90 días gratis)
+
+> **Estado:** v1 — solo visibilidad (sin enforcement de bloqueo al vencer).
+> **Migración:** `20260616120000_trial_plans.sql`
+
+Cada invitación lleva un **trial gratis** que el admin elige al generar el link. El conteo arranca cuando el usuario **se registra** (no al crear el link).
+
+### Flujo
+```
+Admin genera invitación → elige trial (30/60/90, default 30)
+  → invitations.trial_days
+
+Usuario se registra con el link
+  → handle_new_user() copia trial_days al workspace del usuario
+  → estampa trial_started_at = now() y trial_ends_at = now() + trial_days
+```
+
+### Dónde se ve
+- **`/admin/invitations`** → `InvitationForm` tiene un selector de 3 botones (30d / 60d / 90d) junto al idioma.
+- **`/admin/clients`** → columna **Trial** con conteo regresivo día a día:
+  - 🟢 verde: más de 7 días restantes
+  - 🟡 ámbar: 7 días o menos (por vencer) + barra de progreso de lo consumido
+  - 🔴 "Vencido": llegó a 0 (no bloquea el acceso en v1)
+  - "—": sin trial (ej. cuentas admin, `trial_days` NULL)
+
+### Datos
+- `invitations.trial_days` smallint NOT NULL DEFAULT 30 CHECK IN (30,60,90)
+- `workspaces.trial_days` / `trial_started_at` / `trial_ends_at` (nullable; NULL = sin trial)
+- Índice parcial `idx_workspaces_trial_ends_at` para futuras queries de vencimiento.
+
+### Pendiente (v2, si se decide)
+- Enforcement: bloquear acceso al vencer (gate en middleware + UI de "trial vencido" + acción de extender/reactivar desde el admin).
+
+---
+
+## 9. Diseño
 
 - Usa el mismo glass design system del dashboard
 - Accent color: amber (en lugar del blanco del dashboard principal)

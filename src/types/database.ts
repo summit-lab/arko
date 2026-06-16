@@ -8,6 +8,9 @@
 
 export type WorkspacePlan = 'pro';
 
+// Duración del trial gratis que el admin asigna al crear la invitación.
+export type TrialDays = 30 | 60 | 90;
+
 export type MetaConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'error';
 
 export type ReelType = 'normal' | 'trial_likely' | 'unknown';
@@ -83,6 +86,10 @@ export interface Workspace {
   reels_limit: number;
   is_active: boolean;
   settings: Record<string, unknown>;
+  // Trial gratis (30/60/90). Estampado al registrarse via invitación. null = sin trial.
+  trial_days: TrialDays | null;
+  trial_started_at: string | null;
+  trial_ends_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -395,6 +402,9 @@ export interface Invitation {
   used_by: string | null;
   used_at: string | null;
   expires_at: string;
+  default_language: 'es' | 'en';
+  // Trial gratis (30/60/90) que recibirá el usuario al registrarse con esta invitación.
+  trial_days: TrialDays;
   created_at: string;
 }
 
