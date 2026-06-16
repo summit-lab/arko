@@ -7,6 +7,17 @@ interface UsageRow {
   cost_usd: number;
 }
 
+const MS_PER_DAY = 86_400_000;
+
+// Conteo regresivo del trial. Devuelve null si el workspace no tiene trial
+// (ej. cuentas admin). `remaining` puede ser negativo si ya venció.
+function computeTrial(trialDays: number | null, trialEndsAt: string | null) {
+  if (!trialDays || !trialEndsAt) return null;
+  const remaining = Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / MS_PER_DAY);
+  const elapsed = Math.min(trialDays, Math.max(0, trialDays - remaining));
+  return { total: trialDays, remaining, elapsed };
+}
+
 export default async function AdminClientsPage() {
   const supabase = await createClient();
   const t = await getTranslations("admin.clients");
@@ -18,6 +29,7 @@ export default async function AdminClientsPage() {
     .from("workspaces")
     .select(`
       id, name, slug, is_active, created_at, owner_id, onboarding_completed,
+      trial_days, trial_ends_at,
       meta_connections (status, ig_username)
     `)
     .order("created_at", { ascending: false });
@@ -59,6 +71,7 @@ export default async function AdminClientsPage() {
       connection_status: connection?.status ?? null,
       ig_username: connection?.ig_username ?? null,
       total_cost: usageMap.get(w.id) ?? 0,
+      trial: computeTrial(w.trial_days, w.trial_ends_at),
     };
   });
 
@@ -74,10 +87,11 @@ export default async function AdminClientsPage() {
       <div className="glass-panel rounded-xl p-6">
         <div className="space-y-1">
           {/* Header */}
-          <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
+          <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
             <div className="col-span-3">{t("headerWorkspace")}</div>
             <div className="col-span-2">{t("headerOwner")}</div>
             <div className="col-span-2 text-center">{t("headerConnection")}</div>
+            <div className="col-span-2 text-center">{t("headerTrial")}</div>
             <div className="col-span-1 text-center">{t("headerAdn")}</div>
             <div className="col-span-1 text-center">{t("headerStatus")}</div>
             <div className="col-span-1 text-right">{t("headerUsage")}</div>
@@ -92,7 +106,7 @@ export default async function AdminClientsPage() {
             <Link
               key={c.id}
               href={`/admin/clients/${c.id}`}
-              className="grid grid-cols-12 gap-2 items-center py-3.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer"
+              className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-2 items-center py-3.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer"
             >
               <div className="col-span-3">
                 <p className="text-[13px] font-light text-white/70">{c.name}</p>
@@ -114,6 +128,36 @@ export default async function AdminClientsPage() {
                   </span>
                 ) : (
                   <span className="text-[12px] text-white/25">{t("noConnection")}</span>
+                )}
+              </div>
+              <div className="col-span-2 px-2">
+                {c.trial ? (
+                  c.trial.remaining > 0 ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <span
+                        className={`text-[12px] font-medium ${
+                          c.trial.remaining > 7 ? "text-emerald-400" : "text-amber-400"
+                        }`}
+                      >
+                        {c.trial.remaining} {t("trialDays")}
+                        <span className="text-white/25"> / {c.trial.total}</span>
+                      </span>
+                      <span className="h-1 w-full max-w-[90px] rounded-full bg-white/[0.08] overflow-hidden">
+                        <span
+                          className={`block h-full rounded-full ${
+                            c.trial.remaining > 7 ? "bg-emerald-400/70" : "bg-amber-400/70"
+                          }`}
+                          style={{ width: `${Math.round((c.trial.elapsed / c.trial.total) * 100)}%` }}
+                        />
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">
+                      {t("trialExpired")}
+                    </span>
+                  )
+                ) : (
+                  <span className="text-[12px] text-white/20 block text-center">—</span>
                 )}
               </div>
               <div className="col-span-1 text-center">

@@ -5,6 +5,25 @@
  
 ---
 
+## [unreleased] — 2026-06-16
+
+### Feat — Trials 30/60/90 días gratis (admin elige al invitar + conteo regresivo en la tabla de usuarios)
+
+Sistema de trials por invitación. El admin elige la duración del trial gratis (30, 60 o 90 días) al generar el link de invitación; el conteo arranca cuando el usuario **se registra**. En `/admin/clients` aparece una columna **Trial** con el conteo regresivo día a día (semáforo verde/ámbar + barra de progreso de lo consumido, "Vencido" en rojo al llegar a 0). **v1: solo visibilidad** — al vencer NO se bloquea el acceso (enforcement queda para v2).
+
+Request original: "crear usuarios con 3 tipos (30/60/90 días gratis); que el admin elija al crear el link de invitación y, una vez activado el usuario, ver un conteo regresivo día a día del plan gratis en la tabla de usuarios."
+
+#### Archivos
+- `supabase/migrations/20260616120000_trial_plans.sql` — `invitations.trial_days`; `workspaces.trial_days/trial_started_at/trial_ends_at` + índice parcial; `handle_new_user()` copia el trial al workspace (preserva SECURITY DEFINER + search_path).
+- `src/app/(admin)/admin/invitations/actions.ts` — `createInvitation` acepta `trial_days` (valida 30/60/90, default 30).
+- `src/app/(admin)/admin/invitations/InvitationForm.tsx` — selector de trial (30d/60d/90d).
+- `src/app/(admin)/admin/clients/page.tsx` — columna Trial con conteo regresivo + semáforo + barra de progreso.
+- `src/i18n/messages/{es,en}.json` — claves `headerTrial`, `trialDays`, `trialExpired`, `trialLabel`.
+- `src/types/database.ts` — `TrialDays`, campos de trial en `Workspace` e `Invitation` (+ `default_language`).
+- `docs/DB_SCHEMA.md`, `docs/features/admin-panel.md` — documentación.
+
+---
+
 ## [unreleased] — 2026-06-03
 
 ### Fix — DateFilter: panel en portal+fixed clampeado al viewport (el `right-0` no alcanzaba)
