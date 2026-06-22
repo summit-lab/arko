@@ -408,13 +408,16 @@
       "headerWorkspace": "Workspace",
       "headerOwner": "Owner",
       "headerConnection": "Conexión",
+      "headerTrial": "Trial",
       "headerAdn": "ADN",
       "headerStatus": "Estado",
       "headerUsage": "Uso $",
       "headerCreated": "Creado",
       "empty": "No hay clientes registrados.",
       "noConnection": "Sin conexión",
-      "pending": "Pendiente"
+      "pending": "Pendiente",
+      "trialDays": "días",
+      "trialExpired": "Vencido"
     },
     "invitations": {
       "title": "Invitaciones",
@@ -423,8 +426,9 @@
         "title": "Generar Invitación",
         "emailLabel": "Email del cliente",
         "emailPlaceholder": "cliente@ejemplo.com",
+        "trialLabel": "Trial gratis",
         "languageLabel": "Idioma por defecto",
-        "languageHint": "El usuario lo puede cambiar después desde Settings.",
+        "languageHint": "El usuario lo puede cambiar después desde Settings. El trial gratis arranca cuando el usuario se registra.",
         "submit": "Generar Link",
         "copy": "Copiar",
         "copied": "Copiado"

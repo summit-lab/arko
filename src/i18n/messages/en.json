@@ -408,13 +408,16 @@
       "headerWorkspace": "Workspace",
       "headerOwner": "Owner",
       "headerConnection": "Connection",
+      "headerTrial": "Trial",
       "headerAdn": "DNA",
       "headerStatus": "Status",
       "headerUsage": "Usage $",
       "headerCreated": "Created",
       "empty": "No clients registered.",
       "noConnection": "No connection",
-      "pending": "Pending"
+      "pending": "Pending",
+      "trialDays": "days",
+      "trialExpired": "Expired"
     },
     "invitations": {
       "title": "Invitations",
@@ -423,8 +426,9 @@
         "title": "Generate Invitation",
         "emailLabel": "Client email",
         "emailPlaceholder": "client@example.com",
+        "trialLabel": "Free trial",
         "languageLabel": "Default language",
-        "languageHint": "The user can change it later from Settings.",
+        "languageHint": "The user can change it later from Settings. The free trial starts when the user signs up.",
         "submit": "Generate Link",
         "copy": "Copy",
         "copied": "Copied"

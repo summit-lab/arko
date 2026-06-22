@@ -13,6 +13,7 @@ export function InvitationForm() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [defaultLanguage, setDefaultLanguage] = useState<Locale>("es");
+  const [trialDays, setTrialDays] = useState<30 | 60 | 90>(30);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -45,8 +46,8 @@ export function InvitationForm() {
       </h3>
 
       <form action={handleSubmit} className="space-y-4">
-        <div className="flex items-end gap-4">
-          <div className="flex-1">
+        <div className="flex items-end gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
             <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
               {t("emailLabel")}
             </label>
@@ -90,6 +91,28 @@ export function InvitationForm() {
               >
                 🇬🇧 EN
               </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
+              {t("trialLabel")}
+            </label>
+            <input type="hidden" name="trial_days" value={trialDays} />
+            <div className="inline-flex items-center h-[42px] rounded-lg bg-white/[0.04] border border-white/[0.08] p-0.5">
+              {([30, 60, 90] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setTrialDays(d)}
+                  className={`h-[34px] px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer ${
+                    trialDays === d
+                      ? "bg-white/[0.08] text-white"
+                      : "text-white/40 hover:text-white/70"
+                  }`}
+                >
+                  {d}d
+                </button>
+              ))}
             </div>
           </div>
           <button
