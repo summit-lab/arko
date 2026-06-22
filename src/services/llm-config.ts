@@ -27,7 +27,7 @@ const LLM_CONFIG = {
   /** AI Agents — análisis profundo con tool_use (métricas, ideas, guiones) */
   'ai-agents': {
     provider: 'anthropic' as LLMProvider,
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     maxTokens: 4096,
   },
 
@@ -41,14 +41,14 @@ const LLM_CONFIG = {
   /** Reel diagnostics — análisis profundo de métricas y contenido */
   'reel-diagnostics': {
     provider: 'anthropic' as LLMProvider,
-    model: 'claude-3-5-haiku-20241022',
+    model: 'claude-haiku-4-5',
     maxTokens: 2048,
   },
 
   /** Métricas y análisis general — interpretación de datos, benchmarks */
   'metrics-analysis': {
     provider: 'anthropic' as LLMProvider,
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     maxTokens: 2048,
   },
   /** ArkoAI video analysis — Gemini analiza video completo (visual + audio + transcript) */

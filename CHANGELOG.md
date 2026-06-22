@@ -7,6 +7,24 @@
 
 ## [unreleased] — 2026-06-22
 
+### Fix — Chat Moka caído (modelos Anthropic retirados) + análisis Gemini 403 por URL de video caducada
+
+Dos bugs de producción, ninguno introducido por F2.5-5/portadas:
+
+1. **Chat caído para todos** — `llm-config.ts` apuntaba a `claude-sonnet-4-20250514` (path `ai-agents`/`metrics-analysis`) y `claude-3-5-haiku-20241022` (`reel-diagnostics`), **ambos retirados por Anthropic** → toda llamada devolvía `404 not_found_error: model`. Actualizados a los IDs vigentes `claude-sonnet-4-6` y `claude-haiku-4-5`. Se agregó el pricing de los modelos nuevos en `llm-usage.service.ts` (sino el costo se trackeaba como $0); `claude-haiku-4-5` además matchea por prefijo a `claude-haiku-4-5-20251001` (reel-auto-title, que hoy se costeaba en $0).
+
+2. **Análisis Gemini "403 URL signature expired"** — el front manda `reel.media_url` (URL firmada de scontent de Meta que **expira en horas/días**); al analizar un reel viejo, la descarga del video fallaba con 403. Ahora la ruta `gemini-analyze`, ante un error de descarga por URL caducada, **re-scrapea el reel por permalink** (Apify → URL fresca) y reintenta **una vez**. Happy path intacto (sin costo Apify extra; solo se paga el re-scrape cuando la URL caducó).
+
+Verificación: `tsc --noEmit` sin errores. Request original: "el chat de Moka y el análisis de un reel con Gemini tiran error".
+
+Nota operativa (no es código): los **404 de `/api/webhooks/ig`** (Meta → `facebookexternalua`) son leftover de la feature de DM tracking demolida (commit `e62b6ba` / migración `20260420000045`); la ruta se borró a propósito y nunca recibió eventos. **Acción pendiente:** quitar la suscripción del webhook en el Meta App Dashboard para que Meta deje de hacer POST.
+
+#### Archivos
+- `src/services/llm-config.ts` — model IDs retirados → vigentes (`claude-sonnet-4-6`, `claude-haiku-4-5`).
+- `src/services/llm-usage.service.ts` — pricing de los modelos vigentes (legacy se conserva para costear usage histórico).
+- `src/app/api/v1/reels/[id]/gemini-analyze/route.ts` — re-scrape por permalink + retry ante `media_url` caducada.
+- `docs/features/ai-agents.md` — modelo del chat actualizado.
+
 ### Feat — F2.5-5: `sync-instagram` migrado al cliente Meta unificado (tras flag `META_CLIENT_NEW`)
 
 Los 25 call sites de Graph API en la edge function `sync-instagram` (el caller más pesado: cron cada 6h × 14 clientes) ahora pasan por el cliente Meta unificado (`_shared/meta/client.ts`: versión única, field-lists centralizadas, retry/backoff con jitter, clasificación de errores) vía un shim `metaClientGet` detrás del flag `META_CLIENT_NEW` (por grupo: media/account/ads/stories/children). Flag vacío = path legacy byte-equivalente. El shim traduce el `MetaApiError` del cliente al shape `{data,error}` legacy **solo si Meta devolvió cuerpo**, y re-lanza transitorios sin cuerpo (preserva la frontera abort/propagate de cada call site → conserva fallbacks de insights, ruteo CAROUSEL y contrato de token-expiry, incl. exclusión de 467). +11 constantes de field-list nuevas (espejo Node+Deno, parity-test en CI).

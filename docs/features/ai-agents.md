@@ -57,7 +57,7 @@ Arko puede consultar sub-agentes especializados cuando necesita profundidad. El 
 
 ## Modelo
 - Provider: Anthropic
-- Modelo: `claude-sonnet-4-20250514`
+- Modelo: `claude-sonnet-4-6`
 - Max tokens: 4096
 - Config: `getLLMConfig('ai-agents')`
 

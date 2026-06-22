@@ -14,7 +14,21 @@ import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api404, apiError, api500 } from '@/lib/api/response';
 import { persistGeminiAnalysis } from '@/services/gemini-analysis-persistence.service';
 import { analyzeVideoWithGemini, isGeminiEnabled } from '@/services/gemini-video.service';
+import { fetchApifyReelPublicData, isApifyReelEnrichmentEnabled } from '@/services/apify-reel.service';
 import { logLLMUsage } from '@/services/llm-usage.service';
+
+/**
+ * La media_url de Meta (la que manda el front) es una URL firmada de scontent que
+ * EXPIRA en horas/días. Si el reel se analiza después de que caducó, la descarga
+ * del video falla con "descarga de video: 403 URL signature expired". Detectamos
+ * ese caso para re-scrapear el reel por permalink y reintentar con una URL fresca.
+ */
+function isExpiredVideoUrlError(message: string): boolean {
+  return (
+    message.includes('descarga de video') &&
+    (message.includes('403') || message.includes('410') || /expired|signature/i.test(message))
+  );
+}
 
 export async function POST(
   request: Request,
@@ -56,9 +70,28 @@ export async function POST(
       return api400('Se requiere video_url en el body. Asegúrate de tener la URL pública del MP4 del Reel (obtenida via Apify).');
     }
 
-    // Ejecutar análisis con Gemini
+    // Ejecutar análisis con Gemini. Si la media_url de Meta caducó (403 al
+    // descargar el video), re-scrapeamos el reel por permalink (Apify devuelve una
+    // URL fresca) y reintentamos UNA vez. Así el análisis no depende de cuán vieja
+    // sea la media_url que viajó al cliente.
     const t0 = Date.now();
-    const { analysis, usage, model, complete, partialReason } = await analyzeVideoWithGemini(videoUrl);
+    let result: Awaited<ReturnType<typeof analyzeVideoWithGemini>>;
+    try {
+      result = await analyzeVideoWithGemini(videoUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (isExpiredVideoUrlError(message) && reel.permalink && isApifyReelEnrichmentEnabled()) {
+        console.warn(`[arkoai-analyze] reel=${id} media_url caducada (${message.slice(0, 80)}) → re-scrape Apify`);
+        const fresh = await fetchApifyReelPublicData(reel.permalink);
+        if (!fresh?.video_url) {
+          throw new Error('La URL del video caducó y no se pudo obtener una fresca (re-scrape sin video_url). Re-sincronizá el reel e intentá de nuevo.');
+        }
+        result = await analyzeVideoWithGemini(fresh.video_url);
+      } else {
+        throw err;
+      }
+    }
+    const { analysis, usage, model, complete, partialReason } = result;
     const latencyMs = Date.now() - t0;
 
     // If we got NOTHING usable (no transcript, not complete) the upstream provider

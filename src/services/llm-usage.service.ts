@@ -22,7 +22,10 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
   'gpt-4.1-nano':           { inputPer1M: 0.10,  outputPer1M: 0.40 },
   'gpt-4o':                 { inputPer1M: 2.50,  outputPer1M: 10.00 },
   'gpt-4o-mini':            { inputPer1M: 0.15,  outputPer1M: 0.60 },
-  // Anthropic
+  // Anthropic (IDs vigentes — claude-haiku-4-5 matchea por prefijo a claude-haiku-4-5-20251001)
+  'claude-sonnet-4-6':           { inputPer1M: 3.00,  outputPer1M: 15.00 },
+  'claude-haiku-4-5':            { inputPer1M: 1.00,  outputPer1M: 5.00 },
+  // Legacy (retirados por Anthropic — se dejan para costear usage histórico ya logueado)
   'claude-sonnet-4-20250514':    { inputPer1M: 3.00,  outputPer1M: 15.00 },
   'claude-3-5-haiku-20241022':   { inputPer1M: 0.80,  outputPer1M: 4.00 },
   'claude-opus-4-20250514':      { inputPer1M: 15.00, outputPer1M: 75.00 },
