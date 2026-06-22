@@ -64,7 +64,7 @@ Este plan se construyó a partir de 8 auditorías de subsistema + un plan de arq
 | **F2.3** | Dedup de scrapes Apify (guard `last_scraped_at`) | ⬜ | Control de costo. Medio riesgo (toca scraping de 6 clientes) |
 | **F2.4** | Centralizar `META_GRAPH_VERSION` | ⬜ Diferido | No hay drift (v25.0 uniforme; el `v22.0` es solo comentario). Va con el cliente Meta unificado |
 | **🐞 Fix** | refresh-meta-tokens: marcaba `expired` ante errores transitorios (5xx/rate-limit) → desconectaba clientes sin razón. Ahora solo marca expired ante auth real (OAuthException/190); transitorios reintentan | ✅ Dev+Prod | Descubierto en el recon de F2.5. Deployado con `--no-verify-jwt` |
-| **F2.5** | Cliente Meta Graph unificado | 📋 **Diseñado, no empezado** | Plan completo en `docs/implementation-plans/f2.5-cliente-meta-unificado.md` (6 fases, recon Opus verificado). Arrancar en sesión dedicada |
+| **F2.5** | Cliente Meta Graph unificado | 🟡 **Parcial** | F2.5-0..4 ✅ (explorer/connect/callback/refresh-tokens, mergeados #115/#117/#119). **F2.5-5 ✅** (sync-instagram → cliente unificado tras flag `META_CLIENT_NEW`; deployado a Prod v32 con flag `all` + validado en vivo sobre Emanuel + PROVIDA/Franco, cero errores, bajo presupuesto). Falta F2.6 (Apify + adapter Gemini) |
 | **F2.6** | Cliente Apify + adapter Gemini en `callLLM` | ⬜ | §4–§7. Refactor grande, feature por feature. NO apurar con clientes vivos |
 | **API** | getWorkspaceId sin verificar membership · `/api/sales` vs `/v1` · zero-Zod | ⬜ | Pendiente real (verificado). Va con la reorg de API |
 
