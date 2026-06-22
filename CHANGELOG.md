@@ -5,6 +5,24 @@
  
 ---
 
+## [unreleased] — 2026-06-22
+
+### Feat — F2.5-5: `sync-instagram` migrado al cliente Meta unificado (tras flag `META_CLIENT_NEW`)
+
+Los 25 call sites de Graph API en la edge function `sync-instagram` (el caller más pesado: cron cada 6h × 14 clientes) ahora pasan por el cliente Meta unificado (`_shared/meta/client.ts`: versión única, field-lists centralizadas, retry/backoff con jitter, clasificación de errores) vía un shim `metaClientGet` detrás del flag `META_CLIENT_NEW` (por grupo: media/account/ads/stories/children). Flag vacío = path legacy byte-equivalente. El shim traduce el `MetaApiError` del cliente al shape `{data,error}` legacy **solo si Meta devolvió cuerpo**, y re-lanza transitorios sin cuerpo (preserva la frontera abort/propagate de cada call site → conserva fallbacks de insights, ruteo CAROUSEL y contrato de token-expiry, incl. exclusión de 467). +11 constantes de field-list nuevas (espejo Node+Deno, parity-test en CI).
+
+Verificación: `deno check` sin errores nuevos vs baseline · test de paridad verde · tests unitarios del cliente (`client.test.ts`, 10/10) · revisión adversarial multi-agente sin bloqueantes. **Validado en Prod** vía función canario aislada sobre la cuenta de Emanuel (5 grupos, datos idénticos al legacy) + stress-test de las 2 cuentas más grandes (PROVIDA 2968 reels / Franco 1297) con `all`: todos los jobs completados, sin error, bajo el presupuesto de 150s (PROVIDA reels 102s). Deployado a Prod (v32) con `META_CLIENT_NEW=all`. Rollback = sacar el secret + redeploy.
+
+Request original: "terminá con lo de IG (F2.5-5) verificando cada aspecto, profesional como senior; probalo en mi cuenta; hacelo para todos".
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — 25 call sites → `metaClientGet` + flag; `GRAPH_BASE`/field-lists inline → import del cliente.
+- `supabase/functions/_shared/meta/constants.ts` + `src/lib/meta/constants.ts` — 11 field-lists nuevas (espejo byte-idéntico).
+- `supabase/functions/_shared/meta/client.test.ts` — tests unitarios del cliente Meta (mock `fetch`).
+- `docs/11-auditoria-y-plan-optimizacion.md` — tablero: F2.5-5 hecho.
+
+---
+
 ## [unreleased] — 2026-06-16
 
 ### Feat — Trials 30/60/90 días gratis (admin elige al invitar + conteo regresivo en la tabla de usuarios)

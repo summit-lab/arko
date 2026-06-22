@@ -46,6 +46,44 @@ export const AD_INSIGHT_FIELDS =
 export const AD_DAILY_FIELDS =
   'ad_id,date_start,date_stop,impressions,reach,clicks,spend,inline_link_clicks,outbound_clicks,video_play_actions,actions';
 
+// ─── Field / metric lists secundarias (fallbacks + endpoints puntuales) ───────
+// Copia textual de supabase/functions/sync-instagram/index.ts (verificadas byte a
+// byte). Centralizarlas deja a sync-instagram sin literales de Graph inline; el
+// payload no cambia.
+
+/** Media probe liviano: chequear existencia/frescura sin traer todo. */
+export const MEDIA_PROBE_FIELDS = 'id,timestamp';
+
+/** Children de un carousel (thumbnail del primer slide / slides completos). */
+export const MEDIA_CHILDREN_FIELDS = 'id,media_type,media_url,thumbnail_url';
+
+/** Conteos directos del media (último recurso cuando /insights falla del todo). */
+export const MEDIA_BASIC_COUNTS_FIELDS = 'like_count,comments_count';
+
+/** Insights de reels — fallback reducido (sin total_interactions ni ig_reels_video_view_total_time). */
+export const REEL_INSIGHT_METRICS_FALLBACK = 'views,reach,likes,comments,shares,saved,ig_reels_avg_watch_time';
+
+/** Insights de posts — fallback reducido (sin shares ni total_interactions, que carousels no soportan). */
+export const POST_INSIGHT_METRICS_FALLBACK = 'impressions,reach,likes,comments,saved';
+
+/** Insight individual de 'saved' (último escalón del fallback de posts). */
+export const POST_SAVED_ONLY_METRIC = 'saved';
+
+/** Stories activas (últimas 24h). */
+export const STORIES_FIELDS = 'id,media_type,media_url,thumbnail_url,caption,timestamp';
+
+/** Insights por slide de story (v22.0+: solo views,reach,replies,navigation son válidas). */
+export const STORY_INSIGHT_METRICS = 'views,reach,replies,navigation';
+
+/** Campos de perfil de la cuenta IG (followers/follows/media counts). */
+export const PROFILE_FIELDS = 'followers_count,follows_count,media_count';
+
+/** Métrica diaria de follower_count (timeseries period=day). */
+export const FOLLOWER_COUNT_METRIC = 'follower_count';
+
+/** Métrica de demographics de seguidores (con breakdown, period=lifetime). */
+export const DEMOGRAPHICS_METRIC = 'follower_demographics';
+
 // ─── Clasificación de errores de Graph ────────────────────────────────────────
 // Códigos verificados contra isTokenExpiredError (sync-instagram) + docs de Meta.
 

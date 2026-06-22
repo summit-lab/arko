@@ -9,6 +9,28 @@
  */
 
 import { createServiceClient } from "../_shared/supabase-client.ts";
+import { metaFetch, MetaApiError } from "../_shared/meta/client.ts";
+import {
+  GRAPH_BASE,
+  MEDIA_FIELDS,
+  MEDIA_CHILDREN_FIELDS,
+  MEDIA_PROBE_FIELDS,
+  STORIES_FIELDS,
+  STORY_INSIGHT_METRICS,
+  REEL_INSIGHT_METRICS,
+  REEL_INSIGHT_METRICS_FALLBACK,
+  POST_INSIGHT_METRICS,
+  POST_INSIGHT_METRICS_FALLBACK,
+  POST_SAVED_ONLY_METRIC,
+  MEDIA_BASIC_COUNTS_FIELDS,
+  ACCOUNT_DAILY_METRICS,
+  PROFILE_FIELDS,
+  FOLLOWER_COUNT_METRIC,
+  DEMOGRAPHICS_METRIC,
+  AD_CREATIVE_FIELDS,
+  AD_INSIGHT_FIELDS,
+  AD_DAILY_FIELDS,
+} from "../_shared/meta/constants.ts";
 import type {
   IGMedia,
   IGInsight,
@@ -25,8 +47,65 @@ import type {
 
 // deno-lint-ignore-file no-explicit-any
 
-const GRAPH_API_VERSION = "v25.0";
-const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+// ═══════════════════════════════════════════════════════════════
+// CLIENTE META UNIFICADO (F2.5-5) — shim + feature flag
+// ═══════════════════════════════════════════════════════════════
+// GRAPH_BASE viene de _shared/meta/constants.ts (fuente única de versión).
+//
+// META_CLIENT_NEW: CSV de grupos que usan el cliente Meta unificado
+// (retry/backoff/timeout + clasificación de errores). Vacío (default) = todos
+// los grupos usan el path legacy (fetch crudo, sin retry) → byte-equivalente a
+// pre-migración. 'all' = todos. Grupos: media, account, ads, stories, children.
+const META_CLIENT_GROUPS: Set<string> = new Set(
+  (Deno.env.get("META_CLIENT_NEW") ?? "")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+);
+function useMetaClient(group: string): boolean {
+  return META_CLIENT_GROUPS.has("all") || META_CLIENT_GROUPS.has(group);
+}
+
+interface MetaClientOpts { maxRetries?: number; timeoutMs?: number }
+
+/**
+ * GET a Graph vía el cliente unificado (retry/backoff/timeout) traduciendo su
+ * MetaApiError de vuelta al shape legacy { data, error, paging } que los helpers
+ * de este archivo ya ramifican. NO lanza por errores de Graph: el code real
+ * viaja en .error.code, así que isTokenExpiredError y los chequeos de code
+ * 100/3001 siguen idénticos (el set de token-expiry NO incluye 467 → conducta
+ * preservada). Solo se invoca cuando el grupo está habilitado en META_CLIENT_NEW.
+ * Acepta tanto un path relativo (`/{id}/insights` + params) como una URL
+ * absoluta de paginación (paging.next, con el token ya embebido).
+ */
+async function metaClientGet(
+  path: string,
+  params: Record<string, string | number>,
+  token: string,
+  opts: MetaClientOpts = {},
+): Promise<any> {
+  try {
+    return await metaFetch<any>(path, {
+      token,
+      params,
+      maxRetries: opts.maxRetries ?? 2,
+      timeoutMs: opts.timeoutMs ?? 20000,
+    });
+  } catch (e) {
+    // Error de CUERPO de Graph (Meta devolvió { error:{code,...} }, incl. rate_limit
+    // 4/17/32 y auth 190) → traducir al shape legacy { error } para que la lógica del
+    // call site (if data.error...) lo maneje idéntico a antes: break / null / fallback
+    // / throw según el site. e.raw presente ≡ el legacy tenía data.error seteado.
+    if (e instanceof MetaApiError && e.raw) {
+      return { error: { code: e.code, type: e.raw.type, message: e.message } };
+    }
+    // Transitorio SIN cuerpo (red / timeout / 5xx no-JSON) tras agotar reintentos:
+    // re-lanzar, igual que el fetch crudo legacy (que propagaba la excepción o fallaba
+    // el JSON.parse). Preserva la frontera abort/propagate de cada site y la visibilidad
+    // en result.errors. Resuelve de raíz M1-M4 del review adversarial; el único cambio
+    // neto vs legacy queda siendo el retry/backoff (mejora pura: reintenta antes de
+    // rendirse, y si se rinde, propaga idéntico al legacy).
+    throw e;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ENTRY POINT
@@ -318,9 +397,11 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
 
   try {
     // 1) Fetch latest 12 media from IG + existing metrics timestamps in parallel
-    const fields = "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed";
-    const [igRes, existingRes] = await Promise.all([
-      fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=${fields}&limit=${QUICK_LIMIT}&access_token=${accessToken}`),
+    const fields = MEDIA_FIELDS;
+    const [igData, existingRes] = await Promise.all([
+      useMetaClient("media")
+        ? metaClientGet(`/${igAccountId}/media`, { fields, limit: QUICK_LIMIT }, accessToken, { maxRetries: 1 })
+        : fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=${fields}&limit=${QUICK_LIMIT}&access_token=${accessToken}`).then((r) => r.json()),
       supabase
         .from("reels")
         .select("ig_media_id, reel_metrics(fetched_at)")
@@ -329,7 +410,6 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
         .limit(QUICK_LIMIT),
     ]);
 
-    const igData = await igRes.json();
     if (igData.error) throw new Error(`IG API: ${igData.error.message}`);
     const allMedia: IGMedia[] = igData.data || [];
     const media = allMedia.filter((m) => m.media_product_type === "REELS" || m.media_type === "IMAGE" || m.media_type === "CAROUSEL_ALBUM");
@@ -355,8 +435,9 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
     if (carouselsNoThumb.length > 0) {
       const childFetches = carouselsNoThumb.slice(0, 20).map(async (m) => {
         try {
-          const res = await fetch(`${GRAPH_BASE}/${m.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=1&access_token=${accessToken}`);
-          const data = await res.json();
+          const data = useMetaClient("children")
+            ? await metaClientGet(`/${m.id}/children`, { fields: MEDIA_CHILDREN_FIELDS, limit: 1 }, accessToken, { maxRetries: 0 })
+            : await (await fetch(`${GRAPH_BASE}/${m.id}/children?fields=${MEDIA_CHILDREN_FIELDS}&limit=1&access_token=${accessToken}`)).json();
           const firstChild = data?.data?.[0];
           if (firstChild) {
             const thumbUrl = firstChild.thumbnail_url || firstChild.media_url || null;
@@ -455,8 +536,9 @@ async function handleQuickSync(supabase: any, workspaceId: string, igAccountId: 
 async function handleCheckNewMedia(supabase: any, workspaceId: string, igAccountId: string, accessToken: string): Promise<Response> {
   try {
     // Fetch only latest 5 media IDs from IG (minimal fields, fast)
-    const res = await fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=id,timestamp&limit=5&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igAccountId}/media`, { fields: MEDIA_PROBE_FIELDS, limit: 5 }, accessToken, { maxRetries: 1 })
+      : await (await fetch(`${GRAPH_BASE}/${igAccountId}/media?fields=${MEDIA_PROBE_FIELDS}&limit=5&access_token=${accessToken}`)).json();
     if (data.error) throw new Error(`IG API: ${data.error.message}`);
     const latestIds: string[] = (data.data || []).map((m: { id: string }) => m.id);
 
@@ -558,8 +640,9 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
         carouselThumbFetches += carouselsNoThumb.length;
         await Promise.all(carouselsNoThumb.map(async (m) => {
           try {
-            const res = await fetch(`${GRAPH_BASE}/${m.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=1&access_token=${accessToken}`);
-            const data = await res.json();
+            const data = useMetaClient("children")
+              ? await metaClientGet(`/${m.id}/children`, { fields: MEDIA_CHILDREN_FIELDS, limit: 1 }, accessToken, { maxRetries: 0 })
+              : await (await fetch(`${GRAPH_BASE}/${m.id}/children?fields=${MEDIA_CHILDREN_FIELDS}&limit=1&access_token=${accessToken}`)).json();
             const firstChild = data?.data?.[0];
             const thumbUrl = firstChild ? (firstChild.thumbnail_url || firstChild.media_url || null) : null;
             if (thumbUrl) m.thumbnail_url = thumbUrl; // muta el objeto (misma ref que en allMedia)
@@ -1201,10 +1284,9 @@ async function syncCarouselChildren(
         const reelId = reelIdMap.get(carousel.id);
         if (!reelId) return;
 
-        const res = await fetch(
-          `${GRAPH_BASE}/${carousel.id}/children?fields=id,media_type,media_url,thumbnail_url&limit=50&access_token=${accessToken}`
-        );
-        const data = await res.json();
+        const data = useMetaClient("children")
+          ? await metaClientGet(`/${carousel.id}/children`, { fields: MEDIA_CHILDREN_FIELDS, limit: 50 }, accessToken, { maxRetries: 0 })
+          : await (await fetch(`${GRAPH_BASE}/${carousel.id}/children?fields=${MEDIA_CHILDREN_FIELDS}&limit=50&access_token=${accessToken}`)).json();
         if (data.error || !data.data?.length) return;
 
         const slides = (data.data as Array<{ id: string; media_type?: string; media_url?: string; thumbnail_url?: string }>)
@@ -1238,9 +1320,9 @@ async function syncStories(supabase: any, workspaceId: string, syncJobId: string
     await supabase.from("sync_jobs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", syncJobId);
 
     // Fetch active stories (last 24h — only available while live)
-    const storiesUrl = `${GRAPH_BASE}/${igAccountId}/stories?fields=id,media_type,media_url,thumbnail_url,caption,timestamp&access_token=${accessToken}`;
-    const storiesRes = await fetch(storiesUrl);
-    const storiesData = await storiesRes.json();
+    const storiesData = useMetaClient("stories")
+      ? await metaClientGet(`/${igAccountId}/stories`, { fields: STORIES_FIELDS }, accessToken, { maxRetries: 1 })
+      : await (await fetch(`${GRAPH_BASE}/${igAccountId}/stories?fields=${STORIES_FIELDS}&access_token=${accessToken}`)).json();
 
     if (storiesData.error) {
       result.errors.push(`Stories fetch: ${storiesData.error.message}`);
@@ -1275,9 +1357,9 @@ async function syncStories(supabase: any, workspaceId: string, syncJobId: string
 
       for (const slide of slides) {
         try {
-          const insightsUrl = `${GRAPH_BASE}/${slide.id}/insights?metric=views,reach,replies,navigation&access_token=${accessToken}`;
-          const insightsRes = await fetch(insightsUrl);
-          const insightsData = await insightsRes.json();
+          const insightsData = useMetaClient("stories")
+            ? await metaClientGet(`/${slide.id}/insights`, { metric: STORY_INSIGHT_METRICS }, accessToken, { maxRetries: 0 })
+            : await (await fetch(`${GRAPH_BASE}/${slide.id}/insights?metric=${STORY_INSIGHT_METRICS}&access_token=${accessToken}`)).json();
 
           const metrics: Record<string, number> = {};
           for (const insight of insightsData.data ?? []) {
@@ -1762,8 +1844,33 @@ async function fetchAllMedia(
   accessToken: string,
   onPage?: (page: IGMedia[]) => Promise<boolean | void>,
 ): Promise<IGMedia[]> {
-  const fields = "id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp,is_shared_to_feed";
+  const fields = MEDIA_FIELDS;
   const allMedia: IGMedia[] = [];
+
+  if (useMetaClient("media")) {
+    // Loop manual por página (metaFetchPaged NO sirve: perdería el streaming
+    // por-página y el early-stop). Política de error idéntica al legacy: CUALQUIER
+    // error de página → throw (aborta el sync de reels). maxRetries:1 agrega solo
+    // resiliencia ante un transitorio, sin cambiar el resultado final.
+    let path: string | null = `/${igAccountId}/media`;
+    let params: Record<string, string | number> = { fields, limit: 50 };
+    while (path) {
+      const data = await metaClientGet(path, params, accessToken, { maxRetries: 1 });
+      if (data.error) throw new Error(`IG API error: ${data.error.message}`);
+      const page: IGMedia[] = data.data || [];
+      if (page.length > 0) {
+        allMedia.push(...page);
+        if (onPage) {
+          const keepGoing = await onPage(page);
+          if (keepGoing === false) break;
+        }
+      }
+      path = data.paging?.next || null;
+      params = {};
+    }
+    return allMedia;
+  }
+
   let url: string | null = `${GRAPH_BASE}/${igAccountId}/media?fields=${fields}&limit=50&access_token=${accessToken}`;
 
   while (url) {
@@ -1788,10 +1895,11 @@ async function fetchAllMedia(
 }
 
 async function fetchReelInsights(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
-  const metrics = "views,reach,likes,comments,shares,saved,total_interactions,ig_reels_avg_watch_time,ig_reels_video_view_total_time";
+  const metrics = REEL_INSIGHT_METRICS;
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igMediaId}/insights`, { metric: metrics }, accessToken, { maxRetries: 0 })
+      : await (await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`)).json();
     if (data.error) {
       if (data.error.code === 100 || data.error.code === 3001) return await fetchReelInsightsFallback(igMediaId, accessToken);
       return null;
@@ -1803,10 +1911,11 @@ async function fetchReelInsights(igMediaId: string, accessToken: string): Promis
 }
 
 async function fetchReelInsightsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
-  const metrics = "views,reach,likes,comments,shares,saved,ig_reels_avg_watch_time";
+  const metrics = REEL_INSIGHT_METRICS_FALLBACK;
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igMediaId}/insights`, { metric: metrics }, accessToken, { maxRetries: 0 })
+      : await (await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`)).json();
     if (data.error) return null;
     const result: Record<string, number> = {};
     for (const insight of data.data || []) result[insight.name] = insight.values?.[0]?.value ?? 0;
@@ -1815,10 +1924,11 @@ async function fetchReelInsightsFallback(igMediaId: string, accessToken: string)
 }
 
 async function fetchPostInsights(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
-  const metrics = "impressions,reach,likes,comments,shares,saved,total_interactions";
+  const metrics = POST_INSIGHT_METRICS;
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igMediaId}/insights`, { metric: metrics }, accessToken, { maxRetries: 0 })
+      : await (await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`)).json();
     if (data.error) {
       console.warn(`[sync] Post insights error for ${igMediaId} (code=${data.error.code}):`, data.error.message);
       return await fetchPostInsightsFallback(igMediaId, accessToken);
@@ -1832,10 +1942,11 @@ async function fetchPostInsights(igMediaId: string, accessToken: string): Promis
 
 async function fetchPostInsightsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
   // Try reduced insights (without shares/total_interactions which carousels don't support)
-  const metrics = "impressions,reach,likes,comments,saved";
+  const metrics = POST_INSIGHT_METRICS_FALLBACK;
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igMediaId}/insights`, { metric: metrics }, accessToken, { maxRetries: 0 })
+      : await (await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${accessToken}`)).json();
     if (!data.error && data.data && data.data.length > 0) {
       const result: Record<string, number> = {};
       for (const insight of data.data || []) result[insight.name] = insight.values?.[0]?.value ?? 0;
@@ -1851,8 +1962,9 @@ async function fetchPostInsightsFallback(igMediaId: string, accessToken: string)
 
   // Try to fetch saved metric individually via /insights
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=saved&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igMediaId}/insights`, { metric: POST_SAVED_ONLY_METRIC }, accessToken, { maxRetries: 0 })
+      : await (await fetch(`${GRAPH_BASE}/${igMediaId}/insights?metric=${POST_SAVED_ONLY_METRIC}&access_token=${accessToken}`)).json();
     if (!data.error && data.data && data.data.length > 0) {
       const savedInsight = data.data.find((i: { name: string }) => i.name === 'saved');
       if (savedInsight) {
@@ -1871,8 +1983,9 @@ async function fetchPostInsightsFallback(igMediaId: string, accessToken: string)
 
 async function fetchMediaFieldsFallback(igMediaId: string, accessToken: string): Promise<Record<string, number> | null> {
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igMediaId}?fields=like_count,comments_count&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("media")
+      ? await metaClientGet(`/${igMediaId}`, { fields: MEDIA_BASIC_COUNTS_FIELDS }, accessToken, { maxRetries: 0 })
+      : await (await fetch(`${GRAPH_BASE}/${igMediaId}?fields=${MEDIA_BASIC_COUNTS_FIELDS}&access_token=${accessToken}`)).json();
     if (data.error) {
       console.error(`[sync] Media fields fallback error for ${igMediaId}:`, data.error);
       return null;
@@ -1895,9 +2008,23 @@ function classifyReelType(media: IGMedia): string {
 // ── Ads fetch helpers ──
 
 async function fetchAdsWithCreative(adAccountId: string, accessToken: string): Promise<AdRecord[]> {
-  const fields = "id,name,campaign_id,adset_id,creative{id,object_story_id,effective_instagram_media_id,source_instagram_media_id,effective_object_story_id,instagram_permalink_url}";
+  const fields = AD_CREATIVE_FIELDS;
   const effectiveStatuses = JSON.stringify(["ACTIVE", "PAUSED", "PENDING_REVIEW", "DISAPPROVED", "PREAPPROVED", "PENDING_BILLING_INFO", "CAMPAIGN_PAUSED", "ADSET_PAUSED", "ARCHIVED", "IN_PROCESS", "WITH_ISSUES"]);
   const allAds: AdRecord[] = [];
+  if (useMetaClient("ads")) {
+    // Política de error idéntica al legacy: error de página → break (devolver
+    // lo acumulado, NO perder 1..N-1). Por eso loop manual y no metaFetchPaged.
+    let path: string | null = `/${adAccountId}/ads`;
+    let params: Record<string, string | number> = { fields, effective_status: effectiveStatuses, limit: 100 };
+    while (path) {
+      const json = await metaClientGet(path, params, accessToken, { maxRetries: 1 });
+      if (json.error) break;
+      if (json.data) allAds.push(...json.data);
+      path = json.paging?.next || null;
+      params = {};
+    }
+    return allAds;
+  }
   let url: string | null = `${GRAPH_BASE}/${adAccountId}/ads?fields=${encodeURIComponent(fields)}&effective_status=${encodeURIComponent(effectiveStatuses)}&limit=100&access_token=${accessToken}`;
   while (url) {
     const res = await fetch(url);
@@ -1910,9 +2037,10 @@ async function fetchAdsWithCreative(adAccountId: string, accessToken: string): P
 }
 
 async function fetchAdByIdWithCreative(adId: string, accessToken: string): Promise<AdRecord | null> {
-  const fields = "id,name,campaign_id,adset_id,creative{id,object_story_id,effective_instagram_media_id,source_instagram_media_id,effective_object_story_id,instagram_permalink_url}";
-  const res = await fetch(`${GRAPH_BASE}/${adId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`);
-  const json = await res.json();
+  const fields = AD_CREATIVE_FIELDS;
+  const json = useMetaClient("ads")
+    ? await metaClientGet(`/${adId}`, { fields }, accessToken, { maxRetries: 1 })
+    : await (await fetch(`${GRAPH_BASE}/${adId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`)).json();
   if (json.error || !json.id) return null;
   return { id: json.id, name: json.name, campaign_id: json.campaign_id, adset_id: json.adset_id, creative: json.creative };
 }
@@ -1920,8 +2048,20 @@ async function fetchAdByIdWithCreative(adId: string, accessToken: string): Promi
 async function fetchInsightsByAd(adAccountId: string, accessToken: string, days = 90): Promise<Map<string, InsightRow>> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const until = new Date().toISOString().split("T")[0];
-  const fields = "ad_id,impressions,reach,clicks,spend,ctr,cpc,cpp,frequency,inline_link_clicks,outbound_clicks,video_play_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions";
+  const fields = AD_INSIGHT_FIELDS;
   const map = new Map<string, InsightRow>();
+  if (useMetaClient("ads")) {
+    let path: string | null = `/${adAccountId}/insights`;
+    let params: Record<string, string | number> = { level: "ad", time_range: `{"since":"${since}","until":"${until}"}`, fields, limit: 200 };
+    while (path) {
+      const json = await metaClientGet(path, params, accessToken, { maxRetries: 1 });
+      if (json.error) break;
+      for (const row of json.data || []) map.set(row.ad_id, row);
+      path = json.paging?.next || null;
+      params = {};
+    }
+    return map;
+  }
   let url: string | null = `${GRAPH_BASE}/${adAccountId}/insights?level=ad&time_range={"since":"${since}","until":"${until}"}&fields=${fields}&limit=200&access_token=${accessToken}`;
   while (url) {
     const res = await fetch(url);
@@ -1937,8 +2077,20 @@ async function fetchInsightsByAd(adAccountId: string, accessToken: string, days 
 async function fetchDailyInsightsByAd(adAccountId: string, accessToken: string, days = 90): Promise<InsightRow[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const until = new Date().toISOString().split("T")[0];
-  const fields = "ad_id,date_start,date_stop,impressions,reach,clicks,spend,inline_link_clicks,outbound_clicks,video_play_actions,actions";
+  const fields = AD_DAILY_FIELDS;
   const rows: InsightRow[] = [];
+  if (useMetaClient("ads")) {
+    let path: string | null = `/${adAccountId}/insights`;
+    let params: Record<string, string | number> = { level: "ad", time_increment: 1, time_range: `{"since":"${since}","until":"${until}"}`, fields, limit: 500 };
+    while (path) {
+      const json = await metaClientGet(path, params, accessToken, { maxRetries: 1 });
+      if (json.error) break;
+      for (const row of json.data || []) rows.push(row);
+      path = json.paging?.next || null;
+      params = {};
+    }
+    return rows;
+  }
   let url: string | null = `${GRAPH_BASE}/${adAccountId}/insights?level=ad&time_increment=1&time_range={"since":"${since}","until":"${until}"}&fields=${fields}&limit=500&access_token=${accessToken}`;
   while (url) {
     const res = await fetch(url);
@@ -2005,8 +2157,9 @@ function isTokenExpiredError(graphError: any): boolean {
 
 async function fetchProfileFields(igAccountId: string, accessToken: string): Promise<{ followers_count: number; follows_count: number; media_count: number; tokenExpired?: boolean } | null> {
   try {
-    const res = await fetch(`${GRAPH_BASE}/${igAccountId}?fields=followers_count,follows_count,media_count&access_token=${accessToken}`);
-    const data = await res.json();
+    const data = useMetaClient("account")
+      ? await metaClientGet(`/${igAccountId}`, { fields: PROFILE_FIELDS }, accessToken, { maxRetries: 1, timeoutMs: 10000 })
+      : await (await fetch(`${GRAPH_BASE}/${igAccountId}?fields=${PROFILE_FIELDS}&access_token=${accessToken}`)).json();
     if (data.error) {
       if (isTokenExpiredError(data.error)) return { followers_count: 0, follows_count: 0, media_count: 0, tokenExpired: true };
       return null;
@@ -2016,15 +2169,15 @@ async function fetchProfileFields(igAccountId: string, accessToken: string): Pro
 }
 
 async function fetchDailyInsights(igAccountId: string, accessToken: string, since: number, until: number): Promise<{ insights: IGInsight[]; errors: string[] }> {
-  const metrics = "views,reach,profile_views,accounts_engaged,total_interactions,likes,comments,shares,saves,replies,website_clicks,profile_links_taps";
+  const metrics = ACCOUNT_DAILY_METRICS;
   const allInsights: IGInsight[] = [];
   const errors: string[] = [];
   const dayRanges = buildDayRanges(since, until);
   for (const day of dayRanges) {
     try {
-      const url = `${GRAPH_BASE}/${igAccountId}/insights?metric=${metrics}&metric_type=total_value&period=day&since=${day.since}&until=${day.until}&access_token=${accessToken}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const data = useMetaClient("account")
+        ? await metaClientGet(`/${igAccountId}/insights`, { metric: metrics, metric_type: "total_value", period: "day", since: day.since, until: day.until }, accessToken, { maxRetries: 0, timeoutMs: 8000 })
+        : await (await fetch(`${GRAPH_BASE}/${igAccountId}/insights?metric=${metrics}&metric_type=total_value&period=day&since=${day.since}&until=${day.until}&access_token=${accessToken}`)).json();
       if (data.error) { errors.push(`Daily ${day.date}: ${data.error.message}`); continue; }
       for (const insight of data.data || []) {
         allInsights.push({ name: insight.name, period: insight.period, values: normalizeInsightValues(insight, day.date) });
@@ -2040,10 +2193,10 @@ async function fetchDailyInsights(igAccountId: string, accessToken: string, sinc
 async function fetchFollowerCountInsights(igAccountId: string, accessToken: string, since: number, until: number): Promise<{ insights: IGInsight[]; errors: string[] }> {
   const errors: string[] = [];
   try {
-    const url = `${GRAPH_BASE}/${igAccountId}/insights?metric=follower_count&period=day&since=${since}&until=${until}&access_token=${accessToken}`;
     console.log(`[follower_count] Fetching: since=${new Date(since * 1000).toISOString()} until=${new Date(until * 1000).toISOString()}`);
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = useMetaClient("account")
+      ? await metaClientGet(`/${igAccountId}/insights`, { metric: FOLLOWER_COUNT_METRIC, period: "day", since, until }, accessToken, { maxRetries: 1, timeoutMs: 10000 })
+      : await (await fetch(`${GRAPH_BASE}/${igAccountId}/insights?metric=${FOLLOWER_COUNT_METRIC}&period=day&since=${since}&until=${until}&access_token=${accessToken}`)).json();
     if (data.error) { errors.push(`Follower count: ${data.error.message}`); return { insights: [], errors }; }
     // Debug: log what Meta returns
     const rawValues = data.data?.[0]?.values || [];
@@ -2073,9 +2226,9 @@ async function fetchDemographics(igAccountId: string, accessToken: string): Prom
 
 async function fetchDemographicBreakdown(igAccountId: string, accessToken: string, breakdown: string): Promise<Record<string, number>> {
   try {
-    const url = `${GRAPH_BASE}/${igAccountId}/insights?metric=follower_demographics&breakdown=${breakdown}&metric_type=total_value&period=lifetime&access_token=${accessToken}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = useMetaClient("account")
+      ? await metaClientGet(`/${igAccountId}/insights`, { metric: DEMOGRAPHICS_METRIC, breakdown, metric_type: "total_value", period: "lifetime" }, accessToken, { maxRetries: 0, timeoutMs: 8000 })
+      : await (await fetch(`${GRAPH_BASE}/${igAccountId}/insights?metric=${DEMOGRAPHICS_METRIC}&breakdown=${breakdown}&metric_type=total_value&period=lifetime&access_token=${accessToken}`)).json();
     if (data.error) return {};
     const result: Record<string, number> = {};
     for (const insight of data.data || []) {
