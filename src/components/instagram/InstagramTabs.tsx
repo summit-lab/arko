@@ -2,21 +2,23 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked } from "lucide-react";
 
 export type TabKey = "dashboard" | "reels" | "historias" | "publicaciones" | "competencia" | "referencias" | "metrics";
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "dashboard",    label: "Dashboard",    icon: LayoutDashboard },
-  { key: "reels",        label: "Reels",        icon: Clapperboard },
-  { key: "historias",    label: "Historias",    icon: BookImage },
-  { key: "publicaciones",label: "Publicaciones",icon: Grid2X2 },
-  { key: "competencia",  label: "Competencia",  icon: Swords },
-  { key: "referencias",  label: "Referencias",  icon: BookMarked },
-  { key: "metrics",      label: "Demografía",   icon: BarChart3 },
+const TABS: { key: TabKey; labelKey: string; icon: React.ElementType }[] = [
+  { key: "dashboard",    labelKey: "dashboard",    icon: LayoutDashboard },
+  { key: "reels",        labelKey: "reels",        icon: Clapperboard },
+  { key: "historias",    labelKey: "stories",      icon: BookImage },
+  { key: "publicaciones",labelKey: "publications", icon: Grid2X2 },
+  { key: "competencia",  labelKey: "competition",  icon: Swords },
+  { key: "referencias",  labelKey: "references",   icon: BookMarked },
+  { key: "metrics",      labelKey: "demographics", icon: BarChart3 },
 ];
 
 export function InstagramTabs() {
+  const t = useTranslations("igShell");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -50,7 +52,7 @@ export function InstagramTabs() {
               size={14}
               strokeWidth={active ? 2.2 : 1.6}
             />
-            {tab.label}
+            {t(`tabs.${tab.labelKey}`)}
           </button>
         );
       })}

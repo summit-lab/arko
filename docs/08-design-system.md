@@ -109,7 +109,23 @@ rounded-xl
 - **Celdas:** `text-[13px]` — datos en `font-light text-white`, labels en `text-white/70 font-light`.
 - **Hover fila:** `hover:bg-white/[0.03]`.
 
-## 9. Neon Line Glows
+## 9. Z-index stack
+
+Un **único** stack de z-index para toda la app. Cualquier overlay fullscreen (modal, drawer) **DEBE** estar en z-[80] o mayor para quedar arriba del header sticky. Igualar z-50 al header no alcanza: el header tiene `backdrop-blur-xl` que crea stacking context propio y gana por DOM order.
+
+| Capa | z-index | Ejemplos |
+|------|---------|----------|
+| Contenido normal | `auto` / 0-20 | cards, dropdowns locales, tooltips dentro de containers |
+| Sidebar fijo | `z-40` | `src/components/layout/Sidebar.tsx` |
+| Header sticky | `z-50` | `src/components/layout/Header.tsx` |
+| Layout dividers | `z-[60]` | bordes del dashboard shell (pointer-events-none) |
+| Modal / drawer backdrop | `z-[70]` | overlay semi-transparente con blur |
+| Modal / drawer content | `z-[80]` | panel del chat de reel, modales de venta/pago, etc. |
+| Alert críticos (onboarding forzado) | `z-[100]` | `AdnCompetitorModal` |
+
+**Regla:** nunca uses `z-50` en un `fixed inset-0` — va a quedar tapado por el header. Usa `z-[80]` siempre para modales fullscreen.
+
+## 10. Neon Line Glows
 
 Para gráficos y pies, aplicar al contenedor wrapper:
 

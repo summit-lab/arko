@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Eye, Heart, Bookmark, MessageCircle, Play, ChevronLeft, ChevronRight } from "lucide-react";
 
 export type CalendarItemType = "reel" | "post" | "historia";
@@ -24,12 +25,6 @@ interface ContentCalendarProps {
   items: CalendarItem[];
 }
 
-const DAYS = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
-const MONTHS = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
-
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -40,16 +35,21 @@ type ContentFilter = "all" | "reels" | "posts" | "historias";
 
 function itemHref(item: CalendarItem): string {
   if (item.type === "historia") {
-    // Stories viewer lives inside the Instagram dashboard with a tab/section.
-    // If there's no dedicated route, fall back to the IG dashboard root.
-    return `/instagram?story=${item.id}`;
+    // Stories live inside the IG dashboard's "historias" tab. Pass both
+    // tab= (so InstagramShell opens that tab) and story= (so StoriesGrid
+    // auto-selects the specific sequence).
+    return `/instagram?tab=historias&story=${item.id}`;
   }
-  // Reels + posts both use the unified detail route.
+  // Reels + posts both use the unified detail route (/instagram/[id]
+  // dispatches to the post or reel view based on media_type).
   return `/instagram/${item.id}`;
 }
 
 export function ContentCalendar({ items }: ContentCalendarProps) {
   const router = useRouter();
+  const t = useTranslations("contentCalendar");
+  const DAYS = t.raw("daysShort") as string[];
+  const MONTHS = t.raw("months") as string[];
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -124,10 +124,10 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
   };
 
   const FILTERS: { key: ContentFilter; label: string; dot?: string; count?: number }[] = [
-    { key: "all", label: "Todo" },
-    { key: "reels", label: "Reels", dot: "bg-emerald-400", count: typeCounts.reels },
-    { key: "posts", label: "Posts", dot: "bg-violet-400", count: typeCounts.posts },
-    { key: "historias", label: "Historias", dot: "bg-cyan-400", count: typeCounts.historias },
+    { key: "all", label: t("filters.all") },
+    { key: "reels", label: t("filters.reels"), dot: "bg-emerald-400", count: typeCounts.reels },
+    { key: "posts", label: t("filters.posts"), dot: "bg-violet-400", count: typeCounts.posts },
+    { key: "historias", label: t("filters.historias"), dot: "bg-cyan-400", count: typeCounts.historias },
   ];
 
   function handleCellClick(day: number, items: CalendarItem[]) {
@@ -146,9 +146,9 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h3 className="text-[15px] font-light text-white tracking-wide">Calendario de Contenido</h3>
+          <h3 className="text-[15px] font-light text-white tracking-wide">{t("title")}</h3>
           <p className="text-[11px] text-white/25 mt-0.5 font-light">
-            {totalThisMonth} publicación{totalThisMonth !== 1 ? "es" : ""} en {MONTHS[viewMonth]}
+            {t(totalThisMonth === 1 ? "subtitleSingular" : "subtitlePlural", { count: totalThisMonth, month: MONTHS[viewMonth] })}
           </p>
         </div>
 
@@ -165,7 +165,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
                   setSelectedDay(null);
                 }}
                 disabled={disabled}
-                title={disabled ? "No hay contenido de este tipo en los últimos 90 días" : undefined}
+                title={disabled ? t("filterDisabled") : undefined}
                 aria-disabled={disabled}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
                   disabled
@@ -264,7 +264,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
                     )}
                   </div>
                   <p className="text-[10px] text-white/55 font-light leading-snug line-clamp-3 break-words flex-1">
-                    {best.caption?.slice(0, 55) || (best.type === "historia" ? "Historia" : "Sin título")}
+                    {best.caption?.slice(0, 55) || (best.type === "historia" ? t("story") : t("noTitle"))}
                   </p>
                   <div className="flex items-center gap-2 mt-auto pt-1.5 border-t border-white/[0.06]">
                     <span className="flex items-center gap-0.5 text-[9px] text-white/40">
@@ -295,7 +295,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
       {selectedDay && selectedItems.length > 1 && (
         <div className="mt-4 rounded-xl p-4 space-y-3 bg-white/[0.03] border border-white/[0.07]">
           <p className="text-[11px] text-white/40 font-medium uppercase tracking-[0.1em]">
-            {selectedDay} de {MONTHS[viewMonth]} {viewYear} — {selectedItems.length} publicaciones
+            {t("publicationsOn", { day: selectedDay, month: MONTHS[viewMonth], year: viewYear, count: selectedItems.length })}
           </p>
           <div className="space-y-2">
             {selectedItems.map((item) => (
@@ -309,11 +309,11 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-light text-white/70 group-hover:text-white transition-colors truncate">
-                    {item.caption?.slice(0, 80) || (item.type === "historia" ? "Historia" : "Sin título")}
+                    {item.caption?.slice(0, 80) || (item.type === "historia" ? t("story") : t("noTitle"))}
                   </p>
                   <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                     <span className="flex items-center gap-1 text-[10px] text-white/40">
-                      <Eye className="h-3 w-3" /> {fmt(item.views_total)} vistas
+                      <Eye className="h-3 w-3" /> {fmt(item.views_total)} {t("views")}
                     </span>
                     {item.likes > 0 && (
                       <span className="flex items-center gap-1 text-[10px] text-white/40">
@@ -339,7 +339,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
                         ? "text-blue-400/70 bg-blue-400/10"
                         : "text-emerald-400/70 bg-emerald-400/10"
                     }`}>
-                      {item.type === "historia" ? "Historia" : item.type === "post" ? "Post" : item.has_ads ? "Reel con ads" : "Reel orgánico"}
+                      {item.type === "historia" ? t("type.story") : item.type === "post" ? t("type.post") : item.has_ads ? t("type.adsReel") : t("type.organicReel")}
                     </span>
                   </div>
                 </div>
@@ -354,22 +354,24 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
       <div className="flex items-center gap-5 mt-5 pt-4 border-t border-white/[0.06] flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-emerald-400 opacity-80" />
-          <span className="text-[10px] text-white/25 font-light">Reel orgánico</span>
+          <span className="text-[10px] text-white/25 font-light">{t("legend.organicReel")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-blue-400 opacity-80" />
-          <span className="text-[10px] text-white/25 font-light">Reel con ads</span>
+          <span className="text-[10px] text-white/25 font-light">{t("legend.adsReel")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-violet-400 opacity-80" />
-          <span className="text-[10px] text-white/25 font-light">Post/Carrusel</span>
+          <span className="text-[10px] text-white/25 font-light">{t("legend.post")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-cyan-400 opacity-80" />
-          <span className="text-[10px] text-white/25 font-light">Historia</span>
+          <span className="text-[10px] text-white/25 font-light">{t("legend.story")}</span>
         </div>
         <div className="ml-auto">
-          <span className="text-[10px] text-white/15 font-light">{totalThisMonth} publicaciones en {MONTHS[viewMonth]}</span>
+          <span className="text-[10px] text-white/15 font-light">
+            {t(totalThisMonth === 1 ? "totalSingular" : "totalPlural", { count: totalThisMonth, month: MONTHS[viewMonth] })}
+          </span>
         </div>
       </div>
     </div>

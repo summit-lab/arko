@@ -40,6 +40,14 @@ Módulo que conecta con la cuenta de Instagram del usuario y analiza los Reels e
 - Comparar retención entre videos.
 - Detectar patrones: qué temas/formatos generan más alcance, más guardados, más ventas.
 
+### 3.1 Análisis de Competidores
+- **Fuente**: Apify actors `apify~instagram-profile-scraper` + `apify~instagram-reel-scraper`. Scrape diario vía pg_cron (4 AM UTC).
+- **Volumen**: **50 reels por competidor** por scrape (subido desde 20 en 2026-04-23). Tradeoff: ~2.5× más compute units de Apify por run.
+- **Campos persistidos** en `competitor_reels`: métricas (views/likes/comments/shares), caption, hashtags, mentions, `tagged_users` (colabs), `location_name`, `product_type`, duración, thumbnail + video_url (almacenados en bucket `competitor-assets`), transcript (on-demand), música.
+- **Análisis IA**: una llamada a Gemini 2.5 Flash analiza cada reel y persiste en `competitor_reel_analysis` (hook_text/type, narrative_structure, content_type, cta, topic_cluster, strengths, weaknesses, ai_summary).
+- **Follower tracking**: `competitor_follower_snapshots` guarda un snapshot diario (upsert por `snapshot_date`) para trending histórico.
+- **Detección de trials en competidores**: **no implementada**. Instagram no expone `is_shared_to_feed` en scraping público, así que la detección exacta requiere el token del dueño (solo disponible para la cuenta propia). La columna `competitor_reels.maybe_trial` está reservada para una heurística futura basada en scrape dual (reels tab vs grid) con match por `short_code` — daría ~70-80% de precisión pero duplicaría el costo Apify.
+
 ### 4. Atribución de Views Pagas
 - Cruza Meta Marketing API con los Reels de Instagram para calcular `views_paid` por pieza.
 - El mapeo Ad → Reel prioriza `source_instagram_media_id`, luego `effective_instagram_media_id`, luego `object_story_id`, y luego permalink del creative.
@@ -80,7 +88,11 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 - La duración del Reel (`duration_seconds`) se obtiene de Apify (`videoDuration`) porque Meta no la expone en el media object ni en insights.
 - **Impresiones conocidas:** si `impressions_org` no está disponible desde Meta, la ficha no debe mostrar `0` como si fuera dato real. Debe mostrar el total conocido (paid si existe) o `—` con nota aclaratoria de que Meta no expone impresiones orgánicas para todos los Reels.
 - Las visualizaciones de la ficha no deben usar barras ambiguas "relativas al mayor número" cuando no existe denominador de negocio; en esos casos se muestran valores absolutos, y las barras quedan reservadas para relaciones explícitas tipo `x de y`.
-- El benchmark 90d de la ficha excluye Reels con `reel_type = trial_likely` y calcula ratios contra `views_total` (`views_org + views_paid`) para comparar con la misma base que ve el usuario en pantalla.
+- El benchmark 90d se calcula **solo con `views_org`** (ads no entran ni al numerador ni al promedio). Se guardan 3 promedios en `reel_benchmarks.avg_views_by_type`: `normal` (excluye `trial_likely`), `trial` (solo trials), `all` (todos). La UI elige cuál usar según el filtro de tipo activo:
+  - Filtro `Reel` (default) → compara contra `avg_views_by_type.normal`
+  - Filtro `Trial reel` → compara contra `avg_views_by_type.trial` (evita que todos los trials caigan en ~0.2x al compararse contra normales)
+  - Filtro `Todos` → compara contra `avg_views_by_type.all`
+- Las métricas derivadas (`avg_engagement_rate`, `avg_retention_rate`, `avg_likes_per_view`, etc.) se siguen calculando únicamente con Reels `normal` (excluyendo trials) porque trials distorsionan esas ratios.
 - La ficha no debe recalcular ese benchmark en cada apertura: consume el snapshot más reciente persistido en `reel_benchmarks` para mantener tiempos de respuesta bajos.
 - `reel_benchmarks` se recalcula por `workspace` al finalizar cada sync de media (`/api/v1/sync/instagram` con `steps=all|media`), por lo que desde el **primer sync** ya debe existir un snapshot base de promedios de la cuenta para las fichas y vistas agregadas.
 - El benchmark es **propio de la cuenta/workspace**, no global de Arko: usa únicamente los Reels del usuario dentro de la ventana móvil de 90 días y se actualiza en background cada vez que el usuario vuelve a sincronizar.
@@ -189,3 +201,14 @@ El sync de Instagram se ejecuta en una **Supabase Edge Function** (`sync-instagr
 
 ## Ruta
  `/instagram` con tabs: `?tab=dashboard` (default) | `?tab=reels` | `?tab=posts` | `?tab=metrics` (demografía)
+
+## Seguidores: arquitectura de "total real diario" (en migración)
+
+**Problema:** Meta solo entrega el total de seguidores de HOY (`followers_count` del perfil) + deltas diarios de ~30 días (`follower_count` insight). El histórico de totales NO existe en la API. Por eso el sync **reconstruía** `followers_total` hacia atrás (resta encadenada de deltas anclada al total de hoy, `sync-instagram/index.ts:994-1065`). Esa reconstrucción es frágil: un delta anómalo (ej. una cuenta suspendida y reactivada hace que Meta reporte +6615 en un día) deforma toda la curva.
+
+**Arquitectura objetivo (estilo Metricool, ya probada en competidores):** guardar el total REAL del perfil como snapshot diario y calcular "nuevos por día" como resta `followers_total[hoy] − [ayer]`. Es exactamente lo que hace `competitor_follower_snapshots` (1 fila/día, total real, upsert idempotente por fecha) — ver `src/services/competitor-scraper.service.ts:523-533`.
+
+**Estado de la migración:**
+- ✅ **Fase 1-2 (lectura):** el gráfico de "nuevos por día" del dashboard usa `dailyNewFromTotals` (resta de totales reales, `src/lib/follower-metrics.ts`). La curva de total (IGMetrics) lee `followers_total` directo. El helper `follower-metrics.ts` sanea outliers como red de seguridad para el histórico viejo reconstruido y glitches en vivo.
+- ⬜ **Fase 3 (escritor, pendiente — toca edge Deno):** en `sync-instagram/index.ts`, eliminar el bloque de reconstrucción (`:994-1065`), quitar `ftPayload` del loop por-día (`:1069-1093`) y mantener solo el upsert del snapshot real de hoy (`:1095-1103`, que ya guarda `profileData.followers_count`). Resultado: cada día se captura el total real, una fila por día (`onConflict workspace_id,metric_date`, el cron de cada 6h pisa con el valor más reciente). El histórico viejo NO se puede des-reconstruir (límite de Meta) → queda como la mejor reconstrucción posible, cubierto por el saneo de lectura, y sale de la ventana visible a medida que se acumulan capturas reales. Requiere redeploy con `--no-verify-jwt`, Dev-first.
+- ⬜ **Fase 4 (opcional):** UPDATE quirúrgico de los días-valle ya persistidos (ej. ac331157 2026-05-27) solo si un cliente nota el escalón pese al saneo de lectura. DML acotado, sin DDL.

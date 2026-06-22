@@ -98,7 +98,7 @@ erDiagram
 **Views:**
 | View | Descripción |
 |------|-------------|
-| `reel_computed` | Views totales, ratios derivados, retention_ratio (PRD 6.2-6.3) |
+| `reel_computed` | Views totales, ratios derivados, retention_ratio (PRD 6.2-6.3). **`security_invoker = on`** — aplica la RLS del usuario que consulta (ver migración `20260602000000`). |
 
 ---
 
@@ -151,9 +151,14 @@ erDiagram
 | `reels_limit` | int | NO | 10 | Límite de reels por plan |
 | `is_active` | boolean | NO | true | — |
 | `onboarding_completed` | boolean | NO | `false` | ADN de Comunicación completado |
+| `trial_days` | smallint | SÍ | — | Duración del trial (30/60/90). Copiada de la invitación al registrarse. NULL = sin trial (ej. admin) |
+| `trial_started_at` | timestamptz | SÍ | — | Inicio del trial (= alta del usuario via invitación) |
+| `trial_ends_at` | timestamptz | SÍ | — | `trial_started_at + trial_days`. Fuente del conteo regresivo en `/admin/clients` |
 | `settings` | jsonb | NO | `'{}'` | Config extra |
 | `created_at` | timestamptz | NO | `now()` | — |
 | `updated_at` | timestamptz | NO | `now()` | — |
+
+**Índice:** `(trial_ends_at) WHERE trial_ends_at IS NOT NULL` (para futuras queries de vencimiento).
 
 ### meta_connections
 > OAuth tokens y assets de Meta (PRD 4.1-4.6).
@@ -247,11 +252,13 @@ erDiagram
 | `used_by` | uuid FK | SÍ | — | FK → auth.users(id), usuario que usó la invitación |
 | `used_at` | timestamptz | SÍ | — | Fecha de uso |
 | `expires_at` | timestamptz | NO | now() + 7 days | Expiración |
+| `default_language` | text | NO | `'es'` | Idioma preasignado al usuario (es/en) |
+| `trial_days` | smallint | NO | `30` | Trial gratis que recibe el usuario al registrarse (30/60/90) |
 | `created_at` | timestamptz | NO | now() | — |
 
 **Índices:** `token` (UNIQUE), `(email, status)`, `(status) WHERE status = 'pending'`
 **RLS:** Solo admins (role='admin' en profiles) pueden SELECT/INSERT/UPDATE.
-**Trigger:** `handle_new_user()` busca invitación pendiente por email y la marca como used.
+**Trigger:** `handle_new_user()` busca invitación pendiente por email, la marca como used y copia `trial_days` al workspace del nuevo usuario (estampando `trial_started_at`/`trial_ends_at`).
 
 ### workspace_profile
 > Business context for AI analysis. One per workspace.
@@ -303,6 +310,9 @@ erDiagram
 | `scraped_data` | jsonb | NO | '{}' | Datos scrapeados |
 | `last_scraped_at` | timestamptz | SÍ | — | Última fecha de scraping |
 | `created_at` | timestamptz | NO | now() | — |
+| `analysis_status` | text | NO | 'idle' | idle / analyzing — flag UI para spinner de scrape/analyze |
+| `analysis_started_at` | timestamptz | SÍ | — | Timestamp de inicio del scrape/analyze actual. Leído por watchdog pg_cron `competitor-analyzing-watchdog` para desbloquear rows stuck >10min. |
+| `scrape_progress` | jsonb | SÍ | — | Progreso en vivo del scrape/analyze (`{phase, message, current?, total?}`). Polleado por la UI cada 2s desde `GET /api/v1/competitors/[id]`. |
 
 **RLS:** via is_workspace_member(workspace_id)
 
@@ -377,6 +387,7 @@ erDiagram
 | 15 | `20260325000015_invitations_and_onboarding.sql` | 2026-03-25 | invitations (admin-only RLS), validate_invitation() RPC, updated handle_new_user() con invitation lookup, 6 tablas de onboarding (workspace_profile, workspace_strategies, workspace_competitors, workspace_market, workspace_references, workspace_brand). |
 | 16 | `20260325000016_fix_profiles_admin_rls_recursion.sql` | 2026-03-25 | `is_admin()` SECURITY DEFINER function, fix RLS recursion in profiles, updated invitations policies, workspace plan default → 'pro', admin can view all workspaces + meta_connections. |
 | 21 | `20260326000021_followers_total_column.sql` | 2026-03-26 | Agrega `followers_total` (bigint, default 0) a ig_account_insights. `follower_count` = delta diario de Meta, `followers_total` = snapshot acumulado del profile. |
+| — | `20260616120000_trial_plans.sql` | 2026-06-16 | Trial gratis 30/60/90: `invitations.trial_days`, `workspaces.trial_days/trial_started_at/trial_ends_at` (+ índice parcial), `handle_new_user()` copia el trial al workspace al registrarse. v1 solo visibilidad en `/admin/clients`. |
 
 ---
 
@@ -392,15 +403,16 @@ erDiagram
 ```
 
 ### handle_new_user()
-> Trigger on `auth.users` AFTER INSERT. Crea profile + workspace + workspace_member + procesa invitación automáticamente al registrarse.
+> Trigger on `auth.users` AFTER INSERT. Crea profile + workspace + workspace_member + procesa invitación automáticamente al registrarse. `SECURITY DEFINER` con `search_path='public, pg_temp'`.
 
 ```sql
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 -- 1) Crea profile (con role='admin' si es emendoza@ainnovateagency.com)
--- 2) Crea workspace default ("{nombre}'s Workspace")
--- 3) Crea workspace_member con role='owner'
--- 4) Busca invitación pendiente por email → marca como used (status='used', used_by, used_at)
+-- 2) Busca invitación pendiente por email → marca como used (status='used', used_by, used_at)
+-- 3) Crea workspace default ("{nombre}'s Workspace"); si la invitación traía trial_days,
+--    estampa trial_started_at=now() y trial_ends_at=now()+trial_days
+-- 4) Crea workspace_member con role='owner'
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 

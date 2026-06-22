@@ -4,10 +4,18 @@
  * Devuelve análisis visual, narrativo, tono de voz y transcripción en un único call.
  */
 
-import { getGeminiKey } from '@/lib/env';
+import { getGeminiKey, getOpenAIKey } from '@/lib/env';
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_MODELS_TIERED = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+] as const;
+
+const OPENAI_RESCUE_MODEL = 'gpt-4o';
+
+function geminiUrl(model: string): string {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -154,33 +162,147 @@ function extractJsonPayload(rawText: string): string {
   return unfenced.slice(start, end + 1).trim();
 }
 
+interface ParsedAnalysisResult {
+  analysis: GeminiVideoAnalysis;
+  /** True when the analysis is valid by schema and complete. */
+  ok: boolean;
+  /** Set when ok=false: human-readable reason the analysis is partial. */
+  reason?: string;
+}
+
 function parseAnalysisResponse(
   parts: Array<{ text?: string }> | undefined,
   finishReason: string | undefined,
-): GeminiVideoAnalysis {
+  usage: GeminiUsageMetadata | undefined,
+): ParsedAnalysisResult {
   const rawText = parts?.map((part) => part.text ?? '').join('').trim();
 
   if (!rawText) {
-    throw new Error('ArkoAI no devolvió contenido para este video.');
+    const reason = describeFinishReason(finishReason) ?? 'sin contenido devuelto';
+    console.warn('[gemini-video] empty response', { finishReason, usage });
+    return { analysis: buildSkeletonAnalysis('', reason), ok: false, reason };
   }
 
   const jsonPayload = extractJsonPayload(rawText);
 
+  let parsed: unknown;
+  let parseError: unknown = null;
   try {
-    const parsed = JSON.parse(jsonPayload) as unknown;
-
-    if (!isGeminiVideoAnalysis(parsed)) {
-      throw new Error('shape');
-    }
-
-    return parsed;
-  } catch {
-    if (finishReason === 'MAX_TOKENS') {
-      throw new Error('ArkoAI devolvió una respuesta incompleta. Reintentá el análisis.');
-    }
-
-    throw new Error(`ArkoAI devolvió una respuesta inválida. ${jsonPayload.slice(0, 200)}`);
+    parsed = JSON.parse(jsonPayload);
+  } catch (err) {
+    parseError = err;
   }
+
+  if (parsed !== undefined && isGeminiVideoAnalysis(parsed)) {
+    return { analysis: parsed, ok: true };
+  }
+
+  // Log diagnostics so we can tell truncation, safety blocks, and malformed JSON apart.
+  console.error('[gemini-video] invalid response — salvaging', {
+    finishReason,
+    usage,
+    parseError: parseError instanceof Error ? parseError.message : null,
+    rawLength: rawText.length,
+    payloadHead: jsonPayload.slice(0, 300),
+  });
+
+  const reason = describeFinishReason(finishReason)
+    ?? (parseError ? 'JSON malformado' : 'estructura incompleta');
+
+  return {
+    analysis: salvagePartialAnalysis(jsonPayload, parsed, reason),
+    ok: false,
+    reason,
+  };
+}
+
+function describeFinishReason(finishReason: string | undefined): string | null {
+  switch (finishReason) {
+    case 'MAX_TOKENS': return 'respuesta cortada por límite de tokens';
+    case 'SAFETY': return 'bloqueado por filtros de seguridad';
+    case 'RECITATION': return 'bloqueado por contenido protegido';
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'BLOCKLIST':
+    case 'OTHER': return `motivo: ${finishReason}`;
+    default: return null;
+  }
+}
+
+/**
+ * Builds a fully-valid skeleton analysis with neutral defaults so persistence
+ * and UI never break. Used as last resort when Gemini fails completely.
+ */
+function buildSkeletonAnalysis(transcript: string, reason: string): GeminiVideoAnalysis {
+  return {
+    transcript,
+    transcript_lines: [],
+    narrative: {
+      hook: '',
+      development_summary: '',
+      cta_text: null,
+      has_cta: false,
+      core_promise: '',
+      topic_cluster: '',
+    },
+    visual: {
+      format_type: '',
+      scene_type: '',
+      shot_type: '',
+      orientation: 'vertical',
+      people_count: 0,
+      face_visible: false,
+      text_on_screen: null,
+      background_context: '',
+      clothing_features: null,
+      first_frame_hook_context: '',
+    },
+    audio: {
+      tone: '',
+      energy_level: 'medio',
+      speaking_rate: 'normal',
+      formality: 'semiformal',
+      voice_type: '',
+      estimated_wpm: 0,
+      filler_words_detected: [],
+      notable_pauses: false,
+    },
+    insights: {
+      strengths: [],
+      improvements: [],
+      viral_potential: 'medio',
+      viral_potential_reason: `Análisis incompleto (${reason}). Reintentá para obtener un análisis completo.`,
+    },
+  };
+}
+
+/**
+ * Try to keep whatever fields the model did emit (typically the transcript)
+ * and fill the rest with skeleton defaults. Worst case the JSON is unparseable,
+ * in which case we regex out the transcript string and skeleton everything else.
+ */
+function salvagePartialAnalysis(
+  jsonPayload: string,
+  parsed: unknown,
+  reason: string,
+): GeminiVideoAnalysis {
+  // Parsed but wrong shape — keep whatever's well-typed, default the rest.
+  if (parsed !== undefined && parsed !== null && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>;
+    const skeleton = buildSkeletonAnalysis(
+      typeof obj.transcript === 'string' ? obj.transcript : '',
+      reason,
+    );
+    if (Array.isArray(obj.transcript_lines) && obj.transcript_lines.every(isTranscriptLine)) {
+      skeleton.transcript_lines = obj.transcript_lines;
+    }
+    return skeleton;
+  }
+
+  // Unparseable — extract a transcript string with regex if we can.
+  const m = jsonPayload.match(/"transcript"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const transcript = m?.[1]?.replace(/\\"/g, '"').replace(/\\n/g, '\n') ?? '';
+  return buildSkeletonAnalysis(transcript, reason);
 }
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
@@ -296,18 +418,85 @@ export function isGeminiEnabled(): boolean {
  *
  * Ref: https://ai.google.dev/api/files
  */
+// Total retry budget per call: ~6.5s. When Gemini is genuinely overloaded the
+// retries don't help (Google needs minutes to recover), so we'd rather fall
+// through to the next model tier quickly than burn 40s waiting on the same
+// failing model.
+const RETRY_DELAYS_MS = [1_500, 5_000];
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * Extracts a human-readable message from a Gemini error response. Avoids
+ * dumping raw JSON into user-visible fields like viral_potential_reason.
+ */
+function cleanGeminiError(rawText: string): string {
+  if (!rawText) return 'sin detalle';
+  try {
+    const parsed = JSON.parse(rawText) as { error?: { message?: string; status?: string } };
+    const message = parsed.error?.message;
+    if (message) {
+      // Trim long stack-like messages and keep them on one line.
+      return message.replace(/\s+/g, ' ').slice(0, 140);
+    }
+  } catch {
+    // not JSON — fall through
+  }
+  return rawText.replace(/\s+/g, ' ').slice(0, 140);
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit & { timeoutMs?: number },
+  label: string,
+): Promise<Response> {
+  const { timeoutMs = 60_000, ...rest } = init;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...rest,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (response.ok) return response;
+
+      if (RETRYABLE_STATUS.has(response.status) && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        console.warn(`[gemini-video] ${label} ${response.status} on attempt ${attempt + 1}, retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        const errText = await response.text().catch(() => '');
+        lastError = new Error(`${response.status}: ${errText.slice(0, 200)}`);
+        continue;
+      }
+
+      const errText = await response.text().catch(() => '');
+      throw new Error(`${label}: ${response.status} ${cleanGeminiError(errText)}`);
+    } catch (err) {
+      const transient = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+      if (transient && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        console.warn(`[gemini-video] ${label} ${err.name} on attempt ${attempt + 1}, retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError ?? new Error(`${label}: agotados los reintentos`);
+}
+
 async function uploadVideoToGeminiFiles(
   videoUrl: string,
   apiKey: string,
 ): Promise<string> {
   // ── Paso 0: Descargar el video en el servidor ──────────────────────────────
-  const videoRes = await fetch(videoUrl, {
-    signal: AbortSignal.timeout(60_000),
-  });
-
-  if (!videoRes.ok) {
-    throw new Error(`No se pudo descargar el video desde Apify: HTTP ${videoRes.status}`);
-  }
+  const videoRes = await fetchWithRetry(
+    videoUrl,
+    { timeoutMs: 60_000 },
+    'descarga de video',
+  );
 
   const videoBuffer = await videoRes.arrayBuffer();
   const fileSizeBytes = videoBuffer.byteLength;
@@ -321,24 +510,23 @@ async function uploadVideoToGeminiFiles(
   // ── Paso 1: Iniciar sesión de upload resumable ─────────────────────────────
   // Este request solo lleva metadata JSON y los headers de control.
   // NO debe llevar el archivo. La respuesta tiene el header x-goog-upload-url.
-  const initRes = await fetch(`${BASE}/upload/v1beta/files`, {
-    method: 'POST',
-    headers: {
-      'x-goog-api-key': apiKey,
-      'X-Goog-Upload-Protocol': 'resumable',
-      'X-Goog-Upload-Command': 'start',
-      'X-Goog-Upload-Header-Content-Length': String(fileSizeBytes),
-      'X-Goog-Upload-Header-Content-Type': 'video/mp4',
-      'Content-Type': 'application/json',
+  const initRes = await fetchWithRetry(
+    `${BASE}/upload/v1beta/files`,
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey,
+        'X-Goog-Upload-Protocol': 'resumable',
+        'X-Goog-Upload-Command': 'start',
+        'X-Goog-Upload-Header-Content-Length': String(fileSizeBytes),
+        'X-Goog-Upload-Header-Content-Type': 'video/mp4',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ file: { display_name: 'reel' } }),
+      timeoutMs: 30_000,
     },
-    body: JSON.stringify({ file: { display_name: 'reel' } }),
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!initRes.ok) {
-    const errText = await initRes.text();
-    throw new Error(`ArkoAI Files (inicio sesión): ${initRes.status} — ${errText}`);
-  }
+    'init upload Gemini Files',
+  );
 
   const uploadUrl = initRes.headers.get('x-goog-upload-url');
   if (!uploadUrl) {
@@ -346,21 +534,20 @@ async function uploadVideoToGeminiFiles(
   }
 
   // ── Paso 2: Enviar los bytes binarios del video ────────────────────────────
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      'X-Goog-Upload-Offset': '0',
-      'X-Goog-Upload-Command': 'upload, finalize',
-      'Content-Type': 'video/mp4',
+  const uploadRes = await fetchWithRetry(
+    uploadUrl,
+    {
+      method: 'POST',
+      headers: {
+        'X-Goog-Upload-Offset': '0',
+        'X-Goog-Upload-Command': 'upload, finalize',
+        'Content-Type': 'video/mp4',
+      },
+      body: videoBuffer,
+      timeoutMs: 120_000,
     },
-    body: videoBuffer,
-    signal: AbortSignal.timeout(120_000),
-  });
-
-  if (!uploadRes.ok) {
-    const errText = await uploadRes.text();
-    throw new Error(`ArkoAI Files (upload bytes): ${uploadRes.status} — ${errText}`);
-  }
+    'upload bytes Gemini Files',
+  );
 
   const uploadData = await uploadRes.json() as { file?: { uri?: string; name?: string; state?: string } };
   const fileUri = uploadData.file?.uri;
@@ -378,62 +565,359 @@ export interface GeminiUsageMetadata {
   totalTokens: number;
 }
 
-export async function analyzeVideoWithGemini(
-  videoUrl: string,
-): Promise<{ analysis: GeminiVideoAnalysis; usage: GeminiUsageMetadata }> {
+export interface AnalyzeVideoResult {
+  analysis: GeminiVideoAnalysis;
+  usage: GeminiUsageMetadata;
+  /** Model that produced the analysis. */
+  model: string;
+  /** True when the analysis is valid + complete. False when fields had to be defaulted. */
+  complete: boolean;
+  /** Set when complete=false: short reason. Surfaces in logs and (optionally) UI. */
+  partialReason?: string;
+}
+
+export async function analyzeVideoWithGemini(videoUrl: string): Promise<AnalyzeVideoResult> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     throw new Error('ArkoAI no está configurado en el servidor. Falta la API key.');
   }
 
-  // 1. Subir el video a la Files API de Gemini
+  // 1. Upload video to Gemini's Files API
   const fileUri = await uploadVideoToGeminiFiles(videoUrl, apiKey);
 
-  // 2. Esperar a que Gemini procese el archivo (PROCESSING → ACTIVE)
-  //    El URI tiene forma: https://.../v1beta/files/XXXXX
-  //    El "name" del archivo es la parte "files/XXXXX" del path
-  const urlParts = new URL(fileUri);
-  const fileName = urlParts.pathname.replace('/v1beta/', ''); // "files/XXXXX"
+  // 2. Wait for Gemini to finish processing the file (PROCESSING → ACTIVE)
+  await waitForGeminiFileActive(fileUri, apiKey);
 
-  for (let attempt = 0; attempt < 24; attempt++) {
-    await new Promise((r) => setTimeout(r, 5_000)); // esperar 5s entre checks
-    const statusRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${fileName}`,
-      { headers: { 'x-goog-api-key': apiKey } },
+  // 3. Walk the model tier list. Stop at the first complete result.
+  //    Track the best partial result so we can rescue or return it as last resort.
+  let best: AnalyzeVideoResult | null = null;
+  for (const model of GEMINI_MODELS_TIERED) {
+    const result = await tryAnalyzeWithModel(apiKey, fileUri, model);
+    if (result.complete) return result;
+
+    console.warn(
+      `[gemini-video] ${model} returned partial (${result.partialReason}); will try next tier or rescue.`,
     );
-    if (statusRes.ok) {
-      const statusData = await statusRes.json() as { state?: string };
-      if (statusData.state === 'ACTIVE') break;
-      if (statusData.state === 'FAILED') {
-        throw new Error('ArkoAI no pudo procesar el video (estado FAILED).');
-      }
+
+    if (
+      !best
+      || result.analysis.transcript.length > best.analysis.transcript.length
+    ) {
+      best = result;
     }
   }
 
+  // 4. All video calls returned partial. If we have a transcript, do a text-only
+  //    follow-up that asks Gemini to fill in the structured analysis. Text-only
+  //    calls are an order of magnitude cheaper and almost never get throttled.
+  if (best && best.analysis.transcript.trim().length > 0) {
+    const rescued = await rescueAnalysisFromTranscript(apiKey, best);
+    if (rescued) {
+      console.warn(`[gemini-video] rescued via text-only follow-up using ${rescued.model}`);
+      return rescued;
+    }
+
+    // 5. Last cross-provider fallback: if all Gemini paths failed but we have
+    //    a transcript, ask GPT-4o to generate the structured analysis from text.
+    //    Different provider = different capacity pool.
+    const openaiRescue = await rescueAnalysisWithOpenAI(best);
+    if (openaiRescue) {
+      console.warn(`[gemini-video] rescued via OpenAI ${OPENAI_RESCUE_MODEL} text-only`);
+      return openaiRescue;
+    }
+  }
+
+  console.error(
+    `[gemini-video] all tiers failed. Returning best partial (model=${best?.model}, reason=${best?.partialReason}).`,
+  );
+  return best ?? {
+    analysis: buildSkeletonAnalysis('', 'todos los modelos fallaron'),
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    model: GEMINI_MODELS_TIERED[0],
+    complete: false,
+    partialReason: 'todos los modelos fallaron',
+  };
+}
+
+/**
+ * Text-only follow-up: given a transcript we already extracted, ask Gemini to
+ * generate the structured analysis. Much smaller than a video call, virtually
+ * never hits 503/MAX_TOKENS for typical transcripts.
+ */
+async function rescueAnalysisFromTranscript(
+  apiKey: string,
+  best: AnalyzeVideoResult,
+): Promise<AnalyzeVideoResult | null> {
+  const transcript = best.analysis.transcript;
+  const body = {
+    contents: [
+      {
+        parts: [{
+          text: `${ANALYSIS_PROMPT}\n\n=== TRANSCRIPCIÓN DEL VIDEO ===\n${transcript}\n\n=== INSTRUCCIONES DE RESCATE ===\nNo tenés acceso al video, solo a la transcripción de arriba. Inferí lo que puedas de los campos visuales y de audio en base al contenido textual. Para campos visuales que no podés determinar, usá valores neutros razonables. Devolvé el JSON COMPLETO con la estructura exacta especificada arriba, manteniendo el campo \"transcript\" igual al provisto.`,
+        }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 16384,
+      responseMimeType: 'application/json',
+    },
+  };
+
+  for (const model of GEMINI_MODELS_TIERED) {
+    let data: GeminiGenerateResponse;
+    try {
+      data = await callGemini(apiKey, body, model);
+    } catch (err) {
+      console.warn(`[gemini-video] rescue with ${model} failed: ${err instanceof Error ? err.message : 'unknown'}`);
+      continue;
+    }
+
+    if (data.error) continue;
+
+    const candidate = data.candidates?.[0];
+    const parsed = parseAnalysisResponse(
+      candidate?.content?.parts,
+      candidate?.finishReason,
+      undefined,
+    );
+
+    if (parsed.ok) {
+      // Restore the original transcript in case the model paraphrased it.
+      parsed.analysis.transcript = transcript;
+      return {
+        analysis: parsed.analysis,
+        usage: {
+          inputTokens: (best.usage.inputTokens) + (data.usageMetadata?.promptTokenCount ?? 0),
+          outputTokens: (best.usage.outputTokens) + (data.usageMetadata?.candidatesTokenCount ?? 0),
+          totalTokens: (best.usage.totalTokens) + (data.usageMetadata?.totalTokenCount ?? 0),
+        },
+        model: `${best.model}+${model}/rescue`,
+        complete: true,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Cross-provider rescue: when every Gemini path has failed but we have a
+ * transcript, GPT-4o generates the structured analysis from the text alone.
+ * Different provider = different capacity pool, so this survives Google-side
+ * outages that take all Gemini models down at once.
+ */
+async function rescueAnalysisWithOpenAI(
+  best: AnalyzeVideoResult,
+): Promise<AnalyzeVideoResult | null> {
+  const apiKey = getOpenAIKey()?.trim();
+  if (!apiKey) {
+    console.warn('[gemini-video] OpenAI rescue skipped: OPENAI_API_KEY not set');
+    return null;
+  }
+
+  const transcript = best.analysis.transcript;
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const body = {
+    model: OPENAI_RESCUE_MODEL,
+    response_format: { type: 'json_object' },
+    temperature: 0.3,
+    max_tokens: 4096,
+    messages: [
+      {
+        role: 'system',
+        content: `${ANALYSIS_PROMPT}\n\nNo tenés acceso al video, solo a la transcripción que te va a dar el usuario. Inferí lo que puedas de los campos visuales y de audio en base al contenido textual. Para campos visuales que no podés determinar, usá valores neutros razonables. Devolvé el JSON COMPLETO con la estructura exacta especificada arriba.`,
+      },
+      {
+        role: 'user',
+        content: `=== TRANSCRIPCIÓN DEL VIDEO ===\n${transcript}`,
+      },
+    ],
+  };
+
+  // Single attempt — no retries. If OpenAI is also down we return null and
+  // the caller surfaces a 503 to the client.
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[gemini-video] OpenAI rescue ${response.status}: ${errText.slice(0, 140)}`);
+      return null;
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    const parsed = parseAnalysisResponse([{ text: content }], 'STOP', undefined);
+    if (!parsed.ok) {
+      console.warn(`[gemini-video] OpenAI rescue produced invalid shape: ${parsed.reason}`);
+      return null;
+    }
+
+    // Restore original transcript so the user sees what we actually transcribed.
+    parsed.analysis.transcript = transcript;
+    return {
+      analysis: parsed.analysis,
+      usage: {
+        inputTokens: best.usage.inputTokens + (data.usage?.prompt_tokens ?? 0),
+        outputTokens: best.usage.outputTokens + (data.usage?.completion_tokens ?? 0),
+        totalTokens: best.usage.totalTokens + (data.usage?.total_tokens ?? 0),
+      },
+      model: `${best.model}+openai-${OPENAI_RESCUE_MODEL}/rescue`,
+      complete: true,
+    };
+  } catch (err) {
+    console.error(`[gemini-video] OpenAI rescue failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    return null;
+  }
+}
+
+async function waitForGeminiFileActive(fileUri: string, apiKey: string): Promise<void> {
+  const urlParts = new URL(fileUri);
+  const fileName = urlParts.pathname.replace('/v1beta/', ''); // "files/XXXXX"
+  const MAX_ATTEMPTS = 24; // 24 × 5s = 2 minutos
+  let lastState = 'unknown';
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await new Promise((r) => setTimeout(r, 5_000));
+    try {
+      const statusRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${fileName}`,
+        {
+          headers: { 'x-goog-api-key': apiKey },
+          signal: AbortSignal.timeout(10_000),
+        },
+      );
+      if (statusRes.ok) {
+        const statusData = await statusRes.json() as { state?: string };
+        lastState = statusData.state ?? 'unknown';
+        if (lastState === 'ACTIVE') return;
+        if (lastState === 'FAILED') {
+          throw new Error('ArkoAI no pudo procesar el video (estado FAILED).');
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('estado FAILED')) throw err;
+      // Network error checking status — keep polling, the file may still go ACTIVE.
+      console.warn(`[gemini-video] file status check ${attempt + 1} failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+  }
+
+  throw new Error(
+    `ArkoAI no terminó de procesar el video en 2 minutos (último estado: ${lastState}). Reintentá el análisis.`,
+  );
+}
+
+async function tryAnalyzeWithModel(
+  apiKey: string,
+  fileUri: string,
+  model: string,
+): Promise<AnalyzeVideoResult> {
   const body = {
     contents: [
       {
         parts: [
-          {
-            file_data: {
-              mime_type: 'video/mp4',
-              file_uri: fileUri,
-            },
-          },
-          {
-            text: ANALYSIS_PROMPT,
-          },
+          { file_data: { mime_type: 'video/mp4', file_uri: fileUri } },
+          { text: ANALYSIS_PROMPT },
         ],
       },
     ],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 16384,
       responseMimeType: 'application/json',
     },
   };
 
-  const response = await fetch(GEMINI_API_URL, {
+  let data: GeminiGenerateResponse;
+  try {
+    data = await callGemini(apiKey, body, model);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'error desconocido';
+    console.error(`[gemini-video] ${model} call failed completely: ${reason}`);
+    return {
+      analysis: buildSkeletonAnalysis('', `${model} no respondió: ${reason}`),
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      model,
+      complete: false,
+      partialReason: reason,
+    };
+  }
+
+  if (data.error) {
+    const reason = data.error.message;
+    console.error(`[gemini-video] ${model} returned error: ${reason}`);
+    return {
+      analysis: buildSkeletonAnalysis('', `${model}: ${reason}`),
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      model,
+      complete: false,
+      partialReason: reason,
+    };
+  }
+
+  const usage: GeminiUsageMetadata = {
+    inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: data.usageMetadata?.totalTokenCount ?? 0,
+  };
+
+  const candidate = data.candidates?.[0];
+  const parsed = parseAnalysisResponse(
+    candidate?.content?.parts,
+    candidate?.finishReason,
+    usage,
+  );
+
+  return {
+    analysis: parsed.analysis,
+    usage,
+    model,
+    complete: parsed.ok,
+    partialReason: parsed.reason,
+  };
+}
+
+interface GeminiGenerateResponse {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  error?: { message: string };
+}
+
+/**
+ * Calls Gemini's generateContent. NO RETRIES — if the model returns 503 or
+ * any error, we fall through to the next model tier instead of waiting. A
+ * 503 means Google is overloaded, retrying the same model in seconds doesn't
+ * help. Multiple model tiers + cross-provider rescue cover the redundancy.
+ */
+async function callGemini(
+  apiKey: string,
+  body: unknown,
+  model: string,
+): Promise<GeminiGenerateResponse> {
+  const url = geminiUrl(model);
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -443,37 +927,10 @@ export async function analyzeVideoWithGemini(
     signal: AbortSignal.timeout(120_000),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`ArkoAI API error ${response.status}: ${errorText}`);
+  if (response.ok) {
+    return (await response.json()) as GeminiGenerateResponse;
   }
 
-  const data = await response.json() as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-      finishReason?: string;
-    }>;
-    usageMetadata?: {
-      promptTokenCount?: number;
-      candidatesTokenCount?: number;
-      totalTokenCount?: number;
-    };
-    error?: { message: string };
-  };
-
-  if (data.error) {
-    throw new Error(`ArkoAI error: ${data.error.message}`);
-  }
-
-  const candidate = data.candidates?.[0];
-  const analysis = parseAnalysisResponse(candidate?.content?.parts, candidate?.finishReason);
-
-  return {
-    analysis,
-    usage: {
-      inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
-      outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
-      totalTokens: data.usageMetadata?.totalTokenCount ?? 0,
-    },
-  };
+  const errorText = await response.text().catch(() => '');
+  throw new Error(`${response.status} ${cleanGeminiError(errorText)}`);
 }

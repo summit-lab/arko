@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Check } from "lucide-react";
 import {
   format,
@@ -18,9 +20,9 @@ import {
   parseISO,
   eachDayOfInterval,
 } from "date-fns";
-import { es } from "date-fns/locale";
+import { es, enUS } from "date-fns/locale";
 import { DATE_PRESETS, type DatePreset, type DateRange } from "@/types/date-filter";
-import { resolvePreset, buildCustomRange, rangeLabel, toDateStr, dateRangeToParams } from "@/lib/date-utils";
+import { resolvePreset, buildCustomRange, toDateStr, dateRangeToParams } from "@/lib/date-utils";
 
 // ─── Calendar Grid ───────────────────────────────────────────────────────────
 
@@ -35,6 +37,10 @@ function CalendarGrid({
   rangeTo: Date | null;
   onSelect: (d: Date) => void;
 }) {
+  const t = useTranslations("dateFilter.calendar");
+  const locale = useLocale();
+  const dfnsLocale = locale === "en" ? enUS : es;
+  const dayHeaders = t.raw("daysShort") as string[];
   const [viewMonth, setViewMonth] = useState(() => rangeTo ?? rangeFrom ?? new Date());
   const today = new Date();
 
@@ -65,7 +71,7 @@ function CalendarGrid({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-[13px] font-medium text-foreground capitalize">
-          {format(viewMonth, "MMMM yyyy", { locale: es })}
+          {format(viewMonth, "MMMM yyyy", { locale: dfnsLocale })}
         </span>
         <button
           type="button"
@@ -78,7 +84,7 @@ function CalendarGrid({
 
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-0 mb-1">
-        {["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"].map((d) => (
+        {dayHeaders.map((d) => (
           <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">
             {d}
           </div>
@@ -120,7 +126,7 @@ function CalendarGrid({
 
       {/* Selecting indicator */}
       <div className="mt-3 text-[11px] text-muted-foreground text-center">
-        {selecting === "from" ? "Seleccioná fecha inicio" : "Seleccioná fecha fin"}
+        {selecting === "from" ? t("selectFrom") : t("selectTo")}
       </div>
     </div>
   );
@@ -151,6 +157,18 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const t = useTranslations("dateFilter");
+  const tCal = useTranslations("dateFilter.calendar");
+  const locale = useLocale();
+  const dfnsLocale = locale === "en" ? enUS : es;
+
+  /** Inline replacement for the Spanish-only rangeLabel helper. */
+  function localeRangeLabel(range: DateRange): string {
+    if (range.preset === "custom") {
+      return `${format(parseISO(range.from), "d MMM", { locale: dfnsLocale })} – ${format(parseISO(range.to), "d MMM", { locale: dfnsLocale })}`;
+    }
+    return t(`rangeLabel.${range.preset}` as `rangeLabel.${Exclude<DatePreset, "custom">}`);
+  }
 
   const getInitialRange = useCallback((): DateRange => {
     if (mode === "url" && searchParams) {
@@ -178,20 +196,53 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
   const [tempFrom, setTempFrom] = useState<Date | null>(null);
   const [tempTo, setTempTo] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Posición fija del panel (se renderiza en un portal a <body>): así nunca lo
+  // recorta un overflow del layout ni un ancestro con transform, y lo clampeamos
+  // al viewport para que NO se corte en ninguna resolución.
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Close on outside click
+  // Close on outside click — el panel vive en un portal (fuera de containerRef),
+  // así que chequeamos AMBOS refs para no cerrarlo al clickear adentro del panel.
   useEffect(() => {
     if (!isOpen) return;
     function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setView("presets");
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setIsOpen(false);
+      setView("presets");
     }
     // Use click (not mousedown) so inner clicks register first
     document.addEventListener("click", handler, true);
     return () => document.removeEventListener("click", handler, true);
   }, [isOpen]);
+
+  // Posiciona el panel debajo del trigger, alineado a su borde derecho, pero
+  // CLAMPEADO al viewport (8px de margen) para que nunca se salga ni se corte —
+  // incluso si el trigger queda pegado/detrás del borde en pantallas chicas.
+  useEffect(() => {
+    if (!isOpen) { setPos(null); return; }
+    const place = () => {
+      const trigger = containerRef.current;
+      if (!trigger) return;
+      const r = trigger.getBoundingClientRect();
+      const pw = panelRef.current?.offsetWidth ?? 300;
+      const margin = 8;
+      const gap = 6;
+      let left = r.right - pw; // alinear borde derecho del panel con el del trigger
+      left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
+      const top = Math.max(margin, r.bottom + gap);
+      setPos({ top, left });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [isOpen, view]);
 
   const applyRange = useCallback((range: DateRange) => {
     setActiveRange(range);
@@ -262,17 +313,26 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
         }}
       >
         <Calendar className="h-4 w-4 text-muted-foreground" />
-        <span className="flex-1 text-left">{rangeLabel(activeRange)}</span>
+        <span className="flex-1 text-left">{localeRangeLabel(activeRange)}</span>
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {/* ── Dropdown Panel ── */}
-      {isOpen && (
+      {/* Se renderiza en un PORTAL a <body> con position:fixed y posición clampeada
+          al viewport (ver useLayoutEffect). Antes era absolute dentro del header:
+          en pantallas chicas / con overflow del layout, el trigger quedaba pegado al
+          borde y el calendario (296px) se cortaba. Fixed+clamp+portal lo evita
+          siempre, sin importar la resolución ni ancestros con transform. */}
+      {isOpen && createPortal(
         <div
-          className="absolute top-full right-0 mt-1.5 rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl"
+          ref={panelRef}
+          className="fixed rounded-xl overflow-hidden bg-popover border border-border text-popover-foreground shadow-2xl max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto"
           style={{
             zIndex: 9999,
             minWidth: 200,
+            top: pos?.top ?? 0,
+            left: pos?.left ?? 0,
+            visibility: pos ? "visible" : "hidden",
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -293,7 +353,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                       ${isCustomEntry ? "border-t border-border mt-1 pt-3" : ""}
                     `}
                   >
-                    <span>{p.label}</span>
+                    <span>{t(`presets.${p.key}`)}</span>
                     {isActive && !isCustomEntry && <Check className="h-3.5 w-3.5 text-muted-foreground" />}
                     {isCustomEntry && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                   </button>
@@ -310,7 +370,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                 className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground mb-4 cursor-pointer transition-colors"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
-                Volver
+                {tCal("back")}
               </button>
 
               {/* Range display */}
@@ -324,7 +384,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                       : "bg-accent text-muted-foreground border border-border hover:bg-accent/70"
                   }`}
                 >
-                  {tempFrom ? format(tempFrom, "d MMM yyyy", { locale: es }) : "Inicio"}
+                  {tempFrom ? format(tempFrom, "d MMM yyyy", { locale: dfnsLocale }) : tCal("fromLabel")}
                 </button>
                 <span className="text-muted-foreground text-[12px]">→</span>
                 <button
@@ -336,7 +396,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                       : "bg-accent text-muted-foreground border border-border hover:bg-accent/70"
                   }`}
                 >
-                  {tempTo ? format(tempTo, "d MMM yyyy", { locale: es }) : "Fin"}
+                  {tempTo ? format(tempTo, "d MMM yyyy", { locale: dfnsLocale }) : tCal("toLabel")}
                 </button>
               </div>
 
@@ -354,7 +414,7 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                   onClick={() => setView("presets")}
                   className="flex-1 py-2 rounded-lg text-[12px] font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/70 transition-colors cursor-pointer"
                 >
-                  Cancelar
+                  {tCal("cancel")}
                 </button>
                 <button
                   type="button"
@@ -362,12 +422,13 @@ export function DateFilter({ mode, defaultPreset = "30d", className, ...rest }: 
                   disabled={!tempFrom || !tempTo}
                   className="flex-1 py-2 rounded-lg text-[12px] font-medium text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
-                  Aplicar
+                  {tCal("apply")}
                 </button>
               </div>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

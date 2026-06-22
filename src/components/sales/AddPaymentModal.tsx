@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { X, Check } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 import type { Sale } from "./SaleForm";
@@ -11,12 +12,15 @@ interface AddPaymentModalProps {
   onSaved: (updated: Sale) => void;
 }
 
-function fmtMoney(n: number): string {
-  return `$${n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+function fmtMoney(n: number, locale: string): string {
+  const fmtLocale = locale === "en" ? "en-US" : "es-AR";
+  return `$${n.toLocaleString(fmtLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps) {
   const ct = useChartTheme();
+  const t = useTranslations("ventas.addPaymentModal");
+  const locale = useLocale();
   const remaining = Math.max(0, sale.amount_total - sale.amount_collected);
   const today = new Date().toISOString().split("T")[0];
 
@@ -31,8 +35,8 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
 
   const handleSubmit = async () => {
     if (submittingRef.current) return;
-    if (amountNum <= 0) { setError("Ingresá un monto válido"); return; }
-    if (amountNum > remaining) { setError(`El monto excede lo que falta cobrar (${fmtMoney(remaining)})`); return; }
+    if (amountNum <= 0) { setError(t("errorInvalidAmount")); return; }
+    if (amountNum > remaining) { setError(t("errorExceedsRemaining", { amount: fmtMoney(remaining, locale) })); return; }
 
     submittingRef.current = true;
     setLoading(true);
@@ -45,13 +49,13 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
       });
       if (!res.ok) {
         const e = await res.json() as { error?: string; message?: string };
-        throw new Error(e.message ?? e.error ?? "Error al agregar pago");
+        throw new Error(e.message ?? e.error ?? t("errorAddPayment"));
       }
       const updated = await res.json() as Sale | { data: Sale };
       const sale2 = "data" in updated ? updated.data : updated;
       onSaved({ ...sale, ...sale2 });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al agregar pago");
+      setError(e instanceof Error ? e.message : t("errorAddPayment"));
     } finally {
       submittingRef.current = false;
       setLoading(false);
@@ -60,7 +64,7 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
       style={{ background: ct.overlayBg, backdropFilter: "blur(14px)" }}
       onClick={onClose}
     >
@@ -76,9 +80,9 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07]">
           <div>
-            <h3 className="text-[15px] font-light text-white">Agregar pago</h3>
+            <h3 className="text-[15px] font-light text-white">{t("title")}</h3>
             <p className="text-[11px] text-white/30 mt-0.5">
-              Falta cobrar {fmtMoney(remaining)}
+              {t("remainingHint", { amount: fmtMoney(remaining, locale) })}
             </p>
           </div>
           <button onClick={onClose} className="text-white/25 hover:text-white/60 cursor-pointer transition-colors">
@@ -89,7 +93,7 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
         <div className="px-6 py-5 space-y-4">
           {/* Monto */}
           <div className="space-y-2">
-            <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Monto del pago</label>
+            <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("amountLabel")}</label>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-[13px]">$</span>
               <input
@@ -107,7 +111,7 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
 
           {/* Fecha */}
           <div className="space-y-2">
-            <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">Fecha del pago</label>
+            <label className="text-[10px] text-white/35 uppercase tracking-[0.1em]">{t("dateLabel")}</label>
             <input
               type="date"
               value={paidAt}
@@ -124,10 +128,10 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
               <Check className="h-4 w-4 shrink-0" style={{ color: "#4BCEAF" }} />
               <div>
                 <p className="text-[11px]" style={{ color: "#4BCEAF" }}>
-                  Nuevo cobrado: {fmtMoney(sale.amount_collected + amountNum)}
+                  {t("newCollected", { amount: fmtMoney(sale.amount_collected + amountNum, locale) })}
                 </p>
                 <p className="text-[10px] text-white/30 mt-0.5">
-                  {amountNum >= remaining ? "Quedará saldado" : `Restarán ${fmtMoney(remaining - amountNum)}`}
+                  {amountNum >= remaining ? t("willBeFullyPaid") : t("willRemain", { amount: fmtMoney(remaining - amountNum, locale) })}
                 </p>
               </div>
             </div>
@@ -140,7 +144,7 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
               onClick={onClose}
               className="px-5 py-2.5 rounded-xl text-[12px] text-white/40 hover:text-white/60 cursor-pointer transition-colors bg-white/[0.025] border border-white/[0.08]"
             >
-              Cancelar
+              {t("cancel")}
             </button>
             <button
               onClick={handleSubmit}
@@ -153,7 +157,7 @@ export function AddPaymentModal({ sale, onClose, onSaved }: AddPaymentModalProps
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.3)",
               }}
             >
-              {loading ? "Guardando..." : "Agregar pago"}
+              {loading ? t("saving") : t("submit")}
             </button>
           </div>
         </div>

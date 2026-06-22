@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export function AdnAlertBanner() {
   const pathname = usePathname();
+  const t = useTranslations("adnBanner");
 
   // Don't show on onboarding pages — user is already completing the ADN
   if (pathname.startsWith("/onboarding")) return null;
@@ -30,15 +32,15 @@ export function AdnAlertBanner() {
           </svg>
         </div>
         <p className="text-[13px] text-amber-700 dark:text-amber-200/80 font-light flex-1">
-          Tu{" "}
-          <span className="font-medium text-amber-800 dark:text-amber-200">ADN de Comunicación</span>{" "}
-          está pendiente. Completalo para que Moka AI pueda darte análisis y recomendaciones personalizadas.
+          {t("pendingPrefix")}{" "}
+          <span className="font-medium text-amber-800 dark:text-amber-200">{t("pendingTitle")}</span>{" "}
+          {t("pendingSuffix")}
         </p>
         <Link
           href="/onboarding/adn"
           className="shrink-0 text-[12px] font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition-colors px-3 py-1.5 rounded-lg bg-amber-500/[0.08] hover:bg-amber-500/[0.15] border border-amber-500/20"
         >
-          Completar ADN
+          {t("completeCta")}
         </Link>
       </div>
     </div>
@@ -46,6 +48,7 @@ export function AdnAlertBanner() {
 }
 
 export function AdnBlockOverlay() {
+  const t = useTranslations("adnBanner");
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-xl">
       <div className="text-center max-w-sm px-6">
@@ -66,16 +69,16 @@ export function AdnBlockOverlay() {
           </svg>
         </div>
         <p className="text-[15px] font-medium text-foreground mb-1.5">
-          Moka AI necesita tu ADN
+          {t("blockedTitle")}
         </p>
         <p className="text-[13px] text-muted-foreground font-light mb-5 leading-relaxed">
-          Para darte análisis y recomendaciones personalizadas, primero completá tu ADN de Comunicación.
+          {t("blockedDescription")}
         </p>
         <Link
           href="/onboarding/adn"
           className="inline-flex items-center gap-2 text-[13px] font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition-colors px-5 py-2.5 rounded-xl bg-amber-500/[0.1] hover:bg-amber-500/[0.18] border border-amber-500/25"
         >
-          Completar ADN
+          {t("completeCta")}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="5" y1="12" x2="19" y2="12" />
             <polyline points="12 5 19 12 12 19" />

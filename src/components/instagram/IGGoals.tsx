@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plus, X, Target, TrendingUp, ArrowUpRight } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { upsertGoal, deleteGoal } from "@/app/(dashboard)/customer-voice/actions";
 
 // ─── Types ───
@@ -27,27 +28,23 @@ interface IGGoalsProps {
 
 // ─── Metric config ───
 
-const METRIC_CONFIG: Record<string, { label: string; unit: string; color: string; glowColor: string }> = {
-  views: { label: "Views totales", unit: "", color: "#818cf8", glowColor: "rgba(129, 140, 248, 0.3)" },
-  followers: { label: "Seguidores", unit: "", color: "#22d3ee", glowColor: "rgba(34, 211, 238, 0.3)" },
-  likes: { label: "Likes", unit: "", color: "#f472b6", glowColor: "rgba(244, 114, 182, 0.3)" },
-  saves: { label: "Guardados", unit: "", color: "#a78bfa", glowColor: "rgba(167, 139, 250, 0.3)" },
-  reach: { label: "Alcance", unit: "", color: "#34d399", glowColor: "rgba(52, 211, 153, 0.3)" },
-  engagement_rate: { label: "Engagement Rate", unit: "%", color: "#fbbf24", glowColor: "rgba(251, 191, 36, 0.3)" },
+const METRIC_CONFIG: Record<string, { labelKey: string; unit: string; color: string; glowColor: string }> = {
+  views: { labelKey: "totalViews", unit: "", color: "#818cf8", glowColor: "rgba(129, 140, 248, 0.3)" },
+  followers: { labelKey: "followers", unit: "", color: "#22d3ee", glowColor: "rgba(34, 211, 238, 0.3)" },
+  likes: { labelKey: "likes", unit: "", color: "#f472b6", glowColor: "rgba(244, 114, 182, 0.3)" },
+  saves: { labelKey: "saves", unit: "", color: "#a78bfa", glowColor: "rgba(167, 139, 250, 0.3)" },
+  reach: { labelKey: "reach", unit: "", color: "#34d399", glowColor: "rgba(52, 211, 153, 0.3)" },
+  engagement_rate: { labelKey: "engagementRate", unit: "%", color: "#fbbf24", glowColor: "rgba(251, 191, 36, 0.3)" },
 };
-
-const METRIC_OPTIONS = Object.entries(METRIC_CONFIG).map(([value, cfg]) => ({
-  value,
-  label: cfg.label,
-  unit: cfg.unit,
-}));
 
 // ─── Helpers ───
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString("es-AR");
+function makeFmt(numLocale: string) {
+  return (n: number): string => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toLocaleString(numLocale);
+  };
 }
 
 function getCurrentValue(metric: string, insights: GoalInsights): number {
@@ -111,7 +108,14 @@ function GoalCard({
   onUpdate: (metric: string, value: number) => void;
   isPending: boolean;
 }) {
-  const cfg = METRIC_CONFIG[goal.metric] || { label: goal.metric, unit: "", color: "#818cf8", glowColor: "rgba(129,140,248,0.3)" };
+  const t = useTranslations("igShell");
+  const locale = useLocale();
+  const numLocale = locale === "en" ? "en-US" : "es-AR";
+  const fmt = makeFmt(numLocale);
+  const cfgRaw = METRIC_CONFIG[goal.metric];
+  const cfg = cfgRaw
+    ? { label: t(`goals.metricLabels.${cfgRaw.labelKey}`), unit: cfgRaw.unit, color: cfgRaw.color, glowColor: cfgRaw.glowColor }
+    : { label: goal.metric, unit: "", color: "#818cf8", glowColor: "rgba(129,140,248,0.3)" };
   const current = getCurrentValue(goal.metric, insights);
   const pct = goal.target_value > 0 ? Math.round((current / goal.target_value) * 100) : 0;
   const remaining = Math.max(0, goal.target_value - current);
@@ -164,11 +168,11 @@ function GoalCard({
 
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-white/30">
-              Faltan {goal.metric === "engagement_rate" ? `${remaining.toFixed(2)}%` : fmt(remaining)}
+              {t("goals.remaining", { value: goal.metric === "engagement_rate" ? `${remaining.toFixed(2)}%` : fmt(remaining) })}
             </span>
             <div className={`flex items-center gap-1 text-[11px] font-medium ${isAhead ? "text-emerald-400" : "text-amber-400"}`}>
               <ArrowUpRight className="h-3 w-3" />
-              {isAhead ? "Adelante" : "Por detrás"} del ritmo
+              {isAhead ? t("goals.ahead") : t("goals.behind")}
             </div>
           </div>
         </div>
@@ -176,7 +180,7 @@ function GoalCard({
 
       {/* Editable target */}
       <div className="mt-4 pt-3 border-t border-white/[0.05] flex items-center gap-2">
-        <span className="text-[10px] text-white/20 uppercase tracking-wider">Meta:</span>
+        <span className="text-[10px] text-white/20 uppercase tracking-wider">{t("goals.targetLabel")}</span>
         <input
           type="number"
           defaultValue={goal.target_value}
@@ -195,10 +199,19 @@ function GoalCard({
 // ─── Main component ───
 
 export function IGGoals({ goals, insights }: IGGoalsProps) {
+  const t = useTranslations("igShell");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const [showForm, setShowForm] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState("");
   const [targetValue, setTargetValue] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const METRIC_OPTIONS = Object.entries(METRIC_CONFIG).map(([value, cfg]) => ({
+    value,
+    label: t(`goals.metricLabels.${cfg.labelKey}`),
+    unit: cfg.unit,
+  }));
 
   const existingMetrics = new Set(goals.map((g) => g.metric));
   const availableMetrics = METRIC_OPTIONS.filter((m) => !existingMetrics.has(m.value));
@@ -227,7 +240,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
     });
   }
 
-  const monthName = new Date().toLocaleDateString("es-AR", { month: "long" });
+  const monthName = new Date().toLocaleDateString(dateLocale, { month: "long" });
 
   return (
     <div className={`space-y-8 transition-opacity duration-200 ${isPending ? "opacity-60" : "opacity-100"}`}>
@@ -242,10 +255,10 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
           </div>
           <div>
             <h2 className="text-[20px] font-light text-white tracking-tight capitalize">
-              Metas de {monthName}
+              {t("goals.titleForMonth", { month: monthName })}
             </h2>
             <p className="text-[12px] text-white/30 mt-0.5">
-              Día {days.elapsed} de {days.total} — {days.pct}% del mes
+              {t("goals.dayProgress", { elapsed: days.elapsed, total: days.total, pct: days.pct })}
             </p>
           </div>
         </div>
@@ -256,7 +269,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
             style={{ border: "1px solid rgba(34, 211, 238, 0.15)" }}
           >
             <Plus className="h-4 w-4" />
-            Agregar meta
+            {t("goals.addGoal")}
           </button>
         )}
       </div>
@@ -264,7 +277,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
       {/* Month progress bar */}
       <div className="glass-section p-5 rounded-xl">
         <div className="flex items-center justify-between mb-2">
-          <span className="stat-label">Progreso del mes</span>
+          <span className="stat-label">{t("goals.monthProgress")}</span>
           <span className="text-[12px] text-white/40">{days.pct}%</span>
         </div>
         <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
@@ -282,14 +295,14 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
       {/* Add form */}
       {showForm && (
         <div className="glass-card p-6 rounded-xl space-y-4 animate-fade-in">
-          <p className="text-[13px] text-white/60 font-medium">Nueva meta</p>
+          <p className="text-[13px] text-white/60 font-medium">{t("goals.newGoal")}</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <select
               value={selectedMetric}
               onChange={(e) => setSelectedMetric(e.target.value)}
               className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-white outline-none focus:border-white/[0.1] transition-colors cursor-pointer"
             >
-              <option value="" className="bg-popover text-popover-foreground">Seleccionar métrica...</option>
+              <option value="" className="bg-popover text-popover-foreground">{t("goals.selectMetric")}</option>
               {availableMetrics.map((m) => (
                 <option key={m.value} value={m.value} className="bg-popover text-popover-foreground">
                   {m.label}
@@ -300,7 +313,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
               type="number"
               value={targetValue}
               onChange={(e) => setTargetValue(e.target.value)}
-              placeholder="Valor objetivo"
+              placeholder={t("goals.targetValuePlaceholder")}
               className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-white placeholder:text-white/20 outline-none focus:border-white/[0.1] transition-colors"
             />
             <div className="flex gap-2">
@@ -309,13 +322,13 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
                 disabled={isPending || !selectedMetric || !targetValue}
                 className="flex-1 bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 text-[13px] font-medium py-2.5 rounded-xl hover:bg-cyan-500/25 transition-colors disabled:opacity-40 cursor-pointer"
               >
-                Guardar
+                {t("common.save")}
               </button>
               <button
                 onClick={() => { setShowForm(false); setSelectedMetric(""); setTargetValue(""); }}
                 className="px-4 text-[13px] text-white/30 hover:text-white/60 transition-colors cursor-pointer"
               >
-                Cancelar
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -341,9 +354,9 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
           <div className="flex h-14 w-14 items-center justify-center rounded-full mb-4 bg-white/[0.04] border border-white/[0.06]">
             <TrendingUp className="h-6 w-6 text-white/20" />
           </div>
-          <p className="text-[15px] text-white/40 font-light">No tenés metas configuradas</p>
+          <p className="text-[15px] text-white/40 font-light">{t("goals.empty.title")}</p>
           <p className="text-[12px] text-white/20 mt-1 max-w-sm">
-            Definí objetivos mensuales para views, seguidores, engagement y más. Vas a poder trackear tu progreso en tiempo real.
+            {t("goals.empty.description")}
           </p>
           <button
             onClick={() => setShowForm(true)}
@@ -351,7 +364,7 @@ export function IGGoals({ goals, insights }: IGGoalsProps) {
             style={{ border: "1px solid rgba(34, 211, 238, 0.2)" }}
           >
             <Plus className="h-4 w-4" />
-            Crear primera meta
+            {t("goals.empty.cta")}
           </button>
         </div>
       ) : null}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ChevronLeft, ChevronRight, Plus, Trash2,
   Instagram, Youtube, Globe, X, Check,
@@ -37,14 +38,6 @@ interface Props {
   planItems: CalendarPlanItem[];
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-const MONTHS_ES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(n: number): string {
@@ -67,6 +60,7 @@ function getMonthGrid(year: number, monthIdx: number) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function PlanItemRow({ item }: { item: CalendarPlanItem }) {
+  const t = useTranslations("customerVoiceDeep.calendar");
   const [isDeleting, startDeleting] = useTransition();
 
   const colors = {
@@ -76,7 +70,13 @@ function PlanItemRow({ item }: { item: CalendarPlanItem }) {
     general:   { border: "border-violet-500/20", bg: "bg-violet-500/[0.08]", text: "text-violet-400" },
   }[item.platform] ?? { border: "border-white/10", bg: "bg-white/[0.04]", text: "text-white/50" };
 
-  const statusLabel = { idea: "Idea", in_progress: "En progreso", ready: "Listo", published: "Publicado" }[item.status] ?? item.status;
+  const statusLabels: Record<string, string> = {
+    idea: t("statusIdea"),
+    in_progress: t("statusInProgress"),
+    ready: t("statusReady"),
+    published: t("statusPublished"),
+  };
+  const statusLabel = statusLabels[item.status] ?? item.status;
   const statusStyle = {
     idea: "bg-white/[0.06] text-white/30",
     in_progress: "bg-amber-500/20 text-amber-300",
@@ -115,6 +115,7 @@ function PlanItemRow({ item }: { item: CalendarPlanItem }) {
 }
 
 function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
+  const t = useTranslations("customerVoiceDeep.calendar");
   const [isSubmitting, startSubmitting] = useTransition();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -129,19 +130,19 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-      <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Nueva idea</p>
+      <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{t("newIdea")}</p>
 
       <input
         name="title"
         required
-        placeholder="Título del contenido..."
+        placeholder={t("titlePlaceholder")}
         autoFocus
         className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-foreground placeholder:text-white/20 focus:outline-none focus:border-white/[0.2]"
       />
 
       <textarea
         name="description"
-        placeholder="Notas o descripción (opcional)..."
+        placeholder={t("descriptionPlaceholder")}
         rows={2}
         className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-foreground placeholder:text-white/20 focus:outline-none focus:border-white/[0.2] resize-none"
       />
@@ -155,7 +156,7 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
           <option value="instagram">Instagram</option>
           <option value="youtube">YouTube</option>
           <option value="tiktok">TikTok</option>
-          <option value="general">General</option>
+          <option value="general">{t("platformGeneral")}</option>
         </select>
 
         <select
@@ -163,7 +164,7 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
           defaultValue=""
           className="bg-background border border-white/[0.08] rounded-lg px-2 py-2 text-[12px] text-foreground/60 focus:outline-none focus:border-white/[0.2]"
         >
-          <option value="">Tipo...</option>
+          <option value="">{t("typeOptionEmpty")}</option>
           <option value="reel">Reel</option>
           <option value="post">Post</option>
           <option value="story">Story</option>
@@ -179,14 +180,14 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 text-[12px] text-violet-300 font-medium transition-all cursor-pointer disabled:opacity-50"
         >
           <Check className="h-3.5 w-3.5" />
-          {isSubmitting ? "Guardando..." : "Guardar"}
+          {isSubmitting ? t("saving") : t("save")}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[12px] text-white/30 hover:text-white/60 transition-all cursor-pointer"
         >
-          Cancelar
+          {t("cancel")}
         </button>
       </div>
     </form>
@@ -196,6 +197,9 @@ function AddPlanForm({ date, onClose }: { date: string; onClose: () => void }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ContentCalendar({ currentMonth, publishedReels, planItems }: Props) {
+  const t = useTranslations("customerVoiceDeep.calendar");
+  const days = t.raw("days") as string[];
+  const months = t.raw("months") as string[];
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isNavigating, startNavigating] = useTransition();
@@ -262,7 +266,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
         {/* Platform filter */}
         <div className="flex items-center gap-1">
           {[
-            { id: "all", label: "Todos", Icon: Globe },
+            { id: "all", label: t("filterAll"), Icon: Globe },
             { id: "instagram", label: "Instagram", Icon: Instagram },
             { id: "youtube", label: "YouTube", Icon: Youtube },
           ].map(({ id, label, Icon }) => (
@@ -290,7 +294,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
             <ChevronLeft className="h-4 w-4" />
           </button>
           <span className={`text-[14px] font-medium text-white/80 min-w-[148px] text-center transition-opacity duration-150 ${isNavigating ? "opacity-40" : ""}`}>
-            {MONTHS_ES[monthIdx]} {year}
+            {months[monthIdx]} {year}
           </span>
           <button
             onClick={() => navigate(1)}
@@ -308,7 +312,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
         <div className="glass-panel rounded-xl overflow-hidden">
           {/* Day-of-week headers */}
           <div className="grid grid-cols-7 border-b border-white/[0.05]">
-            {DAYS_ES.map((d) => (
+            {days.map((d) => (
               <div key={d} className="py-2.5 text-center text-[10px] text-white/20 font-medium uppercase tracking-[0.1em]">
                 {d}
               </div>
@@ -369,7 +373,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
                         <div className={`h-1.5 w-1.5 rounded-full shrink-0 mt-0.5 ${(r.performer_multiple ?? 0) >= 3 ? "bg-amber-400" : "bg-emerald-400"}`} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[9px] text-emerald-300/80 font-medium leading-none truncate">
-                            {fmt(r.views_total)} views
+                            {fmt(r.views_total)} {t("viewsSuffix")}
                           </p>
                           {r.caption && (
                             <p className="text-[8px] text-white/30 leading-snug mt-0.5 truncate">
@@ -380,7 +384,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
                       </div>
                     ))}
                     {dayReels.length > 2 && (
-                      <p className="text-[8px] text-white/15 px-1.5">+{dayReels.length - 2} más</p>
+                      <p className="text-[8px] text-white/15 px-1.5">{t("moreReels", { count: dayReels.length - 2 })}</p>
                     )}
 
                     {/* Plan items */}
@@ -402,7 +406,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
                       </div>
                     ))}
                     {dayPlan.length > 2 && (
-                      <p className="text-[8px] text-white/15 px-1.5">+{dayPlan.length - 2} ideas</p>
+                      <p className="text-[8px] text-white/15 px-1.5">{t("moreIdeas", { count: dayPlan.length - 2 })}</p>
                     )}
                   </div>
 
@@ -425,10 +429,10 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[10px] text-white/25 uppercase tracking-[0.1em] font-medium mb-0.5">
-                  {DAYS_ES[new Date(`${selectedDate}T12:00:00`).getDay()]}
+                  {days[new Date(`${selectedDate}T12:00:00`).getDay()]}
                 </p>
                 <h3 className="text-[17px] font-medium text-white/90">
-                  {parseInt(selectedDate.split("-")[2])} de {MONTHS_ES[monthIdx]}
+                  {t("dateHeading", { day: parseInt(selectedDate.split("-")[2]), month: months[monthIdx] })}
                 </h3>
               </div>
               <button
@@ -442,7 +446,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
             {/* Published reels */}
             {selectedReels.length > 0 && (
               <div>
-                <p className="text-[10px] text-white/20 uppercase tracking-[0.1em] font-medium mb-2">Publicado</p>
+                <p className="text-[10px] text-white/20 uppercase tracking-[0.1em] font-medium mb-2">{t("published")}</p>
                 <div className="space-y-2">
                   {selectedReels.map((r) => (
                     <Link
@@ -456,7 +460,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={r.thumbnail_url}
-                            alt={r.caption ?? "Reel"}
+                            alt={r.caption ?? t("reelAlt")}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -468,7 +472,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                         {/* Views badge */}
                         <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between">
-                          <span className="text-[12px] text-white/90 font-semibold">{fmt(r.views_total)} views</span>
+                          <span className="text-[12px] text-white/90 font-semibold">{fmt(r.views_total)} {t("viewsSuffix")}</span>
                           {r.performer_multiple != null && r.performer_multiple >= 3 && (
                             <span className="text-[10px] font-bold text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded-md border border-amber-400/30 backdrop-blur-sm">
                               ×{r.performer_multiple.toFixed(1)}
@@ -497,7 +501,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
             {/* Planned items */}
             {selectedPlan.length > 0 && (
               <div>
-                <p className="text-[10px] text-white/20 uppercase tracking-[0.1em] font-medium mb-2">Planificado</p>
+                <p className="text-[10px] text-white/20 uppercase tracking-[0.1em] font-medium mb-2">{t("planned")}</p>
                 <div className="space-y-2">
                   {selectedPlan.map((p) => (
                     <PlanItemRow key={p.id} item={p} />
@@ -510,7 +514,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
             {selectedReels.length === 0 && selectedPlan.length === 0 && !showAddForm && (
               <div className="py-3 text-center">
                 <p className="text-[13px] text-white/20 font-light">
-                  {selectedIsPast ? "Sin publicaciones este día" : "Día libre — podés planificar algo"}
+                  {selectedIsPast ? t("emptyPast") : t("emptyFuture")}
                 </p>
               </div>
             )}
@@ -527,7 +531,7 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-white/[0.1] text-[12px] text-white/25 hover:text-white/55 hover:border-white/[0.22] hover:bg-white/[0.03] transition-all cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Agregar idea
+                {t("addIdea")}
               </button>
             )}
           </div>
@@ -538,23 +542,23 @@ export function ContentCalendar({ currentMonth, publishedReels, planItems }: Pro
       <div className="flex flex-wrap items-center gap-5 text-[10px] text-white/20">
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-emerald-400" />
-          <span>Reel publicado</span>
+          <span>{t("legendPublished")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-amber-400" />
-          <span>Top performer ×3+</span>
+          <span>{t("legendTopPerformer")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-pink-400" />
-          <span>Idea IG</span>
+          <span>{t("legendIgIdea")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-red-400" />
-          <span>Idea YT</span>
+          <span>{t("legendYtIdea")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-violet-500" />
-          <span>Hoy</span>
+          <span>{t("legendToday")}</span>
         </div>
       </div>
     </div>

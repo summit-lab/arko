@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Youtube, Loader2, LinkIcon } from "lucide-react";
 
 interface YouTubeConnectProps {
@@ -8,6 +9,7 @@ interface YouTubeConnectProps {
 }
 
 export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
+  const t = useTranslations("youtubeDeep");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,10 +26,10 @@ export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
       if (data.data?.oauth_url) {
         window.location.href = data.data.oauth_url;
       } else {
-        setError("No se pudo iniciar la conexión");
+        setError(t("connect.errors.cantStart"));
       }
     } catch {
-      setError("Error de conexión");
+      setError(t("connect.errors.connection"));
     } finally {
       setLoading(false);
     }
@@ -43,11 +45,10 @@ export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
       </div>
 
       <h2 className="text-[22px] font-extralight text-foreground tracking-[-0.02em] mb-2">
-        Conectá tu canal de YouTube
+        {t("connect.title")}
       </h2>
       <p className="text-[14px] text-muted-foreground max-w-md mb-8">
-        Vinculá tu cuenta de Google para acceder a las métricas completas de YouTube Studio:
-        retención, CTR, watch time, traffic sources y más.
+        {t("connect.body")}
       </p>
 
       <button
@@ -65,7 +66,7 @@ export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
         ) : (
           <LinkIcon className="h-5 w-5" />
         )}
-        {loading ? "Conectando..." : "Conectar con Google"}
+        {loading ? t("connect.connecting") : t("connect.connectWithGoogle")}
       </button>
 
       {error && (
@@ -73,7 +74,7 @@ export function YouTubeConnect({ workspaceId }: YouTubeConnectProps) {
       )}
 
       <p className="mt-6 text-[11px] text-muted-foreground max-w-sm">
-        Necesitás una cuenta de Google con un canal de YouTube. Solo pedimos permisos de lectura.
+        {t("connect.footnote")}
       </p>
     </div>
   );

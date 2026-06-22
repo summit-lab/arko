@@ -1,15 +1,21 @@
-import { Eye, Heart, Bookmark, MessageSquare, DollarSign, Instagram, Youtube, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Eye, Heart, Bookmark, MessageSquare, MessagesSquare, Reply, DollarSign, ArrowUpRight, ArrowDownRight, Film, BookImage, Grid2X2, Link as LinkIcon, Shapes, AtSign, Users, TrendingUp } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ContentCalendar } from "@/components/dashboard/ContentCalendar";
 import { MetasDonut } from "@/components/dashboard/MetasDonut";
 import { ConversationsChart } from "@/components/dashboard/ConversationsChart";
+import { RecentReelsStrip } from "@/components/dashboard/RecentReelsStrip";
+import { FollowerGrowthChart } from "@/components/dashboard/FollowerGrowthChart";
 import { CountUp } from "@/components/ui/CountUp";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, previousPeriod, nextDay, toISOStart } from "@/lib/date-utils";
+import { dailyNewFromTotals, sumCleanFollowerDeltas, cleanFollowersTotalSeries } from "@/lib/follower-metrics";
 import type { DateRange } from "@/types/date-filter";
 import { Suspense } from "react";
+
+type DashboardTranslator = Awaited<ReturnType<typeof getTranslations<"dashboard">>>;
 
 // ─── Helpers ───
 
@@ -65,7 +71,7 @@ function getCurrentMonthWindow(): { from: string; to: string } {
 
 // ─── Data Fetching ───
 
-async function getDashboardData(range: DateRange) {
+async function getDashboardData(range: DateRange, t: DashboardTranslator) {
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) return null;
 
@@ -95,7 +101,6 @@ async function getDashboardData(range: DateRange) {
     insightsMonthGoals,
     reels90d,
     reelsPeriod,
-    reelsMonth,
     goalsResult,
     salesCurrent,
     salesPrevious,
@@ -104,6 +109,8 @@ async function getDashboardData(range: DateRange) {
     adsMessagingCurrent,
     adsMessagingPrev,
     storiesForCalendar,
+    viewsCurrentInsights,
+    viewsPrevInsights,
   ] = await Promise.all([
     // Query 1: Current period insights (for KPIs + deltas). Removed hardcoded .limit(30)
     // — the date range predicate already bounds the result (Fix 3.6).
@@ -133,10 +140,10 @@ async function getDashboardData(range: DateRange) {
       .lt("metric_date", today)
       .order("metric_date", { ascending: true }),
 
-    // Query 4: Period daily insights (for daily charts)
+    // Query 4: Period daily insights (for daily charts + profile growth section)
     supabase
       .from("ig_account_insights")
-      .select("metric_date, reach, impressions, likes, saves, comments")
+      .select("metric_date, reach, impressions, likes, saves, comments, profile_views, follower_count, followers_total")
       .eq("workspace_id", workspaceId)
       .gte("metric_date", periodAgo)
       .lt("metric_date", today)
@@ -151,11 +158,11 @@ async function getDashboardData(range: DateRange) {
       .lt("metric_date", monthTo)
       .order("metric_date", { ascending: true }),
 
-    // Query 6: Reels last 90 days — for calendar + top sales panels (unchanged window)
+    // Query 6: Reels last 90 days — for calendar + top sales + recent reels strip
     supabase
       .from("reels")
       .select(`
-        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount,
+        id, caption, permalink, published_at, media_type, reel_type, has_ads, sales_amount, thumbnail_url, media_storage_path,
         reel_metrics (views_org, likes_total, comments_total, shares_total, saves_total),
         reel_metrics_paid (views_paid)
       `)
@@ -178,21 +185,6 @@ async function getDashboardData(range: DateRange) {
       .order("published_at", { ascending: false })
       .limit(500),
 
-    // Query 8: Reels published in CURRENT CALENDAR MONTH — for Metas del Mes "views" donut (C6).
-    // Matches the basis used by the "Vistas Totales" Dashboard KPI (sum of reel views_org + views_paid)
-    // so the donut reconciles with the header number when both are shown.
-    supabase
-      .from("reels")
-      .select(`
-        id, published_at,
-        reel_metrics (views_org),
-        reel_metrics_paid (views_paid)
-      `)
-      .eq("workspace_id", workspaceId)
-      .gte("published_at", `${monthStart}T00:00:00.000Z`)
-      .lt("published_at", `${monthTo}T00:00:00.000Z`)
-      .limit(500),
-
     // Query 9: Workspace goals for current month
     supabase
       .from("workspace_goals")
@@ -200,19 +192,27 @@ async function getDashboardData(range: DateRange) {
       .eq("workspace_id", workspaceId)
       .eq("period_start", monthStart),
 
-    // Query 10: Sales — current selected period (for "Ventas cobradas" KPI + source breakdown)
+    // Query 10: Sales — current selected period (para Facturacion + Efectivo + material breakdown)
+    // Embebemos reels, story_sequences + sus slides, con campos para el render:
+    //   - reels: auto_title, caption (fallback), thumbnail_url (portada)
+    //   - stories: published_at + primer slide para su thumbnail
     supabase
       .from("sales")
-      .select("amount_collected, source_type, payment_status")
+      .select(`
+        amount_total, amount_collected, source_type, source_label, payment_status,
+        reel_id, story_sequence_id,
+        reels(id, caption, auto_title, thumbnail_url, media_storage_path, media_type),
+        ig_story_sequences(id, published_at, ig_story_slides(slide_index, thumbnail_url, media_url, media_storage_path))
+      `)
       .eq("workspace_id", workspaceId)
       .neq("payment_status", "cancelled")
       .gte("sale_date", range.from)
       .lte("sale_date", range.to),
 
-    // Query 11: Sales — previous period (for KPI delta)
+    // Query 11: Sales — previous period (para KPI deltas)
     supabase
       .from("sales")
-      .select("amount_collected")
+      .select("amount_total, amount_collected")
       .eq("workspace_id", workspaceId)
       .neq("payment_status", "cancelled")
       .gte("sale_date", prev.from)
@@ -261,6 +261,23 @@ async function getDashboardData(range: DateRange) {
       .gte("published_at", ninetyDaysAgo)
       .order("published_at", { ascending: false })
       .limit(200),
+
+    // Query 17 + 18: "Vistas Totales" del periodo. Usamos account-level
+    // impressions de ig_account_insights — es la misma metrica que IG nativo
+    // muestra como "Impresiones de la cuenta". Suma TODO: reels nuevos, viejos
+    // creciendo, stories, posts. Daily, sumable por cualquier ventana.
+    supabase
+      .from("ig_account_insights")
+      .select("impressions")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", range.from)
+      .lte("metric_date", range.to),
+    supabase
+      .from("ig_account_insights")
+      .select("impressions")
+      .eq("workspace_id", workspaceId)
+      .gte("metric_date", prev.from)
+      .lte("metric_date", prev.to),
   ]);
 
   // ─── Log query errors ───
@@ -271,7 +288,8 @@ async function getDashboardData(range: DateRange) {
   if (insightsMonthGoals.error) console.error('[dashboard] insightsMonthGoals error:', insightsMonthGoals.error);
   if (reels90d.error) console.error('[dashboard] reels90d error:', reels90d.error);
   if (reelsPeriod.error) console.error('[dashboard] reelsPeriod error:', reelsPeriod.error);
-  if (reelsMonth.error) console.error('[dashboard] reelsMonth error:', reelsMonth.error);
+  if (viewsCurrentInsights.error) console.error('[dashboard] viewsCurrentInsights error:', viewsCurrentInsights.error);
+  if (viewsPrevInsights.error) console.error('[dashboard] viewsPrevInsights error:', viewsPrevInsights.error);
   if (salesCurrent.error) console.error('[dashboard] salesCurrent error:', salesCurrent.error);
   if (salesPrevious.error) console.error('[dashboard] salesPrevious error:', salesPrevious.error);
   if (conversationsCurrent.error) console.error('[dashboard] conversationsCurrent error:', conversationsCurrent.error);
@@ -279,6 +297,23 @@ async function getDashboardData(range: DateRange) {
   if (adsMessagingCurrent.error) console.error('[dashboard] adsMessagingCurrent error:', adsMessagingCurrent.error);
   if (adsMessagingPrev.error) console.error('[dashboard] adsMessagingPrev error:', adsMessagingPrev.error);
   if (storiesForCalendar.error) console.error('[dashboard] storiesForCalendar error:', storiesForCalendar.error);
+
+  // ─── Follower growth chart data (from Query 3) ───
+  // "Nuevos por día" = resta de totales REALES (followers_total[hoy] − [ayer]),
+  // estilo Metricool. Robusto por diseño: no depende del delta follower_count de
+  // Meta (que se dispara tras suspensión/reactivación). El valle de suspensión se
+  // excluye dentro de dailyNewFromTotals.
+  const rawFollowerGrowth = dailyNewFromTotals(insightsPeriodFollows.data ?? []).map((r) => {
+    const d = new Date(r.metric_date + "T00:00:00Z");
+    return {
+      date: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
+      newFollowers: r.newFollowers,
+    };
+  });
+  // Trim trailing zeros — Meta has 24-48h delay so last 1-2 days may read as 0
+  let trimEnd = rawFollowerGrowth.length;
+  while (trimEnd > 0 && rawFollowerGrowth[trimEnd - 1].newFollowers === 0) trimEnd--;
+  const followerGrowthData = trimEnd > 0 ? rawFollowerGrowth.slice(0, trimEnd) : rawFollowerGrowth;
 
   // ─── Process insights data ───
   // Apply `hasSignal` filter to BOTH current AND previous windows to avoid biased deltas (Fix 3.4).
@@ -305,13 +340,37 @@ async function getDashboardData(range: DateRange) {
   };
 
   // Follower growth over SELECTED period: prefer followers_total diff, fallback to follower_count sum (Fix 3.2)
+  // Excluye el valle de suspensión de los diffs y los deltas anómalos de la suma.
   const periodFollowerRows = insightsPeriodFollows.data ?? [];
-  const withFt = periodFollowerRows.filter((r) => (r.followers_total || 0) > 0);
+  const withFt = cleanFollowersTotalSeries(periodFollowerRows).filter((r) => (r.followers_total || 0) > 0);
   const firstFt = withFt[0]?.followers_total ?? 0;
   const lastFt = withFt[withFt.length - 1]?.followers_total ?? 0;
   const newFollowsWindow = lastFt > firstFt
     ? lastFt - firstFt
-    : periodFollowerRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+    : sumCleanFollowerDeltas(periodFollowerRows);
+
+  // ─── Storage-first para portadas de reels (reel-media) ───
+  // El thumbnail crudo de scontent expira; preferimos el re-host estable de
+  // reel-media. Firmamos todos los media_storage_path (reels 90d + reels embebidos
+  // en ventas) en UN batch. Fallback al thumbnail crudo si el reel aun no se re-hosteo.
+  const reelStoragePaths = new Set<string>();
+  for (const r of (reels90d.data ?? []) as Array<{ media_storage_path?: string | null }>) {
+    if (r.media_storage_path) reelStoragePaths.add(r.media_storage_path);
+  }
+  for (const s of (salesCurrent.data ?? []) as Array<{ reels?: { media_storage_path?: string | null } | null }>) {
+    if (s.reels?.media_storage_path) reelStoragePaths.add(s.reels.media_storage_path);
+  }
+  const reelSignedUrls = new Map<string, string>();
+  if (reelStoragePaths.size > 0) {
+    const { data: signed } = await supabase.storage
+      .from("reel-media")
+      .createSignedUrls([...reelStoragePaths], 3600);
+    for (const su of signed ?? []) {
+      if (su.signedUrl && su.path) reelSignedUrls.set(su.path, su.signedUrl);
+    }
+  }
+  const reelThumb = (storagePath: string | null | undefined, raw: string | null | undefined): string | null =>
+    (storagePath ? reelSignedUrls.get(storagePath) ?? null : null) || raw || null;
 
   // ─── Process 90d reels (calendar + top sales) ───
 
@@ -328,6 +387,7 @@ async function getDashboardData(range: DateRange) {
       media_type: (r as { media_type?: string }).media_type,
       reel_type: r.reel_type,
       has_ads: r.has_ads,
+      thumbnail_url: reelThumb((r as { media_storage_path?: string | null }).media_storage_path, (r as { thumbnail_url?: string | null }).thumbnail_url),
       views_org: viewsOrg,
       views_paid: viewsPaid,
       views_total: viewsOrg + viewsPaid,
@@ -360,41 +420,18 @@ async function getDashboardData(range: DateRange) {
     };
   });
 
-  // Views KPI scoped to selected period (Fix 3.1)
-  const totalViewsPeriod = reelsInPeriod.reduce((s, r) => s + r.views_total, 0);
+  // Vistas Totales = SUM(impressions) account-level. Misma metrica que IG nativo.
+  const sumImpressions = (rows: Array<{ impressions: number | null }> | null) =>
+    (rows ?? []).reduce((s, r) => s + (r.impressions ?? 0), 0);
+  const totalViewsPeriod = sumImpressions(viewsCurrentInsights.data);
+  const totalViewsPrevPeriod = sumImpressions(viewsPrevInsights.data);
 
   // Sales total from 90d window (Top Ventas panel)
   const totalSales = reels.reduce((s, r) => s + (r.sales_amount ?? 0), 0);
 
-  // C5: No previous-period reels query exists, so we can't compute a views delta honestly.
-  // The KPI value is sum(reel.views_total) for the current period, but we have no equivalent
-  // aggregate for the previous period. Previously this was computed from reach (an account-level
-  // metric, not comparable to reel views), which produced a misleading "+X%" badge.
-  // Setting to null hides the badge instead of showing a lie — the KPI renderer guards on this.
-  const viewsChange = null as { text: string; up: boolean } | null;
-
-  // Top 4 reels by views (from 90d window, panel labeled "Últimos 90 días").
-  // Excludes "dark posts" — ad-only creatives where the reel was never posted
-  // organically to the feed. Meta returns NULL for views_org/likes/comments/saves
-  // on those, so they'd show up with 0 engagement and mislead the ranking.
-  // We require views_org > 0 (ensures the reel was actually posted organically).
-  const topContent = [...reels]
-    .filter((r) => r.views_org > 0)
-    .sort((a, b) => b.views_total - a.views_total)
-    .slice(0, 4)
-    .map((r) => {
-      const engRate = r.views_total > 0
-        ? ((r.likes + r.comments + r.saves + r.shares) / r.views_total) * 100
-        : 0;
-      return {
-        title: r.caption?.slice(0, 60) || "Sin título",
-        platform: r.has_ads ? "IG Reel (Ads)" : "IG Reel",
-        views: formatCompact(r.views_total),
-        saves: formatCompact(r.saves),
-        likes: formatCompact(r.likes),
-        engRate: engRate > 0 ? `${engRate.toFixed(0)}%` : "—",
-      };
-    });
+  const viewsChange: { text: string; up: boolean } | null = (totalViewsPeriod > 0 || totalViewsPrevPeriod > 0)
+    ? pctChange(totalViewsPeriod, totalViewsPrevPeriod)
+    : null;
 
   // Best reel — now scoped to SELECTED period (Fix 3.2)
   const bestReelViews = reelsInPeriod.length > 0
@@ -406,10 +443,26 @@ async function getDashboardData(range: DateRange) {
     ? (sumCurrent.interactions / sumCurrent.reach) * 100
     : 0;
 
+  // ─── Total followers snapshot (last known followers_total in period) ───
+  const totalFollowers = withFt[withFt.length - 1]?.followers_total ?? 0;
+
   // ─── Daily chart data from ig_account_insights ───
   // Filter out days with zero metrics (incomplete sync data from current day)
 
   const dailyInsights = (insightsMonthly.data ?? []).filter(hasSignal);
+
+  // Profile views + conversion rate (unique from IGDashboard)
+  const totalProfileViews = dailyInsights.reduce(
+    (s, r) => s + ((r as { profile_views?: number | null }).profile_views ?? 0), 0
+  );
+  const conversionRate = totalProfileViews > 0 && newFollowsWindow > 0
+    ? ((newFollowsWindow / totalProfileViews) * 100).toFixed(1)
+    : null;
+
+  // Recent reels strip — top 7 by views, with thumbnails
+  const recentReels = [...reels]
+    .sort((a, b) => b.views_total - a.views_total)
+    .slice(0, 7);
 
   const growthData = dailyInsights.map((row) => {
     const d = new Date(row.metric_date);
@@ -434,28 +487,21 @@ async function getDashboardData(range: DateRange) {
 
   const monthRows = (insightsMonthGoals.data ?? []).filter(hasSignal);
 
-  // C6: monthSumViews now aggregates from reels (views_org + views_paid) for reels
-  // published during the current calendar month — matching the basis of the "Vistas Totales"
-  // Dashboard KPI so the Metas del Mes donut reconciles with the header number.
-  // Previously this summed ig_account_insights.impressions (account-level impressions, a
-  // different universe than reel video plays) while labeled "Views" in the UI — misleading.
-  // monthSumReach / monthSumInteractions stay on ig_account_insights (account-level, correct
-  // basis for engagement-rate derivation).
-  const monthSumViews = (reelsMonth.data ?? []).reduce((s, r) => {
-    const metrics = Array.isArray(r.reel_metrics) ? r.reel_metrics[0] : r.reel_metrics;
-    const paid = Array.isArray(r.reel_metrics_paid) ? r.reel_metrics_paid[0] : r.reel_metrics_paid;
-    return s + (metrics?.views_org ?? 0) + (paid?.views_paid ?? 0);
-  }, 0);
+  // Mismo basis que el KPI "Vistas Totales": account-level impressions de IG.
+  const monthSumViews = monthRows.reduce((s, r) => s + (r.impressions || 0), 0);
   const monthSumReach = monthRows.reduce((s, r) => s + (r.reach || 0), 0);
   const monthSumInteractions = monthRows.reduce((s, r) => s + interactionsOf(r), 0);
+  const monthSumLikes = monthRows.reduce((s, r) => s + (r.likes || 0), 0);
+  const monthSumSaves = monthRows.reduce((s, r) => s + (r.saves || 0), 0);
 
   // Followers gained this month: followers_total diff (preferred), fallback to follower_count sum
-  const monthWithFt = monthRows.filter((r) => (r.followers_total || 0) > 0);
+  // Saneado: excluye valle de suspensión de los diffs y deltas anómalos de la suma.
+  const monthWithFt = cleanFollowersTotalSeries(monthRows).filter((r) => (r.followers_total || 0) > 0);
   const monthFirstFt = monthWithFt[0]?.followers_total ?? 0;
   const monthLastFt = monthWithFt[monthWithFt.length - 1]?.followers_total ?? 0;
   const followersGainedMonth = monthLastFt > monthFirstFt
     ? monthLastFt - monthFirstFt
-    : monthRows.reduce((s, r) => s + (r.follower_count || 0), 0);
+    : sumCleanFollowerDeltas(monthRows);
 
   const engRateMonth = monthSumReach > 0
     ? (monthSumInteractions / monthSumReach) * 100
@@ -464,74 +510,143 @@ async function getDashboardData(range: DateRange) {
   // ─── Sales (current selected period) — "Ventas cobradas" KPI + source donut ───
   // Currency treated as implicit USD (no currency column in schema).
 
-  const salesCurrentRows = (salesCurrent.data ?? []) as Array<{
+  const salesCurrentRows = (salesCurrent.data ?? []) as unknown as Array<{
+    amount_total: number | null;
     amount_collected: number | null;
     source_type: string | null;
+    source_label: string | null;
     payment_status: string | null;
+    reel_id: string | null;
+    story_sequence_id: string | null;
+    reels?: { id: string; caption: string | null; auto_title: string | null; thumbnail_url: string | null; media_type: string | null } | null;
+    ig_story_sequences?: {
+      id: string;
+      published_at: string | null;
+      ig_story_slides?: Array<{ slide_index: number; thumbnail_url: string | null; media_url: string | null; media_storage_path: string | null }>;
+    } | null;
   }>;
   const salesPreviousRows = (salesPrevious.data ?? []) as Array<{
+    amount_total: number | null;
     amount_collected: number | null;
   }>;
 
-  const totalSalesCollected = salesCurrentRows.reduce((s, r) => s + (r.amount_collected ?? 0), 0);
-  const totalSalesCollectedPrev = salesPreviousRows.reduce((s, r) => s + (r.amount_collected ?? 0), 0);
+  // Facturacion = amount_total (deal/precio acordado, lo facturado)
+  // Efectivo = amount_collected (cash que ya entro)
+  const totalBilled = salesCurrentRows.reduce((s, r) => s + Number(r.amount_total ?? 0), 0);
+  const totalBilledPrev = salesPreviousRows.reduce((s, r) => s + Number(r.amount_total ?? 0), 0);
+  const billingChange = pctChange(totalBilled, totalBilledPrev);
+
+  const totalSalesCollected = salesCurrentRows.reduce((s, r) => s + Number(r.amount_collected ?? 0), 0);
+  const totalSalesCollectedPrev = salesPreviousRows.reduce((s, r) => s + Number(r.amount_collected ?? 0), 0);
   const salesChange = pctChange(totalSalesCollected, totalSalesCollectedPrev);
 
-  // ─── KPIs ───
+  // ─── Top 5 materiales de facturación ───
+  // Agrupa por MATERIAL UNICO (reel_id, story_sequence_id o source_label),
+  // no por tipo de fuente. De ese modo cada reel/post/historia aparece como
+  // un item propio aunque haya generado varias ventas.
+  //
+  // Cada row tiene:
+  //   key:       identificador unico estable (para map + key de React)
+  //   type:      "reel" | "post" | "historia" | "otro" (para icono/color)
+  //   label:     caption del reel o "Historia del DD/MM" o source_label
+  //   billed:    SUM(amount_total)
+  //   count:     cuantas ventas se atribuyen al material
+  // Solo consideramos ventas con MATERIAL ASOCIADO (reel/post/carrusel o
+  // historia). Las ventas con source_type='link_bio' o 'otro' no apuntan a
+  // contenido real, así que ensucian el ranking con agrupaciones genéricas
+  // ("Instagram", "CTA Bio", etc). Si el usuario quiere verlas aparte, se
+  // podría agregar un panel "Fuentes sin contenido" en el sidebar.
 
-  const kpis = [
-    {
-      label: "Vistas Totales",
-      // Scoped to selected period (Fix 3.1)
-      value: totalViewsPeriod > 0 ? formatCompact(totalViewsPeriod) : "—",
-      // C5: viewsChange is null — no honest previous-period comparison available.
-      // Using "—" + up:true so the renderer falls through to the "sin datos previos" branch.
-      change: viewsChange?.text ?? "—",
-      up: viewsChange?.up ?? true,
-      icon: "eye" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Guardados",
-      value: sumCurrent.saves > 0 ? formatCompact(sumCurrent.saves) : "—",
-      ...pctChange(sumCurrent.saves, sumPrevious.saves),
-      icon: "bookmark" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Me gusta",
-      value: sumCurrent.likes > 0 ? formatCompact(sumCurrent.likes) : "—",
-      ...pctChange(sumCurrent.likes, sumPrevious.likes),
-      icon: "heart" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Comentarios",
-      value: sumCurrent.comments > 0 ? formatCompact(sumCurrent.comments) : "—",
-      ...pctChange(sumCurrent.comments, sumPrevious.comments),
-      icon: "message" as const,
-      color: "text-white/60",
-    },
-    {
-      label: "Ventas cobradas",
-      value: totalSalesCollected > 0 ? `$${formatCompact(totalSalesCollected)}` : "—",
-      ...salesChange,
-      icon: "dollar" as const,
-      color: "text-white/60",
-    },
-  ];
+  // Storage-first para portadas de historia: el media_url/thumbnail_url que
+  // devuelve Meta es un CDN firmado que expira a los ~5-7 días y queda roto.
+  // El archivador de sync-instagram guarda una copia en el bucket
+  // "story-media" y popula media_storage_path — generamos signed URLs en
+  // bulk y preferimos ese link sobre el CDN volátil.
+  const storyStoragePaths = new Set<string>();
+  for (const s of salesCurrentRows) {
+    const slides = s.ig_story_sequences?.ig_story_slides ?? [];
+    for (const slide of slides) {
+      if (slide.media_storage_path) storyStoragePaths.add(slide.media_storage_path);
+    }
+  }
+  const storySignedUrls = new Map<string, string>();
+  if (storyStoragePaths.size > 0) {
+    const { data: signed } = await supabase.storage
+      .from("story-media")
+      .createSignedUrls([...storyStoragePaths], 3600);
+    for (const su of signed ?? []) {
+      if (su.signedUrl && su.path) storySignedUrls.set(su.path, su.signedUrl);
+    }
+  }
+
+  type MaterialKey = { key: string; type: string; label: string; thumbnailUrl: string | null };
+  const materialOf = (s: typeof salesCurrentRows[number]): MaterialKey | null => {
+    // Reel embebido (incluye posts y carruseles — media_type decide el tipo).
+    // Label preferido: auto_title (titulo AI generado) > caption truncado > fallback.
+    if (s.reels?.id) {
+      const mt = s.reels.media_type;
+      const isPost = mt === "IMAGE" || mt === "CAROUSEL_ALBUM";
+      const autoTitle = (s.reels.auto_title ?? "").trim();
+      const captionShort = (s.reels.caption ?? "").trim().slice(0, 80);
+      return {
+        key: `reel:${s.reels.id}`,
+        type: isPost ? "post" : "reel",
+        label: autoTitle || captionShort || (isPost ? t("calendar.postUntitled") : t("calendar.reelUntitled")),
+        thumbnailUrl: reelThumb((s.reels as { media_storage_path?: string | null }).media_storage_path, s.reels.thumbnail_url),
+      };
+    }
+    // Historia embebida — para la portada, usamos el primer slide (slide_index=0).
+    if (s.ig_story_sequences?.id) {
+      const d = s.ig_story_sequences.published_at;
+      const formatted = d
+        ? new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+        : "";
+      const slides = s.ig_story_sequences.ig_story_slides ?? [];
+      const firstSlide = [...slides].sort((a, b) => a.slide_index - b.slide_index)[0];
+      const archivedUrl = firstSlide?.media_storage_path
+        ? storySignedUrls.get(firstSlide.media_storage_path) ?? null
+        : null;
+      const storyThumb = archivedUrl ?? firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
+      return {
+        key: `story:${s.ig_story_sequences.id}`,
+        type: "historia",
+        label: formatted ? t("calendar.storyOf", { date: formatted }) : t("calendar.story"),
+        thumbnailUrl: storyThumb,
+      };
+    }
+    // Sin contenido asociado (link_bio, otro) — se excluye del ranking.
+    return null;
+  };
+
+  const materialTotals = new Map<string, { type: string; label: string; thumbnailUrl: string | null; billed: number; count: number }>();
+  for (const s of salesCurrentRows) {
+    const m = materialOf(s);
+    if (!m) continue;
+    const entry = materialTotals.get(m.key) ?? { type: m.type, label: m.label, thumbnailUrl: m.thumbnailUrl, billed: 0, count: 0 };
+    entry.billed += Number(s.amount_total ?? 0);
+    entry.count += 1;
+    materialTotals.set(m.key, entry);
+  }
+  const topSources = [...materialTotals.entries()]
+    .map(([key, v]) => ({ key, source_type: v.type, label: v.label, thumbnailUrl: v.thumbnailUrl, billed: v.billed, count: v.count }))
+    .filter((s) => s.billed > 0)
+    .sort((a, b) => b.billed - a.billed)
+    .slice(0, 6);
+
+  // KPIs array is built further down — after the conversations/stories
+  // aggregations, because two of its cards depend on those series.
 
   // ─── Quick Stats ───
 
-  const periodSubLabel = `últimos ${range.days} días`;
+  const periodSubLabel = t("periodSubLabel", { days: range.days });
 
   const quickStats = [
-    { label: "Alcance Total", value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: periodSubLabel },
-    { label: "Tasa de Engagement", value: engRatePeriod > 0 ? `${engRatePeriod.toFixed(1)}%` : "—", sub: "interacciones / alcance" },
-    { label: "Mejor Reel", value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: "views" },
+    { label: t("quickStats.totalReach"), value: sumCurrent.reach > 0 ? formatCompact(sumCurrent.reach) : "—", sub: periodSubLabel },
+    { label: t("quickStats.engagementRate"), value: engRatePeriod > 0 ? `${engRatePeriod.toFixed(1)}%` : "—", sub: t("quickStats.engagementSub") },
+    { label: t("quickStats.bestReel"), value: bestReelViews > 0 ? formatCompact(bestReelViews) : "—", sub: t("quickStats.bestReelSub") },
     // Sub-label now matches the selected period (Fix 3.2)
-    { label: "Nuevos Follows", value: newFollowsWindow > 0 ? formatCompact(newFollowsWindow) : "—", sub: periodSubLabel },
-    ...(totalSales > 0 ? [{ label: "Ventas Totales", value: `$${formatCompact(totalSales)}`, sub: "desde reels" }] : []),
+    { label: t("quickStats.newFollows"), value: newFollowsWindow > 0 ? formatCompact(newFollowsWindow) : "—", sub: periodSubLabel },
+    ...(totalSales > 0 ? [{ label: t("quickStats.totalSales"), value: `$${formatCompact(totalSales)}`, sub: t("quickStats.salesSub") }] : []),
   ];
 
   // Calendar content (reels/posts/carousels + stories) — for the monthly calendar.
@@ -600,7 +715,7 @@ async function getDashboardData(range: DateRange) {
     .sort((a, b) => (b.sales_amount ?? 0) - (a.sales_amount ?? 0))
     .slice(0, 8)
     .map((r) => ({
-      caption: r.caption ? (r.caption.length > 22 ? r.caption.slice(0, 22) + "…" : r.caption) : "Sin caption",
+      caption: r.caption ? (r.caption.length > 22 ? r.caption.slice(0, 22) + "…" : r.caption) : t("calendar.noCaption"),
       amount: r.sales_amount ?? 0,
       views: r.views_total,
     }));
@@ -619,11 +734,15 @@ async function getDashboardData(range: DateRange) {
     reach: goalsMap.get("reach") ?? null,
   };
 
-  // Raw numeric values for donut calculation — CURRENT MONTH window (Fix 3.3)
+  // Raw numeric values for donut calculation — CURRENT MONTH window (Fix 3.3).
+  // Keys must match METRIC_CONFIG in MetasDonut (views/followers/engagement_rate/reach/likes/saves).
   const metasActuals = {
     views: monthSumViews,
     followers: followersGainedMonth,
-    engRate: engRateMonth,
+    engagement_rate: engRateMonth,
+    reach: monthSumReach,
+    likes: monthSumLikes,
+    saves: monthSumSaves,
   };
 
   // ─── Interacciones nuevas estimadas — respects dashboard date filter ───
@@ -681,9 +800,78 @@ async function getDashboardData(range: DateRange) {
   );
   const conversationsPrevTotal = Math.round((prevBase + adsMsgPrevTotal) * ORGANIC_UPLIFT);
 
+  // ─── KPIs ───
+  // Set final: Vistas Totales · Conversaciones generadas · Comentarios ·
+  // Respuestas a historias · Ventas cobradas.
+
+  // "Conversaciones generadas" = sum of the estimated interactions series
+  // (replies + floor(comments/2) + ads_messaging, 5% organic uplift). Excludes
+  // today — same criterion as the chart.
+  const conversationsCurrentTotal = conversationsData.reduce(
+    (sum, d) => sum + d.interactions, 0
+  );
+  const conversationsChange = pctChange(conversationsCurrentTotal, conversationsPrevTotal);
+
+  // "Respuestas a historias" = sum of total_replies from ig_story_sequences in
+  // the selected period. Filtered client-side from the 90d fetch to avoid an
+  // extra query.
+  const storiesRows = (storiesForCalendar.data ?? []) as Array<{ published_at: string; total_replies: number | null }>;
+  const storyRepliesCurrent = storiesRows
+    .filter((s) => s.published_at >= range.from && s.published_at <= range.to)
+    .reduce((sum, s) => sum + (s.total_replies ?? 0), 0);
+  const storyRepliesPrev = storiesRows
+    .filter((s) => s.published_at >= prev.from && s.published_at <= prev.to)
+    .reduce((sum, s) => sum + (s.total_replies ?? 0), 0);
+  const storyRepliesChange = pctChange(storyRepliesCurrent, storyRepliesPrev);
+
+  const kpis = [
+    {
+      label: t("kpis.totalViews"),
+      // Siempre mostrar numero real (0 en vez de guion).
+      value: formatCompact(totalViewsPeriod),
+      change: viewsChange?.text ?? "—",
+      up: viewsChange?.up ?? true,
+      icon: "eye" as const,
+      color: "text-white/60",
+    },
+    {
+      label: t("kpis.conversations"),
+      value: formatCompact(conversationsCurrentTotal),
+      ...conversationsChange,
+      icon: "conversations" as const,
+      color: "text-white/60",
+    },
+    {
+      label: t("kpis.comments"),
+      value: formatCompact(sumCurrent.comments),
+      ...pctChange(sumCurrent.comments, sumPrevious.comments),
+      icon: "message" as const,
+      color: "text-white/60",
+    },
+    {
+      label: t("kpis.storyReplies"),
+      value: formatCompact(storyRepliesCurrent),
+      ...storyRepliesChange,
+      icon: "reply" as const,
+      color: "text-white/60",
+    },
+  ];
+
+  // Ventas: vive en el sidebar como card con 2 metricas stackeadas.
+  // Ambas siempre muestran $0 (nunca guion) y van en verde.
+  const salesMetrics = {
+    billing: {
+      value: `$${formatCompact(totalBilled)}`,
+      change: billingChange,
+    },
+    collected: {
+      value: `$${formatCompact(totalSalesCollected)}`,
+      change: salesChange,
+    },
+  };
+
   return {
     kpis,
-    topContent,
     quickStats,
     growthData,
     engagementData,
@@ -693,6 +881,14 @@ async function getDashboardData(range: DateRange) {
     metasActuals,
     conversationsData,
     conversationsPrevTotal,
+    salesMetrics,
+    topSources,
+    totalFollowers,
+    totalProfileViews,
+    conversionRate,
+    recentReels,
+    followerGrowthData,
+    newFollowsWindow,
   };
 }
 
@@ -703,18 +899,133 @@ const ICON_MAP = {
   bookmark: Bookmark,
   heart: Heart,
   message: MessageSquare,
+  conversations: MessagesSquare,
+  reply: Reply,
   dollar: DollarSign,
 } as const;
+
+// ─── Source type metadata — must mirror Ventas client for visual consistency ───
+
+const SOURCE_HEX: Record<string, string> = {
+  reel: "#7A86E0",
+  historia: "#AF6EC7",
+  post: "#4BCEAF",
+  link_bio: "#EB6991",
+  cta_bio: "#F59E0B",
+  otro: "#9B9BA8",
+};
+
+const SOURCE_BG: Record<string, string> = {
+  reel: "rgba(122,134,224,0.12)",
+  historia: "rgba(175,110,199,0.12)",
+  post: "rgba(75,206,175,0.12)",
+  link_bio: "rgba(235,105,145,0.12)",
+  cta_bio: "rgba(245,158,11,0.12)",
+  otro: "rgba(155,155,168,0.12)",
+};
+
+const SOURCE_ICON = {
+  reel: Film,
+  historia: BookImage,
+  post: Grid2X2,
+  link_bio: LinkIcon,
+  cta_bio: AtSign,
+  otro: Shapes,
+} as const;
+
+function fmtMoneyInt(n: number): string {
+  return `$${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+}
+
+interface TopSourceRow {
+  key: string;
+  source_type: string;
+  label: string;
+  thumbnailUrl: string | null;
+  billed: number;
+  count: number;
+}
+
+function TopSourcesList({ topSources, t }: { topSources: TopSourceRow[]; t: DashboardTranslator }) {
+  const maxBilled = topSources.reduce((m, s) => Math.max(m, s.billed), 0);
+  const totalBilled = topSources.reduce((s, r) => s + r.billed, 0);
+  return (
+    <div className="space-y-2.5">
+      {topSources.map((s, i) => {
+        const hex = SOURCE_HEX[s.source_type] ?? SOURCE_HEX.otro;
+        const bg = SOURCE_BG[s.source_type] ?? SOURCE_BG.otro;
+        // Label = titulo/caption del material (cada reel/historia/post es unico).
+        const label = s.label;
+        const Icon = SOURCE_ICON[s.source_type as keyof typeof SOURCE_ICON] ?? Shapes;
+        const barPct = maxBilled > 0 ? (s.billed / maxBilled) * 100 : 0;
+        const sharePct = totalBilled > 0 ? Math.round((s.billed / totalBilled) * 100) : 0;
+        return (
+          <div
+            key={s.key}
+            className="flex items-center gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-white/[0.03]"
+          >
+            <span className="text-[11px] font-medium text-white/25 w-4 shrink-0 text-center">{i + 1}</span>
+            {/* Thumbnail del material. Si falta (historia sin slide, reel
+                archivado sin thumbnail_url, etc.) generamos una "portada
+                sintética" con gradiente del color del tipo + inicial del
+                label. Siempre hay algo visual — nunca un placeholder genérico
+                de "imagen rota". */}
+            {s.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={s.thumbnailUrl}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-md object-cover"
+                style={{ border: `1px solid ${bg}` }}
+              />
+            ) : (
+              <div
+                className="h-9 w-9 shrink-0 rounded-md flex items-center justify-center relative overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${hex}55, ${hex}15)`,
+                  border: `1px solid ${bg}`,
+                }}
+                aria-hidden
+              >
+                <Icon className="h-[13px] w-[13px] absolute top-0.5 right-0.5 opacity-60" style={{ color: hex }} />
+                <span className="text-[13px] font-semibold leading-none" style={{ color: hex }}>
+                  {(label.trim().charAt(0) || "?").toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3 mb-1.5">
+                <span className="text-[13px] font-medium text-white/85 truncate">{label}</span>
+                <span className="text-[13px] font-medium text-emerald-400 tabular-nums">{fmtMoneyInt(s.billed)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-1 rounded-full bg-white/[0.05] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${barPct}%`, background: hex }}
+                  />
+                </div>
+                <span className="text-[10px] text-white/35 tabular-nums whitespace-nowrap">
+                  {t("sales.saleCount", { count: s.count })} · {sharePct}%
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Page ───
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string }> }) {
   const params = await searchParams;
   const dateRange = parseDateParams(params, "30d");
-  const data = await getDashboardData(dateRange);
+  const t = await getTranslations("dashboard");
+  const data = await getDashboardData(dateRange, t);
 
   const kpis = data?.kpis ?? [];
-  const topContent = data?.topContent ?? [];
   const quickStats = data?.quickStats ?? [];
   const growthData = data?.growthData ?? [];
   const engagementData = data?.engagementData ?? [];
@@ -722,14 +1033,25 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const calendarContent = data?.calendarContent ?? [];
   const conversationsData = data?.conversationsData ?? [];
   const conversationsPrevTotal = data?.conversationsPrevTotal ?? 0;
+  const salesMetrics = data?.salesMetrics ?? null;
+  const topSources = data?.topSources ?? [];
+  const totalFollowers = data?.totalFollowers ?? 0;
+  const totalProfileViews = data?.totalProfileViews ?? 0;
+  const conversionRate = data?.conversionRate ?? null;
+  const recentReels = data?.recentReels ?? [];
+  const followerGrowthData = data?.followerGrowthData ?? [];
+  const newFollowsWindow = data?.newFollowsWindow ?? 0;
 
   return (
     <div className="px-8 py-10">
-      {/* Header */}
-      <div className="animate-slide-up mb-10 flex items-start justify-between relative">
+      {/* Header del Dashboard — z-20 para crear stacking context propio que
+          permite al dropdown del DateFilter flotar sobre los KPIs. Menor que
+          el topbar global (z-50) para que el sticky header quede siempre
+          arriba cuando scroleas. */}
+      <div className="animate-slide-up mb-10 flex items-start justify-between relative z-20">
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="text-white/35 mt-3 text-[15px] font-light">Resumen global de tu marca personal.</p>
+          <h1 className="page-title">{t("title")}</h1>
+          <p className="text-white/35 mt-3 text-[15px] font-light">{t("subtitle")}</p>
         </div>
         <div className="mt-1">
           <Suspense fallback={null}>
@@ -738,21 +1060,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </div>
       </div>
 
-      {/* Main 70/30 Layout */}
-      <div className="flex gap-6">
-        {/* ── LEFT: Main Content (70%) ── */}
+      {/* Layout 70/30: columna izq (KPIs + charts + mejor contenido) | sidebar der
+          (Ventas arriba + Resumen Rapido + etc). Los KPIs viven DENTRO del col izq
+          asi que tienen el mismo ancho que los graficos de abajo. Ventas va
+          arriba del todo en la sidebar, alineada al ras superior con los KPIs. */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── LEFT: KPIs + charts + Mejor Contenido ── */}
         <div className="flex-1 min-w-0 space-y-6">
 
-          {/* Hero KPIs */}
-          <div className="grid grid-cols-5 gap-5">
+          {/* Hero KPIs — 2 cols en mobile, 4 cols en lg+. Restringido al ancho
+              del col izq asi no invade el sidebar. */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {kpis.map((m, i) => {
               const IconComp = ICON_MAP[m.icon];
               return (
-                <div key={m.label} className={`glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
-                  <div className="flex items-center justify-between mb-4 relative z-10">
-                    <p className="stat-label">{m.label}</p>
-                    <div className={`h-9 w-9 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color}`}>
-                      <IconComp className="h-[18px] w-[18px]" />
+                <div key={m.label} className={`@container glass-card px-6 py-5 animate-slide-up stagger-${i + 1}`}>
+                  {/* Container query: card angosto → icono ARRIBA + label DEBAJO
+                      (stackeado). Card ancho (>=180px) → label IZQ + icono DER
+                      (horizontal). Los `order` hacen el swap del arreglo DOM. */}
+                  <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
+                    <p className="stat-label leading-tight order-last @[180px]:order-first">{m.label}</p>
+                    <div className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] ${m.color} order-first @[180px]:order-last`}>
+                      <IconComp className="h-[18px] w-[18px] shrink-0" />
                     </div>
                   </div>
                   <CountUp value={m.value} className="stat-number-xl relative z-10" />
@@ -765,10 +1094,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                           <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
                         )}
                         <span className={`text-[12px] font-medium ${m.up ? "text-emerald-400" : "text-red-400"}`}>{m.change}</span>
-                        <span className="text-[11px] text-white/25 ml-1">vs anterior</span>
+                        <span className="text-[11px] text-white/25 ml-1">{t("vsPrevious")}</span>
                       </>
                     ) : (
-                      <span className="text-[11px] text-white/20">sin datos previos</span>
+                      <span className="text-[11px] text-white/20">{t("noPrevious")}</span>
                     )}
                   </div>
                 </div>
@@ -781,61 +1110,138 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             <DashboardCharts growthData={growthData} engagementData={engagementData} salesData={salesChartData} />
           </div>
 
-          {/* Top Performing Content */}
+          {/* Top fuentes de facturación (periodo seleccionado).
+              Reemplaza el bloque histórico "Mejor Contenido". Si no hay ventas
+              con facturación > 0 en el periodo, mostramos un empty state en
+              lugar de omitir la card — así el layout no salta. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[15px] font-light text-white tracking-wide">Mejor Contenido</h3>
-              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">Últimos 90 días</span>
+              <h3 className="text-[15px] font-light text-white tracking-wide">{t("sales.topSources")}</h3>
+              <span className="text-[11px] text-white/30 font-medium uppercase tracking-[0.1em]">{t("sales.topSourcesPeriod")}</span>
             </div>
-            {topContent.length > 0 ? (
-              <div className="space-y-1">
-                {/* Table header */}
-                <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-                  <div className="col-span-1">#</div>
-                  <div className="col-span-4">Título</div>
-                  <div className="col-span-2 text-right">Vistas</div>
-                  <div className="col-span-1 text-right">Guard.</div>
-                  <div className="col-span-1 text-right">Likes</div>
-                  <div className="col-span-1 text-center">Eng%</div>
-                  <div className="col-span-2 text-center">Plataforma</div>
-                </div>
-                {topContent.map((c, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center py-3.5 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer group">
-                    <div className="col-span-1">
-                      <span className="text-[13px] font-light text-white/25">{i + 1}</span>
-                    </div>
-                    <div className="col-span-4 flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
-                        {c.platform.includes("IG") ? <Instagram className="h-4 w-4 text-pink-400/70" /> : <Youtube className="h-4 w-4 text-red-400/70" />}
-                      </div>
-                      <span className="text-[13px] font-light text-white/70 group-hover:text-white truncate transition-colors">{c.title}</span>
-                    </div>
-                    <div className="col-span-2 text-right text-[13px] font-light text-white">{c.views}</div>
-                    <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.saves}</div>
-                    <div className="col-span-1 text-right text-[13px] font-light text-white/50">{c.likes}</div>
-                    <div className="col-span-1 text-center">
-                      <span className="text-[11px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">{c.engRate}</span>
-                    </div>
-                    <div className="col-span-2 text-center">
-                      <span className="pill-badge">{c.platform}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {topSources.length > 0 ? (
+              <TopSourcesList topSources={topSources} t={t} />
             ) : (
               <div className="py-10 text-center">
-                <p className="text-[13px] text-white/20 font-light">No hay contenido aún</p>
+                <p className="text-[13px] text-white/20 font-light">{t("sales.noSales")}</p>
               </div>
             )}
           </div>
 
+          {/* Nuevos seguidores / día — gráfico de crecimiento (from IGDashboard) */}
+          {followerGrowthData.length > 0 && (
+            <FollowerGrowthChart
+              data={followerGrowthData}
+              totalGained={newFollowsWindow}
+              title={t("newFollowersChart.title")}
+              gainedLabel={t("newFollowersChart.gained")}
+              newLabel={t("newFollowersChart.new")}
+            />
+          )}
+
+          {/* Calendario de Contenido — al ancho del col izq asi llena el espacio
+              bajo "Mejor Contenido" en vez de ocupar full-width al fondo. */}
+          <div className="animate-slide-up stagger-6">
+            <ContentCalendar items={calendarContent} />
+          </div>
+
+          {/* Reels recientes — top 7 por vistas (from IGDashboard) */}
+          <RecentReelsStrip reels={recentReels} label={t("recentReels")} />
+
         </div>
 
-        {/* ── RIGHT: Summary Panel (30%) ── */}
-        <div className="w-[320px] shrink-0 space-y-6">
-          {/* Quick Stats */}
+        {/* ── RIGHT: Summary sidebar (320px en desktop, full-width stackeada en <1024px) ── */}
+        <div className="w-full lg:w-[320px] lg:shrink-0 space-y-6">
+          {/* Ventas — 2 glass-cards independientes stackeados (matchean el
+              estilo de los KPIs de la fila 1: label arriba con icono a la der,
+              numero grande debajo, delta abajo). */}
+          {salesMetrics && (
+            <>
+              {/* Facturacion */}
+              <div className="@container glass-card px-6 py-5 animate-slide-up stagger-1">
+                <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
+                  <p className="stat-label leading-tight order-last @[180px]:order-first">{t("sales.billing")}</p>
+                  <div className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] text-emerald-400 order-first @[180px]:order-last">
+                    <DollarSign className="h-[18px] w-[18px] shrink-0" />
+                  </div>
+                </div>
+                <CountUp value={salesMetrics.billing.value} className="stat-number-xl relative z-10 text-emerald-300" />
+                <div className="flex items-center gap-1.5 mt-3 relative z-10">
+                  {salesMetrics.billing.change.text !== "—" && salesMetrics.billing.value !== "$0" ? (
+                    <>
+                      {salesMetrics.billing.change.up ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                      )}
+                      <span className={`text-[12px] font-medium ${salesMetrics.billing.change.up ? "text-emerald-400" : "text-red-400"}`}>
+                        {salesMetrics.billing.change.text}
+                      </span>
+                      <span className="text-[11px] text-white/25 ml-1">{t("vsPrevious")}</span>
+                    </>
+                  ) : (
+                    <span className="text-[11px] text-white/20">{t("noPrevious")}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Efectivo recolectado */}
+              <div className="@container glass-card px-6 py-5 animate-slide-up stagger-2">
+                <div className="flex flex-col gap-2 mb-4 relative z-10 @[180px]:flex-row @[180px]:items-center @[180px]:justify-between">
+                  <p className="stat-label leading-tight order-last @[180px]:order-first">{t("sales.collected")}</p>
+                  <div className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] text-emerald-400 order-first @[180px]:order-last">
+                    <DollarSign className="h-[18px] w-[18px] shrink-0" />
+                  </div>
+                </div>
+                <CountUp value={salesMetrics.collected.value} className="stat-number-xl relative z-10 text-emerald-300" />
+                <div className="flex items-center gap-1.5 mt-3 relative z-10">
+                  {salesMetrics.collected.change.text !== "—" && salesMetrics.collected.value !== "$0" ? (
+                    <>
+                      {salesMetrics.collected.change.up ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                      )}
+                      <span className={`text-[12px] font-medium ${salesMetrics.collected.change.up ? "text-emerald-400" : "text-red-400"}`}>
+                        {salesMetrics.collected.change.text}
+                      </span>
+                      <span className="text-[11px] text-white/25 ml-1">{t("vsPrevious")}</span>
+                    </>
+                  ) : (
+                    <span className="text-[11px] text-white/20">{t("noPrevious")}</span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Crecimiento de perfil — total followers + conversion rate (from IGDashboard) */}
+          {totalFollowers > 0 && (
+            <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
+              <div className="flex items-center justify-between mb-4">
+                <p className="stat-label">{t("profileGrowth.title")}</p>
+                <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white/[0.06] text-white/40">
+                  <Users className="h-[15px] w-[15px]" />
+                </div>
+              </div>
+              <CountUp value={formatCompact(totalFollowers)} className="stat-number-xl" />
+              <p className="text-[12px] text-white/25 font-light mt-1">{t("profileGrowth.totalFollowers")}</p>
+              {conversionRate && totalProfileViews > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="h-3.5 w-3.5 text-violet-400/60" />
+                    <p className="text-[11px] text-white/30 uppercase tracking-[0.06em]">{t("profileGrowth.conversionRate")}</p>
+                  </div>
+                  <p className="text-[28px] font-light text-violet-400">{conversionRate}%</p>
+                  <p className="text-[11px] text-white/20 mt-0.5">{formatCompact(totalProfileViews)} {t("profileGrowth.visitsSub")}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quick Stats — columna vertical siempre. */}
           <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-2">
-            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">Resumen Rápido</h3>
+            <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em] mb-5">{t("quickStats.title")}</h3>
             <div className="space-y-5">
               {quickStats.map((s) => (
                 <div key={s.label} className="flex items-center justify-between">
@@ -854,14 +1260,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             <ConversationsChart data={conversationsData} previousTotal={conversationsPrevTotal} />
           </div>
 
-          {/* Metas del Mes — Donuts */}
+          {/* Metas del Mes — Donuts (soporta las 6 metricas configurables) */}
           <MetasDonut
-            views={data?.metasActuals?.views ?? 0}
-            followers={data?.metasActuals?.followers ?? 0}
-            engRate={data?.metasActuals?.engRate ?? 0}
-            goalViews={data?.goals?.views ?? null}
-            goalFollowers={data?.goals?.followers ?? null}
-            goalEngRate={data?.goals?.engagement_rate ?? null}
+            goals={data?.goals ?? {}}
+            actuals={data?.metasActuals ?? {}}
           />
 
           {/* Top Ventas */}
@@ -871,10 +1273,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             return (
               <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-4">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Top Ventas</h3>
+                  <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">{t("sales.topSales")}</h3>
                   <span className="text-[15px] font-light text-emerald-300">${formatCompact(total)}</span>
                 </div>
-                <p className="text-[10px] text-white/20 mb-4">desde reels</p>
+                <p className="text-[10px] text-white/20 mb-4">{t("sales.fromReels")}</p>
                 <div className="space-y-3">
                   {salesChartData.map((d, i) => (
                     <div key={i}>
@@ -893,11 +1295,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             );
           })()}
         </div>
-      </div>
-
-      {/* ── Calendario full-width ── */}
-      <div className="mt-6 animate-slide-up stagger-6">
-        <ContentCalendar items={calendarContent} />
       </div>
     </div>
   );

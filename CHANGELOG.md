@@ -4,7 +4,417 @@
 > Cada entrada incluye: fecha, tipo, archivos afectados, request original.
  
 ---
- 
+
+## [unreleased] — 2026-06-22
+
+### Feat — F2.5-5: `sync-instagram` migrado al cliente Meta unificado (tras flag `META_CLIENT_NEW`)
+
+Los 25 call sites de Graph API en la edge function `sync-instagram` (el caller más pesado: cron cada 6h × 14 clientes) ahora pasan por el cliente Meta unificado (`_shared/meta/client.ts`: versión única, field-lists centralizadas, retry/backoff con jitter, clasificación de errores) vía un shim `metaClientGet` detrás del flag `META_CLIENT_NEW` (por grupo: media/account/ads/stories/children). Flag vacío = path legacy byte-equivalente. El shim traduce el `MetaApiError` del cliente al shape `{data,error}` legacy **solo si Meta devolvió cuerpo**, y re-lanza transitorios sin cuerpo (preserva la frontera abort/propagate de cada call site → conserva fallbacks de insights, ruteo CAROUSEL y contrato de token-expiry, incl. exclusión de 467). +11 constantes de field-list nuevas (espejo Node+Deno, parity-test en CI).
+
+Verificación: `deno check` sin errores nuevos vs baseline · test de paridad verde · tests unitarios del cliente (`client.test.ts`, 10/10) · revisión adversarial multi-agente sin bloqueantes. **Validado en Prod** vía función canario aislada sobre la cuenta de Emanuel (5 grupos, datos idénticos al legacy) + stress-test de las 2 cuentas más grandes (PROVIDA 2968 reels / Franco 1297) con `all`: todos los jobs completados, sin error, bajo el presupuesto de 150s (PROVIDA reels 102s). Deployado a Prod (v32) con `META_CLIENT_NEW=all`. Rollback = sacar el secret + redeploy.
+
+Request original: "terminá con lo de IG (F2.5-5) verificando cada aspecto, profesional como senior; probalo en mi cuenta; hacelo para todos".
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — 25 call sites → `metaClientGet` + flag; `GRAPH_BASE`/field-lists inline → import del cliente.
+- `supabase/functions/_shared/meta/constants.ts` + `src/lib/meta/constants.ts` — 11 field-lists nuevas (espejo byte-idéntico).
+- `supabase/functions/_shared/meta/client.test.ts` — tests unitarios del cliente Meta (mock `fetch`).
+- `docs/11-auditoria-y-plan-optimizacion.md` — tablero: F2.5-5 hecho.
+
+---
+
+## [unreleased] — 2026-06-16
+
+### Feat — Trials 30/60/90 días gratis (admin elige al invitar + conteo regresivo en la tabla de usuarios)
+
+Sistema de trials por invitación. El admin elige la duración del trial gratis (30, 60 o 90 días) al generar el link de invitación; el conteo arranca cuando el usuario **se registra**. En `/admin/clients` aparece una columna **Trial** con el conteo regresivo día a día (semáforo verde/ámbar + barra de progreso de lo consumido, "Vencido" en rojo al llegar a 0). **v1: solo visibilidad** — al vencer NO se bloquea el acceso (enforcement queda para v2).
+
+Request original: "crear usuarios con 3 tipos (30/60/90 días gratis); que el admin elija al crear el link de invitación y, una vez activado el usuario, ver un conteo regresivo día a día del plan gratis en la tabla de usuarios."
+
+#### Archivos
+- `supabase/migrations/20260616120000_trial_plans.sql` — `invitations.trial_days`; `workspaces.trial_days/trial_started_at/trial_ends_at` + índice parcial; `handle_new_user()` copia el trial al workspace (preserva SECURITY DEFINER + search_path).
+- `src/app/(admin)/admin/invitations/actions.ts` — `createInvitation` acepta `trial_days` (valida 30/60/90, default 30).
+- `src/app/(admin)/admin/invitations/InvitationForm.tsx` — selector de trial (30d/60d/90d).
+- `src/app/(admin)/admin/clients/page.tsx` — columna Trial con conteo regresivo + semáforo + barra de progreso.
+- `src/i18n/messages/{es,en}.json` — claves `headerTrial`, `trialDays`, `trialExpired`, `trialLabel`.
+- `src/types/database.ts` — `TrialDays`, campos de trial en `Workspace` e `Invitation` (+ `default_language`).
+- `docs/DB_SCHEMA.md`, `docs/features/admin-panel.md` — documentación.
+
+---
+
+## [unreleased] — 2026-06-03
+
+### Fix — DateFilter: panel en portal+fixed clampeado al viewport (el `right-0` no alcanzaba)
+
+El fix anterior (`right-0`) seguía cortándose en resoluciones muy chicas: cuando el layout del dashboard tiene overflow horizontal ("no se comprime más"), el trigger queda pegado/detrás del borde y el panel, anclado a él, se recortaba igual. Solución definitiva: el panel se renderiza en un **portal a `<body>` con `position: fixed`** y posición **clampeada al viewport** (8px de margen, alineado al borde derecho del trigger pero sin salirse nunca), recalculada en `resize`/`scroll`. Inmune a overflow del layout y a ancestros con `transform`. El handler de click-afuera ahora chequea trigger + panel (el panel vive fuera del contenedor).
+
+#### Archivos
+- `src/components/ui/DateFilter.tsx` — portal + fixed + clamp al viewport.
+
+### Fix — DateFilter: el calendario ya no se corta por la derecha en pantallas chicas
+
+El panel del `DateFilter` estaba anclado al borde izquierdo del trigger (`left-0`) y abría hacia la derecha; como el filtro vive en el extremo derecho del header y el calendario mide 296px, en resoluciones chicas se cortaba contra el borde de la pantalla. Ahora se ancla al borde derecho (`right-0` → abre hacia adentro) + `max-w-[calc(100vw-1rem)]` como red de seguridad. Afecta a todas las pantallas que usan el filtro (dashboard, instagram, ads, ventas, youtube).
+
+#### Archivos
+- `src/components/ui/DateFilter.tsx` — dropdown `right-0` + max-width viewport-safe.
+
+### Feat — Recuperar contraseña (self-service)
+
+Antes el login era solo email/password sin forma de recuperar la clave (un cliente quedó afuera). Ahora flujo completo con Supabase Auth:
+- **`/login`** → link "¿Olvidaste tu contraseña?".
+- **`/forgot-password`** → ingresás email → `resetPasswordForEmail` (mensaje neutro siempre, anti-enumeración).
+- **`/auth/confirm`** (route handler) → canjea el token del link (PKCE `code` o `token_hash`) → setea la sesión de recuperación → redirige a `/reset-password`. `next` sanitizado (solo paths relativos) para evitar open-redirect.
+- **`/reset-password`** → nueva contraseña + confirmar → `updateUser` → entra.
+- Middleware: las 3 rutas son públicas. i18n es/en.
+
+**Requiere config en Supabase (dashboard):** Auth → URL Configuration → Redirect URLs: agregar `{APP_URL}/auth/confirm` (+ localhost para dev). Recomendado: SMTP propio (Resend) — el email nativo está rate-limited y cae en spam.
+
+#### Archivos
+- `src/app/(auth)/forgot-password/page.tsx`, `src/app/(auth)/reset-password/page.tsx` (nuevos).
+- `src/app/auth/confirm/route.ts` (nuevo) — canje de token PKCE/token_hash.
+- `src/app/(auth)/actions.ts` — `requestPasswordReset` + `updatePassword`.
+- `src/app/(auth)/login/page.tsx` — link a forgot-password.
+- `src/lib/supabase/middleware.ts` — rutas públicas. `src/i18n/messages/{es,en}.json`.
+
+### Perf — Contenido sin 10s de skeleton (Suspense streaming) + portadas que ya no cargan "de a 2-3" (re-host + getClaims)
+
+Diagnóstico (workflow multi-agente Opus): con los `loading.tsx` ya puestos, el skeleton aparecía al instante pero el **contenido tardaba ~10s** y las **portadas cargaban de a 2-3** con 502 intermitente. Dos causas raíz, atacadas de raíz (sin parches):
+
+**1) Los 10s de skeleton — el page `await`-eaba TODA la data de TODAS las tabs antes de pintar.**
+La IG page fetcheaba competencia (embed de 3 niveles: 50 reels × 12 campos de texto AI × 90 snapshots por competidor — la query más cara de la pantalla) + referencias + `reference_reel_analysis` (3er await secuencial), todo en el critical path, aunque la tab default es **reels**. Ahora:
+- **Competencia y referencias streamean via `<Suspense>`**: `CompetitorsLoader` / `ReferencesLoader` (Server Components async) cargan su data pesada FUERA del critical path y llegan como slots a `InstagramShell`. La tab reels pinta apenas terminan SUS queries; el resto llega por detrás sin bloquear.
+- **`auth.getUser()` → `auth.getClaims()`** en middleware (round-trip de red en CADA request, ANTES del streaming) + Header + admin layout + fallback de `getWorkspaceId`. getClaims valida el JWT **localmente** (ES256 via JWKS) → saca ~0.2-0.6s del piso de cada render y descomprime el cap de 10 conexiones del Auth server bajo concurrencia. Fallback a `getUser()` si no hay claims (nadie queda afuera por un edge case).
+
+**2) Portadas "de a 2-3" + 502 — los reels propios pasaban por el optimizer de `next/image` con URLs efímeras de Meta.**
+Cada `/_next/image?url=scontent...` re-bajaba la imagen de Meta + re-encodeaba (1 invocación serverless por portada, serializadas por el cap de ~6 conexiones del browser) y devolvía **502** cuando la URL firmada de scontent ya había expirado (los reels nunca se re-hosteaban, a diferencia de las historias). Ahora:
+- **Re-host de thumbnails de reels a Storage** (`reel-media`, bucket privado nuevo): el sync replica `archiveStoryMedia` (`archiveReelThumbnails`). El page los sirve **storage-first** (signed URLs batch, URL estable que no expira, sin re-fetch a Meta) con fallback al thumbnail crudo mientras se re-hostea. Backfill **acotado** (revisión adversarial): corre **post-`completed`** (fuera del path crítico del sync), 12/sync, con **budget de 25s** y `fetch` con **`AbortSignal.timeout(8000)`** (un socket colgado no es excepción → sin timeout el `try/catch` no lo atrapaba y dejaba el sync "running" hasta el watchdog). Mismo timeout aplicado a `archiveStoryMedia`.
+- **Componente `ReelThumbnail`** (`<img>` + `onError` + `priority` en la primera fila, fuera del optimizer) reemplaza a `next/image` en ReelsGrid, PublicacionesGrid e IGDashboard. Mata el goteo y el 502; cae a placeholder en vez de hueco roto.
+- **Dashboard**: reels storage-first (RecentReelsStrip + thumbnails de ventas).
+- **`next.config`**: `minimumCacheTTL` 24h + `formats: webp` + hostname `**.fbcdn.net` (competencia).
+
+**Pendiente (follow-up):** partición `<Suspense>` de la dashboard home (refactor del `getDashboardData` monolítico con agregados cruzados — el getClaims + queries paralelas ya bajan su tiempo); migrar StoriesGrid + PostDetailView a `ReelThumbnail`.
+
+#### DB (Dev + Prod)
+- Migración `20260603000000_create_reel_media_bucket` — bucket privado `reel-media` + policy `workspace_members_read_reel_media` (espejo de story-media). La columna `reels.media_storage_path` ya existía.
+
+#### Archivos
+- `src/lib/supabase/auth-claims.ts` (nuevo) — `getAuthUser()` con getClaims + fallback getUser; usado en `middleware.ts`, `Header.tsx`, `(admin)/layout.tsx`, `lib/workspace.ts`.
+- `supabase/functions/sync-instagram/index.ts` — `archiveReelThumbnails` (Phase 5, try/catch, nunca rompe el sync). **Deployado a Prod con `--no-verify-jwt`.**
+- `src/components/instagram/ReelThumbnail.tsx` (nuevo), `CompetitorsLoader.tsx` (nuevo), `ReferencesLoader.tsx` (nuevo).
+- `src/components/instagram/InstagramShell.tsx` — slots streameados (competenciaSlot/referenciasSlot) en vez de data pesada inline.
+- `src/app/(dashboard)/instagram/page.tsx` — competencia/referencias fuera del Promise.all + reels storage-first.
+- `src/app/(dashboard)/page.tsx` — reels storage-first.
+- `src/components/instagram/ReelsGrid.tsx`, `PublicacionesGrid.tsx`, `IGDashboard.tsx` — `ReelThumbnail` (fuera del optimizer).
+- `next.config.ts` — cache + webp + fbcdn.
+
+### Perf/UX — Navegación más veloz: skeletons instantáneos + feedback de click + prefetch
+
+Diagnóstico (workflow multi-agente Opus): la lentitud de navegación NO es la DB (queries 5-15ms por EXPLAIN), es la capa de app. Esta tanda ataca lo de **menor riesgo / mayor impacto percibido**:
+- **`loading.tsx` faltantes** en `/ventas` y `/meta` → antes Next esperaba el RSC entero (queries) antes de pintar = "6s en blanco TOTAL"; ahora skeleton al instante.
+- **NavProgressBar visible**: era una barra blanca de 2px **invisible en tema light** → ahora `h-[3px]` + color por tema. Da **feedback inmediato al click** (clave para que no se sienta "muerto" y no haga falta doble-click).
+- **Sidebar**: `router.prefetch(href)` en `onMouseEnter` (destino caliente → 1er click navega rápido) + `cursor-pointer`.
+
+**Pendiente (mayor impacto, más delicado, PR propio):** sacar `auth.getUser()` del middleware (round-trip de red en CADA request, ANTES del streaming del skeleton) → `getClaims()` (valida el JWT local). Es la causa raíz del residual del "6s".
+
+#### Archivos
+- `src/app/(dashboard)/ventas/loading.tsx`, `src/app/(dashboard)/meta/loading.tsx` (nuevos).
+- `src/components/layout/NavigationProvider.tsx` — barra de progreso visible por tema (h-[3px]).
+- `src/components/layout/Sidebar.tsx` — `router.prefetch` en hover + `cursor-pointer`.
+
+### Fix — Competencia + Referencias: el scrape ya no tira "Unexpected token 'A'... is not valid JSON"
+
+`POST /competitors/[id]/scrape` corría TODO sincrónico (~120s) → el gateway de Vercel cortaba la respuesta con un **504 en texto plano** ("An error occurred...") y el cliente crasheaba al hacer `res.json()` → `Unexpected token 'A'... is not valid JSON`, **aunque el scrape sí hubiera arrancado** (Apify corría igual). Ahora:
+- El route **responde al instante** y corre scrape + analyze en `after()` (fire-and-forget); `maxDuration` 120→300 para cubrir ambos.
+- El **analyze se encadena server-side** (antes lo disparaba el cliente con un 2º fetch → si el cliente se caía/timeouteaba, el análisis no corría).
+- El cliente **solo dispara + pollea** `scrape_progress`/`analysis_status`; lee la respuesta como **texto** (nunca crashea con `.json()` sobre un 504). El progreso en vivo ya existía.
+
+**Mismo bug en Referencias:** `ReferencesTab` hacía `res.json()` antes de chequear `res.ok` en scrape/analyze/analyze-all → mismo crash si el route (Apify/Gemini) timeouteaba. Ahora parsea seguro (texto + try-parse). El scrape de referencias es más liviano (12 reels) → se mantiene sincrónico; el guard cubre el 504 raro.
+
+#### Archivos
+- `src/app/api/v1/competitors/[id]/scrape/route.ts` — fire-and-forget + analyze encadenado en `after()`.
+- `src/components/instagram/CompetitorTab.tsx` — kickoff + poll, parseo seguro (sin `.json()` fatal).
+- `src/components/instagram/ReferencesTab.tsx` — parseo seguro en scrape/analyze/analyze-all.
+
+### Fix — Sync IG: snapshot diario completo en cuentas grandes (F2.5-5 Tanda 0)
+
+`snapshotDailyMetrics` traía los reels con un `.select()` sin paginar → PostgREST lo capaba a 1000 filas (orden UUID random) → en cuentas grandes el time-series diario cubría solo ~34% de los reels (PROVIDA: 1000 de 2971). Ahora **pagina por rangos** → cobertura completa. Verificado en vivo: PROVIDA pasó de **1000 → 2921** filas de snapshot hoy.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `snapshotDailyMetrics` pagina el SELECT de reels por rangos de 1000 (mismo patrón que el lookup de incremental).
+
+### Perf/UX — Sync IG: recompensa rápida (primera página en ~4s + "Listo")
+
+**Lo que se pidió:** al sincronizar, que la primera página de reels se dibuje y marque "Listo" en 3-4s, y el resto siga por detrás.
+
+**Antes:** el botón esperaba el full sync entero (~30-50s) para marcar "Listo" + hacía `router.refresh()` **cada 4s** → **~228 requests por sync** (re-bajaba toda la página RSC + re-disparaba los prefetch del sidebar).
+
+**Ahora:** click → `quick` sync (primeros 12 reels + métricas, **medido 4.1s**) → pinta la primera página + "Listo" → el RESTO (todos los reels + account + stories) corre en segundo plano fire-and-forget, sin tracking ni refresh en loop (adiós storm de 228 requests). **`ads` va último** (no se usa en vistas en tiempo real). Apify queda en el background, no bloquea el quick.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `handleQuickSync` sin stories/carousel-children (quick lean ~4s; eso va al full de fondo).
+- `src/app/api/v1/sync/instagram/route.ts` — cadena de fondo con `ads` último (`reels→account→stories→ads`).
+- `src/components/instagram/SyncButton.tsx` — quick pinta + "Listo", resto fire-and-forget (sin hook/tracking/refresh-loop).
+
+**Pendiente:** la vista de métricas (`account`) todavía tarda ~28s (30 llamadas serial a Meta); su recompensa rápida necesita colapsar esas llamadas (optimización aparte).
+
+### Perf — Sync IG: fetch incremental + fix del cuello de botella Apify (F2.5-5)
+
+**Apify (el cuello de botella REAL, medido en vivo):** el enrichment de duración de videos corría **secuencial** con timeout de 30s → cuando Apify falla/tarda (Franco: 4 de 5 reels timeouteando) dominaba el sync con ~120s de espera. Ahora corre **en paralelo** (5 a la vez) + timeout 30s→15s. **Franco: 124.7s → 31.2s.**
+
+**Fetch incremental:** el sync re-bajaba TODO el historial de media cada vez (~90s en cuentas grandes) aunque lo nuevo fueran 2 reels. Ahora **corta la paginación** al llegar a media ya conocida (Meta devuelve newest-first). Los reels viejos refrescan insights vía selección **desde la DB** (decay), no por el fetch. **PROVIDA (2970 reels): 155s → 16.5s** (corta tras 1 página, refresca 30 insights, 0 pérdida).
+
+**Gotcha resuelto:** el lookup de reels conocidos venía capado a 1000 filas (`db-max-rows` de PostgREST) con orden UUID random → en cuentas >1000 reels el corte no disparaba y faltaba cobertura de insights. Se **pagina el lookup** por rangos para traer todos + backstop de páginas. (Lo destapó el test en PROVIDA — por eso se prueba en cuentas grandes.)
+
+Paridad verificada en vivo (ac331157, Franco, PROVIDA): mismo conteo de reels, insights refrescados, 0 errores. `snapshotDailyMetrics` intacto (ya leía de la DB).
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `fetchAllMedia` con corte incremental (`onPage`→boolean); `existingReels` paginado (chunks de 1000); selección de insights desde la DB por decay; Apify enrichment en paralelo + timeout 15s.
+
+### Perf — Sync IG: particionar el cron para eliminar timeouts del edge (F2.5-5 Phase 0)
+
+**Problema (verificado en Prod, `sync_jobs` últimos 7d):** el cron `sync-instagram-all` mandaba UNA invocación `steps=all` que corría account + reels + ads en el mismo edge (~150s de límite). En cuentas grandes, reels (p95 120.9s) + ads (p95 104.9s) superan los 150s → el edge muere, el `sync_job` queda en `running` y el watchdog lo marca `failed` a los 30 min. Resultado: `full_sync` 46% de fallo (Franco 25, PROVIDA 19 por timeout), `ads_insights` 35%.
+
+**Fix:** el cron ahora dispara invocaciones SEPARADAS por step (`account` / `reels` / `ads`), cada una con su propio budget de ~150s — el mismo patrón que el botón ya usa via `after()`. Rollout por **canary**: arranca con un solo workspace (ac331157) y se hace ramp agregando IDs al array `canary_ws` del trigger.
+
+**Colateral:** los 2 triggers de IG (`trigger_scheduled_sync`, `trigger_scheduled_stories_sync`) usan URL dinámica (`current_setting('app.settings.supabase_project_ref')`) en vez de hardcodear el ref de Prod — antes, en Dev disparaban el edge de PROD.
+
+**No incluido (Phase 0 quirúrgica, va después detrás de flag + paridad):** migración a `metaFetch` (retry/backoff), doble-fetch 90d de ads, colapso de account 30→1 llamada. La conexión rota de Nacho (`object does not exist`, 100% de fallo) es un bug separado de re-auth, no de timeout.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — nuevo step `reels` (reels + benchmark, sin ads); ads solo en `all`/`media`. Aditivo: no cambia los paths existentes (botón y workspaces no-canary intactos).
+- `supabase/migrations/20260602050000_partition_scheduled_ig_sync.sql` — `trigger_scheduled_sync` con split canary + URL dinámica; `trigger_scheduled_stories_sync` URL dinámica.
+
+### Perf/UX — Sync IG streaming: la primera página de reels aparece en segundos (F2.5-5)
+
+**Antes:** el full sync bajaba TODO el historial de media (`fetchAllMedia`, ~90s en cuentas grandes) y recién después escribía los reels → no se veía nada hasta el final.
+
+**Ahora (streaming):** el edge escribe cada página de reels apenas la baja (newest-first) → los más nuevos aparecen en ~3-5s y el resto va llegando. NO cambia qué datos se traen (se siguen paginando todas las páginas para insights/snapshot), solo CUÁNDO se escriben → paridad verificada en vivo (ac331157: 111 reels antes/después, 111 thumbnails, 0 errores). El `SyncButton` ahora refresca cada 4s mientras el sync corre, así los reels aparecen solos.
+
+**No incluido (va aparte, con canary + paridad):** el corte incremental (dejar de re-paginar el historial completo) — el ahorro de tiempo crudo. Toca la semántica del snapshot diario de reels viejos.
+
+#### Archivos
+- `supabase/functions/sync-instagram/index.ts` — `fetchAllMedia` con callback `onPage`; `syncInstagramReels` escribe por página (thumbnails + upsert + progreso) en vez de bajar-todo-y-después-escribir. Phase 2 (insights/Apify/snapshot/carruseles) intacto.
+- `src/components/instagram/SyncButton.tsx` — check rápido (~1-2s) en vez de esperar el quick entero (~30s); dispara el full en background y refresca cada 4s (no bloquea). Orden por pestaña: reels-first en `reels`, account-first en `metrics`.
+- `src/app/api/v1/sync/instagram/route.ts` — pasos granulares ordenados por vista (param `first`): `reels→account→ads→stories` o `account→reels→…` (consistente con el cron particionado).
+- `src/hooks/useSyncJobProgress.ts` — guard `sawActive`: no corta el tracking con un `full_sync` completado de una corrida anterior.
+
+### Fix — Seguidores: gráfico de "nuevos por día" por resta de totales reales + saneo de anomalías
+
+**Arquitectura (estilo Metricool):** el gráfico de "nuevos seguidores por día" del dashboard ahora se calcula como **resta de totales reales** (`followers_total[hoy] − [ayer]`) en vez de confiar en el delta `follower_count` que Meta reporta. Robusto por diseño: si los totales son reales, la resta nunca produce un salto espurio. Es el mismo patrón que ya usa el módulo de competidores (`competitor_follower_snapshots`). Validado con datos reales: emanuelmdzz pasa de mostrar +6615 a un máximo de +68.
+
+**Capa de lectura (red de seguridad):** helper `src/lib/follower-metrics.ts` que sanea outliers al mostrar, conservando los datos reales en la DB. Cubre el histórico viejo (que sigue siendo reconstruido) y glitches en vivo:
+- Detecta el "valle" de suspensión (colapso + rebote) y lo excluye de diffs, curva y snapshot de total.
+- Umbral adaptativo `max(500, 8 × mediana)` para clampear deltas anómalos donde aún se usa el delta crudo (IGDashboard).
+
+**Pendiente (Fase 3, edge function):** dejar de reconstruir `followers_total` en `sync-instagram` y guardar solo el total real diario. Eso completa la migración para que el histórico futuro se capture perfecto. Requiere redeploy Deno con `--no-verify-jwt`, Dev-first.
+
+**Alcance del bug (verificado en Prod):** afectaba a 2 de 6 workspaces — emanuelmdzz (+6615 el 27/5) y un cliente (+30864 el 25/5). No es bug de sync: son datos reales anómalos que Meta devuelve tras suspensión/reactivación.
+
+Aplicado en las superficies de seguidores: dashboard (gráfico de nuevos/día por resta + KPIs + total + mes), Header (snapshot), Instagram shell (snapshot), IGMetrics (curva de total), IGDashboard (deltas, con clamp del helper hasta la Fase 3). Cuentas sanas no se ven afectadas (regresión verificada). Diseño respaldado por recon multi-agente; plan completo en `docs/features/ig-intelligence.md`.
+
+#### Archivos
+- `src/lib/follower-metrics.ts` (nuevo) — helper: `dailyNewFromTotals` (resta de totales), detección de valle, umbral adaptativo. Lógica pura tipada.
+- `src/app/(dashboard)/page.tsx` — gráfico de nuevos/día por resta de totales reales.
+- `src/app/(dashboard)/instagram/page.tsx`, `src/components/layout/Header.tsx`, `src/components/instagram/IGMetrics.tsx`, `src/components/instagram/IGDashboard.tsx` — consumen el helper.
+
+### Security — Hardening: policy en data_deletion_requests + search_path en funciones
+
+Cierra dos clases de lint del advisor de Supabase, sin cambiar comportamiento:
+
+- **`data_deletion_requests`** tenía RLS activada pero **sin ninguna policy** (lint INFO `rls_enabled_no_policy`). Se agregó una policy RESTRICTIVE que niega acceso a `anon`/`authenticated` (la tabla solo la usa la edge function de borrado vía `service_role`, que bypassa RLS).
+- **~19 funciones** tenían `search_path` mutable (lint WARN `function_search_path_mutable`). Se les fijó `search_path`. Las que descifran tokens (`get_meta_access_token`, `get_google_*`, `save_*`) llevan `public, extensions, pg_temp` porque `pgcrypto` vive en `extensions` — sin eso se rompía el descifrado.
+
+Verificado en Dev y Prod: los lints desaparecen y el descifrado de tokens sigue OK (probado contra las 6 conexiones Meta activas de Prod — ejecutan sin error).
+
+**No incluido (a propósito):** el lint `security_definer_function_executable` (anon/authenticated pueden llamar estas funciones vía RPC). Revocar `EXECUTE` rompería el sync, porque `instagram-sync`, `ig-account-sync`, `ads-sync`, `meta/explorer` y `token-refresh` de Google llaman a `get_meta/google_*` con la sesión del usuario (rol `authenticated`), no con `service_role`. Cerrarlo requiere primero mover esas llamadas al admin client → queda como ítem de fase posterior (`docs/11`).
+
+#### Archivos
+- `supabase/migrations/20260602010000_harden_rls_and_function_search_path.sql` — aplicada en Dev `hrsvglgswatwklivkoyp` y Prod `zphvrohosizkbrnxtppj`.
+
+---
+
+## [unreleased] — 2026-06-02
+
+### Security — `reel_computed` ahora es SECURITY INVOKER (fix de aislamiento por tenant)
+
+La vista `public.reel_computed` corría como **SECURITY DEFINER** (permisos del creador), por lo que podía leer filas de `reels`/`reel_metrics` de cualquier workspace salteando la RLS. El advisor de Supabase lo marcaba como el único lint **nivel ERROR**.
+
+Fix: `ALTER VIEW public.reel_computed SET (security_invoker = on)` — la vista ahora aplica la RLS del usuario que consulta.
+
+- **Sin impacto en datos ni columnas.** Verificado en Dev y Prod: conteo de filas y suma de `views_total` idénticos antes/después (Prod: 6.079 reels / 6 workspaces / 9.188.868 views, sin cambios).
+- Advisor de seguridad: **0 ERROR-level** tras el fix (antes 1).
+- Reversible: `ALTER VIEW public.reel_computed SET (security_invoker = off)`.
+- Parte de la Fase 0 del plan de auditoría (`docs/11-auditoria-y-plan-optimizacion.md`).
+
+#### Archivos
+- `supabase/migrations/20260602000000_reel_computed_security_invoker.sql` — la migración (aplicada en Dev `hrsvglgswatwklivkoyp` y Prod `zphvrohosizkbrnxtppj`).
+- `docs/DB_SCHEMA.md` — nota sobre el modo de seguridad de la vista.
+
+---
+
+## [unreleased] — 2026-04-23
+
+### Added — Ventas: botón editar en la tabla
+
+En la fila de cada venta ahora aparece un ícono de lápiz (hover) junto al de eliminar. Abre el mismo SaleFormModal pero en **modo edición**:
+- Pre-llena todos los campos desde la venta existente.
+- Salta directo al step 2 (información editable).
+- Permite modificar: monto total, cobrado, fecha, fuente/sub-label, cliente, notas, status.
+- **No permite cambiar**: `payment_type`, `n_cuotas` ni la atribución (reel/historia). Si hace falta, eliminar y recrear. Los campos deshabilitados quedan marcados "(no editable)" para que el user lo vea.
+- Submit hace `PATCH /api/sales/[id]` (el endpoint ya existía).
+
+#### Archivos
+- `src/components/sales/SaleForm.tsx` — prop `sale?: Sale`, `buildFormFromSale`, `isEditing` flag, PATCH vs POST.
+- `src/components/sales/SaleFormModal.tsx` — forward del prop `sale`.
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — state `editingSale`, botón `Pencil`, modal de edición.
+
+---
+
+### Added — Ventas: nueva fuente "CTA Bio"
+
+Sexta fuente de pago predeterminada: **CTA Bio** — el copy del bio que empuja a un recurso/DM, distinto del **Link en Bio** (click directo al enlace del perfil). El user pidió poder medirlas por separado en Top fuentes y en el breakdown de Ventas.
+
+- `supabase/migrations/20260423000059_sales_source_type_cta_bio.sql` (NUEVO) — extiende CHECK constraint de `sales.source_type` para aceptar `cta_bio`. Aplicada en Prod + Dev.
+- `src/components/sales/SaleForm.tsx` — agrega al type `SaleSourceType` + label "CTA Bio" + color ámbar (#F59E0B).
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — mismo mapping para renderizar en la tabla de ventas.
+- `src/app/(dashboard)/page.tsx` — extendido `SOURCE_HEX/BG/ICON` (usa ícono `AtSign`). Al ser una fuente sin material asociado, queda excluido del ranking "Top fuentes de facturación" (mismo criterio que `link_bio` y `otro`).
+
+---
+
+### Fixed — Ventas: cuotas retroactivas marcan todas las cuotas como cobradas
+
+Bug: al registrar una venta pasada con cuotas (ej. hace 3 meses, 5 cuotas ya cobradas en la realidad), el sistema solo marcaba paid las cuotas cuyo `due_date ≤ hoy` según el calendario teórico (sale_date + N×30d). Las cuotas "futuras" quedaban pending aunque el cliente ya las hubiera pagado.
+
+**Fix:** si `sale_date < hoy`, asumir venta retroactiva → marcar TODAS las cuotas como paid. Si el user cargó mal (alguna cuota sí quedó pending), puede desmarcarla desde InstallmentsModal.
+
+- `src/app/api/sales/route.ts` — lógica `isRetroactive` al generar cuotas.
+- `src/components/sales/SaleForm.tsx` — preview muestra "{N}/{N} cuotas" cobradas + hint cuando es retroactiva.
+
+---
+
+### Fixed — Instagram reels: filtro de fechas cerraba mal el rango
+
+Las queries de `/instagram` (reels, stories, posts) usaban `.gte(published_at)` sin `.lt` cerrando el extremo superior. Al elegir "mes anterior" o cualquier rango que terminara antes de hoy, la UI mostraba también los reels del mes actual. Queries en Prod confirman que el fix trae los 25 reels correctos de marzo cuando se filtra "mes anterior".
+
+- `src/app/(dashboard)/instagram/page.tsx` — 3 queries con `.lt(published_at, nextDay(to))`.
+
+---
+
+### Improved — Competidores: ventana 30 días, progreso en vivo, trial detection
+
+Rediseño del flujo de scrape + análisis para que la UX no sea una caja negra de 2-3 min:
+
+- **Ventana fija de 30 días**: el scraper ahora pide reels publicados en los últimos 30 días (antes tomaba los top-50 sin importar cuándo se publicaron). Usa `onlyPostsNewerThan: "30 days"` en el actor + filtro defensivo post-fetch.
+- **Progreso en vivo**: nueva columna `workspace_competitors.scrape_progress jsonb` que los endpoints `/scrape` y `/analyze` actualizan entre fases ("Bajando reels…", "Descargando portadas 12/47…", "Analizando 3/6…"). La UI pollea `GET /api/v1/competitors/[id]` cada 2s y muestra el mensaje dinámico en el botón en vez del texto fijo "Analizando…".
+- **Análisis automático de 6 (antes 5)**: `analyzeCompetitorReels` sube el limit de top-views a 6 y emite progress per-reel.
+- **Trial-reel detection (best effort)**: nuevo scrape paralelo del grid del perfil vía `apify~instagram-post-scraper`. Si un reel aparece en la tab `/reels/` pero NO en el grid del perfil → `competitor_reels.maybe_trial = true` (señal fuerte de Instagram "share to feed: off"). Si el actor del grid falla o no devuelve nada, la columna queda NULL y el resto del scrape sigue normal.
+- **Orden por views en la lista global**: `GET /api/v1/competitors` ahora ordena los reels embebidos por `views_count` desc y sube el límite por competidor a 100 (antes 24).
+
+#### Archivos
+- `supabase/migrations/20260423000057_competitor_scrape_progress.sql` (NUEVO) — aplicada en Prod Arko.
+- `src/services/competitor-scraper.service.ts` — progreso por fase, ventana 30d, scrape del grid para trials.
+- `src/services/competitor-analysis.service.ts` — limit 5→6, emit progress por reel analizado.
+- `src/app/api/v1/competitors/[id]/route.ts` (NUEVO) — endpoint liviano para polling.
+- `src/app/api/v1/competitors/route.ts` — SELECT incluye `scrape_progress` + `maybe_trial`, orden por views, limit 100.
+- `src/components/instagram/CompetitorTab.tsx` — polling cada 2s, botón con mensaje dinámico.
+
+---
+
+### Changed — Ventas: cuotas ahora piden fecha de la primera cuota (no monto upfront)
+
+Simplificación del flujo de cuotas pedida por Francisco: el input **"Cobrado hasta hoy"** se elimina y se reemplaza por **"Fecha de la primera cuota"** (default: fecha de venta si la dejan vacía). Intervalo entre cuotas pasa de "mismo día del mes" a **+30 días exactos**. Las cuotas cuyo `due_date <= hoy` se marcan paid automáticamente al insertar — el efectivo recolectado se va sumando solo a medida que vencen las cuotas (ya lo hacía el cron diario; ahora también al crear).
+
+#### Archivos
+- `src/components/sales/SaleForm.tsx` — reemplaza input de "Cobrado hasta hoy" por date picker "Fecha de la primera cuota"; recalcula `amountCollected` preview según cuotas ya vencidas.
+- `src/app/api/sales/route.ts` — acepta `first_installment_date` (default `sale_date`), genera cuotas cada 30 días, marca paid las que ya vencieron.
+- `docs/features/sales.md` — decisiones y Auto-paid actualizados.
+
+---
+
+### Added — Competidores: watchdog pg_cron para auto-desbloquear scrapes stuck
+
+Red de seguridad contra regresiones del bug de `analysis_status='analyzing'` pegado para siempre (ya arreglado en PR #59 a nivel código). Un pg_cron corre cada 10 min y libera cualquier row cuyo scrape haya pasado de los 10 min sin completarse (Vercel `maxDuration=120s`, así que cualquier cosa >10 min está muerta).
+
+**Cómo distinguir scrapes legítimos en curso:** nueva columna `workspace_competitors.analysis_started_at` seteada por los endpoints `POST /competitors/[id]/scrape` y `POST /competitors/[id]/analyze` al iniciar, y limpiada al terminar. `last_scraped_at` no servía porque refleja el último scrape exitoso, no el intento actual.
+
+**Cleanup ejecutado al aplicar:** 2 competidores stuck (`Max Inhouse`, `Nik Setting`) desbloqueados manualmente antes del deploy.
+
+#### Archivos
+- `supabase/migrations/20260423000056_competitor_analyzing_watchdog.sql` (NUEVO) — aplicada en Prod Arko.
+- `src/app/api/v1/competitors/[id]/scrape/route.ts` — setea `analysis_started_at` al marcar analyzing; lo resetea en `resetStatus`.
+- `src/app/api/v1/competitors/[id]/analyze/route.ts` — mismo patrón (endpoint también deja el status pegado si crashea).
+
+---
+
+### Improved — Competidores: +150% reels scrapeados + campos nuevos
+
+- **Límite subido 20 → 50 reels** por scrape de competidor. Más data histórica para detectar patrones (hooks, estructura, temas recurrentes) sin cambiar de actor.
+- **Nuevos campos** persistidos en `competitor_reels`:
+  - `location_name` / `location_id` — ubicación taggeada (útil para creators con audiencia geo-específica).
+  - `tagged_users` — array de @usernames mencionados en el reel (detecta colabs, partnerships).
+  - `product_type` — feed / clips / igtv (distingue reel vs otras piezas).
+  - `is_video` — flag booleano para filtrar rápido.
+  - `maybe_trial` — columna preparada para heurística futura de detección de trial reels en competidores (hoy queda NULL). La detección de trials de cuentas ajenas **no es 100% posible** vía Apify porque Instagram no expone `is_shared_to_feed` públicamente; un scrape dual (grid + reels tab) + comparación por `short_code` daría ~70-80% precisión pero duplicaría el costo Apify.
+
+**Tradeoff confirmado**: el scrape de cada competidor consume ~2.5× más compute units de Apify. El cron de `competitor-scraping` (4 AM UTC) sigue corriendo igual — solo tarda un poco más.
+
+#### Archivos
+- `supabase/migrations/20260423000055_competitor_reels_enrichment.sql` (NUEVO) — aplicada en Prod Arko.
+- `src/services/competitor-scraper.service.ts` — MAX_REELS 20→50 + parseo de location/tagged_users/product_type/is_video.
+
+---
+
+### Added — Ventas: cuotas programadas con auto-paid
+
+Cuando una venta tiene `payment_type='cuotas'`, el sistema genera automáticamente las cuotas programadas:
+
+- **Cuota 1**: mismo día que `sale_date`
+- **Cuotas 2..N**: mismo día del mes, mes a mes
+
+Un pg_cron diario marca las cuotas vencidas (due_date <= hoy) como cobradas. Un trigger recalcula `sales.amount_collected` y `sales.payment_status` cada vez que cambia una cuota.
+
+Si un cliente no pagó realmente, el usuario abre la venta desde la tabla (ícono Wallet), ve todas las cuotas con su fecha y monto, y desmarca la que corresponda — el total cobrado se actualiza en vivo.
+
+El modal `AddPaymentModal` original sigue disponible para ventas `deposito` y `full` con pendientes (cobros fuera de calendario).
+
+#### Archivos
+- `supabase/migrations/20260423000054_sale_installments.sql` (NUEVO) — tabla `sale_installments` + trigger `recalc_sale_from_installments` + pg_cron `auto-pay-installments-daily`. **Aplicada en Prod Arko + backfill de ventas existentes.**
+- `src/app/api/sales/route.ts` — POST genera N cuotas al crear venta de cuotas
+- `src/app/api/sales/[id]/installments/route.ts` (NUEVO) — GET/PATCH por cuota
+- `src/components/sales/InstallmentsModal.tsx` (NUEVO) — UI de toggle cobrada/pendiente
+- `src/components/sales/SaleForm.tsx` — envía `n_cuotas` al endpoint
+- `src/app/(dashboard)/ventas/VentasClient.tsx` — selecciona InstallmentsModal para `payment_type='cuotas'`
+
+---
+
+### Fixed — Multiplicador de Reels: org-only + contextual al filtro de tipo
+
+Dos bugs en el cálculo del multiplicador (x̄) que se mostraba en cada Reel card:
+
+- **Bug A — Ads inflaban el multiplicador**: el numerador sumaba `views_org + views_paid` pero el denominador (promedio 90d) ya era solo `views_org`. Un Reel con 100k org + 100k ads aparecía con ×2 falso. Ahora el numerador también pasa a `views_org`: ads se siguen mostrando aparte pero no afectan el ranking.
+- **Bug B — Multiplicador no reaccionaba al filtro de tipo**: al filtrar por "Trial reel", el multiplicador seguía comparando contra el promedio de Reels normales, y todos los trials caían en ~0.2x. Ahora hay 3 benchmarks separados (`normal`, `trial`, `all`) y la UI elige el apropiado según el filtro activo.
+
+Cambios:
+
+- **DB** — `reel_benchmarks.avg_views_by_type jsonb` con `{ normal, trial, all }`. Migración aplicada en Dev Arko.
+- **Service** — `reel-benchmarks.service.ts` calcula los 3 promedios usando solo `views_org`. Métricas derivadas (engagement, retention, etc.) siguen excluyendo trials.
+- **Edge Function** — `sync-instagram/index.ts` replica la lógica nueva para que cada sync actualice el JSONB.
+- **Server + API** — `page.tsx` e `api/v1/reels/route.ts` leen el JSONB; `is_top_performer` se calcula comparando cada Reel contra el benchmark de su propio tipo.
+- **UI** — `ReelsGrid` recibe los 3 benchmarks y computa el multiplicador on-the-fly cuando cambia el `typeFilter`.
+- **Docs** — `docs/features/ig-intelligence.md` documenta la nueva semántica.
+
+#### Archivos modificados
+- `supabase/migrations/20260423000053_benchmarks_by_type.sql` (NUEVO)
+- `src/services/reel-benchmarks.service.ts`
+- `supabase/functions/sync-instagram/index.ts` (requiere redeploy)
+- `src/app/(dashboard)/instagram/page.tsx`
+- `src/app/api/v1/reels/route.ts`
+- `src/components/instagram/InstagramShell.tsx`
+- `src/components/instagram/ReelsGrid.tsx`
+- `docs/features/ig-intelligence.md`
+
+---
+
 ## [0.14.4] — 2026-03-27
 
 ### Fixed — Supabase error handling + black screen prevention

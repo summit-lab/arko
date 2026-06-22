@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, ChevronRight, Instagram, Loader2, RefreshCw, Sparkles } from "lucide-react";
 
 interface InitialInstagramSyncScreenProps {
@@ -15,31 +16,32 @@ type SyncPhase = {
   description: string;
 };
 
-const PHASES: SyncPhase[] = [
-  {
-    title: "Validando la conexión",
-    description: "Verificamos permisos, cuenta de Instagram Business y acceso al workspace.",
-  },
-  {
-    title: "Descargando tus contenidos",
-    description: "Estamos trayendo tus Reels de los últimos 90 días.",
-  },
-  {
-    title: "Procesando métricas y Ads",
-    description: "Consolidamos alcance, views, engagement y atribución paga cuando existe.",
-  },
-  {
-    title: "Armando tu dashboard",
-    description: "Calculamos benchmarks, ordenamos la data y dejamos todo listo para explorar.",
-  },
-];
-
 export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialInstagramSyncScreenProps) {
   const router = useRouter();
+  const t = useTranslations("igAdvanced");
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isSyncing, setIsSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const PHASES: SyncPhase[] = useMemo(() => [
+    {
+      title: t("initialSync.phases.validate.title"),
+      description: t("initialSync.phases.validate.description"),
+    },
+    {
+      title: t("initialSync.phases.download.title"),
+      description: t("initialSync.phases.download.description"),
+    },
+    {
+      title: t("initialSync.phases.metrics.title"),
+      description: t("initialSync.phases.metrics.description"),
+    },
+    {
+      title: t("initialSync.phases.dashboard.title"),
+      description: t("initialSync.phases.dashboard.description"),
+    },
+  ], [t]);
 
   const progress = useMemo(() => {
     const baseProgress = ((phaseIndex + 1) / PHASES.length) * 100;
@@ -69,30 +71,113 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
       setError(null);
 
       try {
-        const response = await fetch(`/api/v1/sync/instagram?workspace_id=${workspaceId}`, {
+        // El endpoint ahora responde 202 inmediato y corre el sync en background
+        // (fix del 504 + chain de 3 invocaciones). No podemos esperar la
+        // response como antes — tenemos que pollear sync_jobs para saber cuándo
+        // los steps críticos (account + media) completaron.
+        const kickoffStart = Date.now();
+        const kickoffRes = await fetch(`/api/v1/sync/instagram?workspace_id=${workspaceId}`, {
           method: "POST",
         });
-        const json = await response.json();
-        const responseError = json?.message || json?.error || json?.data?.errors?.[0] || "No pudimos completar la sincronización inicial.";
+        const kickoffJson = await kickoffRes.json().catch(() => ({}));
 
-        if (!response.ok || json?.data?.status === "failed") {
-          throw new Error(responseError);
+        // Error inmediato (auth, token expirado, etc.) — cortamos.
+        if (!kickoffRes.ok && kickoffRes.status !== 202) {
+          throw new Error(
+            kickoffJson?.message ||
+              kickoffJson?.error ||
+              t("initialSync.errors.kickoff")
+          );
         }
 
-        if (cancelled) {
-          return;
-        }
+        // Polling hasta que account_insights + full_sync completen.
+        // Timeout de 5 min como safety.
+        const TIMEOUT_MS = 5 * 60 * 1000;
+        const POLL_INTERVAL_MS = 3000;
+        const startedAt = kickoffStart;
 
-        setPhaseIndex(PHASES.length - 1);
-        window.dispatchEvent(new Event("nav:start"));
-        router.replace("/instagram");
-        router.refresh();
+        while (!cancelled) {
+          if (Date.now() - startedAt > TIMEOUT_MS) {
+            throw new Error(
+              t("initialSync.errors.timeout")
+            );
+          }
+
+          const statusRes = await fetch(
+            `/api/v1/sync/status?workspace_id=${workspaceId}`
+          );
+          if (!statusRes.ok) {
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+            continue;
+          }
+          const statusJson = await statusRes.json();
+          const jobs = Array.isArray(statusJson?.data) ? statusJson.data : [];
+
+          // Sólo consideramos jobs iniciados DESPUÉS del kickoff (con 10s de
+          // margen) para ignorar jobs viejos que puedan estar running/orphan.
+          const relevant = jobs.filter(
+            (j: { started_at: string }) =>
+              new Date(j.started_at).getTime() >= startedAt - 10_000
+          );
+
+          const findJob = (type: string) =>
+            relevant.find((j: { job_type: string }) => j.job_type === type);
+
+          const accountJob = findJob("account_insights");
+          const mediaJob = findJob("full_sync");
+          const storiesJob = findJob("stories_sync");
+
+          // Fase 2 = "Descargando contenidos" (cuando account está por terminar)
+          // Fase 3 = "Procesando métricas y Ads" (cuando account completó y media arrancó)
+          // Fase 4 = "Armando dashboard" (cuando media completó)
+          if (mediaJob?.status === "completed") {
+            setPhaseIndex(3);
+          } else if (accountJob?.status === "completed") {
+            setPhaseIndex(2);
+          } else if (accountJob?.status === "running" || mediaJob?.status === "running") {
+            setPhaseIndex(1);
+          }
+
+          // Account + media listos → el dashboard tiene todo lo esencial.
+          // Stories es opcional; no bloqueamos el redirect.
+          if (
+            accountJob?.status === "completed" &&
+            mediaJob?.status === "completed"
+          ) {
+            if (cancelled) return;
+
+            // Esperamos 1s extra para dar chance a que stories también complete
+            // si falta poco. No bloquea si no.
+            if (storiesJob && storiesJob.status === "running") {
+              await new Promise((r) => setTimeout(r, 1500));
+            }
+
+            setPhaseIndex(PHASES.length - 1);
+            window.dispatchEvent(new Event("nav:start"));
+            router.replace("/instagram");
+            router.refresh();
+            return;
+          }
+
+          // Si alguno falló, cortamos con error.
+          if (accountJob?.status === "failed" || mediaJob?.status === "failed") {
+            throw new Error(
+              t("initialSync.errors.stepFailed")
+            );
+          }
+
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        }
       } catch (syncError) {
         if (cancelled) {
           return;
         }
 
-        setError(syncError instanceof Error ? syncError.message : "No pudimos completar la sincronización inicial.");
+        setError(
+          syncError instanceof Error
+            ? syncError.message
+            : t("initialSync.errors.generic")
+        );
         setIsSyncing(false);
       }
     }
@@ -102,7 +187,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
     return () => {
       cancelled = true;
     };
-  }, [router, workspaceId]);
+  }, [router, workspaceId, t]);
 
   const currentPhase = PHASES[phaseIndex];
 
@@ -118,20 +203,20 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-white/45">
                 <Sparkles className="h-3.5 w-3.5" />
-                Primera sincronización
+                {t("initialSync.badge")}
               </div>
 
               <div>
                 <h1 className="page-title text-[2.6rem] leading-none tracking-[-0.05em]">
-                  Estamos preparando tu
+                  {t("initialSync.heading.line1")}
                   <span className="block bg-gradient-to-r from-white to-white/55 bg-clip-text text-transparent">
-                    Instagram Intelligence
+                    {t("initialSync.heading.line2")}
                   </span>
                 </h1>
                 <p className="mt-4 max-w-2xl text-[15px] font-light text-white/45">
                   {igUsername
-                    ? `Conectamos la cuenta @${igUsername}. Ahora estamos trayendo y procesando tu información para que entres con data real desde el primer minuto.`
-                    : "Acabás de conectar tu cuenta. Ahora estamos trayendo y procesando tu información para que entres con data real desde el primer minuto."}
+                    ? t("initialSync.heading.subWithUsername", { username: igUsername })
+                    : t("initialSync.heading.subNoUsername")}
                 </p>
               </div>
             </div>
@@ -139,12 +224,12 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
             <div className="mt-10 rounded-[24px] border border-white/[0.1] bg-white/[0.03] p-6">
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Etapa actual</p>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">{t("initialSync.currentStage")}</p>
                   <h2 className="mt-2 text-[24px] font-extralight tracking-[-0.03em] text-white">{currentPhase.title}</h2>
                 </div>
                 <div className="flex items-center gap-3 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-sm text-white/65">
                   <Loader2 className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-                  {isSyncing ? "Sincronizando" : "Pausada"}
+                  {isSyncing ? t("initialSync.statusSyncing") : t("initialSync.statusPaused")}
                 </div>
               </div>
 
@@ -152,7 +237,7 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
 
               <div className="mt-6">
                 <div className="mb-2 flex items-center justify-between text-[12px] text-white/35">
-                  <span>Progreso estimado</span>
+                  <span>{t("initialSync.estimatedProgress")}</span>
                   <span>{Math.round(progress)}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-white/[0.05]">
@@ -199,26 +284,26 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
 
           <aside className="space-y-6">
             <div className="glass-card rounded-[28px] p-7">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Tiempo transcurrido</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">{t("initialSync.elapsedTime")}</p>
               <p className="mt-3 text-[42px] font-extralight tracking-[-0.04em] text-white">{elapsedSeconds}s</p>
               <p className="mt-3 text-sm font-light leading-relaxed text-white/40">
-                La primera sincronización suele tardar más porque trae contenido histórico, métricas de cuenta y benchmarks base.
+                {t("initialSync.elapsedHint")}
               </p>
             </div>
 
             <div className="glass-card rounded-[28px] p-7">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Qué vas a ver al entrar</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">{t("initialSync.whatYoullSee.title")}</p>
               <div className="mt-4 space-y-3 text-sm font-light text-white/55">
-                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Tus Reels recientes</div>
-                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">KPIs orgánicos y pagados</div>
-                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">Benchmark inicial de 90 días</div>
-                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">IG Metrics a nivel de cuenta</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">{t("initialSync.whatYoullSee.item1")}</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">{t("initialSync.whatYoullSee.item2")}</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">{t("initialSync.whatYoullSee.item3")}</div>
+                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">{t("initialSync.whatYoullSee.item4")}</div>
               </div>
             </div>
 
             {error ? (
               <div className="rounded-[28px] border border-red-500/20 bg-red-500/5 p-7">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-red-300/70">Sincronización interrumpida</p>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-red-300/70">{t("initialSync.errorTitle")}</p>
                 <p className="mt-3 text-sm leading-relaxed text-red-200">{error}</p>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
@@ -226,13 +311,13 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
                     className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.06] px-4 py-2 text-sm text-white transition-all hover:bg-white/[0.1]"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Reintentar sincronización
+                    {t("initialSync.actions.retry")}
                   </button>
                   <Link
                     href="/onboarding"
                     className="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-200 transition-all hover:bg-red-400/15"
                   >
-                    Revisar conexión
+                    {t("initialSync.actions.checkConnection")}
                   </Link>
                 </div>
               </div>

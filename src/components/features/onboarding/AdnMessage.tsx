@@ -1,6 +1,7 @@
 "use client";
 
 import { Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
 
 interface AdnMessageProps {
@@ -31,10 +32,14 @@ export function AdnMessage({ role, content, onCompetitorFormClick, competitorCou
         {!isUser && (
           <div className="flex items-center gap-1.5 mb-2">
             <div className="h-4 w-4 rounded-full bg-foreground/10 dark:bg-gradient-to-b dark:from-white/12 dark:to-white/4 flex items-center justify-center">
-              <svg width="9" height="9" viewBox="0 0 607.13 523.93" xmlns="http://www.w3.org/2000/svg" className="fill-foreground/60 dark:fill-white/50">
-                <path d="M412.55,17.53c-4.06-10.56-14.2-17.53-25.51-17.53h-185.69l-.23.57,79.73,207.46s0,.05.02.09c.66,3.31,4.16,22.81-8.98,40.42-12.23,16.41-30.03,19.33-33.45,19.83h-121.46c-11.31,0-21.46,6.97-25.51,17.53L0,523.93h204.93l77.56-201.82c3.56-7.38,11.97-22.46,28.68-35.1,1.71-1.33,3.54-2.61,5.44-3.84,16-10.42,31.4-13.64,40.08-14.78h152.26L412.55,17.53Z"/>
-                <path d="M607.13,523.93h-204.93l-23.47-61.08c-18.53-49.04,6.47-104.64,55.35-123.28,48.72-18.58,104.22,5.99,123.21,54.68l49.84,129.68Z"/>
-              </svg>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logos/moka.svg"
+                alt="Moka"
+                width={9}
+                height={9}
+                style={{ width: 9, height: 9, objectFit: "contain" }}
+              />
             </div>
             <span className="text-[10px] font-medium text-muted-foreground dark:text-white/30 tracking-wide">Moka</span>
           </div>
@@ -71,6 +76,7 @@ function CompetitorFormCard({
   onClick?: () => void;
   competitorCount: number;
 }) {
+  const t = useTranslations("onboarding.competitorCard");
   const hasSaved = competitorCount > 0;
 
   return (
@@ -82,20 +88,20 @@ function CompetitorFormCard({
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-light text-white/70">
             {hasSaved
-              ? `${competitorCount} competidor${competitorCount !== 1 ? "es" : ""} cargado${competitorCount !== 1 ? "s" : ""}`
-              : "Cargá tus competidores principales"}
+              ? t("savedCount", { count: competitorCount })
+              : t("emptyTitle")}
           </p>
           <p className="text-[11px] text-white/30 font-light mt-0.5">
             {hasSaved
-              ? "Podés editarlos en cualquier momento"
-              : "Nombre, Instagram y qué te gusta de ellos"}
+              ? t("savedHint")
+              : t("emptyHint")}
           </p>
         </div>
         <button
           onClick={onClick}
           className="shrink-0 px-4 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-[12px] font-medium text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 transition-all cursor-pointer"
         >
-          {hasSaved ? "Editar" : "Agregar competidores"}
+          {hasSaved ? t("edit") : t("add")}
         </button>
       </div>
     </div>

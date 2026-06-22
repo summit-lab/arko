@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { RefreshCw, Check, AlertCircle } from "lucide-react";
 
 interface SyncButtonProps {
@@ -13,6 +14,7 @@ type SyncPhase = "idle" | "quick" | "done" | "error";
 
 export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
   const router = useRouter();
+  const t = useTranslations("igAdvanced");
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -21,52 +23,52 @@ export function SyncButton({ workspaceId, currentTab }: SyncButtonProps) {
     setErrorMsg(null);
 
     try {
-      // Quick sync — latest 12 reels + insights (~3-5s)
+      // 1. QUICK = recompensa rápida: trae los primeros ~12 reels (o el account
+      //    en la vista de métricas) + sus métricas (~3-5s). Apenas vuelve, pinta
+      //    la primera página y marca "Listo". Feedback en segundos.
       const stepsParam = currentTab === "metrics" ? "account" : "quick";
-      const quickRes = await fetch(
+      const res = await fetch(
         `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=${stepsParam}`,
         { method: "POST" }
       );
-      const quickJson = await quickRes.json();
+      const json = await res.json();
 
-      if (!quickRes.ok || quickJson.data?.status === "error") {
+      if (!res.ok || json.error === "TOKEN_EXPIRED" || json.data?.status === "error") {
         setPhase("error");
-        if (quickJson.error === "TOKEN_EXPIRED") {
-          setErrorMsg("Conexión con Meta expirada. Reconectá tu cuenta.");
-        } else {
-          setErrorMsg(quickJson.message || quickJson.data?.error || "Error en sync rápido");
-        }
+        setErrorMsg(
+          json.error === "TOKEN_EXPIRED"
+            ? t("sync.tokenExpired")
+            : (json.message || json.data?.error || t("sync.quickError"))
+        );
         return;
       }
 
-      // Quick done — refresh server components to show fresh data
-      if (stepsParam === "account") {
-        setPhase("done");
-        router.refresh();
-        return;
-      }
+      // Pinta la primera página + "Listo" YA.
+      router.refresh();
+      setPhase("done");
 
-      // Fire full sync in background (fire-and-forget)
+      // 2. El RESTO en segundo plano (todos los reels + account + stories, y ads
+      //    ÚLTIMO). Fire-and-forget: no esperamos, no trackeamos, no refrescamos
+      //    en loop (eso era lo que generaba ~228 requests). Lo que sincroniza
+      //    aparece en la próxima carga/navegación.
+      const first = currentTab === "metrics" ? "account" : "reels";
       fetch(
-        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all`,
+        `/api/v1/sync/instagram?workspace_id=${workspaceId}&steps=all&first=${first}`,
         { method: "POST" }
       ).catch(() => { /* background, non-blocking */ });
-
-      setPhase("done");
-      router.refresh();
     } catch {
       setPhase("error");
-      setErrorMsg("Error de red");
+      setErrorMsg(t("sync.networkError"));
     }
-  }, [workspaceId, currentTab, router]);
+  }, [workspaceId, currentTab, router, t]);
 
   const isLoading = phase === "quick";
 
   const label = {
-    idle: "Sincronizar",
-    quick: "Actualizando...",
-    done: "Listo",
-    error: "Sincronizar",
+    idle: t("sync.button.idle"),
+    quick: t("sync.button.quick"),
+    done: t("sync.button.done"),
+    error: t("sync.button.idle"),
   }[phase];
 
   const Icon = phase === "done" ? Check : phase === "error" ? AlertCircle : RefreshCw;

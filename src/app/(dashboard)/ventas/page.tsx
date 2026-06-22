@@ -20,6 +20,7 @@ export default async function VentasPage() {
     client_name: string | null;
     reel_id: string | null;
     reels: { id: string; caption: string | null; thumbnail_url: string | null; permalink: string | null } | null;
+    installments: Array<{ due_date: string; paid_at: string | null; amount: number }>;
   }> = [];
 
   let reelsForPicker: Array<{ id: string; caption: string | null; thumbnail_url: string | null; published_at: string | null }> = [];
@@ -34,18 +35,23 @@ export default async function VentasPage() {
           id, source_type, source_label, amount_total, amount_collected,
           payment_type, payment_status, sale_date, payment_method, notes,
           client_name, reel_id,
-          reels (id, caption, thumbnail_url, permalink)
+          reels (id, caption, thumbnail_url, permalink),
+          sale_installments (due_date, paid_at, amount)
         `)
         .eq("workspace_id", workspaceId)
         .order("sale_date", { ascending: false })
         .limit(200),
+      // Pickers de Nueva Venta: traer TODOS los reels y stories de los últimos
+      // 90 días. El UI tiene scroll + search, así que mostrar todos es seguro.
+      // Cap alto (500) como safety net contra cuentas muy activas; Supabase
+      // impone su propio hard cap por defecto (1000) si lo pedimos sin .limit().
       supabase
         .from("reels")
         .select("id, caption, thumbnail_url, published_at")
         .eq("workspace_id", workspaceId)
         .gte("published_at", ninetyDaysAgo)
         .order("published_at", { ascending: false })
-        .limit(100),
+        .limit(500),
       supabase
         .from("ig_story_sequences")
         .select(`
@@ -55,13 +61,14 @@ export default async function VentasPage() {
         .eq("workspace_id", workspaceId)
         .gte("published_at", ninetyDaysAgo)
         .order("published_at", { ascending: false })
-        .limit(60),
+        .limit(500),
     ]);
 
     if (salesResult.data) {
       sales = salesResult.data.map((s) => ({
         ...s,
         reels: Array.isArray(s.reels) ? (s.reels[0] ?? null) : s.reels,
+        installments: Array.isArray(s.sale_installments) ? s.sale_installments : [],
       })) as typeof sales;
     }
     if (reelsResult.data) reelsForPicker = reelsResult.data;

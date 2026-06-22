@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Fingerprint, Swords, CalendarDays, Target } from "lucide-react";
 
 type TabId = "adn" | "competencia" | "calendario" | "metas";
@@ -17,6 +18,7 @@ interface CustomerVoiceTabsProps {
 export function CustomerVoiceTabs({ initialTab, adnContent, competitorContent, calendarContent, metasContent }: CustomerVoiceTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const searchParams = useSearchParams();
+  const t = useTranslations("customerVoice.tabs");
 
   const handleTabChange = useCallback((tabId: TabId) => {
     if (activeTab === tabId) return;
@@ -34,10 +36,10 @@ export function CustomerVoiceTabs({ initialTab, adnContent, competitorContent, c
   }, [activeTab, searchParams]);
 
   const tabs = [
-    { id: "adn" as const,         label: "ADN de Marca",  icon: Fingerprint },
-    { id: "competencia" as const, label: "Competencia",   icon: Swords },
-    { id: "calendario" as const,  label: "Calendario",    icon: CalendarDays },
-    { id: "metas" as const,       label: "Metas",         icon: Target },
+    { id: "adn" as const,         label: t("adn"),          icon: Fingerprint },
+    { id: "competencia" as const, label: t("competencia"),  icon: Swords },
+    { id: "calendario" as const,  label: t("calendario"),   icon: CalendarDays },
+    { id: "metas" as const,       label: t("metas"),        icon: Target },
   ];
 
   return (

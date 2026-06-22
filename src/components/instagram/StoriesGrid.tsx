@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight, BookImage, ArrowLeft,
   ArrowRight, Users, Reply, BarChart3, Clock,
 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, PieChart, Pie, Cell,
@@ -84,14 +85,16 @@ function fmt(n: number): string {
   return n.toLocaleString();
 }
 
-function fmtDate(date: string): string {
+function fmtDate(date: string, locale: string): string {
   const d = new Date(date);
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
+  return d.toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" });
 }
 
-function fmtDateShort(date: string): string {
+function fmtDateShort(date: string, locale: string): string {
   const d = new Date(date);
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
+  return d.toLocaleDateString(dateLocale, { day: "numeric", month: "short" });
 }
 
 function completionRate(slides: StorySlide[]): number {
@@ -143,6 +146,8 @@ function StoriesSidebar({
   totalFollowers: number;
 }) {
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
+  const locale = useLocale();
   // Only count real sequences for stats
   const realSeqs = sequences.filter((s) => !s._demo);
   const allSeqs = realSeqs.length > 0 ? realSeqs : sequences;
@@ -181,15 +186,15 @@ function StoriesSidebar({
   const multiCount = allSeqs.filter((s) => s.slides.length > 1).length;
   const singleCount = allSeqs.length - multiCount;
   const donutData = [
-    ...(multiCount > 0 ? [{ name: "Multi-slide", value: multiCount, color: "#7A86E0" }] : []),
-    ...(singleCount > 0 ? [{ name: "1 slide", value: singleCount, color: "#AF6EC7" }] : []),
+    ...(multiCount > 0 ? [{ name: t("stories.multiSlide"), value: multiCount, color: "#7A86E0" }] : []),
+    ...(singleCount > 0 ? [{ name: t("stories.oneSlide"), value: singleCount, color: "#AF6EC7" }] : []),
   ];
 
   // Timeline: impressions per sequence (last 15 real)
   const trendData = [...allSeqs]
     .sort((a, b) => a.published_at.localeCompare(b.published_at))
     .slice(-15)
-    .map((s, i) => ({ idx: i + 1, date: fmtDateShort(s.published_at), views: s.total_impressions }));
+    .map((s, i) => ({ idx: i + 1, date: fmtDateShort(s.published_at, locale), views: s.total_impressions }));
 
   // Top 5 by impressions
   const top5 = [...allSeqs].sort((a, b) => b.total_impressions - a.total_impressions).slice(0, 5);
@@ -212,7 +217,7 @@ function StoriesSidebar({
       {/* ── Panel: Resumen ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.12em] mb-4">
-          Resumen · {allSeqs.length} historias
+          {t("stories.summaryTitle", { count: allSeqs.length })}
         </p>
 
         <div className="flex items-center gap-4 mb-4">
@@ -227,7 +232,7 @@ function StoriesSidebar({
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-[18px] font-light text-white leading-none tracking-[-0.03em]">{allSeqs.length}</span>
-              <span className="text-[8px] text-white/30 uppercase tracking-wider mt-0.5">stories</span>
+              <span className="text-[8px] text-white/30 uppercase tracking-wider mt-0.5">{t("stories.storiesLabel")}</span>
             </div>
           </div>
 
@@ -246,10 +251,10 @@ function StoriesSidebar({
 
         <div className="border-t border-white/[0.06] pt-3 space-y-2">
           {[
-            { label: "Total impresiones", value: fmt(totalImpressions) },
-            { label: "Total respuestas", value: fmt(totalReplies) },
-            { label: "Total salidas", value: fmt(totalExits) },
-            { label: "Prom. vistas / historia", value: fmt(Math.round(avgImpressions)) },
+            { label: t("stories.totals.impressions"), value: fmt(totalImpressions) },
+            { label: t("stories.totals.replies"), value: fmt(totalReplies) },
+            { label: t("stories.totals.exits"), value: fmt(totalExits) },
+            { label: t("stories.totals.avgPerStory"), value: fmt(Math.round(avgImpressions)) },
           ].map(({ label, value }) => (
             <div key={label} className="flex items-center justify-between">
               <span className="text-[10px] text-white/30">{label}</span>
@@ -262,7 +267,7 @@ function StoriesSidebar({
       {/* ── Panel: KPIs de performance ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Performance</p>
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">{t("stories.performance")}</p>
           <BarChart3 size={13} className="text-violet-400" />
         </div>
 
@@ -272,7 +277,7 @@ function StoriesSidebar({
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1.5">
                 <Reply size={11} className="text-[#4BCEAF]" />
-                <span className="text-[10px] text-white/40">Tasa de respuesta prom.</span>
+                <span className="text-[10px] text-white/40">{t("stories.avgReplyRate")}</span>
               </div>
               <span className="text-[13px] font-light text-white">{avgReplyRate.toFixed(2)}%</span>
             </div>
@@ -290,7 +295,7 @@ function StoriesSidebar({
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <TrendingDown size={11} className="text-[#7A86E0]" />
-                  <span className="text-[10px] text-white/40">Completion rate prom.</span>
+                  <span className="text-[10px] text-white/40">{t("stories.avgCompletion")}</span>
                 </div>
                 <span className="text-[13px] font-light text-white">{avgCompletion.toFixed(1)}%</span>
               </div>
@@ -309,7 +314,7 @@ function StoriesSidebar({
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <TrendingDown size={11} className="text-rose-400" />
-                  <span className="text-[10px] text-white/40">Drop-off prom. (inicio→fin)</span>
+                  <span className="text-[10px] text-white/40">{t("stories.avgDropOff")}</span>
                 </div>
                 <span className="text-[13px] font-light" style={{ color: "#f472b6" }}>
                   -{avgDropOff.toFixed(1)}%
@@ -331,7 +336,7 @@ function StoriesSidebar({
         <div className="glass-panel rounded-xl px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">
-              Alcance de seguidores
+              {t("stories.followerReachTitle")}
             </p>
             <Users size={13} className="text-[#AF6EC7]" />
           </div>
@@ -356,18 +361,18 @@ function StoriesSidebar({
             </div>
             <div className="flex-1 space-y-1.5">
               <p className="text-[11px] text-white/60 leading-snug">
-                Promedio de seguidores que ven cada historia
+                {t("stories.followerReachDesc")}
               </p>
               <div className="flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#AF6EC7" }} />
                 <span className="text-[10px] text-white/30">
-                  {fmt(Math.round(avgImpressions))} views prom.
+                  {fmt(Math.round(avgImpressions))} {t("stories.viewsAvg")}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-white/[0.1]" />
                 <span className="text-[10px] text-white/30">
-                  {fmt(totalFollowers)} seguidores
+                  {fmt(totalFollowers)} {t("stories.followers")}
                 </span>
               </div>
             </div>
@@ -379,10 +384,10 @@ function StoriesSidebar({
       {trendData.length >= 2 && (
         <div className="glass-panel rounded-xl px-5 py-4">
           <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">
-            Evolución de Vistas
+            {t("stories.viewsTrend")}
           </p>
           <p className="text-[9px] text-white/20 mb-3">
-            Impresiones cronológicas · últimas {trendData.length}
+            {t("stories.viewsTrendSubtitle", { count: trendData.length })}
           </p>
           <div style={{ height: 80 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -403,7 +408,7 @@ function StoriesSidebar({
                     return (
                       <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] backdrop-blur-xl shadow-xl">
                         <p className="text-muted-foreground mb-0.5">{d.date}</p>
-                        <p className="text-popover-foreground font-medium">{fmt(d.views)} views</p>
+                        <p className="text-popover-foreground font-medium">{fmt(d.views)} {t("stories.views")}</p>
                       </div>
                     );
                   }}
@@ -421,7 +426,7 @@ function StoriesSidebar({
       {top5.length > 0 && (
         <div className="glass-panel rounded-xl px-5 py-4">
           <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-4">
-            Top 5 por Impresiones
+            {t("stories.top5Impressions")}
           </p>
           <div className="space-y-3">
             {top5.map((s, i) => {
@@ -431,7 +436,7 @@ function StoriesSidebar({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] text-white/25 w-3 shrink-0 font-light">{i + 1}</span>
                     <span className="text-[10px] text-white/50 flex-1 font-light">
-                      {fmtDateShort(s.published_at)}{s._demo ? " (ejemplo)" : ""}
+                      {fmtDateShort(s.published_at, locale)}{s._demo ? ` (${t("stories.exampleSuffix")})` : ""}
                     </span>
                     <span className="text-[11px] text-white font-light shrink-0">{fmt(s.total_impressions)}</span>
                   </div>
@@ -448,13 +453,48 @@ function StoriesSidebar({
   );
 }
 
+// ─── Slide thumbnail with onError fallback ───────────────────────────────────
+// Shared between StoryCard and SequenceDetail. Meta CDN URLs expire and then
+// next/image returns 403 — without this, the thumb just shows as blank.
+
+function SlideImage({ thumb, index, sizes }: { thumb: string | null; index: number; sizes: string }) {
+  const t = useTranslations("igGrids");
+  const [failed, setFailed] = useState(false);
+  const show = !!thumb && !failed;
+  if (!show) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2">
+        <ImageIcon className="h-6 w-6 text-white/10" />
+        <span className="text-[9px] text-white/15 uppercase tracking-wider">{t("stories.slide")} {index + 1}</span>
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={thumb!}
+      alt={`${t("stories.slide")} ${index + 1}`}
+      fill
+      className="object-cover"
+      sizes={sizes}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 // ─── Story Card (gallery item) ────────────────────────────────────────────────
 
 function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }) {
+  const t = useTranslations("igGrids");
+  const locale = useLocale();
   const firstSlide = seq.slides[0];
   const thumb = firstSlide?.thumbnail_url ?? firstSlide?.media_url ?? null;
   const rate = completionRate(seq.slides);
   const isActive = !seq.archived && !!seq.expires_at && new Date(seq.expires_at) > new Date();
+  // Meta CDN URLs expire after hours, so next/image proxy 403s for stale ones.
+  // Track load errors and swap to the placeholder instead of leaving the card
+  // visually empty.
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = !!thumb && !imageFailed;
 
   return (
     <div
@@ -466,19 +506,20 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
         className="relative w-full overflow-hidden bg-white/[0.03]"
         style={{ aspectRatio: "9/16", maxHeight: 240 }}
       >
-        {thumb ? (
+        {showImage ? (
           <Image
-            src={thumb}
-            alt={`Historia ${fmtDateShort(seq.published_at)}`}
+            src={thumb!}
+            alt={`${t("stories.storyAlt")} ${fmtDateShort(seq.published_at, locale)}`}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
             sizes="(max-width: 768px) 50vw, 200px"
+            onError={() => setImageFailed(true)}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2">
             <BookImage className="h-7 w-7 text-white/10" />
             {seq._demo && (
-              <span className="text-[9px] text-white/20 uppercase tracking-wider">Ejemplo</span>
+              <span className="text-[9px] text-white/20 uppercase tracking-wider">{t("stories.example")}</span>
             )}
           </div>
         )}
@@ -496,7 +537,7 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
         {seq._demo && (
           <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-semibold"
             style={{ background: "rgba(251,191,36,0.20)", backdropFilter: "blur(8px)", color: "#fbbf24" }}>
-            Ejemplo
+            {t("stories.example")}
           </div>
         )}
 
@@ -504,7 +545,7 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
         {!seq._demo && isActive && (
           <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-semibold"
             style={{ background: "rgba(16,185,129,0.20)", backdropFilter: "blur(8px)", color: "#34d399" }}>
-            Activa
+            {t("stories.active")}
           </div>
         )}
 
@@ -521,11 +562,11 @@ function StoryCard({ seq, onClick }: { seq: StorySequence; onClick: () => void }
 
       {/* Info row */}
       <div className="px-3 py-2.5">
-        <p className="text-[12px] font-light text-white/80 leading-tight">{fmtDate(seq.published_at)}</p>
+        <p className="text-[12px] font-light text-white/80 leading-tight">{fmtDate(seq.published_at, locale)}</p>
         <div className="mt-1.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {seq.slides.length > 1 && (
-              <span className="text-[10px] text-white/35">{rate.toFixed(0)}% completado</span>
+              <span className="text-[10px] text-white/35">{t("stories.completedPct", { pct: rate.toFixed(0) })}</span>
             )}
             {seq.total_replies > 0 && (
               <span className="flex items-center gap-1 text-[10px] text-white/30">
@@ -555,6 +596,8 @@ function SequenceDetail({
   onNavigate: (id: string) => void;
 }) {
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
+  const locale = useLocale();
   const slides = seq.slides;
   const firstViews = slides[0]?.impressions ?? 0;
   const lastViews = slides[slides.length - 1]?.impressions ?? firstViews;
@@ -579,7 +622,7 @@ function SequenceDetail({
           className="flex items-center gap-2 text-[13px] font-light text-white/60 hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
-          Volver a historias
+          {t("stories.backToStories")}
         </button>
 
         {sequences.length > 1 && (
@@ -590,7 +633,7 @@ function SequenceDetail({
               className={`${glassCardClass} flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white transition-colors disabled:opacity-25 cursor-pointer disabled:cursor-default`}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              Anterior
+              {t("stories.previous")}
             </button>
             <span className="text-[11px] text-white/25">{currentIdx + 1} / {sequences.length}</span>
             <button
@@ -598,7 +641,7 @@ function SequenceDetail({
               disabled={!hasNext}
               className={`${glassCardClass} flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white transition-colors disabled:opacity-25 cursor-pointer disabled:cursor-default`}
             >
-              Siguiente
+              {t("stories.next")}
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -608,29 +651,34 @@ function SequenceDetail({
       {/* ── Header ── */}
       <div className="flex items-center gap-3">
         <h2 className="text-[22px] font-light text-white tracking-[-0.02em]">
-          {fmtDate(seq.published_at)}
+          {fmtDate(seq.published_at, locale)}
         </h2>
         <span className="text-white/20">·</span>
-        <span className="text-[13px] text-white/35 font-light">{slides.length} slides</span>
+        <span className="text-[13px] text-white/35 font-light">{t("stories.slidesCount", { count: slides.length })}</span>
         {seq._demo && (
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
-            Ejemplo
+            {t("stories.example")}
           </span>
         )}
         {!seq._demo && (
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
             isActive ? "bg-emerald-500/15 text-emerald-400" : "bg-white/[0.04] text-white/25"
           }`}>
-            {isActive ? "Activa" : "Archivada"}
+            {isActive ? t("stories.active") : t("stories.archived")}
           </span>
         )}
       </div>
 
       {/* ── 1. Sequence Flow (FIRST) ── */}
-      <div className={`${glassSectionClass} rounded-2xl p-6`}>
+      {/* Grid + minmax(0, 1fr) trick: un hijo flex con `min-w-max` normalmente
+          fuerza al padre a crecer y rompe el overflow-x-auto. Envolverlo en un
+          grid de una sola columna con `minmax(0, 1fr)` constrana al hijo al
+          ancho real del card, activando el scroll interno de manera confiable
+          en todos los browsers. */}
+      <div className={`${glassSectionClass} rounded-2xl p-6 overflow-hidden`}>
         <div className="flex items-center justify-between mb-6">
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/40">
-            Flujo de secuencia
+            {t("stories.sequenceFlow")}
           </p>
           {slides.length > 3 && (
             <div className="flex items-center gap-1">
@@ -646,12 +694,13 @@ function SequenceDetail({
           )}
         </div>
 
-        <div
-          ref={setScrollRef}
-          className="overflow-x-auto pb-4 text-center"
-          style={{ scrollbarWidth: "thin", scrollbarColor: `${chart.trackBorder} transparent` }}
-        >
-          <div className="inline-flex items-start min-w-max">
+        <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+          <div
+            ref={setScrollRef}
+            className="overflow-x-auto overflow-y-hidden pb-4 stories-scroll"
+            style={{ scrollbarColor: `${chart.trackBorder} transparent` }}
+          >
+            <div className="flex items-start min-w-max">
             {slides.map((slide, i) => {
               const drop = i > 0 ? dropPct(slides[i - 1].impressions, slide.impressions) : 0;
               const thumb = slide.thumbnail_url ?? slide.media_url;
@@ -687,20 +736,7 @@ function SequenceDetail({
                         boxShadow: chart.isDark ? "0 8px 32px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.08)",
                       }}
                     >
-                      {thumb ? (
-                        <Image
-                          src={thumb}
-                          alt={`Slide ${i + 1}`}
-                          fill
-                          className="object-cover"
-                          sizes="176px"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full gap-2">
-                          <ImageIcon className="h-6 w-6 text-white/10" />
-                          <span className="text-[9px] text-white/15 uppercase tracking-wider">Slide {i + 1}</span>
-                        </div>
-                      )}
+                      <SlideImage thumb={thumb} index={i} sizes="176px" />
 
                       {/* Slide number pill */}
                       <div
@@ -728,10 +764,10 @@ function SequenceDetail({
                       {/* Drop-off */}
                       {i > 0 ? (
                         <p className="text-[11px] font-medium" style={{ color: "#f472b6" }}>
-                          Drop-off: -{drop.toFixed(1)}%
+                          {t("stories.dropOffLabel", { pct: drop.toFixed(1) })}
                         </p>
                       ) : (
-                        <p className="text-[10px] text-white/25">entrada</p>
+                        <p className="text-[10px] text-white/25">{t("stories.entry")}</p>
                       )}
 
                       {/* Navigation metrics */}
@@ -760,6 +796,7 @@ function SequenceDetail({
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       </div>
@@ -767,11 +804,11 @@ function SequenceDetail({
       {/* ── 2. KPI Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: "Impresiones", value: fmt(firstViews) },
-          { label: "Completaron", value: fmt(lastViews) },
-          { label: "Completion Rate", value: `${rate.toFixed(1)}%` },
-          { label: "Slides", value: slides.length.toString() },
-          { label: "Respuestas", value: fmt(seq.total_replies) },
+          { label: t("stories.kpi.impressions"), value: fmt(firstViews) },
+          { label: t("stories.kpi.completed"), value: fmt(lastViews) },
+          { label: t("stories.kpi.completionRate"), value: `${rate.toFixed(1)}%` },
+          { label: t("stories.kpi.slides"), value: slides.length.toString() },
+          { label: t("stories.kpi.replies"), value: fmt(seq.total_replies) },
         ].map((kpi) => (
           <div key={kpi.label} className={`${glassCardClass} rounded-xl p-4`}>
             <p className="text-[10px] font-medium uppercase tracking-[0.08em] mb-1.5 text-white/40">
@@ -788,11 +825,11 @@ function SequenceDetail({
           <div className="flex items-center gap-2 mb-4">
             <TrendingDown className="h-3.5 w-3.5 text-rose-400/60" />
             <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/40">
-              Curva de abandono
+              {t("stories.dropOffCurve")}
             </p>
             <div className="ml-auto flex items-center gap-1.5">
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#818cf8" }} />
-              <span className="text-[10px] text-white/30">Vistas por slide</span>
+              <span className="text-[10px] text-white/30">{t("stories.viewsPerSlide")}</span>
             </div>
           </div>
           <div className="h-[180px]">
@@ -807,7 +844,7 @@ function SequenceDetail({
                 <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false}
                   tick={{ fill: chart.axisTick, fontSize: 11 }}
-                  label={{ value: "Slide", position: "insideBottomRight", offset: -5, fill: chart.axisTickMuted, fontSize: 10 }} />
+                  label={{ value: t("stories.slide"), position: "insideBottomRight", offset: -5, fill: chart.axisTickMuted, fontSize: 10 }} />
                 <YAxis axisLine={false} tickLine={false}
                   tick={{ fill: chart.axisTick, fontSize: 11 }}
                   tickFormatter={(v: number) => fmt(v)} width={50} />
@@ -817,9 +854,9 @@ function SequenceDetail({
                     return (
                       <div className="rounded-xl px-3 py-2 bg-popover text-popover-foreground border border-border backdrop-blur-xl shadow-xl">
                         <p className="text-[10px] uppercase tracking-[0.06em] mb-0.5 text-muted-foreground">
-                          Slide {label}
+                          {t("stories.slide")} {label}
                         </p>
-                        <p className="text-[15px] font-light text-popover-foreground">{fmt(payload[0].value as number)} views</p>
+                        <p className="text-[15px] font-light text-popover-foreground">{fmt(payload[0].value as number)} {t("stories.views")}</p>
                       </div>
                     );
                   }}
@@ -838,12 +875,19 @@ function SequenceDetail({
       {slides.length > 1 && (
         <div className={`${glassSectionClass} rounded-xl p-5`}>
           <p className="text-[11px] font-medium uppercase tracking-[0.1em] mb-4 text-white/40">
-            Detalle por slide
+            {t("stories.detailBySlide")}
           </p>
           <div className="space-y-1">
             <div className="grid gap-2 pb-2 border-b border-white/[0.06]"
               style={{ gridTemplateColumns: "1.5rem 1fr 1fr 1fr 1fr 1fr" }}>
-              {["#", "Vistas", "Drop", "→ Avanzaron", "← Volvieron", "💬 Resp."].map((h) => (
+              {[
+                "#",
+                t("stories.tableViews"),
+                t("stories.tableDrop"),
+                t("stories.tableForward"),
+                t("stories.tableBack"),
+                t("stories.tableReplies"),
+              ].map((h) => (
                 <p key={h} className="text-[9px] font-medium uppercase tracking-[0.08em] text-white/25">{h}</p>
               ))}
             </div>
@@ -873,15 +917,15 @@ function SequenceDetail({
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
 function EmptyState() {
+  const t = useTranslations("igGrids");
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4 bg-white/[0.04]">
         <BookImage className="h-6 w-6 text-white/20" />
       </div>
-      <h3 className="text-[15px] font-light text-white/50">Sin historias guardadas</h3>
+      <h3 className="text-[15px] font-light text-white/50">{t("stories.empty.title")}</h3>
       <p className="mt-2 text-[12px] text-white/25 max-w-md font-light">
-        Las historias se archivan automáticamente dentro de las 24hs de publicarse.
-        Sincronizá tu cuenta para capturar las historias activas.
+        {t("stories.empty.description")}
       </p>
     </div>
   );
@@ -889,8 +933,9 @@ function EmptyState() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function StoriesGrid({ sequences, totalFollowers = 0 }: StoriesGridProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+export function StoriesGrid({ sequences, totalFollowers = 0, initialSelectedId = null }: StoriesGridProps & { initialSelectedId?: string | null }) {
+  const t = useTranslations("igGrids");
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
 
   // Inject demo sequence so the layout always looks populated
   const allSequences: StorySequence[] = [...sequences, DEMO_SEQUENCE];
@@ -922,7 +967,7 @@ export function StoriesGrid({ sequences, totalFollowers = 0 }: StoriesGridProps)
             className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[12px] text-white/50 bg-white/[0.03] border border-white/[0.06]"
           >
             <Clock className="h-3.5 w-3.5 text-amber-400/60 shrink-0" />
-            <span>Las métricas de historias recientes pueden tardar unos minutos en estar disponibles. Sincronizá de nuevo en un rato.</span>
+            <span>{t("stories.metricsDelayHint")}</span>
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">

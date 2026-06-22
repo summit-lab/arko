@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   AreaChart, Area, BarChart, Bar,
   LineChart, Line, ReferenceLine,
@@ -9,7 +10,7 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import {
-  Eye, ThumbsUp, MessageSquare, Clock, ChevronRight, Play,
+  Eye, ThumbsUp, MessageSquare, Clock, ChevronRight, ChevronDown, Play,
   RefreshCw, TrendingUp, Users, LayoutDashboard, Video,
   ArrowUpRight, ArrowDownRight, ExternalLink,
 } from "lucide-react";
@@ -63,18 +64,18 @@ interface DailyMetric {
 }
 
 // ─── Chart metric config ──────────────────────────────────────────────────────
+// Labels translated at consumer site via t("dashboard.metrics.<key>")
 
 const CHART_METRICS: {
   key: ChartMetric;
-  label: string;
   color: string;
   gradId: string;
   unit: string;
 }[] = [
-  { key: "views",       label: "Views",       color: "#818cf8", gradId: "ytGradViews",    unit: "" },
-  { key: "watchtime",   label: "Watch time",  color: "#22d3ee", gradId: "ytGradWatch",    unit: " hrs" },
-  { key: "likes",       label: "Likes",       color: "#34d399", gradId: "ytGradLikes",    unit: "" },
-  { key: "comentarios", label: "Comentarios", color: "#fb7185", gradId: "ytGradComments", unit: "" },
+  { key: "views",       color: "#818cf8", gradId: "ytGradViews",    unit: "" },
+  { key: "watchtime",   color: "#22d3ee", gradId: "ytGradWatch",    unit: " hrs" },
+  { key: "likes",       color: "#34d399", gradId: "ytGradLikes",    unit: "" },
+  { key: "comentarios", color: "#fb7185", gradId: "ytGradComments", unit: "" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -94,21 +95,21 @@ function fmtDuration(seconds: number | null): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function timeAgo(dateStr: string | null): string {
+function timeAgo(dateStr: string | null, t: (key: string, values?: Record<string, string | number | Date>) => string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Hoy";
-  if (days === 1) return "Ayer";
-  if (days < 7) return `Hace ${days} días`;
-  if (days < 30) return `Hace ${Math.floor(days / 7)} sem`;
-  if (days < 365) return `Hace ${Math.floor(days / 30)} mes${Math.floor(days / 30) > 1 ? "es" : ""}`;
-  return `Hace ${Math.floor(days / 365)} año${Math.floor(days / 365) > 1 ? "s" : ""}`;
+  if (days === 0) return t("timeAgo.today");
+  if (days === 1) return t("timeAgo.yesterday");
+  if (days < 7) return t("timeAgo.days", { count: days });
+  if (days < 30) return t("timeAgo.weeks", { count: Math.floor(days / 7) });
+  if (days < 365) return t("timeAgo.months", { count: Math.floor(days / 30) });
+  return t("timeAgo.years", { count: Math.floor(days / 365) });
 }
 
-function fmtDateShort(iso: string): string {
+function fmtDateShort(iso: string, dateLocale: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("es", { day: "numeric", month: "short" });
+  return d.toLocaleDateString(dateLocale, { day: "numeric", month: "short" });
 }
 
 // ─── Chart Tooltip ─────────────────────────────────────────────────────────────
@@ -174,6 +175,7 @@ function ScatterTooltip({
   payload?: Array<{ payload: { title: string; duration: number; views: number } }>;
   ct: ChartTheme;
 }) {
+  const t = useTranslations("youtubeDeep");
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
@@ -181,11 +183,11 @@ function ScatterTooltip({
       <p className="text-[11px] mb-3 leading-snug" style={{ color: ct.tooltipText }}>{d.title}</p>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>Duración:</span>
-          <span className="text-cyan-400 font-medium">{d.duration} min</span>
+          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>{t("charts.durationVsViews.xName")}:</span>
+          <span className="text-cyan-400 font-medium">{d.duration} {t("charts.durationVsViews.minLabel")}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>Views:</span>
+          <span className="text-[10px]" style={{ color: ct.tooltipMuted }}>{t("metrics.views")}:</span>
           <span className="text-violet-400 font-medium">{fmt(d.views)}</span>
         </div>
       </div>
@@ -256,6 +258,9 @@ function CanalTab({ channel, videos, onSync, syncing }: {
   syncing: boolean;
 }) {
   const ct = useChartTheme();
+  const t = useTranslations("youtubeDeep");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const [chartMetric, setChartMetric] = useState<ChartMetric>("views");
 
   // ── Aggregates ──
@@ -280,7 +285,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
     .filter((v) => v.published_at)
     .sort((a, b) => new Date(a.published_at!).getTime() - new Date(b.published_at!).getTime())
     .map((v) => ({
-      date:        fmtDateShort(v.published_at!),
+      date:        fmtDateShort(v.published_at!, dateLocale),
       views:       v.view_count,
       watchtime:   v.duration_seconds ? Math.round(v.duration_seconds * v.view_count / 3600) : 0,
       likes:       v.like_count,
@@ -297,8 +302,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
     .filter((v) => v.published_at)
     .sort((a, b) => new Date(a.published_at!).getTime() - new Date(b.published_at!).getTime())
     .map((v) => ({
-      date:      fmtDateShort(v.published_at!),
-      fullTitle: v.title ?? "Sin título",
+      date:      fmtDateShort(v.published_at!, dateLocale),
+      fullTitle: v.title ?? t("video.untitled"),
       views:     v.view_count,
     }));
 
@@ -307,8 +312,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
     .filter((v) => v.published_at && v.view_count > 0)
     .sort((a, b) => new Date(a.published_at!).getTime() - new Date(b.published_at!).getTime())
     .map((v) => ({
-      date:        fmtDateShort(v.published_at!),
-      fullTitle:   v.title ?? "Sin título",
+      date:        fmtDateShort(v.published_at!, dateLocale),
+      fullTitle:   v.title ?? t("video.untitled"),
       engagement:  parseFloat(((v.like_count + v.comment_count) / v.view_count * 100).toFixed(2)),
     }));
 
@@ -318,16 +323,17 @@ function CanalTab({ channel, videos, onSync, syncing }: {
     .map((v) => ({
       duration: Math.round((v.duration_seconds ?? 0) / 60),
       views:    v.view_count,
-      title:    v.title ?? "Sin título",
+      title:    v.title ?? t("video.untitled"),
     }));
 
   // ── Engagement donut ──
   const engData = [
-    { name: "Likes",       value: totalLikes,    color: "#818cf8" },
-    { name: "Comentarios", value: totalComments, color: "#22d3ee" },
+    { name: t("metrics.likes"),       value: totalLikes,    color: "#818cf8" },
+    { name: t("metrics.comments"),    value: totalComments, color: "#22d3ee" },
   ].filter((d) => d.value > 0);
 
   const activeMeta = CHART_METRICS.find((m) => m.key === chartMetric)!;
+  const activeMetaLabel = t(`metrics.${chartMetric}`);
 
   return (
     <div className="space-y-6">
@@ -336,7 +342,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
       <div className="glass-section p-6 flex items-center gap-5">
         {channel.thumbnail_url ? (
           <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-border shrink-0">
-            <Image src={channel.thumbnail_url} alt={channel.title ?? "Canal"} fill className="object-cover" sizes="64px" unoptimized />
+            <Image src={channel.thumbnail_url} alt={channel.title ?? t("channel.fallback")} fill className="object-cover" sizes="64px" unoptimized />
           </div>
         ) : (
           <div className="h-16 w-16 rounded-full bg-red-500/15 border-2 border-red-500/25 flex items-center justify-center shrink-0">
@@ -347,7 +353,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           <h2 className="text-[20px] font-extralight text-foreground truncate tracking-[-0.02em]">{channel.title}</h2>
           <p className="text-[13px] text-muted-foreground mt-0.5">
             {channel.custom_url && `${channel.custom_url} · `}
-            {fmt(channel.subscriber_count)} suscriptores · {channel.video_count} videos
+            {t("channel.subscribersAndVideos", { subscribers: fmt(channel.subscriber_count), videos: channel.video_count })}
           </p>
         </div>
         <button
@@ -356,25 +362,25 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-foreground/70 bg-white/[0.06] border border-white/[0.1]"
         >
           <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-          {syncing ? "Sincronizando…" : "Sincronizar"}
+          {syncing ? t("actions.syncing") : t("actions.sync")}
         </button>
       </div>
 
       {/* ── Lifetime-metrics notice ── */}
       <div
         className="rounded-xl px-4 py-3 text-[12px] text-muted-foreground border border-white/[0.06] bg-white/[0.03]"
-        title="Métrica acumulada desde publicación"
+        title={t("notices.lifetimeTitle")}
       >
-        Los totales del canal muestran views acumuladas desde la publicación de cada video. Para ver la evolución día a día, abrí un video específico.
+        {t("notices.lifetimeBody")}
       </div>
 
       {/* ── KPI cards — lifetime totals of videos in window ── */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <KpiCard icon={Eye}           label="Views totales"        value={fmt(totalViews)}    sub={`Prom: ${fmt(avgViews)}/video · acumulado`} />
-        <KpiCard icon={Users}         label="Suscriptores"         value={fmt(channel.subscriber_count)} />
-        <KpiCard icon={ThumbsUp}      label="Likes"                value={fmt(totalLikes)}    sub={totalViews > 0 ? `${((totalLikes    / totalViews) * 100).toFixed(2)}% de views · acumulado` : "Métrica acumulada desde publicación"} />
-        <KpiCard icon={MessageSquare} label="Comentarios"          value={fmt(totalComments)} sub={totalViews > 0 ? `${((totalComments / totalViews) * 100).toFixed(2)}% de views · acumulado` : "Métrica acumulada desde publicación"} />
-        <KpiCard icon={TrendingUp}    label="Engagement promedio"  value={`${avgEngagement.toFixed(1)}%`} sub="(L+C) / Views · acumulado" />
+        <KpiCard icon={Eye}           label={t("kpis.totalViews")}      value={fmt(totalViews)}    sub={t("kpis.totalViewsSub", { avg: fmt(avgViews) })} />
+        <KpiCard icon={Users}         label={t("kpis.subscribers")}     value={fmt(channel.subscriber_count)} />
+        <KpiCard icon={ThumbsUp}      label={t("kpis.likes")}           value={fmt(totalLikes)}    sub={totalViews > 0 ? t("kpis.percentOfViews", { pct: ((totalLikes    / totalViews) * 100).toFixed(2) }) : t("notices.lifetimeTitle")} />
+        <KpiCard icon={MessageSquare} label={t("kpis.comments")}        value={fmt(totalComments)} sub={totalViews > 0 ? t("kpis.percentOfViews", { pct: ((totalComments / totalViews) * 100).toFixed(2) }) : t("notices.lifetimeTitle")} />
+        <KpiCard icon={TrendingUp}    label={t("kpis.avgEngagement")}   value={`${avgEngagement.toFixed(1)}%`} sub={t("kpis.avgEngagementSub")} />
       </div>
 
       {/* ── Channel analytics (chart + summary card) ── */}
@@ -400,7 +406,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                       borderBottom: `2px solid ${m.color}`,
                     } : { border: "1px solid transparent" }}
                   >
-                    {m.label}
+                    {t(`metrics.${m.key}`)}
                   </button>
                 );
               })}
@@ -412,10 +418,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                 {fmt(metricTotals[chartMetric])}{activeMeta.unit}
               </p>
               <p className="text-[12px] text-muted-foreground mt-0.5">
-                {chartMetric === "views"       && "Views totales de cada video al día de hoy"}
-                {chartMetric === "watchtime"   && "Horas estimadas de reproducción (acumulado)"}
-                {chartMetric === "likes"       && "Likes totales de cada video al día de hoy"}
-                {chartMetric === "comentarios" && "Comentarios totales de cada video al día de hoy"}
+                {t(`channel.metricSub.${chartMetric}`)}
               </p>
             </div>
 
@@ -450,7 +453,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                   <Area
                     type="monotone"
                     dataKey={chartMetric}
-                    name={activeMeta.label}
+                    name={activeMetaLabel}
                     stroke={activeMeta.color}
                     strokeWidth={2}
                     fill={`url(#${activeMeta.gradId})`}
@@ -462,19 +465,19 @@ function CanalTab({ channel, videos, onSync, syncing }: {
             </div>
 
             <p className="text-[10px] text-muted-foreground mt-3">
-              Datos por video · métrica acumulada al día de hoy · ordenados por fecha de publicación
+              {t("channel.chartFootnote")}
             </p>
           </div>
 
           {/* Right: channel summary card */}
           <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
             <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-[0.08em] mb-4">
-              Canal analytics
+              {t("channel.analyticsTitle")}
             </p>
 
             {/* Subscribers */}
             <div className="mb-5">
-              <p className="text-[11px] text-muted-foreground mb-1.5">Suscriptores actuales</p>
+              <p className="text-[11px] text-muted-foreground mb-1.5">{t("channel.currentSubscribers")}</p>
               <p className="text-[36px] font-extralight text-foreground tracking-[-0.03em] leading-none">
                 {fmt(channel.subscriber_count)}
               </p>
@@ -483,15 +486,15 @@ function CanalTab({ channel, videos, onSync, syncing }: {
             {/* Period summary — lifetime totals of videos published in window */}
             <div className="border-t border-white/[0.06] pt-4 mb-5">
               <p className="text-[10px] text-muted-foreground uppercase tracking-[0.07em] mb-3">
-                Totales acumulados · {videos.length} videos del período
+                {t("channel.cumulativeTotals", { count: videos.length })}
               </p>
               <div className="space-y-2.5">
                 {[
-                  { label: "Views",       value: fmt(totalViews),            unit: "" },
-                  { label: "Watch time",  value: fmt(totalWatchHrs),         unit: " hrs est." },
-                  { label: "Likes",       value: fmt(totalLikes),            unit: "" },
-                  { label: "Comentarios", value: fmt(totalComments),         unit: "" },
-                  { label: "Engagement",  value: `${avgEngagement.toFixed(1)}%`, unit: "" },
+                  { label: t("metrics.views"),       value: fmt(totalViews),            unit: "" },
+                  { label: t("metrics.watchtime"),   value: fmt(totalWatchHrs),         unit: t("channel.hrsEst") },
+                  { label: t("metrics.likes"),       value: fmt(totalLikes),            unit: "" },
+                  { label: t("metrics.comentarios"), value: fmt(totalComments),         unit: "" },
+                  { label: t("metrics.engagement"),  value: `${avgEngagement.toFixed(1)}%`, unit: "" },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between">
                     <span className="text-[12px] text-muted-foreground">{row.label}</span>
@@ -507,7 +510,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
             {top3.length > 0 && (
               <div className="border-t border-white/[0.06] pt-4 flex-1">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-[0.07em] mb-3">
-                  Top contenido · views acumuladas
+                  {t("channel.topContent")}
                 </p>
                 <div className="space-y-3">
                   {top3.map((v, i) => (
@@ -533,9 +536,9 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                       {/* Title + views */}
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] text-foreground/70 group-hover:text-foreground transition-colors line-clamp-2 leading-tight">
-                          {v.title ?? "Sin título"}
+                          {v.title ?? t("video.untitled")}
                         </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{fmt(v.view_count)} views</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{t("video.viewsCount", { count: fmt(v.view_count) })}</p>
                       </div>
                       <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground/60 transition-colors shrink-0" />
                     </a>
@@ -552,10 +555,10 @@ function CanalTab({ channel, videos, onSync, syncing }: {
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-[13px] font-light text-foreground/70">Views por video</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Views acumuladas al día de hoy · ordenado por fecha de publicación</p>
+              <p className="text-[13px] font-light text-foreground/70">{t("charts.viewsPerVideo.title")}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("charts.viewsPerVideo.subtitle")}</p>
             </div>
-            <p className="text-[11px] text-muted-foreground">{videoBarData.length} videos</p>
+            <p className="text-[11px] text-muted-foreground">{t("charts.videosCount", { count: videoBarData.length })}</p>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart
@@ -602,7 +605,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           {/* 1. Engagement donut */}
           {engData.length > 0 && (
             <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
-              <p className="text-[13px] font-light text-foreground/70 mb-4">Engagement desglosado</p>
+              <p className="text-[13px] font-light text-foreground/70 mb-4">{t("charts.engagementBreakdown")}</p>
               <div className="flex-1 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={160}>
                   <PieChart>
@@ -637,8 +640,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           {engByVideo.length > 1 && (
             <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-[13px] font-light text-foreground/70">Engagement por video</p>
-                <p className="text-[10px] text-muted-foreground">(L+C) / Views</p>
+                <p className="text-[13px] font-light text-foreground/70">{t("charts.engagementPerVideo")}</p>
+                <p className="text-[10px] text-muted-foreground">{t("charts.engagementFormula")}</p>
               </div>
               <div className="flex-1">
                 <ResponsiveContainer width="100%" height={200}>
@@ -682,22 +685,22 @@ function CanalTab({ channel, videos, onSync, syncing }: {
           {durationVsViews.length > 1 && (
             <div className="col-span-12 lg:col-span-4 glass-card p-6 flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-[13px] font-light text-foreground/70">Duración vs. Views</p>
-                <p className="text-[10px] text-muted-foreground">minutos · vistas</p>
+                <p className="text-[13px] font-light text-foreground/70">{t("charts.durationVsViews.title")}</p>
+                <p className="text-[10px] text-muted-foreground">{t("charts.durationVsViews.subtitle")}</p>
               </div>
               <div className="flex-1">
                 <ResponsiveContainer width="100%" height={200}>
                   <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                     <XAxis
-                      type="number" dataKey="duration" name="Duración"
+                      type="number" dataKey="duration" name={t("charts.durationVsViews.xName")}
                       axisLine={false} tickLine={false}
                       tick={{ fill: ct.axisTick, fontSize: 10 }}
                       tickFormatter={(v: number) => `${v}m`}
-                      label={{ value: "min", position: "insideBottomRight", offset: -4, style: { fill: ct.axisTickMuted, fontSize: 10 } }}
+                      label={{ value: t("charts.durationVsViews.minLabel"), position: "insideBottomRight", offset: -4, style: { fill: ct.axisTickMuted, fontSize: 10 } }}
                     />
                     <YAxis
-                      type="number" dataKey="views" name="Views"
+                      type="number" dataKey="views" name={t("metrics.views")}
                       axisLine={false} tickLine={false}
                       tick={{ fill: ct.axisTick, fontSize: 10 }}
                       tickFormatter={(v: number) => fmt(v)}
@@ -713,7 +716,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
                 </ResponsiveContainer>
               </div>
               <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                Cada punto es un video
+                {t("charts.durationVsViews.footnote")}
               </p>
             </div>
           )}
@@ -725,8 +728,8 @@ function CanalTab({ channel, videos, onSync, syncing }: {
       {videos.length === 0 && (
         <div className="glass-card p-12 text-center">
           <Video className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">No hay videos en este período.</p>
-          <p className="text-muted-foreground text-xs mt-1">Cambiá el filtro de fechas o sincronizá tu canal.</p>
+          <p className="text-muted-foreground text-sm">{t("emptyState.title")}</p>
+          <p className="text-muted-foreground text-xs mt-1">{t("emptyState.body")}</p>
         </div>
       )}
     </div>
@@ -737,11 +740,7 @@ function CanalTab({ channel, videos, onSync, syncing }: {
 
 type VidDetailTab = "overview" | "alcance" | "engagement";
 
-const VID_DETAIL_TABS: { key: VidDetailTab; label: string }[] = [
-  { key: "overview",   label: "Overview"   },
-  { key: "alcance",    label: "Alcance"    },
-  { key: "engagement", label: "Engagement" },
-];
+const VID_DETAIL_TAB_KEYS: VidDetailTab[] = ["overview", "alcance", "engagement"];
 
 function VideoAnalyticsView({
   video,
@@ -755,6 +754,9 @@ function VideoAnalyticsView({
   onBack: () => void;
 }) {
   const ct = useChartTheme();
+  const t = useTranslations("youtubeDeep");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const [tab, setTab]               = useState<VidDetailTab>("overview");
   const [chartMetric, setChartMetric] = useState<"views" | "watchtime" | "likes" | "comentarios">("views");
   const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
@@ -785,16 +787,16 @@ function VideoAnalyticsView({
 
   // ── Comparison chart: top 12 by views, this video highlighted ──
   const compMetaMap = {
-    views:       { color: "#818cf8", label: "Views",       unit: "" },
-    watchtime:   { color: "#22d3ee", label: "Watch time",  unit: " hrs" },
-    likes:       { color: "#34d399", label: "Likes",       unit: "" },
-    comentarios: { color: "#fb7185", label: "Comentarios", unit: "" },
+    views:       { color: "#818cf8", unit: "" },
+    watchtime:   { color: "#22d3ee", unit: " hrs" },
+    likes:       { color: "#34d399", unit: "" },
+    comentarios: { color: "#fb7185", unit: "" },
   } as const;
   const compData = [...allVideos]
     .sort((a, b) => b.view_count - a.view_count)
     .slice(0, 12)
     .map((v) => ({
-      title:       (v.title ?? "Sin título").slice(0, 22) + ((v.title?.length ?? 0) > 22 ? "…" : ""),
+      title:       (v.title ?? t("video.untitled")).slice(0, 22) + ((v.title?.length ?? 0) > 22 ? "…" : ""),
       views:       v.view_count,
       watchtime:   Math.round((v.duration_seconds ?? 0) * v.view_count / 3600),
       likes:       v.like_count,
@@ -802,12 +804,13 @@ function VideoAnalyticsView({
       isThis:      v.id === video.id,
     }));
   const compMeta = compMetaMap[chartMetric];
+  const compMetaLabel = t(`metrics.${chartMetric}`);
 
   // ── Daily views chart data ──
   // Prefer delta_views (daily delta computed server-side from lifetime totals).
   // Fall back to lifetime view_count only if the API didn't provide deltas.
   const dailyChartData = dailyMetrics.map((d) => ({
-    date: new Date(d.metric_date).toLocaleDateString("es", { day: "numeric", month: "short" }),
+    date: new Date(d.metric_date).toLocaleDateString(dateLocale, { day: "numeric", month: "short" }),
     views: d.delta_views ?? d.view_count,
   }));
 
@@ -819,8 +822,8 @@ function VideoAnalyticsView({
 
   // ── Engagement donut ──
   const engDonut = [
-    { name: "Likes",       value: video.like_count,    color: "#818cf8" },
-    { name: "Comentarios", value: video.comment_count, color: "#22d3ee" },
+    { name: t("metrics.likes"),    value: video.like_count,    color: "#818cf8" },
+    { name: t("metrics.comments"), value: video.comment_count, color: "#22d3ee" },
   ].filter((d) => d.value > 0);
 
   return (
@@ -832,7 +835,7 @@ function VideoAnalyticsView({
         className="flex items-center gap-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
         <ChevronRight className="h-4 w-4 rotate-180" />
-        Volver a videos
+        {t("video.backToVideos")}
       </button>
 
       {/* ── Video header ── */}
@@ -853,19 +856,19 @@ function VideoAnalyticsView({
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-[18px] font-extralight text-foreground tracking-[-0.02em] leading-snug mb-2">
-            {video.title ?? "Sin título"}
+            {video.title ?? t("video.untitled")}
           </h3>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
             {video.published_at && (
-              <span>Publicado {new Date(video.published_at).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}</span>
+              <span>{t("video.publishedOn", { date: new Date(video.published_at).toLocaleDateString(dateLocale, { day: "numeric", month: "long", year: "numeric" }) })}</span>
             )}
             {video.duration_seconds && <span>{fmtDuration(video.duration_seconds)}</span>}
           </div>
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[24px] font-extralight text-foreground">{fmt(video.view_count)}</span>
-            <span className="text-[12px] text-muted-foreground">views</span>
+            <span className="text-[12px] text-muted-foreground">{t("metrics.views").toLowerCase()}</span>
             <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/20">
-              #{viewsRank} en el período
+              {t("video.rankInPeriod", { rank: viewsRank })}
             </span>
           </div>
         </div>
@@ -876,25 +879,25 @@ function VideoAnalyticsView({
           className="flex items-center gap-1.5 text-[12px] text-red-400/50 hover:text-red-400 transition-colors shrink-0 mt-1"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Ver en YouTube
+          {t("video.viewOnYouTube")}
         </a>
       </div>
 
       {/* ── Tab bar (underline style, like YT Studio) ── */}
       <div className="flex items-end border-b border-white/[0.06]">
-        {VID_DETAIL_TABS.map((t) => {
-          const isActive = tab === t.key;
+        {VID_DETAIL_TAB_KEYS.map((tabKey) => {
+          const isActive = tab === tabKey;
           return (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
               className={`px-5 py-3 text-[13px] font-medium transition-all cursor-pointer border-b-2 -mb-px ${
                 isActive
                   ? "text-foreground border-foreground/60 dark:border-white/60"
                   : "text-muted-foreground border-transparent hover:text-foreground/80 hover:border-foreground/20 dark:hover:border-white/20"
               }`}
             >
-              {t.label}
+              {t(`video.tabs.${tabKey}`)}
             </button>
           );
         })}
@@ -908,29 +911,29 @@ function VideoAnalyticsView({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               {
-                label: "Views",
+                label: t("metrics.views"),
                 value: fmt(video.view_count),
                 sub: video.view_count >= avgViews
-                  ? `+${fmt(Math.round(video.view_count - avgViews))} vs promedio`
-                  : `-${fmt(Math.round(avgViews - video.view_count))} vs promedio`,
+                  ? t("video.kpi.viewsAboveAvg", { delta: fmt(Math.round(video.view_count - avgViews)) })
+                  : t("video.kpi.viewsBelowAvg", { delta: fmt(Math.round(avgViews - video.view_count)) }),
                 ok: video.view_count >= avgViews,
               },
               {
-                label: "Watch time est.",
-                value: `${watchHrs < 10 ? watchHrs.toFixed(1) : fmt(Math.round(watchHrs))} hrs`,
-                sub: "duración × views / 3600",
+                label: t("video.kpi.watchTimeEst"),
+                value: t("video.kpi.hoursValue", { hours: watchHrs < 10 ? watchHrs.toFixed(1) : fmt(Math.round(watchHrs)) }),
+                sub: t("video.kpi.watchTimeFormula"),
                 ok: null as boolean | null,
               },
               {
-                label: "Likes",
+                label: t("metrics.likes"),
                 value: fmt(video.like_count),
-                sub: `${likeRate.toFixed(2)}% de views`,
+                sub: t("video.kpi.percentOfViews", { pct: likeRate.toFixed(2) }),
                 ok: null as boolean | null,
               },
               {
-                label: "Comentarios",
+                label: t("metrics.comentarios"),
                 value: fmt(video.comment_count),
-                sub: `${commentRate.toFixed(2)}% de views`,
+                sub: t("video.kpi.percentOfViews", { pct: commentRate.toFixed(2) }),
                 ok: null as boolean | null,
               },
             ].map((card) => (
@@ -949,7 +952,7 @@ function VideoAnalyticsView({
           {/* Metric switcher + comparison horizontal bar chart */}
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-5">
-              <p className="text-[13px] font-light text-foreground/70">Este video vs. top del período</p>
+              <p className="text-[13px] font-light text-foreground/70">{t("video.compareTitle")}</p>
               <div className="flex items-center gap-1">
                 {(["views", "watchtime", "likes", "comentarios"] as const).map((m) => (
                   <button
@@ -964,7 +967,7 @@ function VideoAnalyticsView({
                       borderBottom: `2px solid ${compMeta.color}`,
                     } : { border: "1px solid transparent" }}
                   >
-                    {compMetaMap[m].label}
+                    {t(`metrics.${m}`)}
                   </button>
                 ))}
               </div>
@@ -980,25 +983,25 @@ function VideoAnalyticsView({
                   labelStyle={{ color: ct.tooltipMuted }}
                   cursor={{ fill: ct.cursor }}
                 />
-                <Bar dataKey={chartMetric} name={compMeta.label} radius={[0, 4, 4, 0]}>
+                <Bar dataKey={chartMetric} name={compMetaLabel} radius={[0, 4, 4, 0]}>
                   {compData.map((entry, i) => (
                     <Cell key={i} fill={entry.isThis ? compMeta.color : ct.mutedSurface} opacity={entry.isThis ? 0.9 : 1} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-[10px] text-muted-foreground mt-2 text-center">Barra resaltada = este video</p>
+            <p className="text-[10px] text-muted-foreground mt-2 text-center">{t("video.barHighlight")}</p>
           </div>
 
           {/* Performance vs channel avg */}
           <div className="glass-card p-6">
-            <p className="text-[13px] font-light text-foreground/70 mb-5">Rendimiento vs. promedio del canal</p>
+            <p className="text-[13px] font-light text-foreground/70 mb-5">{t("video.performanceVsAvg")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               {[
-                { label: "Views",        thisVal: video.view_count, avg: avgViews,       fmtFn: (v: number) => fmt(Math.round(v)) },
-                { label: "Like rate",    thisVal: likeRate,         avg: avgLikeRate,    fmtFn: (v: number) => `${v.toFixed(2)}%` },
-                { label: "Comment rate", thisVal: commentRate,      avg: avgCommentRate, fmtFn: (v: number) => `${v.toFixed(2)}%` },
-                { label: "Engagement",   thisVal: eng,              avg: avgEng,         fmtFn: (v: number) => `${v.toFixed(2)}%` },
+                { label: t("metrics.views"),        thisVal: video.view_count, avg: avgViews,       fmtFn: (v: number) => fmt(Math.round(v)) },
+                { label: t("video.kpi.likeRate"),   thisVal: likeRate,         avg: avgLikeRate,    fmtFn: (v: number) => `${v.toFixed(2)}%` },
+                { label: t("video.kpi.commentRate"),thisVal: commentRate,      avg: avgCommentRate, fmtFn: (v: number) => `${v.toFixed(2)}%` },
+                { label: t("metrics.engagement"),   thisVal: eng,              avg: avgEng,         fmtFn: (v: number) => `${v.toFixed(2)}%` },
               ].map((row) => {
                 const delta    = row.avg > 0 ? ((row.thisVal - row.avg) / row.avg * 100) : 0;
                 const positive = row.thisVal >= row.avg;
@@ -1008,9 +1011,9 @@ function VideoAnalyticsView({
                     <p className="text-[22px] font-extralight text-foreground">{row.fmtFn(row.thisVal)}</p>
                     <div className={`flex items-center justify-center gap-1 mt-1 text-[11px] ${positive ? "text-emerald-400" : "text-rose-400"}`}>
                       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      {Math.abs(delta).toFixed(0)}% vs avg
+                      {t("video.vsAvg", { pct: Math.abs(delta).toFixed(0) })}
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">avg: {row.fmtFn(row.avg)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{t("video.avgLabel")}: {row.fmtFn(row.avg)}</p>
                   </div>
                 );
               })}
@@ -1022,13 +1025,13 @@ function VideoAnalyticsView({
             <div className="glass-card p-6">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <p className="text-[13px] font-light text-foreground/70">Evolución de views</p>
+                  <p className="text-[13px] font-light text-foreground/70">{t("video.viewsEvolution.title")}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {dailyChartData.length} días de datos · desde publicación
+                    {t("video.viewsEvolution.subtitle", { count: dailyChartData.length })}
                   </p>
                 </div>
                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-violet-500/10 text-violet-300/60 border border-violet-500/15">
-                  {fmt(video.view_count)} views totales
+                  {t("video.viewsEvolution.total", { count: fmt(video.view_count) })}
                 </span>
               </div>
               <ResponsiveContainer width="100%" height={220}>
@@ -1080,36 +1083,36 @@ function VideoAnalyticsView({
 
           {/* Clean stacked funnel */}
           <div className="glass-card p-6">
-            <p className="text-[13px] font-light text-foreground/70 mb-6">Conversión de audiencia</p>
+            <p className="text-[13px] font-light text-foreground/70 mb-6">{t("alcance.funnelTitle")}</p>
             <div>
               {[
                 {
-                  label:     "Views totales",
+                  label:     t("kpis.totalViews"),
                   display:   fmt(video.view_count),
                   barPct:    100,
                   color:     "#818cf8",
                   connector: null,
                 },
                 {
-                  label:     "Likes",
+                  label:     t("metrics.likes"),
                   display:   fmt(video.like_count),
                   barPct:    Math.max(3, likeRate * 4),
                   color:     "#34d399",
-                  connector: `${likeRate.toFixed(2)}% like rate`,
+                  connector: t("alcance.likeRateConnector", { pct: likeRate.toFixed(2) }),
                 },
                 {
-                  label:     "Comentarios",
+                  label:     t("metrics.comentarios"),
                   display:   fmt(video.comment_count),
                   barPct:    Math.max(2, commentRate * 8),
                   color:     "#22d3ee",
-                  connector: `${commentRate.toFixed(2)}% comment rate`,
+                  connector: t("alcance.commentRateConnector", { pct: commentRate.toFixed(2) }),
                 },
                 {
-                  label:     "Engagement total",
+                  label:     t("alcance.totalEngagement"),
                   display:   `${eng.toFixed(2)}%`,
                   barPct:    Math.max(3, Math.min(100, eng * 4)),
                   color:     "#f59e0b",
-                  connector: `${eng.toFixed(2)}% engagement`,
+                  connector: t("alcance.engagementConnector", { pct: eng.toFixed(2) }),
                 },
               ].map((step, i) => (
                 <div key={i}>
@@ -1148,16 +1151,16 @@ function VideoAnalyticsView({
           {/* Rate comparison cards */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "Like rate",        value: `${likeRate.toFixed(2)}%`,    avg: avgLikeRate,    positive: likeRate >= avgLikeRate },
-              { label: "Comment rate",     value: `${commentRate.toFixed(2)}%`, avg: avgCommentRate, positive: commentRate >= avgCommentRate },
-              { label: "Engagement total", value: `${eng.toFixed(2)}%`,         avg: avgEng,         positive: eng >= avgEng },
+              { label: t("video.kpi.likeRate"),    value: `${likeRate.toFixed(2)}%`,    avg: avgLikeRate,    positive: likeRate >= avgLikeRate },
+              { label: t("video.kpi.commentRate"), value: `${commentRate.toFixed(2)}%`, avg: avgCommentRate, positive: commentRate >= avgCommentRate },
+              { label: t("alcance.totalEngagement"),value: `${eng.toFixed(2)}%`,        avg: avgEng,         positive: eng >= avgEng },
             ].map((card) => (
               <div key={card.label} className="glass-card px-5 py-5 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{card.label}</p>
                 <p className="text-[26px] font-extralight text-foreground">{card.value}</p>
                 <div className={`flex items-center justify-center gap-1 mt-2 text-[11px] ${card.positive ? "text-emerald-400" : "text-rose-400"}`}>
                   {card.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                  vs {card.avg.toFixed(2)}% promedio
+                  {t("alcance.vsAvg", { pct: card.avg.toFixed(2) })}
                 </div>
               </div>
             ))}
@@ -1172,14 +1175,14 @@ function VideoAnalyticsView({
 
           {/* Big engagement number */}
           <div className="glass-card p-8 text-center">
-            <p className="text-[11px] text-muted-foreground uppercase tracking-[0.1em] mb-3">Engagement rate</p>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-[0.1em] mb-3">{t("engagement.rateTitle")}</p>
             <p className="text-[64px] font-extralight tracking-[-0.03em]" style={{ color: eng >= avgEng ? "#34d399" : "#818cf8" }}>
               {eng.toFixed(2)}%
             </p>
-            <p className="text-[13px] text-muted-foreground mt-2">(Likes + Comentarios) / Views</p>
+            <p className="text-[13px] text-muted-foreground mt-2">{t("engagement.formula")}</p>
             <div className={`inline-flex items-center gap-1.5 mt-3 text-[12px] ${eng >= avgEng ? "text-emerald-400" : "text-rose-400"}`}>
               {eng >= avgEng ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-              {Math.abs(eng - avgEng).toFixed(2)}pp vs promedio del canal ({avgEng.toFixed(2)}%)
+              {t("engagement.deltaVsAvg", { pp: Math.abs(eng - avgEng).toFixed(2), avg: avgEng.toFixed(2) })}
             </div>
           </div>
 
@@ -1187,7 +1190,7 @@ function VideoAnalyticsView({
             {/* Donut */}
             {engDonut.length > 0 && (
               <div className="col-span-12 lg:col-span-5 glass-card p-6 flex flex-col">
-                <p className="text-[13px] font-light text-foreground/70 mb-4">Desglose de interacciones</p>
+                <p className="text-[13px] font-light text-foreground/70 mb-4">{t("engagement.breakdownTitle")}</p>
                 <div className="flex-1 flex items-center justify-center">
                   <ResponsiveContainer width="100%" height={160}>
                     <PieChart>
@@ -1218,12 +1221,12 @@ function VideoAnalyticsView({
 
             {/* Progress bars vs channel avg */}
             <div className="col-span-12 lg:col-span-7 glass-card p-6">
-              <p className="text-[13px] font-light text-foreground/70 mb-5">Métricas vs. promedio del canal</p>
+              <p className="text-[13px] font-light text-foreground/70 mb-5">{t("engagement.metricsVsAvg")}</p>
               <div className="space-y-6">
                 {[
-                  { label: "Like rate",    count: video.like_count,    rate: likeRate,    avg: avgLikeRate,    color: "#818cf8" },
-                  { label: "Comment rate", count: video.comment_count, rate: commentRate, avg: avgCommentRate, color: "#22d3ee" },
-                  { label: "Engagement",   count: null,                rate: eng,         avg: avgEng,         color: "#34d399" },
+                  { label: t("video.kpi.likeRate"),    count: video.like_count,    rate: likeRate,    avg: avgLikeRate,    color: "#818cf8" },
+                  { label: t("video.kpi.commentRate"), count: video.comment_count, rate: commentRate, avg: avgCommentRate, color: "#22d3ee" },
+                  { label: t("metrics.engagement"),    count: null,                rate: eng,         avg: avgEng,         color: "#34d399" },
                 ].map((row) => (
                   <div key={row.label}>
                     <div className="flex items-center justify-between mb-2">
@@ -1244,10 +1247,10 @@ function VideoAnalyticsView({
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      Promedio canal: {row.avg.toFixed(2)}%
+                      {t("engagement.channelAverage", { pct: row.avg.toFixed(2) })}
                       {row.rate >= row.avg
-                        ? <span className="text-emerald-400 ml-2">▲ {(row.rate - row.avg).toFixed(2)}pp por encima</span>
-                        : <span className="text-rose-400 ml-2">▼ {(row.avg - row.rate).toFixed(2)}pp por debajo</span>
+                        ? <span className="text-emerald-400 ml-2">{t("engagement.ppAbove", { pp: (row.rate - row.avg).toFixed(2) })}</span>
+                        : <span className="text-rose-400 ml-2">{t("engagement.ppBelow", { pp: (row.avg - row.rate).toFixed(2) })}</span>
                       }
                     </p>
                   </div>
@@ -1259,14 +1262,14 @@ function VideoAnalyticsView({
           {/* Rank badges */}
           <div className="grid grid-cols-2 gap-4">
             <div className="glass-card p-5 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Ranking por views</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{t("engagement.rankByViews")}</p>
               <p className="text-[36px] font-extralight text-violet-400">#{viewsRank}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">de {allVideos.length} videos en el período</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t("engagement.outOfVideos", { count: allVideos.length })}</p>
             </div>
             <div className="glass-card p-5 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Ranking por engagement</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{t("engagement.rankByEngagement")}</p>
               <p className="text-[36px] font-extralight text-cyan-400">#{engRank}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">de {peers.length} videos con views</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t("engagement.outOfVideosWithViews", { count: peers.length })}</p>
             </div>
           </div>
 
@@ -1280,6 +1283,7 @@ function VideoAnalyticsView({
 // ─── Videos Tab ───────────────────────────────────────────────────────────────
 
 function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: string }) {
+  const t = useTranslations("youtubeDeep");
   const [sortBy, setSortBy]           = useState<SortKey>("recent");
   const [selectedVideo, setSelectedVideo] = useState<YTVideo | null>(null);
 
@@ -1312,11 +1316,11 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
       {videos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {[
-            { label: "Videos",         value: fmt(videos.length),        icon: Play          },
-            { label: "Views totales",  value: fmt(totalViews),           icon: Eye           },
-            { label: "Views promedio", value: fmt(Math.round(avgViews)), icon: TrendingUp    },
-            { label: "Likes totales",  value: fmt(totalLikes),           icon: ThumbsUp      },
-            { label: "Comentarios",    value: fmt(totalComments),        icon: MessageSquare },
+            { label: t("videosTab.summary.videos"),    value: fmt(videos.length),        icon: Play          },
+            { label: t("kpis.totalViews"),             value: fmt(totalViews),           icon: Eye           },
+            { label: t("videosTab.summary.avgViews"),  value: fmt(Math.round(avgViews)), icon: TrendingUp    },
+            { label: t("videosTab.summary.totalLikes"),value: fmt(totalLikes),           icon: ThumbsUp      },
+            { label: t("metrics.comentarios"),         value: fmt(totalComments),        icon: MessageSquare },
           ].map((s) => (
             <div key={s.label} className="glass-card p-4 text-center">
               <s.icon className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-2" />
@@ -1331,33 +1335,36 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
       <div className="glass-panel rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h3 className="text-[14px] font-light text-foreground/70">
-            Videos <span className="text-muted-foreground ml-1 text-[12px]">{videos.length}</span>
+            {t("videosTab.tableTitle")} <span className="text-muted-foreground ml-1 text-[12px]">{videos.length}</span>
           </h3>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="bg-popover text-popover-foreground border border-border rounded-lg px-3 py-1.5 text-[11px] outline-none cursor-pointer"
-          >
-            <option value="recent">Más recientes</option>
-            <option value="views">Más views</option>
-            <option value="likes">Más likes</option>
-            <option value="engagement">Mejor engagement</option>
-          </select>
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="appearance-none bg-accent/60 text-foreground border border-border rounded-lg pl-3 pr-8 py-1.5 text-[11px] outline-none cursor-pointer hover:bg-accent transition-colors focus:border-foreground/30"
+            >
+              <option value="recent">{t("videosTab.sort.recent")}</option>
+              <option value="views">{t("videosTab.sort.views")}</option>
+              <option value="likes">{t("videosTab.sort.likes")}</option>
+              <option value="engagement">{t("videosTab.sort.engagement")}</option>
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+          </div>
         </div>
 
         {/* Column headers */}
         <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground uppercase tracking-[0.1em] font-medium px-6 py-3 border-b border-border">
-          <div className="col-span-6">Video</div>
-          <div className="col-span-2 text-right">Views</div>
-          <div className="col-span-1 text-right">Likes</div>
-          <div className="col-span-1 text-right">Coment.</div>
-          <div className="col-span-1 text-center">Eng%</div>
-          <div className="col-span-1 text-center">Dur.</div>
+          <div className="col-span-6">{t("videosTab.columns.video")}</div>
+          <div className="col-span-2 text-right">{t("videosTab.columns.views")}</div>
+          <div className="col-span-1 text-right">{t("videosTab.columns.likes")}</div>
+          <div className="col-span-1 text-right">{t("videosTab.columns.commentsShort")}</div>
+          <div className="col-span-1 text-center">{t("videosTab.columns.engPct")}</div>
+          <div className="col-span-1 text-center">{t("videosTab.columns.durationShort")}</div>
         </div>
 
         {sorted.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-[13px]">
-            No hay videos sincronizados. Click en Sincronizar para traer tus videos.
+            {t("videosTab.emptyTable")}
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -1392,9 +1399,9 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
                     </div>
                     <div className="min-w-0">
                       <p className="text-[13px] text-foreground/80 group-hover:text-foreground transition-colors line-clamp-2 leading-snug">
-                        {video.title || "Sin título"}
+                        {video.title || t("video.untitled")}
                       </p>
-                      <p className="text-[10px] text-muted-foreground mt-1">{timeAgo(video.published_at)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{timeAgo(video.published_at, t)}</p>
                     </div>
                   </div>
 
@@ -1425,13 +1432,14 @@ function VideosTab({ videos, workspaceId }: { videos: YTVideo[]; workspaceId: st
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "canal",  label: "Canal",  icon: LayoutDashboard },
-  { key: "videos", label: "Videos", icon: Video },
+const TAB_KEYS: { key: TabKey; icon: React.ElementType }[] = [
+  { key: "canal",  icon: LayoutDashboard },
+  { key: "videos", icon: Video },
 ];
 
 export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashboardProps) {
   const ct = useChartTheme();
+  const t = useTranslations("youtubeDeep");
   const [activeTab, setActiveTab] = useState<TabKey>("canal");
   const [syncing, setSyncing]     = useState(false);
 
@@ -1457,7 +1465,7 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
       <div
         className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
       >
-        {TABS.map((tab) => {
+        {TAB_KEYS.map((tab) => {
           const active = activeTab === tab.key;
           return (
             <button
@@ -1475,7 +1483,7 @@ export function YouTubeDashboard({ channel, videos, workspaceId }: YouTubeDashbo
               } : undefined}
             >
               <tab.icon size={13} strokeWidth={active ? 2.2 : 1.6} />
-              {tab.label}
+              {t(`tabs.${tab.key}`)}
             </button>
           );
         })}

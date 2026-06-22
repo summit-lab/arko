@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdnData, getAdnProgress } from "@/services/adn-progress.service";
 import { AdnEditor } from "@/components/settings/AdnEditor";
@@ -21,20 +22,21 @@ export default async function AdnSettingsPage() {
     getAdnData(supabase, workspaceId),
     getAdnProgress(supabase, workspaceId),
   ]);
+  const t = await getTranslations("settingsAdn");
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="page-title">ADN de Marca</h1>
+          <h1 className="page-title">{t("title")}</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Tu perfil de comunicación y estrategia. Editá cada sección directamente.
+            {t("subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-1">
           <div className={`h-2 w-2 rounded-full ${progress.overall_complete ? "bg-emerald-400" : "bg-amber-400"}`} />
           <span className="text-[12px] text-white/40">
-            {progress.overall_complete ? "Completo" : "En progreso"}
+            {progress.overall_complete ? t("complete") : t("inProgress")}
           </span>
         </div>
       </div>

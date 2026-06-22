@@ -93,6 +93,7 @@ export async function GET(request: Request) {
 // ─── POST: Bulk save competitors ─────────────────────────────────────────────
 
 interface CompetitorInput {
+  id?: string;
   name: string;
   ig_url?: string;
   likes_brand?: string;
@@ -123,24 +124,57 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // Delete existing competitors for this workspace (replace all)
-    await supabase
+    // Sync por diff (preserva scraped_data y competitor_reels existentes):
+    //  - items con id → UPDATE (no toca relaciones por FK)
+    //  - items sin id → INSERT (nuevos)
+    //  - items existentes en DB que no están en el payload → DELETE (cascade)
+    const valid = (competitors as CompetitorInput[]).filter(
+      (c) => c.name && typeof c.name === 'string' && c.name.trim().length > 0,
+    );
+
+    const { data: existing } = await supabase
       .from('workspace_competitors')
-      .delete()
+      .select('id')
       .eq('workspace_id', auth.workspaceId);
 
-    // Insert new ones
-    const rows = (competitors as CompetitorInput[])
-      .filter((c) => c.name && typeof c.name === 'string' && c.name.trim().length > 0)
-      .map((c) => ({
+    const existingIds = new Set((existing ?? []).map((r) => r.id as string));
+    const incomingIds = new Set(valid.map((c) => c.id).filter((id): id is string => Boolean(id)));
+
+    const toUpdate = valid.filter((c) => c.id && existingIds.has(c.id));
+    const toInsert = valid.filter((c) => !c.id);
+    const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+
+    // 1) Update existentes — preserva scraped_data, last_scraped_at y reels (FK)
+    for (const c of toUpdate) {
+      await supabase
+        .from('workspace_competitors')
+        .update({
+          name: c.name.trim(),
+          ig_url: typeof c.ig_url === 'string' ? c.ig_url.trim() || null : null,
+          why_better: buildWhyBetter(c),
+        })
+        .eq('id', c.id!)
+        .eq('workspace_id', auth.workspaceId);
+    }
+
+    // 2) Insertar nuevos
+    if (toInsert.length > 0) {
+      const rows = toInsert.map((c) => ({
         workspace_id: auth.workspaceId,
         name: c.name.trim(),
         ig_url: typeof c.ig_url === 'string' ? c.ig_url.trim() || null : null,
         why_better: buildWhyBetter(c),
       }));
-
-    if (rows.length > 0) {
       await supabase.from('workspace_competitors').insert(rows);
+    }
+
+    // 3) Borrar los que el usuario eliminó del modal (cascade limpia sus reels)
+    if (toDelete.length > 0) {
+      await supabase
+        .from('workspace_competitors')
+        .delete()
+        .eq('workspace_id', auth.workspaceId)
+        .in('id', toDelete);
     }
 
     // Invalidate Arko AI cache so next chat uses fresh ADN

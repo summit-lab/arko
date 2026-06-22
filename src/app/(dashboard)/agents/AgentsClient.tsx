@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Plus, Trash2, MessageSquare } from "lucide-react";
 import { AdnBlockOverlay } from "@/components/features/onboarding/AdnAlertBanner";
 import {
@@ -26,15 +27,6 @@ interface ArkoAIClientProps {
   workspaceId: string;
 }
 
-// ─── Suggested questions ─────────────────────────────────────────────────────
-
-const SUGGESTIONS = [
-  "Analizá mis últimos reels y decime qué patrón ves",
-  "¿Cómo viene mi rendimiento este mes?",
-  "Dame ideas de hooks basadas en lo que mejor me funciona",
-  "¿Cuál es mi diferenciador principal vs la competencia?",
-];
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ArkoAIClient({
@@ -42,6 +34,14 @@ export default function ArkoAIClient({
   initialSessions,
   workspaceId,
 }: ArkoAIClientProps) {
+  const t = useTranslations("agents");
+  const locale = useLocale();
+  const SUGGESTIONS = [
+    t("suggestions.0"),
+    t("suggestions.1"),
+    t("suggestions.2"),
+    t("suggestions.3"),
+  ];
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -171,6 +171,9 @@ export default function ArkoAIClient({
             {messages.length === 0 && !isLoadingMessages ? (
               <EmptyState
                 onSuggestionClick={(text) => handleSubmit(undefined, text)}
+                title={t("title")}
+                subtitle={t("subtitle")}
+                suggestions={SUGGESTIONS}
               />
             ) : isLoadingMessages ? (
               <MessagesSkeleton />
@@ -203,7 +206,7 @@ export default function ArkoAIClient({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Preguntale a Moka..."
+                placeholder={t("placeholder")}
                 disabled={isLoading}
                 rows={1}
                 className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground font-light resize-none focus:outline-none leading-relaxed px-5 pt-3.5 pb-3 pr-14 disabled:opacity-40"
@@ -230,7 +233,7 @@ export default function ArkoAIClient({
               </button>
             </form>
             <p className="text-[10px] text-muted-foreground mt-2 text-center font-light">
-              Shift + Enter para nueva línea
+              {t("shiftEnterHint")}
             </p>
           </div>
         </div>
@@ -244,7 +247,7 @@ export default function ArkoAIClient({
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent hover:bg-accent/70 border border-border text-[13px] font-light text-accent-foreground transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
-            Nueva conversación
+            {t("newConversation")}
           </button>
         </div>
 
@@ -268,7 +271,7 @@ export default function ArkoAIClient({
                   {session.title}
                 </p>
                 <p className="text-[10px] text-muted-foreground font-light mt-0.5">
-                  {formatDate(session.updated_at)}
+                  {formatDate(session.updated_at, locale, t)}
                 </p>
               </div>
               <button
@@ -282,7 +285,7 @@ export default function ArkoAIClient({
 
           {sessions.length === 0 && (
             <p className="text-[11px] text-muted-foreground text-center py-8 font-light">
-              Sin conversaciones aún
+              {t("noSessions")}
             </p>
           )}
         </div>
@@ -296,30 +299,75 @@ export default function ArkoAIClient({
 
 function EmptyState({
   onSuggestionClick,
+  title,
+  subtitle,
+  suggestions,
 }: {
   onSuggestionClick: (text: string) => void;
+  title: string;
+  subtitle: string;
+  suggestions: string[];
 }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] py-16">
-      <div className="relative mb-8">
+      <div className="relative mb-8 group">
         <div
           className="absolute inset-0 blur-2xl opacity-20 rounded-full"
           style={{ background: "radial-gradient(circle, rgba(120,120,120,0.3) 0%, transparent 70%)" }}
         />
-        <div className="relative h-20 w-20 rounded-2xl bg-accent border border-border flex items-center justify-center backdrop-blur-sm">
-          <ArkoLogoSmall size={36} opacity={0.5} />
+        <div className="relative h-20 w-20 rounded-2xl bg-accent border border-border flex items-center justify-center backdrop-blur-sm cursor-pointer">
+          <ArkoLogoSmall size={56} opacity={1} className="moka-head-tilt-right" />
+        </div>
+
+        {/* Woof! speech bubble — pixel/retro, aparece al hover del contenedor.
+            Tail largo que baja hacia el Moka, como saliendo de su boca. */}
+        <div
+          className="absolute -top-10 -right-10 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-out pointer-events-none select-none"
+        >
+          <div
+            className="relative px-3 py-1.5 font-mono font-bold uppercase tracking-wider text-[13px] text-foreground"
+            style={{
+              background: "var(--background)",
+              border: "3px solid var(--foreground)",
+              boxShadow: "4px 4px 0 var(--foreground)",
+            }}
+          >
+            Woof!
+            {/* Tail largo — tip hacia abajo-izquierda, llega cerca del Moka.
+                Dos layers (border + fill) para respetar el grosor del border. */}
+            <span
+              className="absolute w-0 h-0"
+              style={{
+                bottom: "-26px",
+                left: "4px",
+                borderLeft: "9px solid transparent",
+                borderRight: "9px solid transparent",
+                borderTop: "26px solid var(--foreground)",
+              }}
+            />
+            <span
+              className="absolute w-0 h-0"
+              style={{
+                bottom: "-20px",
+                left: "8px",
+                borderLeft: "5px solid transparent",
+                borderRight: "5px solid transparent",
+                borderTop: "20px solid var(--background)",
+              }}
+            />
+          </div>
         </div>
       </div>
 
       <h2 className="text-[20px] font-light text-foreground mb-2 tracking-wide">
-        Moka AI
+        {title}
       </h2>
       <p className="text-[13px] text-muted-foreground font-light max-w-md text-center mb-10">
-        Tu consultor de marketing con acceso a toda la data de tu workspace.
+        {subtitle}
       </p>
 
       <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
-        {SUGGESTIONS.map((suggestion) => (
+        {suggestions.map((suggestion) => (
           <button
             key={suggestion}
             onClick={() => onSuggestionClick(suggestion)}
@@ -335,14 +383,18 @@ function EmptyState({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string): string {
+function formatDate(
+  dateStr: string,
+  locale: string,
+  t: (key: string, vals?: Record<string, string | number>) => string
+): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === 1) return "Ayer";
-  if (diffDays < 7) return `Hace ${diffDays} días`;
-  return date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  if (diffDays === 0) return t("today");
+  if (diffDays === 1) return t("yesterday");
+  if (diffDays < 7) return t("daysAgo", { n: diffDays });
+  return date.toLocaleDateString(locale === "en" ? "en-US" : "es-AR", { day: "numeric", month: "short" });
 }

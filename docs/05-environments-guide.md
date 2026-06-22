@@ -63,12 +63,12 @@ http://localhost:3000/api/v1/auth/meta/callback
 
 Si estás en staging, resulta:
 ```
-https://staging.arko.app/api/v1/auth/meta/callback
+https://staging.usemoka.io/api/v1/auth/meta/callback
 ```
 
 Si estás en producción, resulta:
 ```
-https://app.arko.app/api/v1/auth/meta/callback
+https://app.usemoka.io/api/v1/auth/meta/callback
 ```
 
 Nadie tiene que cambiar código. Solo cambian las variables.
@@ -160,7 +160,7 @@ En staging, las variables serían algo así:
 
 ```
 APP_ENV=staging
-NEXT_PUBLIC_APP_URL=https://staging.arko.app
+NEXT_PUBLIC_APP_URL=https://staging.usemoka.io
 NEXT_PUBLIC_SUPABASE_URL=https://staging-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
@@ -176,7 +176,7 @@ Producción es el ambiente real. Solo se llega ahí cuando `main` está estable.
 
 ```
 APP_ENV=production
-NEXT_PUBLIC_APP_URL=https://app.arko.app
+NEXT_PUBLIC_APP_URL=https://app.usemoka.io
 NEXT_PUBLIC_SUPABASE_URL=https://production-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
@@ -191,23 +191,27 @@ Esas variables también se configuran en el panel de Vercel.
 | Ambiente | URL | Branch | Supabase proyecto | Quién lo usa |
 |---|---|---|---|---|
 | local | `http://localhost:3000` | cualquier rama | **Dev Arko** (`hrsvglgswatwklivkoyp`) | cada developer en su máquina |
-| staging | `https://staging.arko.app` | `develop` | **Dev Arko** (`hrsvglgswatwklivkoyp`) | equipo para verificar integración |
-| production | `https://app.arko.app` | `main` | **Prod Arko** (`zphvrohosizkbrnxtppj`) | usuarios finales |
+| staging | `https://staging.usemoka.io` | `develop` | **Dev Arko** (`hrsvglgswatwklivkoyp`) | equipo para verificar integración |
+| production | `https://app.usemoka.io` | `main` | **Prod Arko** (`zphvrohosizkbrnxtppj`) | usuarios finales |
 
 ## Claves Supabase por proyecto
 
-### Dev Arko (local + staging)
+> ⚠️ **Las claves NO se guardan acá.** Obtenelas desde el dashboard de Supabase de cada proyecto:
+> **Supabase → (proyecto) → Project Settings → API Keys.**
+> Pegalas en `.env.local` (que está gitignoreado) o en las env vars de Vercel — nunca en este doc ni en ningún archivo trackeado.
+
+### Dev Arko (local + staging) — `hrsvglgswatwklivkoyp`
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://hrsvglgswatwklivkoyp.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyODE2NTgsImV4cCI6MjA4OTg1NzY1OH0.A5q2JZ21gWdz0claQ37IWFeKjVLNmgA8cAdHAWYNV9w
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyc3ZnbGdzd2F0d2tsaXZrb3lwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI4MTY1OCwiZXhwIjoyMDg5ODU3NjU4fQ.XJIzfhuv3IxdAagcpvtdciGRrsZsLpffvQ8_IpPT6FM
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<obtener del dashboard de Supabase>
+SUPABASE_SERVICE_ROLE_KEY=<obtener del dashboard — secreto, solo server>
 ```
 
-### Prod Arko (production)
+### Prod Arko (production) — `zphvrohosizkbrnxtppj`
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://zphvrohosizkbrnxtppj.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwaHZyb2hvc2l6a2Jybnh0cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjY4MTgsImV4cCI6MjA4OTgwMjgxOH0.ot3t_O6EY_yRGVcUaQ2sGadCaASDtr1007J-xk5B2gw
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwaHZyb2hvc2l6a2Jybnh0cHBqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDIyNjgxOCwiZXhwIjoyMDg5ODAyODE4fQ.pq4rdGlsGYPHG37ViVpYwNjBW5YNz7JErqEXCiTHkWU
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<obtener del dashboard de Supabase>
+SUPABASE_SERVICE_ROLE_KEY=<obtener del dashboard — secreto, solo server>
 ```
 
 ---
@@ -285,8 +289,8 @@ Lo único que tenés que hacer es:
 
 1. En **Meta Developers** → configurar los callbacks permitidos para cada ambiente:
    - `http://localhost:3000/api/v1/auth/meta/callback`
-   - `https://staging.arko.app/api/v1/auth/meta/callback`
-   - `https://app.arko.app/api/v1/auth/meta/callback`
+   - `https://staging.usemoka.io/api/v1/auth/meta/callback`
+   - `https://app.usemoka.io/api/v1/auth/meta/callback`
 
 2. En tu `.env.local` → poner la `NEXT_PUBLIC_APP_URL` correcta para tu ambiente.
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import type { AdnData } from "@/services/adn-progress.service";
 
@@ -24,6 +25,7 @@ function EditableField({
   multiline?: boolean;
   placeholder?: string;
 }) {
+  const t = useTranslations("adnEditor");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
   const [saving, setSaving] = useState(false);
@@ -69,13 +71,13 @@ function EditableField({
             disabled={saving}
             className="px-3 py-1.5 rounded-lg bg-white/[0.08] border border-white/[0.12] text-[12px] text-white/70 hover:bg-white/[0.12] transition-all cursor-pointer disabled:opacity-40"
           >
-            {saving ? "Guardando…" : "Guardar"}
+            {saving ? t("saving") : t("save")}
           </button>
           <button
             onClick={handleCancel}
             className="px-3 py-1.5 rounded-lg text-[12px] text-white/30 hover:text-white/55 transition-all cursor-pointer"
           >
-            Cancelar
+            {t("cancel")}
           </button>
         </div>
       </div>
@@ -91,10 +93,10 @@ function EditableField({
       {value ? (
         <p className="text-[13px] text-white/65 font-light leading-relaxed">{value}</p>
       ) : (
-        <p className="text-[13px] text-white/20 font-light italic">Sin completar — hacé click para editar</p>
+        <p className="text-[13px] text-white/20 font-light italic">{t("emptyValue")}</p>
       )}
       <p className="text-[10px] text-white/15 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        Click para editar
+        {t("clickToEdit")}
       </p>
     </div>
   );
@@ -117,6 +119,7 @@ function Section({ title, complete, children }: { title: string; complete: boole
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
+  const t = useTranslations("adnEditor");
   const supabase = createClient();
 
   async function updateProfile(field: string, value: string) {
@@ -151,44 +154,44 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
   return (
     <div className="space-y-4">
       {/* Perfil de marca */}
-      <Section title="Perfil de Marca" complete={profileComplete}>
+      <Section title={t("sections.profile")} complete={profileComplete}>
         <EditableField
-          label="Descripción del negocio"
+          label={t("fields.businessDescription.label")}
           value={profile?.business_description ?? null}
           onSave={(v) => updateProfile("business_description", v)}
           multiline
-          placeholder="¿Qué hacés y a quién ayudás?"
+          placeholder={t("fields.businessDescription.placeholder")}
         />
         <EditableField
-          label="Persona de marca"
+          label={t("fields.brandPersona.label")}
           value={profile?.brand_persona ?? null}
           onSave={(v) => updateProfile("brand_persona", v)}
           multiline
-          placeholder="¿Cómo es la voz y tono de tu marca?"
+          placeholder={t("fields.brandPersona.placeholder")}
         />
         <EditableField
-          label="Avatar del cliente ideal"
+          label={t("fields.avatar.label")}
           value={profile?.avatar_description ?? null}
           onSave={(v) => updateProfile("avatar_description", v)}
           multiline
-          placeholder="¿Quién es tu cliente ideal? Describilo en detalle."
+          placeholder={t("fields.avatar.placeholder")}
         />
         <EditableField
-          label="Oferta principal"
+          label={t("fields.mainOffer.label")}
           value={profile?.main_offer ?? null}
           onSave={(v) => updateProfile("main_offer", v)}
-          placeholder="¿Qué producto o servicio principal vendés?"
+          placeholder={t("fields.mainOffer.placeholder")}
         />
         <EditableField
-          label="Audiencia objetivo"
+          label={t("fields.targetAudience.label")}
           value={profile?.target_audience ?? null}
           onSave={(v) => updateProfile("target_audience", v)}
-          placeholder="¿A quién va dirigido tu contenido?"
+          placeholder={t("fields.targetAudience.placeholder")}
         />
       </Section>
 
       {/* Estrategia de plataformas */}
-      <Section title="Estrategia de Plataformas" complete={adnData.strategies.length > 0}>
+      <Section title={t("sections.platforms")} complete={adnData.strategies.length > 0}>
         {adnData.strategies.length > 0 ? (
           adnData.strategies.map((s, i) => (
             <div key={i} className="rounded-lg p-4 space-y-2 bg-white/[0.025] border border-white/[0.06]">
@@ -203,94 +206,94 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
           ))
         ) : (
           <p className="text-[13px] text-white/20 font-light italic py-2">
-            Sin estrategias cargadas. Completá el chat de ADN para agregarlas.
+            {t("noStrategies")}
           </p>
         )}
         <a
           href="/onboarding/adn"
           className="inline-flex items-center gap-1.5 text-[12px] text-white/25 hover:text-white/50 transition-colors"
         >
-          Completar con Moka AI →
+          {t("completeWithMoka")}
         </a>
       </Section>
 
       {/* Mercado y competencia */}
-      <Section title="Mercado y Competencia" complete={marketComplete}>
+      <Section title={t("sections.market")} complete={marketComplete}>
         <EditableField
-          label="Estado del mercado"
+          label={t("fields.industryState.label")}
           value={market?.industry_state ?? null}
           onSave={(v) => updateMarket("industry_state", v)}
           multiline
-          placeholder="¿Cómo está el mercado en tu industria?"
+          placeholder={t("fields.industryState.placeholder")}
         />
         <EditableField
-          label="Diferenciador"
+          label={t("fields.differentiator.label")}
           value={market?.differentiator ?? null}
           onSave={(v) => updateMarket("differentiator", v)}
           multiline
-          placeholder="¿Qué te diferencia de la competencia?"
+          placeholder={t("fields.differentiator.placeholder")}
         />
         <EditableField
-          label="Creencias del mercado"
+          label={t("fields.marketBeliefs.label")}
           value={market?.market_beliefs ?? null}
           onSave={(v) => updateMarket("market_beliefs", v)}
           multiline
-          placeholder="¿Qué cree tu audiencia sobre tu industria?"
+          placeholder={t("fields.marketBeliefs.placeholder")}
         />
         <EditableField
-          label="Temas quemados"
+          label={t("fields.burnedTopics.label")}
           value={market?.burned_topics ?? null}
           onSave={(v) => updateMarket("burned_topics", v)}
           multiline
-          placeholder="¿Qué temas ya no funcionan en tu nicho?"
+          placeholder={t("fields.burnedTopics.placeholder")}
         />
         <EditableField
-          label="Tendencias actuales"
+          label={t("fields.currentTrends.label")}
           value={market?.current_trends ?? null}
           onSave={(v) => updateMarket("current_trends", v)}
-          placeholder="¿Qué tendencias están funcionando ahora?"
+          placeholder={t("fields.currentTrends.placeholder")}
         />
       </Section>
 
       {/* Marca y lenguaje */}
-      <Section title="Marca y Lenguaje" complete={brandComplete}>
+      <Section title={t("sections.brand")} complete={brandComplete}>
         <EditableField
-          label="Por qué te eligen"
+          label={t("fields.whyChosen.label")}
           value={brand?.why_clients_choose ?? null}
           onSave={(v) => updateBrand("why_clients_choose", v)}
           multiline
-          placeholder="¿Por qué tus clientes te eligen a vos sobre la competencia?"
+          placeholder={t("fields.whyChosen.placeholder")}
         />
         <EditableField
-          label="Lenguaje del nicho"
+          label={t("fields.nicheLanguage.label")}
           value={brand?.niche_language ?? null}
           onSave={(v) => updateBrand("niche_language", v)}
           multiline
-          placeholder="Palabras y frases específicas de tu comunidad"
+          placeholder={t("fields.nicheLanguage.placeholder")}
         />
         <EditableField
-          label="Herramientas del nicho"
+          label={t("fields.nicheTools.label")}
           value={brand?.niche_tools ?? null}
           onSave={(v) => updateBrand("niche_tools", v)}
-          placeholder="¿Qué herramientas usa tu audiencia?"
+          placeholder={t("fields.nicheTools.placeholder")}
         />
         <EditableField
-          label="Palabras filtro"
+          label={t("fields.filteringWords.label")}
           value={brand?.filtering_words ?? null}
           onSave={(v) => updateBrand("filtering_words", v)}
-          placeholder="Palabras que usás para atraer o repeler a tu audiencia"
+          placeholder={t("fields.filteringWords.placeholder")}
         />
         <EditableField
-          label="Nuevos mecanismos"
+          label={t("fields.newMechanisms.label")}
           value={brand?.new_mechanisms ?? null}
           onSave={(v) => updateBrand("new_mechanisms", v)}
           multiline
-          placeholder="¿Qué enfoque nuevo o único tenés?"
+          placeholder={t("fields.newMechanisms.placeholder")}
         />
       </Section>
 
       {/* Competidores */}
-      <Section title="Competidores" complete={adnData.competitors.length > 0}>
+      <Section title={t("sections.competitors")} complete={adnData.competitors.length > 0}>
         {adnData.competitors.length > 0 ? (
           <div className="space-y-3">
             {adnData.competitors.map((c, i) => (
@@ -307,18 +310,18 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
             ))}
           </div>
         ) : (
-          <p className="text-[13px] text-white/20 font-light italic py-2">Sin competidores cargados.</p>
+          <p className="text-[13px] text-white/20 font-light italic py-2">{t("noCompetitors")}</p>
         )}
         <a
           href="/onboarding/adn"
           className="inline-flex items-center gap-1.5 text-[12px] text-white/25 hover:text-white/50 transition-colors"
         >
-          Agregar competidores con Moka AI →
+          {t("addCompetitorsWithMoka")}
         </a>
       </Section>
 
       {/* Referencias */}
-      <Section title="Referencias de Marca" complete={adnData.references.length > 0}>
+      <Section title={t("sections.references")} complete={adnData.references.length > 0}>
         {adnData.references.length > 0 ? (
           <div className="space-y-3">
             {adnData.references.map((r, i) => (
@@ -330,7 +333,7 @@ export function AdnEditor({ adnData, workspaceId }: AdnEditorProps) {
             ))}
           </div>
         ) : (
-          <p className="text-[13px] text-white/20 font-light italic py-2">Sin referencias cargadas.</p>
+          <p className="text-[13px] text-white/20 font-light italic py-2">{t("noReferences")}</p>
         )}
       </Section>
     </div>

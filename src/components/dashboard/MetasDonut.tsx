@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -68,74 +69,67 @@ function SingleDonut({ pct, color, label, current, goal }: DonutProps) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+// Metric → display config. Order here = order in UI.
+const METRIC_CONFIG = [
+  { key: "views", labelKey: "views", color: "#7A86E0", unit: undefined as string | undefined },
+  { key: "followers", labelKey: "followers", color: "#4BCEAF", unit: undefined },
+  { key: "engagement_rate", labelKey: "engagementRate", color: "#AF6EC7", unit: "%" },
+  { key: "reach", labelKey: "reach", color: "#EB6991", unit: undefined },
+  { key: "likes", labelKey: "likes", color: "#E0A86E", unit: undefined },
+  { key: "saves", labelKey: "saves", color: "#6EC7C7", unit: undefined },
+] as const;
+
+type MetricKey = typeof METRIC_CONFIG[number]["key"];
+
 interface MetasDonutProps {
-  views: number;
-  followers: number;
-  engRate: number;
-  goalViews: number | null;
-  goalFollowers: number | null;
-  goalEngRate: number | null;
+  goals: Partial<Record<MetricKey, number | null>>;
+  actuals: Partial<Record<MetricKey, number>>;
 }
 
-export function MetasDonut({ views, followers, engRate, goalViews, goalFollowers, goalEngRate }: MetasDonutProps) {
-  const hasGoals = goalViews !== null || goalFollowers !== null || goalEngRate !== null;
-
-  // Build donut items dynamically from configured goals
-  const items: DonutProps[] = [];
-
-  if (goalViews !== null && goalViews > 0) {
-    items.push({
-      pct: (views / goalViews) * 100,
-      color: "#7A86E0",
-      label: "Views",
-      current: fmtCompact(views),
-      goal: fmtCompact(goalViews),
+export function MetasDonut({ goals, actuals }: MetasDonutProps) {
+  const t = useTranslations("igShell");
+  const items: DonutProps[] = METRIC_CONFIG
+    .filter((m) => {
+      const g = goals[m.key];
+      return g !== null && g !== undefined && g > 0;
+    })
+    .map((m) => {
+      const goal = goals[m.key] as number;
+      const actual = actuals[m.key] ?? 0;
+      return {
+        pct: (actual / goal) * 100,
+        color: m.color,
+        label: t(`metas.metricLabels.${m.labelKey}`),
+        current: fmtCompact(actual, m.unit),
+        goal: fmtCompact(goal, m.unit),
+      };
     });
-  }
-
-  if (goalFollowers !== null && goalFollowers > 0) {
-    items.push({
-      pct: (followers / goalFollowers) * 100,
-      color: "#4BCEAF",
-      label: "Seguidores",
-      current: fmtCompact(followers),
-      goal: fmtCompact(goalFollowers),
-    });
-  }
-
-  if (goalEngRate !== null && goalEngRate > 0) {
-    items.push({
-      pct: (engRate / goalEngRate) * 100,
-      color: "#AF6EC7",
-      label: "Eng. Rate",
-      current: fmtCompact(engRate, "%"),
-      goal: fmtCompact(goalEngRate, "%"),
-    });
-  }
 
   return (
     <div className="glass-panel rounded-xl p-6 animate-slide-up stagger-3">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">Metas del Mes</h3>
+        <h3 className="text-[13px] font-medium text-white/40 uppercase tracking-[0.1em]">{t("metas.title")}</h3>
         <a href="/settings/metas" className="text-[10px] text-white/20 hover:text-white/50 transition-colors tracking-wider">
-          Configurar →
+          {t("metas.configureArrow")}
         </a>
       </div>
 
-      {!hasGoals ? (
+      {items.length === 0 ? (
         <div className="py-6 text-center">
-          <p className="text-[12px] text-white/25 font-light">No hay metas configuradas</p>
+          <p className="text-[12px] text-white/25 font-light">{t("metas.empty")}</p>
           <a
             href="/settings/metas"
             className="inline-block mt-2 text-[11px] font-medium transition-colors hover:text-white/60"
             style={{ color: "rgba(122,134,224,0.7)" }}
           >
-            + Configurar metas
+            {t("metas.configureGoals")}
           </a>
         </div>
       ) : (
-        <div className="flex items-start justify-around">
-          {items.map(item => (
+        // Grid 3 cols: hasta 3 metas en fila, el resto wrappea. gap-y mayor
+        // que gap-x para que las filas respiren.
+        <div className="grid grid-cols-3 gap-x-2 gap-y-5 justify-items-center">
+          {items.map((item) => (
             <SingleDonut key={item.label} {...item} />
           ))}
         </div>

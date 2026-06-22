@@ -48,7 +48,7 @@ export default function LandingArkoPage() {
           <a href="#how-it-works" className="transition-colors hover:text-white/80">How it works</a>
           <a href="#security" className="transition-colors hover:text-white/80">Security</a>
           <a
-            href="mailto:support@usearko.io"
+            href="mailto:support@usemoka.io"
             className="rounded-full border border-white/[0.1] bg-white/[0.04] px-5 py-2 text-white/70 transition-all hover:bg-white/[0.08] hover:text-white"
           >
             Get early access
@@ -76,7 +76,7 @@ export default function LandingArkoPage() {
         </p>
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           <a
-            href="mailto:support@usearko.io?subject=Early%20Access%20Request"
+            href="mailto:support@usemoka.io?subject=Early%20Access%20Request"
             className="rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 px-8 py-3.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
             Request early access
@@ -295,7 +295,7 @@ export default function LandingArkoPage() {
             today.
           </p>
           <a
-            href="mailto:support@usearko.io?subject=Early%20Access%20Request"
+            href="mailto:support@usemoka.io?subject=Early%20Access%20Request"
             className="mt-8 inline-block rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 px-10 py-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
             Request early access
@@ -321,7 +321,7 @@ export default function LandingArkoPage() {
             <a href="/data-deletion" className="transition-colors hover:text-white/70">
               Data Deletion
             </a>
-            <a href="mailto:support@usearko.io" className="transition-colors hover:text-white/70">
+            <a href="mailto:support@usemoka.io" className="transition-colors hover:text-white/70">
               Contact
             </a>
           </div>

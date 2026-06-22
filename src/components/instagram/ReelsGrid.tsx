@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "./ReelThumbnail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Heart, Bookmark, MessageCircle, Share2,
-  Play, Clock, ArrowUpRight, Megaphone, AlertTriangle,
+  Clock, ArrowUpRight, Megaphone, AlertTriangle,
   UserPlus, ChevronDown, ArrowUpDown, Check, TrendingUp,
   ExternalLink, DollarSign, Eye,
 } from "lucide-react";
@@ -58,6 +59,7 @@ export interface ReelsSummary {
 interface ReelsGridProps {
   reels: Reel[];
   summary?: ReelsSummary;
+  benchmarksByType: { normal: number; trial: number; all: number };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -68,14 +70,14 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-function timeAgo(date: string): string {
+function timeAgo(date: string, t: (k: string) => string): string {
   const diff = Date.now() - new Date(date).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Hoy";
-  if (days === 1) return "Ayer";
-  if (days < 7) return `${days}d`;
-  if (days < 30) return `${Math.floor(days / 7)}sem`;
-  return `${Math.floor(days / 30)}mes`;
+  if (days === 0) return t("timeAgo.today");
+  if (days === 1) return t("timeAgo.yesterday");
+  if (days < 7) return `${days}${t("timeAgo.daySuffix")}`;
+  if (days < 30) return `${Math.floor(days / 7)}${t("timeAgo.weekSuffix")}`;
+  return `${Math.floor(days / 30)}${t("timeAgo.monthSuffix")}`;
 }
 
 // ─── Filter config ────────────────────────────────────────────────────────────
@@ -84,17 +86,6 @@ type SortKey = "views_total" | "views_org" | "likes" | "saves" | "comments" | "s
 type SortDir = "desc" | "asc";
 type TypeFilter = "all" | "trial" | "normal";
 type DistFilter = "all" | "organic" | "promoted";
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "published_at", label: "Fecha" },
-  { value: "views_total", label: "Views totales" },
-  { value: "views_org", label: "Views orgánico" },
-  { value: "likes", label: "Likes" },
-  { value: "saves", label: "Guardados" },
-  { value: "comments", label: "Comentarios" },
-  { value: "shares", label: "Compartidos" },
-  { value: "performer_multiple", label: "Multiplicador" },
-];
 
 // ─── Select component ─────────────────────────────────────────────────────────
 
@@ -174,6 +165,7 @@ const LIQUID_GLASS_BUTTON_CLASS = "bg-white/[0.08] border border-white/[0.1]";
 // ─── ReelActions (Ver en IG) ─────────────────────────────────────────────────
 
 function ReelActions({ permalink }: { permalink?: string | null }) {
+  const t = useTranslations("igGrids");
   if (!permalink) return null;
   return (
     <a
@@ -184,7 +176,7 @@ function ReelActions({ permalink }: { permalink?: string | null }) {
       className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-semibold text-white transition-all cursor-pointer hover:brightness-125 ${LIQUID_GLASS_BUTTON_CLASS}`}
     >
       <ExternalLink size={10} strokeWidth={2} />
-      Ver en IG
+      {t("reels.viewOnIg")}
     </a>
   );
 }
@@ -193,6 +185,7 @@ function ReelActions({ permalink }: { permalink?: string | null }) {
 
 function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[] }) {
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
   const engagementRate = summary.totalViews > 0
     ? ((summary.totalLikes + summary.totalSaves + summary.totalComments) / summary.totalViews * 100).toFixed(1)
     : "0";
@@ -201,7 +194,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
   const maxViews = top5[0]?.views_total || 1;
 
   // Day-of-week radar — average views by publication day
-  const DAYS_ES_R = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const DAYS_ES_R = t.raw("daysShort") as string[];
   const dowViews: number[] = Array(7).fill(0);
   const dowCount: number[] = Array(7).fill(0);
   reels.forEach((r) => {
@@ -218,9 +211,9 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
 
   // Donut data — engagement breakdown
   const engData = [
-    { name: "Likes",  value: summary.totalLikes,    color: "#f87171" },
-    { name: "Saves",  value: summary.totalSaves,    color: "#AF6EC7" },
-    { name: "Cmts",   value: summary.totalComments, color: "#4BCEAF" },
+    { name: t("reels.donut.likes"),  value: summary.totalLikes,    color: "#f87171" },
+    { name: t("reels.donut.saves"),  value: summary.totalSaves,    color: "#AF6EC7" },
+    { name: t("reels.donut.cmts"),   value: summary.totalComments, color: "#4BCEAF" },
   ].filter((d) => d.value > 0);
 
   // Top 5 bar colors — neon palette
@@ -232,21 +225,21 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
       {/* ── Panel 1: Views Summary ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <p className="text-[10px] font-medium text-white/25 uppercase tracking-[0.12em] mb-4">
-          Resumen · {reels.length} reels
+          {t("reels.summary.title", { count: reels.length })}
         </p>
 
         <div className="space-y-3">
           <div>
-            <p className="text-[10px] text-white/30 mb-1">Views totales</p>
+            <p className="text-[10px] text-white/30 mb-1">{t("reels.summary.totalViews")}</p>
             <p className="text-[28px] font-light text-white leading-none tracking-[-0.02em]">{fmt(summary.totalViews)}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.06]">
             <div>
-              <span className="text-[10px] text-white/30">Promedio</span>
+              <span className="text-[10px] text-white/30">{t("reels.summary.average")}</span>
               <p className="text-[16px] font-light text-white">{fmt(summary.avgViews)}</p>
             </div>
             <div>
-              <span className="text-[10px] text-white/30">Top ×3+</span>
+              <span className="text-[10px] text-white/30">{t("reels.summary.topX3")}</span>
               <p className="text-[16px] font-light text-amber-300">{summary.topPerformers}</p>
             </div>
           </div>
@@ -261,15 +254,15 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           .slice(-12)
           .map((r, idx) => ({
             idx: idx + 1,
-            caption: r.auto_title ?? (r.caption ? r.caption.slice(0, 30) + (r.caption.length > 30 ? "…" : "") : "Sin título"),
-            date: timeAgo(r.published_at!),
+            caption: r.auto_title ?? (r.caption ? r.caption.slice(0, 30) + (r.caption.length > 30 ? "…" : "") : t("reels.noTitle")),
+            date: timeAgo(r.published_at!, t),
             views: r.views_total,
           }));
         if (trendData.length < 2) return null;
         return (
           <div className="glass-panel rounded-xl px-5 py-4">
-            <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">Evolución de Views</p>
-            <p className="text-[9px] text-white/20 mb-3">Views cronológicos · últimos {trendData.length} reels</p>
+            <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-1">{t("reels.trend.title")}</p>
+            <p className="text-[9px] text-white/20 mb-3">{t("reels.trend.subtitle", { count: trendData.length })}</p>
             <div style={{ height: 90 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -306,7 +299,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                       return (
                         <div className="rounded-lg border border-border bg-popover text-popover-foreground px-3 py-2 text-[11px] backdrop-blur-xl shadow-xl" style={{ maxWidth: 180 }}>
                           <p className="text-muted-foreground mb-1 leading-snug">{d.caption}</p>
-                          <p className="text-popover-foreground font-medium">{fmt(d.views)} views</p>
+                          <p className="text-popover-foreground font-medium">{fmt(d.views)} {t("reels.views")}</p>
                           <p className="text-muted-foreground text-[10px]">{d.date}</p>
                         </div>
                       );
@@ -334,7 +327,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
       {/* ── Panel 2: Engagement donut ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Engagement</p>
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">{t("reels.engagement")}</p>
           <TrendingUp size={13} className="text-violet-400" />
         </div>
 
@@ -365,9 +358,9 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
           {/* Breakdown */}
           <div className="flex-1 space-y-2.5">
             {[
-              { icon: Heart,         value: summary.totalLikes,    label: "Likes",       color: "#f87171" },
-              { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   color: "#AF6EC7" },
-              { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#4BCEAF" },
+              { icon: Heart,         value: summary.totalLikes,    label: t("common.likes"),       color: "#f87171" },
+              { icon: Bookmark,      value: summary.totalSaves,    label: t("common.saves"),   color: "#AF6EC7" },
+              { icon: MessageCircle, value: summary.totalComments, label: t("common.comments"), color: "#4BCEAF" },
             ].map(({ icon: Icon, value, label, color }) => (
               <div key={label} className="flex items-center gap-2">
                 <Icon size={12} strokeWidth={1.5} style={{ color }} />
@@ -375,7 +368,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
                 <span className="text-[14px] font-light text-white">{fmt(value)}</span>
               </div>
             ))}
-            <p className="text-[9px] text-white/20 pt-1">likes + saves + cmts / views</p>
+            <p className="text-[9px] text-white/20 pt-1">{t("reels.engagementFormula")}</p>
           </div>
         </div>
       </div>
@@ -393,18 +386,18 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
         return (
           <div className="glass-panel rounded-xl px-5 py-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">Top Ventas</p>
+              <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em]">{t("reels.topSales.title")}</p>
               <DollarSign size={13} className="text-emerald-400" />
             </div>
             <p className="text-[9px] text-white/20 mb-4">
-              Total generado: <span className="text-emerald-300 font-medium">${fmt(totalSales)}</span>
+              {t("reels.topSales.totalGenerated")} <span className="text-emerald-300 font-medium">${fmt(totalSales)}</span>
             </p>
             <div className="space-y-3">
               {topSales.map((r, i) => {
                 const pct = Math.round(((r.sales_amount ?? 0) / maxSales) * 88);
                 const label = r.auto_title ?? (r.caption
                   ? r.caption.slice(0, 26) + (r.caption.length > 26 ? "…" : "")
-                  : "Sin título");
+                  : t("reels.noTitle"));
                 return (
                   <div key={r.id}>
                     <div className="flex items-center gap-2 mb-1">
@@ -426,13 +419,13 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
       {/* ── Panel 3: Top 5 ── */}
       {top5.length > 0 && (
         <div className="glass-panel rounded-xl px-5 py-4">
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-4">Top 5 por Views</p>
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-4">{t("reels.top5.title")}</p>
           <div className="space-y-3">
             {top5.map((r, i) => {
               const pct = Math.round((r.views_total / maxViews) * 88); // cap at 88% so #1 never bleeds to edge
               const label = r.auto_title ?? (r.caption
                 ? r.caption.slice(0, 26) + (r.caption.length > 26 ? "…" : "")
-                : "Sin título");
+                : t("reels.noTitle"));
               return (
                 <div key={r.id}>
                   <div className="flex items-center gap-2 mb-1">
@@ -452,13 +445,13 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
 
       {/* ── Panel 4: Engagement totals (shares included) ── */}
       <div className="glass-panel rounded-xl px-5 py-4">
-        <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-3">Totales de contenido</p>
+        <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.08em] mb-3">{t("reels.contentTotals")}</p>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { icon: Heart,         value: summary.totalLikes,    label: "Likes",       color: "#f87171" },
-            { icon: Bookmark,      value: summary.totalSaves,    label: "Guardados",   color: "#AF6EC7" },
-            { icon: MessageCircle, value: summary.totalComments, label: "Comentarios", color: "#4BCEAF" },
-            { icon: Share2,        value: reels.reduce((s, r) => s + r.shares, 0), label: "Compartidos",  color: "#7A86E0" },
+            { icon: Heart,         value: summary.totalLikes,    label: t("common.likes"),       color: "#f87171" },
+            { icon: Bookmark,      value: summary.totalSaves,    label: t("common.saves"),   color: "#AF6EC7" },
+            { icon: MessageCircle, value: summary.totalComments, label: t("common.comments"), color: "#4BCEAF" },
+            { icon: Share2,        value: reels.reduce((s, r) => s + r.shares, 0), label: t("common.shares"),  color: "#7A86E0" },
           ].map(({ icon: Icon, value, label, color }) => (
             <div key={label} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 bg-white/[0.03] border border-white/[0.06]">
               <Icon size={14} strokeWidth={1.5} style={{ color }} />
@@ -475,7 +468,7 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
       {reels.length >= 3 && dayRadarData.some((d) => d.views > 0) && (
         <div className="glass-panel rounded-xl px-5 py-4">
           <ReelDayRadar data={dayRadarData} />
-          <p className="text-[9px] text-white/20 mt-2">Promedio de views según día de publicación</p>
+          <p className="text-[9px] text-white/20 mt-2">{t("reels.dayRadarFooter")}</p>
         </div>
       )}
 
@@ -513,15 +506,42 @@ function ReelsSidebar({ summary, reels }: { summary: ReelsSummary; reels: Reel[]
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ReelsGrid({ reels, summary }: ReelsGridProps) {
+export function ReelsGrid({ reels, summary, benchmarksByType }: ReelsGridProps) {
   const router = useRouter();
+  const t = useTranslations("igGrids");
   const [sortKey, setSortKey] = useState<SortKey>("published_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("normal");
   const [distFilter, setDistFilter] = useState<DistFilter>("all");
   const [page, setPage] = useState(1);
 
+  const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+    { value: "published_at", label: t("reels.sort.date") },
+    { value: "views_total", label: t("reels.sort.totalViews") },
+    { value: "views_org", label: t("reels.sort.organicViews") },
+    { value: "likes", label: t("common.likes") },
+    { value: "saves", label: t("common.saves") },
+    { value: "comments", label: t("common.comments") },
+    { value: "shares", label: t("common.shares") },
+    { value: "performer_multiple", label: t("reels.sort.multiplier") },
+  ];
+
   useEffect(() => { setPage(1); }, [sortKey, sortDir, typeFilter, distFilter]);
+
+  // Multiplicador = views_org / benchmark_del_tipo_seleccionado.
+  // Cambia con el filtro de tipo para permitir comparar trials entre trials
+  // y normales entre normales. El numerador es siempre views_org para que
+  // los reels con ads no inflen artificialmente su propia métrica.
+  const activeBenchmark = useMemo(() => {
+    if (typeFilter === "trial") return benchmarksByType.trial;
+    if (typeFilter === "all")   return benchmarksByType.all;
+    return benchmarksByType.normal;
+  }, [typeFilter, benchmarksByType]);
+
+  const computeMultiple = (r: Reel): number | null => {
+    if (activeBenchmark <= 0) return null;
+    return r.views_org / activeBenchmark;
+  };
 
   const filtered = useMemo(() => {
     let result = [...reels];
@@ -537,8 +557,8 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
         aVal = a.published_at ? new Date(a.published_at).getTime() : 0;
         bVal = b.published_at ? new Date(b.published_at).getTime() : 0;
       } else if (sortKey === "performer_multiple") {
-        aVal = a.performer_multiple ?? 0;
-        bVal = b.performer_multiple ?? 0;
+        aVal = computeMultiple(a) ?? 0;
+        bVal = computeMultiple(b) ?? 0;
       } else {
         aVal = a[sortKey] as number;
         bVal = b[sortKey] as number;
@@ -547,7 +567,8 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
     });
 
     return result;
-  }, [reels, sortKey, sortDir, typeFilter, distFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reels, sortKey, sortDir, typeFilter, distFilter, activeBenchmark]);
 
   return (
     <div>
@@ -555,7 +576,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
       {/* Filters bar — full width, above grid+sidebar */}
       <div className="flex flex-wrap items-center gap-2 mb-5">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-white/40 whitespace-nowrap">Ordenar por</span>
+            <span className="text-[11px] text-white/40 whitespace-nowrap">{t("reels.sortBy")}</span>
             <Select value={sortKey} onChange={(v) => setSortKey(v as SortKey)} options={SORT_OPTIONS} className="w-36" />
           </div>
           <button
@@ -563,7 +584,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
             className="flex items-center gap-1.5 bg-white/[0.06] border border-white/[0.1] text-white/80 text-[11px] font-medium rounded-lg px-3 py-1.5 hover:bg-white/[0.08] hover:border-white/[0.1] transition-colors cursor-pointer"
           >
             <ArrowUpDown size={12} strokeWidth={2.5} />
-            {sortDir === "desc" ? "Mayor → Menor" : "Menor → Mayor"}
+            {sortDir === "desc" ? t("reels.sortDesc") : t("reels.sortAsc")}
           </button>
 
           <div className="h-4 w-px bg-white/[0.1]" />
@@ -571,9 +592,9 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
           {/* Type filter — pill container */}
           <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
             {([
-              { key: "normal", label: "Reel", icon: null },
-              { key: "trial", label: "Trial reel", icon: AlertTriangle },
-              { key: "all", label: "Todos", icon: null },
+              { key: "normal", label: t("reels.typeFilter.reel"), icon: null },
+              { key: "trial", label: t("reels.typeFilter.trial"), icon: AlertTriangle },
+              { key: "all", label: t("reels.typeFilter.all"), icon: null },
             ] as { key: TypeFilter; label: string; icon: React.ElementType | null }[]).map((opt) => (
               <button
                 key={opt.key}
@@ -595,9 +616,9 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
           {/* Dist filter — pill container */}
           <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
             {([
-              { key: "all", label: "Todos", icon: null },
-              { key: "organic", label: "Orgánico", icon: null, dot: true },
-              { key: "promoted", label: "Pagado", icon: Megaphone },
+              { key: "all", label: t("reels.distFilter.all"), icon: null },
+              { key: "organic", label: t("reels.distFilter.organic"), icon: null, dot: true },
+              { key: "promoted", label: t("reels.distFilter.paid"), icon: Megaphone },
             ] as { key: DistFilter; label: string; icon: React.ElementType | null; dot?: boolean }[]).map((opt) => (
               <button
                 key={opt.key}
@@ -616,7 +637,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
           </div>
 
           <span className="ml-auto text-[11px] text-white/30">
-            {Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length}
+            {t("reels.pagination", { shown: Math.min(page * PAGE_SIZE, filtered.length), total: filtered.length })}
           </span>
         </div>
 
@@ -628,11 +649,11 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
         <div className="grid grid-cols-2 gap-3 @[640px]:grid-cols-3 @[900px]:grid-cols-4">
           {filtered.length === 0 && (
             <div className="col-span-full py-16 text-center text-white/40 text-sm">
-              No hay reels que coincidan con los filtros.
+              {t("reels.empty")}
             </div>
           )}
-          {filtered.slice(0, page * PAGE_SIZE).map((reel) => {
-            const multiple = reel.performer_multiple || 0;
+          {filtered.slice(0, page * PAGE_SIZE).map((reel, idx) => {
+            const multiple = computeMultiple(reel) ?? 0;
             const isPromoted = reel.has_ads || reel.views_paid > 0;
             // Inline styles so colors survive any light-mode CSS overrides (pill sits on a dark thumbnail).
             const pillInline: { background: string; borderColor: string; color: string } =
@@ -657,7 +678,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
               : "--";
             const displayTitle = reel.auto_title ?? (reel.caption
               ? reel.caption.length > 120 ? reel.caption.slice(0, 120) + "…" : reel.caption
-              : "Sin caption");
+              : t("reels.noCaption"));
 
             return (
               <div
@@ -676,20 +697,12 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   className="relative w-full overflow-hidden bg-muted block"
                   style={{ aspectRatio: "4/5" }}
                 >
-                  {reel.thumbnail_url ? (
-                    <Image
-                      src={reel.thumbnail_url}
-                      alt=""
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
-                      loading="lazy"
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Play size={24} className="text-white/10" />
-                    </div>
-                  )}
+                  {/* Primera fila (idx<5) priority: arranca eager para el above-the-fold */}
+                  <ReelThumbnail
+                    src={reel.thumbnail_url}
+                    priority={idx < 5}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
                   {/* Gradient overlay bottom */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   {/* Badges top-left — inline styles only, to survive light-mode overrides */}
@@ -745,7 +758,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                       className="text-[9px] font-light rounded px-1.5 py-0.5 backdrop-blur-sm"
                       style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.75)" }}
                     >
-                      {reel.published_at ? timeAgo(reel.published_at) : "--"}
+                      {reel.published_at ? timeAgo(reel.published_at, t) : "--"}
                     </span>
                   </div>
                 </Link>
@@ -788,8 +801,11 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                     </div>
                     <p className="text-[9px] text-white/20 mt-1 font-light">
                       {isPromoted
-                        ? `${Math.round((reel.views_org / (reel.views_total || 1)) * 100)}% orgánico · ${Math.round((reel.views_paid / (reel.views_total || 1)) * 100)}% pagado`
-                        : "100% orgánico"}
+                        ? t("reels.distSplit", {
+                            organic: Math.round((reel.views_org / (reel.views_total || 1)) * 100),
+                            paid: Math.round((reel.views_paid / (reel.views_total || 1)) * 100),
+                          })
+                        : t("reels.fullyOrganic")}
                     </p>
                   </div>
 
@@ -805,7 +821,7 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
                   {reel.follows > 0 && (
                     <div className="flex items-center gap-1 text-[10px] text-cyan-400">
                       <UserPlus size={10} strokeWidth={1.5} />
-                      +{reel.follows} seguidores
+                      +{reel.follows} {t("reels.followers")}
                     </div>
                   )}
                 </div>
@@ -821,9 +837,9 @@ export function ReelsGrid({ reels, summary }: ReelsGridProps) {
               onClick={() => setPage((p) => p + 1)}
               className="flex items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.06] px-5 py-2 text-[13px] font-medium text-white/70 transition-all hover:border-white/[0.1] hover:bg-white/[0.08] hover:text-white cursor-pointer"
             >
-              Mostrar más
+              {t("reels.showMore")}
               <span className="text-white/40 text-[11px]">
-                ({Math.min(PAGE_SIZE, filtered.length - page * PAGE_SIZE)} más)
+                {t("reels.showMoreCount", { count: Math.min(PAGE_SIZE, filtered.length - page * PAGE_SIZE) })}
               </span>
             </button>
           </div>

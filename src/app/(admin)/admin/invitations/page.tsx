@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
 import { InvitationForm } from "./InvitationForm";
 import { InvitationList } from "./InvitationList";
 
 export default async function AdminInvitationsPage() {
   const supabase = await createClient();
+  const t = await getTranslations("admin.invitations");
 
   const { data: invitations, error: invError } = await supabase
     .from("invitations")
@@ -15,9 +17,9 @@ export default async function AdminInvitationsPage() {
   return (
     <div className="px-8 py-10 space-y-8">
       <div>
-        <h1 className="page-title">Invitaciones</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <p className="text-white/35 mt-3 text-[15px] font-light">
-          Generá links de registro para nuevos clientes.
+          {t("subtitle")}
         </p>
       </div>
 

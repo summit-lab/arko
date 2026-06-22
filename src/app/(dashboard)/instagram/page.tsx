@@ -1,26 +1,59 @@
 import Link from "next/link";
 import { Zap } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { SyncControls } from "@/components/instagram/SyncControls";
 import { DateFilter } from "@/components/ui/DateFilter";
-import { parseDateParams, toISOStart } from "@/lib/date-utils";
+import { parseDateParams, toISOStart, nextDay } from "@/lib/date-utils";
+import { latestCleanFollowersTotal } from "@/lib/follower-metrics";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
 import { ReelTitlesBulkGenerator } from "@/components/instagram/ReelTitlesBulkGenerator";
+import { CompetitorsLoader } from "@/components/instagram/CompetitorsLoader";
+import { ReferencesLoader } from "@/components/instagram/ReferencesLoader";
 import { Suspense } from "react";
 
+// Fallback de los slots streameados (competencia / referencias) mientras su data
+// pesada llega por <Suspense>. La tab reels (default) ya pinto para entonces.
+function TabContentSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-xl bg-white/[0.04]" />
+        ))}
+      </div>
+      <div className="h-[300px] rounded-xl bg-white/[0.025]" />
+    </div>
+  );
+}
+
 // ─── Page Component ───
-// Fetches ALL tab data in parallel upfront, then delegates to InstagramShell
-// for instant client-side tab switching (zero server roundtrips on tab change).
+// La tab default (reels) y las metricas se fetchean upfront; competencia y
+// referencias streamean via <Suspense> (CompetitorsLoader / ReferencesLoader) para
+// no bloquear el primer paint. InstagramShell hace el switch de tabs client-side.
 
 export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string; tab?: string }> }) {
   const params = await searchParams;
-  const activeTab = (params.tab as TabKey) || "dashboard";
+  const activeTab = (params.tab as TabKey) || "reels";
   const dateRange = parseDateParams(params, "90d");
+  const t = await getTranslations("instagram");
+  const tNav = await getTranslations("nav");
+  const TAB_TITLES: Partial<Record<TabKey, string>> = {
+    reels:       "Reels",
+    historias:   tNav("historias"),
+    competencia: tNav("competencia"),
+  };
+  const pageTitle = TAB_TITLES[activeTab] ?? t("pageTitle");
   const periodDays = dateRange.days;
   const periodStartIso = toISOStart(dateRange.from);
+  // Upper bound exclusivo: para filtrar `published_at` entre dateRange.from y
+  // dateRange.to debemos cerrar con `.lt(nextDay(to))`. Sin esto, preset
+  // "mes_anterior" o cualquier rango que termine antes de hoy traía también
+  // todos los reels posteriores al límite superior.
+  const periodEndIsoExclusive = toISOStart(nextDay(dateRange.to));
 
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
@@ -36,6 +69,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     performer_multiple: number | null; is_top_performer: boolean; sales_amount: number | null;
   };
   let reels: ReelCard[] = [];
+  let benchmarksForShell: { normal: number; trial: number; all: number } = { normal: 0, trial: 0, all: 0 };
   let dailyInsights: Array<{
     metric_date: string; impressions: number; reach: number; profile_views: number;
     accounts_engaged: number; total_interactions: number; likes: number; comments: number;
@@ -62,10 +96,6 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       taps_forward: number; taps_back: number; swipe_aways: number; archived: boolean;
     }>;
   }> = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let initialCompetitors: any[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let initialReferences: any[] = [];
 
   if (workspaceId) {
     // Date calculations — derived from dateRange
@@ -83,23 +113,22 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       postsResult,
       adsSyncResult,
       salesResult,
-      competitorsResult,
-      referencesResult,
     ] = await Promise.all([
       supabase.from("meta_connections").select("status, ig_username").eq("workspace_id", workspaceId).maybeSingle(),
       supabase
         .from("reels")
         .select(`
-          id, ig_media_id, caption, auto_title, permalink, thumbnail_url, media_url, published_at,
+          id, ig_media_id, caption, auto_title, permalink, thumbnail_url, media_url, media_storage_path, published_at,
           duration_seconds, reel_type, has_ads, media_type, media_product_type, sales_amount,
           reel_metrics (views_org, impressions_org, reach_org, likes_total, comments_total, shares_total, saves_total, follows_generated),
           reel_metrics_paid (views_paid)
         `)
         .eq("workspace_id", workspaceId)
         .gte("published_at", periodStartIso)
+        .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
         .limit(200),
-      supabase.from("reel_benchmarks").select("avg_views_90d").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("reel_benchmarks").select("avg_views_90d, avg_views_by_type").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
       supabase
         .from("ig_account_insights")
         .select("metric_date, impressions, reach, profile_views, accounts_engaged, total_interactions, likes, comments, shares, saves, follower_count, followers_total, follows_count, media_count")
@@ -128,12 +157,13 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         `)
         .eq("workspace_id", workspaceId)
         .gte("published_at", periodStartIso)
+        .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
         .limit(100),
       supabase
         .from("reels")
         .select(`
-          id, ig_media_id, caption, permalink, thumbnail_url, published_at,
+          id, ig_media_id, caption, permalink, thumbnail_url, media_storage_path, published_at,
           media_type, media_product_type,
           reel_metrics (likes_total, comments_total, shares_total, saves_total, impressions_org, reach_org),
           reel_metrics_paid (views_paid)
@@ -141,41 +171,14 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .eq("workspace_id", workspaceId)
         .not("media_product_type", "eq", "REELS")
         .gte("published_at", periodStartIso)
+        .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
         .limit(200),
       supabase.from("sync_jobs").select("metadata").eq("workspace_id", workspaceId).eq("job_type", "ads_insights").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("sales").select("reel_id, amount_total").eq("workspace_id", workspaceId).not("reel_id", "is", null),
-      // ── Pre-fetch competitors + references (avoid client-side fetch on tab mount) ──
-      supabase
-        .from("workspace_competitors")
-        .select(`
-          id, name, ig_url, why_better, scraped_data, last_scraped_at, analysis_status,
-          competitor_reels (
-            id, short_code, permalink, caption,
-            likes_count, comments_count, views_count, shares_count,
-            duration_seconds, published_at, thumbnail_url,
-            hashtags, music_artist, music_name,
-            competitor_reel_analysis (
-              hook_text, hook_type, narrative_structure, content_type,
-              cta_text, cta_type, topic_cluster, style_notes,
-              strengths, weaknesses, ai_summary, model_used
-            )
-          ),
-          competitor_follower_snapshots (
-            snapshot_date, follower_count
-          )
-        `)
-        .eq("workspace_id", workspaceId)
-        .order("created_at", { ascending: true })
-        .order("published_at", { ascending: false, referencedTable: "competitor_reels" })
-        .limit(24, { referencedTable: "competitor_reels" })
-        .order("snapshot_date", { ascending: false, referencedTable: "competitor_follower_snapshots" })
-        .limit(90, { referencedTable: "competitor_follower_snapshots" }),
-      supabase
-        .from("workspace_references")
-        .select("id, brand_name, brand_url, what_they_like, created_at, scraped_data, scraped_reels, last_scraped_at")
-        .eq("workspace_id", workspaceId)
-        .order("created_at", { ascending: true }),
+      // Competencia + referencias YA NO van aca: las cargan CompetitorsLoader /
+      // ReferencesLoader server-side, streameados via <Suspense>, asi su data pesada
+      // (embed de 3 niveles + reference_reel_analysis) no bloquea el paint de reels.
     ]);
 
     connectionStatus = connectionResult.data?.status || null;
@@ -189,6 +192,30 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     for (const s of (salesResult.data ?? []) as { reel_id: string; amount_total: number }[]) {
       salesByReel.set(s.reel_id, (salesByReel.get(s.reel_id) ?? 0) + Number(s.amount_total));
     }
+
+    // ── Storage-first para reels/posts ──
+    // Los thumbnails re-hosteados en reel-media dan una URL estable (no expira, sin
+    // 502). Firmamos todos los media_storage_path en UN batch y los preferimos sobre
+    // la URL cruda de scontent (que expira). Fallback a thumbnail_url cuando el reel
+    // todavia no fue re-hosteado (backfill gradual del sync).
+    const reelStoragePaths: string[] = [];
+    for (const r of (mediaResult?.data ?? []) as Array<{ media_storage_path: string | null }>) {
+      if (r.media_storage_path) reelStoragePaths.push(r.media_storage_path);
+    }
+    for (const r of (postsResult?.data ?? []) as Array<{ media_storage_path: string | null }>) {
+      if (r.media_storage_path) reelStoragePaths.push(r.media_storage_path);
+    }
+    const reelSignedMap = new Map<string, string>();
+    if (reelStoragePaths.length > 0) {
+      const { data: signedUrls } = await supabase.storage
+        .from("reel-media")
+        .createSignedUrls(reelStoragePaths, 3600);
+      for (const su of signedUrls ?? []) {
+        if (su.signedUrl && su.path) reelSignedMap.set(su.path, su.signedUrl);
+      }
+    }
+    const reelThumb = (storagePath: string | null, raw: string | null): string | null =>
+      (storagePath ? reelSignedMap.get(storagePath) ?? null : null) || raw;
 
     // ── Process stories ──
     if (storiesResult?.data) {
@@ -257,6 +284,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       const getP = (raw: unknown): PShape | null => Array.isArray(raw) ? (raw as PShape[])[0] : (raw as PShape | null);
       posts = (postsResult.data as Array<{
         id: string; ig_media_id: string; caption: string | null; thumbnail_url: string | null;
+        media_storage_path: string | null;
         permalink: string | null; published_at: string | null; media_type: string | null;
         media_product_type: string | null; reel_metrics: unknown; reel_metrics_paid: unknown;
       }>).map((r) => {
@@ -264,7 +292,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         const p = getP(r.reel_metrics_paid);
         return {
           id: r.id, ig_media_id: r.ig_media_id, caption: r.caption,
-          thumbnail_url: r.thumbnail_url, permalink: r.permalink,
+          thumbnail_url: reelThumb(r.media_storage_path, r.thumbnail_url), permalink: r.permalink,
           published_at: r.published_at, media_type: r.media_type,
           views_total: p?.views_paid || 0,
           impressions: m?.impressions_org || 0,
@@ -278,8 +306,9 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     // ── Process insights ──
     if (insightsResult?.data) {
       dailyInsights = insightsResult.data.filter((d) => d.impressions > 0 || d.reach > 0);
-      const latestDay = [...insightsResult.data].sort((a, b) => b.metric_date.localeCompare(a.metric_date))[0];
-      if (latestDay?.followers_total) totalFollowers = latestDay.followers_total;
+      // Snapshot saneado: ignora el valle de followers_total por suspensión.
+      const cleanTotal = latestCleanFollowersTotal(insightsResult.data);
+      if (cleanTotal > 0) totalFollowers = cleanTotal;
     }
 
     // ── Process demographics ──
@@ -300,39 +329,52 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       const reelsData = mediaResult.data.filter((r) => r.media_product_type === "REELS");
 
       if (reelsData.length > 0) {
-        const avgViewsBenchmark = benchmarkResult.data?.avg_views_90d || 1;
+        // Multiplicador = views_org / avg_views_org_del_tipo. Solo-orgánico en
+        // ambos lados: un reel con ads no infla su propio multiplicador ni
+        // el promedio del resto. El tipo depende del filtro activo en la UI,
+        // así que el client recalcula; acá sólo persistimos un valor base
+        // ("normal" benchmark) para `is_top_performer` y para sort default.
+        const rawByType = benchmarkResult.data?.avg_views_by_type as
+          | { normal?: number; trial?: number; all?: number }
+          | null
+          | undefined;
+        const fallbackNormal = benchmarkResult.data?.avg_views_90d || 0;
+        const benchmarksByType = {
+          normal: rawByType?.normal ?? fallbackNormal,
+          trial:  rawByType?.trial  ?? 0,
+          all:    rawByType?.all    ?? fallbackNormal,
+        };
         reels = reelsData.map((r) => {
           const m = getMetrics(r.reel_metrics);
           const p = getPaid(r.reel_metrics_paid);
           const viewsOrg = m?.views_org || 0;
           const viewsPaid = p?.views_paid || 0;
           const viewsTotal = viewsOrg + viewsPaid;
-          const multiple = avgViewsBenchmark > 0 ? viewsTotal / avgViewsBenchmark : null;
+          // Top performer: comparado contra el benchmark del tipo del reel.
+          // Así, un trial que destaca entre trials también cuenta como top.
+          const ownBenchmark = r.reel_type === "trial_likely"
+            ? benchmarksByType.trial
+            : benchmarksByType.normal;
+          const baseMultiple = ownBenchmark > 0 ? viewsOrg / ownBenchmark : null;
           return {
             id: r.id, ig_media_id: r.ig_media_id, caption: r.caption, auto_title: r.auto_title ?? null,
-            permalink: r.permalink, thumbnail_url: r.thumbnail_url,
+            permalink: r.permalink, thumbnail_url: reelThumb(r.media_storage_path, r.thumbnail_url),
             published_at: r.published_at, duration_seconds: r.duration_seconds,
             reel_type: r.reel_type, has_ads: r.has_ads,
             views_org: viewsOrg, views_paid: viewsPaid, views_total: viewsTotal,
             likes: m?.likes_total || 0, saves: m?.saves_total || 0,
             comments: m?.comments_total || 0, shares: m?.shares_total || 0,
-            follows: m?.follows_generated || 0, performer_multiple: multiple,
-            is_top_performer: (multiple || 0) >= 3,
+            follows: m?.follows_generated || 0,
+            // performer_multiple queda legacy: el UI lo recalcula según filtro.
+            performer_multiple: baseMultiple,
+            is_top_performer: (baseMultiple || 0) >= 3,
             sales_amount: salesByReel.get(r.id) ?? null,
           };
         });
+        benchmarksForShell = benchmarksByType;
       }
     }
 
-    // ── Process competitors ──
-    if (competitorsResult?.data) {
-      initialCompetitors = competitorsResult.data;
-    }
-
-    // ── Process references ──
-    if (referencesResult?.data) {
-      initialReferences = referencesResult.data;
-    }
   }
 
   // ── Aggregates for ReelsGrid ──
@@ -361,17 +403,33 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     ? { totalViews, avgViews, totalViewsOrg, totalViewsPaid, totalLikes, totalSaves, totalComments, topPerformers, paidPct }
     : undefined;
 
+  // Stats propios para la tab competencia — se derivan de la data RAPIDA (reels +
+  // insights) y se pasan ya calculados a CompetitorsLoader. Filtra reels con 0 views
+  // para un denominador simetrico con el lado "Ellos" (que tambien filtra views>0).
+  const reelsWithViews = reels.filter((r) => (r.views_total ?? 0) > 0);
+  const nWithViews = reelsWithViews.length;
+  const myStats = {
+    avgViews:    nWithViews > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.views_total, 0) / nWithViews) : 0,
+    followers:   totalFollowers,
+    avgLikes:    nWithViews > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.likes,       0) / nWithViews) : 0,
+    avgComments: nWithViews > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.comments,    0) / nWithViews) : 0,
+  };
+  const myReels = reels.map((r) => ({ published_at: r.published_at, views_total: r.views_total }));
+  const myFollowerHistory = dailyInsights
+    .filter((d) => d.followers_total > 0)
+    .map((d) => ({ date: d.metric_date, followers: d.followers_total }));
+
   return (
     <div className="px-8 py-10 space-y-8">
       <ReelTitlesBulkGenerator hasMissingTitles={reelsMissingTitles} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="page-title tracking-[-0.04em]">IG Intelligence</h1>
+          <h1 className="page-title tracking-[-0.04em]">{pageTitle}</h1>
           <p className="text-white/40 mt-3 text-[15px] font-normal">
-            Análisis profundo de tu cuenta de Instagram.
+            {t("pageSubtitle")}
             {!hasRealData && connectionStatus !== "active" && (
-              <span className="ml-2 text-amber-400/50 text-[12px]">(Conectá tu cuenta Meta para ver data real)</span>
+              <span className="ml-2 text-amber-400/50 text-[12px]">{t("connectMetaHint")}</span>
             )}
           </p>
         </div>
@@ -386,7 +444,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
               style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}
             >
               <Zap className="h-4 w-4" />
-              Conectar Instagram
+              {t("connectButton")}
             </Link>
           )}
           {workspaceId && connectionStatus === "active" && (
@@ -409,9 +467,23 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         posts={posts}
         reelsSummary={reelsSummary}
         reelsMissingDuration={reelsMissingDuration}
+        benchmarksByType={benchmarksForShell}
         workspaceId={workspaceId}
-        initialCompetitors={initialCompetitors}
-        initialReferences={initialReferences}
+        competenciaSlot={
+          <Suspense fallback={<TabContentSkeleton />}>
+            <CompetitorsLoader
+              workspaceId={workspaceId}
+              myStats={myStats}
+              myReels={myReels}
+              myFollowerHistory={myFollowerHistory}
+            />
+          </Suspense>
+        }
+        referenciasSlot={
+          <Suspense fallback={<TabContentSkeleton />}>
+            <ReferencesLoader workspaceId={workspaceId} />
+          </Suspense>
+        }
       />
 
       {/* Auto-enrich durations */}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useTransition, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   LayoutGrid,
   Building2,
@@ -12,14 +13,14 @@ import {
   Shield,
 } from "lucide-react";
 
-const navItems = [
-  { name: "Dashboard",    href: "/admin",             icon: LayoutGrid },
-  { name: "Clientes",     href: "/admin/clients",     icon: Building2 },
-  { name: "Invitaciones", href: "/admin/invitations",  icon: Mail },
-  { name: "Usage",         href: "/admin/usage",       icon: Activity },
-];
-
 export function AdminSidebar() {
+  const t = useTranslations("admin");
+  const navItems = [
+    { name: t("nav.dashboard"),    href: "/admin",             icon: LayoutGrid },
+    { name: t("nav.clients"),      href: "/admin/clients",     icon: Building2 },
+    { name: t("nav.invitations"),  href: "/admin/invitations", icon: Mail },
+    { name: t("nav.usage"),        href: "/admin/usage",       icon: Activity },
+  ];
   const pathname = usePathname();
   const router = useRouter();
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export function AdminSidebar() {
             Admin
           </p>
           <p className="text-[10px] mt-1 text-muted-foreground font-medium tracking-wider uppercase">
-            Panel
+            {t("panelLabel")}
           </p>
         </div>
       </div>
@@ -114,7 +115,7 @@ export function AdminSidebar() {
         >
           <ArrowLeft size={16} strokeWidth={1.5} className="text-muted-foreground group-hover:text-sidebar-foreground" />
           <span className="text-[13px] tracking-wide font-light text-muted-foreground group-hover:text-sidebar-foreground">
-            Volver a Moka
+            {t("backToApp")}
           </span>
         </Link>
       </div>

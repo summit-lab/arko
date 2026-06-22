@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ─────────────────────────────────────────────────────────────
 # Pre-commit hook — detecta secrets en los archivos staged
 #
@@ -8,6 +8,17 @@
 #
 # Saltarse UNA vez (emergencia): git commit --no-verify
 # ─────────────────────────────────────────────────────────────
+
+# Windows/macOS compat: re-exec con bash si no estamos en bash ya.
+# Si bash no está disponible, dejamos pasar el commit con advertencia.
+if [ -z "$BASH_VERSION" ]; then
+  _bash="$(command -v bash 2>/dev/null)"
+  if [ -n "$_bash" ]; then
+    exec "$_bash" "$0" "$@"
+  fi
+  echo "⚠ bash no encontrado — saltando chequeo de secrets"
+  exit 0
+fi
 
 set -e
 
@@ -24,18 +35,19 @@ PATTERNS=(
   "Anthropic API Key:sk-ant-[a-zA-Z0-9_-]{90,}"
   "OpenAI API Key:sk-(proj-)?[a-zA-Z0-9_-]{40,}"
   "Apify Token:apify_api_[A-Za-z0-9]{36,}"
-  "Supabase Service Role JWT:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9[A-Za-z0-9_.-]+\\.[A-Za-z0-9_-]{40,}.*service_role"
+  "Supabase JWT (anon/service_role):eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\\.[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}"
   "AWS Access Key ID:AKIA[0-9A-Z]{16}"
   "Private Key Block:BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY"
   "GitHub Token:gh[ps]_[A-Za-z0-9]{36,}"
   "Meta App Secret:(\"|')?meta_app_secret(\"|')?\\s*[:=]\\s*(\"|')[a-f0-9]{32}"
 )
 
-# Archivos exentos por path — tests, ejemplos, docs
+# Archivos exentos por path — solo el propio hook (contiene las regex) y el .env de ejemplo.
+# OJO: docs/ NO está exento — las claves de Supabase se filtraron justamente por estar
+# en docs/05-environments-guide.md y este hook las dejaba pasar. Los docs se escanean.
 EXEMPT_PATHS=(
   "scripts/git-hooks/"
   ".env.example"
-  "docs/"
 )
 
 # Helpers

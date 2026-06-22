@@ -1,0 +1,1366 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "processing": "Procesando…",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "search": "Buscar",
+    "yes": "Sí",
+    "no": "No",
+    "error": "Error",
+    "retry": "Reintentar"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configuración de tu cuenta y workspace.",
+    "language": {
+      "label": "Idioma",
+      "description": "Idioma de la interfaz y de las generaciones de IA disparadas por vos.",
+      "es": "Español",
+      "en": "Inglés",
+      "saved": "Idioma actualizado"
+    },
+    "profile": {
+      "title": "Perfil",
+      "name": "Nombre",
+      "email": "Email",
+      "role": "Rol",
+      "memberSince": "Miembro desde"
+    },
+    "workspace": {
+      "title": "Workspace",
+      "name": "Nombre",
+      "slug": "Slug",
+      "plan": "Plan",
+      "empty": "No hay workspace configurado."
+    },
+    "admin": {
+      "title": "Admin Panel",
+      "description": "Gestionar clientes, invitaciones y estadísticas globales",
+      "cta": "Ir al panel →"
+    },
+    "branding": {
+      "title": "Branding del workspace",
+      "description": "Personaliza cómo aparece tu marca en el sidebar.",
+      "brandNameLabel": "Nombre de marca",
+      "brandNamePlaceholder": "Ej: Mi Empresa",
+      "saveBrandName": "Guardar nombre"
+    },
+    "logo": {
+      "label": "Logo del workspace",
+      "preview": "Vista previa del logo",
+      "uploading": "Subiendo…",
+      "updated": "Logo actualizado",
+      "dropHint": "Arrastrá una imagen o",
+      "chooseFile": "elegí un archivo",
+      "constraints": "PNG, JPG, WebP o SVG · Máx 2MB",
+      "errorInvalidType": "Solo PNG, JPG, WebP o SVG.",
+      "errorTooLarge": "El archivo debe pesar menos de 2MB.",
+      "errorUpload": "Error al subir el logo. Intentá de nuevo."
+    },
+    "meta": {
+      "title": "Conexión Meta / Instagram",
+      "status": "Estado",
+      "connected": "conectada",
+      "igAccount": "Cuenta IG",
+      "igAccountId": "IG Account ID",
+      "lastValidated": "Última validación",
+      "reconnectQuestion": "¿Querés volver a conectar otra cuenta?",
+      "reconnectHint": "Podés desconectar esta cuenta y reiniciar el flujo cuando quieras.",
+      "noConnection": "No hay cuenta de Instagram conectada.",
+      "lastFailed": "La última conexión no se completó. Podés volver a intentarlo.",
+      "enableHint": "Conectá tu cuenta para habilitar Instagram Intelligence.",
+      "retry": "Reintentar conexión",
+      "connect": "Conectar cuenta",
+      "disconnect": "Desconectar cuenta",
+      "disconnecting": "Desconectando…",
+      "disconnectConfirm": "¿Querés desconectar esta cuenta de Instagram? Vas a poder volver a conectarla cuando quieras.",
+      "disconnectError": "No pudimos desconectar la cuenta."
+    }
+  },
+  "nav": {
+    "ventas": "Ventas",
+    "historias": "Historias",
+    "competencia": "Espía",
+    "referencias": "Referencias",
+    "tuAudiencia": "Tu audiencia",
+    "publicaciones": "Publicaciones",
+    "mesaDeTrabajo": "Mesa de trabajo",
+    "masHerramientas": "Más herramientas",
+    "settingsHeader": "Configuración",
+    "branding": "Branding",
+    "adn": "ADN de Marca",
+    "metas": "Metas",
+    "integrations": "Integraciones",
+    "backToApp": "Volver al app",
+    "admin": "Admin",
+    "settings": "Settings",
+    "logout": "Log out",
+    "subtitleDefault": "Intelligence Suite",
+    "subtitlePoweredBy": "powered by Moka"
+  },
+  "mesaDeTrabajo": {
+    "title": "Mesa de trabajo",
+    "subtitle": "Planeá y creá tu contenido desde un solo lugar.",
+    "newItem": "Nuevo contenido",
+    "views": {
+      "pipeline": "Pipeline",
+      "calendar": "Calendario",
+      "scripts": "Guiones"
+    },
+    "filters": {
+      "all": "Todos",
+      "reel": "Reels",
+      "carousel": "Carruseles",
+      "story": "Historias",
+      "youtube_video": "YouTube"
+    },
+    "status": {
+      "idea": "Idea",
+      "ready_to_record": "Listo para grabar",
+      "raw_footage": "Video crudo",
+      "editing": "Editando",
+      "ready_to_publish": "Listo para publicar",
+      "published": "Publicado"
+    },
+    "type": {
+      "reel": "Reel",
+      "carousel": "Carrusel",
+      "story": "Historia",
+      "youtube_video": "Video de YouTube"
+    },
+    "platform": {
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "youtube": "YouTube"
+    },
+    "modal": {
+      "titleCreate": "Nuevo contenido",
+      "titleEdit": "Editar contenido",
+      "fieldTitle": "Título",
+      "fieldTitlePlaceholder": "¿De qué trata este contenido?",
+      "fieldType": "Tipo",
+      "fieldStatus": "Estado",
+      "fieldPlatform": "Plataforma",
+      "fieldDate": "Fecha objetivo",
+      "fieldDescription": "Notas / brief",
+      "fieldDescriptionPlaceholder": "Contexto, referencias, ideas sueltas…",
+      "fieldScript": "Script / caption",
+      "fieldScriptPlaceholder": "Escribí el guion o caption completo…",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "delete": "Eliminar",
+      "deleting": "Eliminando…",
+      "deleteConfirm": "¿Eliminás este item? Esta acción no se puede deshacer.",
+      "deleteConfirmShort": "¿Confirmar?",
+      "errorTitle": "El título es obligatorio.",
+      "cancel": "Cancelar",
+      "openEditor": "Abrir editor",
+      "fieldReference": "Referencia",
+      "fieldReferencePlaceholder": "Link al video de referencia…",
+      "fieldRawVideo": "Video crudo",
+      "fieldRawVideoPlaceholder": "Link al video sin editar…",
+      "fieldEditedVideo": "Video editado",
+      "fieldEditedVideoPlaceholder": "Link al video editado final…",
+      "scriptPreviewPlaceholder": "Vista previa del guion…"
+    },
+    "empty": {
+      "pipeline": "Sin contenido",
+      "dropHere": "Soltar acá",
+      "calendar": "No hay contenido programado este mes.",
+      "addFirst": "Creá tu primer contenido"
+    },
+    "metrics": {
+      "title": "Métricas",
+      "reach": "Alcance",
+      "likes": "Likes",
+      "saves": "Guardados",
+      "comments": "Comentarios",
+      "shares": "Compartidos"
+    },
+    "calendar": {
+      "days": {
+        "sun": "Dom", "mon": "Lun", "tue": "Mar", "wed": "Mié", "thu": "Jue", "fri": "Vie", "sat": "Sáb"
+      },
+      "months": {
+        "jan": "Enero", "feb": "Febrero", "mar": "Marzo", "apr": "Abril",
+        "may": "Mayo", "jun": "Junio", "jul": "Julio", "aug": "Agosto",
+        "sep": "Septiembre", "oct": "Octubre", "nov": "Noviembre", "dec": "Diciembre"
+      },
+      "pillLabel": {
+        "carousel": "Carrusel",
+        "story": "Historia",
+        "reel": "IG"
+      },
+      "legend": {
+        "planned": "Planeado",
+        "publishedSuffix": "publicado",
+        "moreCount": "+{count} más",
+        "noDate": "{count} sin fecha asignada"
+      }
+    },
+    "scripts": {
+      "back": "Mesa de trabajo",
+      "searchPlaceholder": "Buscar guiones…",
+      "emptyAll": "Aún no escribiste ningún guion",
+      "emptyResults": "Sin resultados",
+      "untitled": "Sin título",
+      "newInGroup": "Nuevo en {label}",
+      "collapseSidebar": "Colapsar barra (⌘\\)",
+      "expandSidebar": "Mostrar barra (⌘\\)",
+      "openMoka": "Preguntar a Moka",
+      "closeMoka": "Cerrar Moka",
+      "moka": "Moka",
+      "focusMode": "Modo foco",
+      "exitFocus": "Cerrar",
+      "focusModeTitle": "Modo foco (⌘.)",
+      "exitFocusTitle": "Salir del modo foco (⌘.)",
+      "delete": "Eliminar",
+      "confirmDelete": "Confirmar",
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "saveError": "Error al guardar",
+      "wordsCount": "{count} palabras",
+      "readTime": "~{minutes} min lectura",
+      "mokaGreeting": "Estoy mirando \"{title}\". ¿En qué te ayudo?",
+      "mokaGreetingNoTitle": "Estoy mirando este guion. ¿En qué te ayudo?",
+      "historyBtn": "Historial",
+      "pendingForOther": "Moka propuso cambios para otro guion. ¿Querés ir a revisarlos ahora?"
+    },
+    "history": {
+      "title": "Historial del guion",
+      "subtitle": "Versiones anteriores. Podés restaurar cualquiera.",
+      "loading": "Cargando…",
+      "loadError": "Error cargando versiones.",
+      "empty": "Aún no hay versiones anteriores.",
+      "selectVersion": "Seleccioná una versión para verla.",
+      "sameAsCurrent": "Esta versión es idéntica a la actual.",
+      "restore": "Restaurar esta versión",
+      "restoring": "Restaurando…",
+      "restoreConfirm": "¿Restaurar esta versión? La versión actual quedará guardada en el historial.",
+      "restoreError": "Error restaurando la versión.",
+      "restoreTitleToo": "Restaurar también el título",
+      "author": {
+        "user":    "Vos",
+        "moka":    "Moka AI",
+        "system":  "Sistema",
+        "unknown": "Desconocido"
+      },
+      "untitledPlaceholder": "(sin título)"
+    },
+    "diffPreview": {
+      "title": "Moka quiere modificar tu guion",
+      "subtitle": "Revisá los cambios antes de aplicarlos. Tu versión actual queda guardada en el historial.",
+      "current": "Tu versión actual",
+      "proposed": "Versión propuesta por Moka",
+      "apply": "Aplicar cambios",
+      "applying": "Aplicando…",
+      "reject": "Descartar",
+      "rejecting": "Descartando…",
+      "applyError": "Error aplicando los cambios.",
+      "rejectError": "Error descartando los cambios.",
+      "titleLabel": "Título",
+      "untitledPlaceholder": "(sin título)",
+      "emptyPlaceholder": "(vacío)"
+    },
+    "inlineComments": {
+      "title": "Comentarios",
+      "loading": "Cargando…",
+      "empty": "Sin comentarios todavía",
+      "emptyHint": "Seleccioná texto y clickeá 💬 para comentar",
+      "draftPlaceholder": "Escribí tu comentario…",
+      "submit": "Comentar",
+      "submitting": "Enviando…",
+      "submitHint": "⌘+Enter para enviar · Esc para cancelar",
+      "cancel": "Cancelar",
+      "resolve": "Resolver",
+      "reopen": "Reabrir",
+      "resolved": "resueltos",
+      "resolvedLabel": "resuelto",
+      "showResolved": "Ver resueltos",
+      "hideResolved": "Ocultar resueltos",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar este comentario? Esta acción no se puede deshacer.",
+      "orphan": "huérfano:"
+    },
+    "mokaPanel": {
+      "name": "Moka AI",
+      "subtitle": "Asistente de contenido",
+      "conversations": "Conversaciones",
+      "chatHistory": "Historial de chats",
+      "backToChat": "Volver al chat",
+      "newConversation": "Nueva conversación",
+      "history": "Historial de conversaciones",
+      "close": "Cerrar Moka",
+      "untitledConversation": "Conversación sin título",
+      "loading": "Cargando…",
+      "emptyConversations": "Sin conversaciones anteriores",
+      "placeholder": "Preguntale a Moka…",
+      "hint": "Enter para enviar · Shift+Enter nueva línea",
+      "greeting": "Hola 👋 Estoy acá para ayudarte con tu contenido. ¿Qué creamos hoy?",
+      "now": "Ahora",
+      "minutesAgo": "Hace {n}m",
+      "hoursAgo": "Hace {n}h",
+      "daysAgo": "Hace {n}d",
+      "suggestions": {
+        "default1": "Generame 3 ideas de reels para esta semana y agregalas al pipeline",
+        "default2": "Escribime un script para un reel de ventas y agregalo como idea",
+        "default3": "¿Qué tipo de contenido me funciona mejor?",
+        "default4": "Sugerime un plan de contenido para los próximos 7 días",
+        "scriptForIdea": "Escribime el guión para \"{title}\"",
+        "scriptsForReadyToRecord": "Generá guiones para los {n} items \"listos para grabar\" que no tienen script",
+        "prioritizeIdeas": "Tengo {n} ideas — ¿cuáles deberían pasar a \"listo para grabar\" primero?",
+        "generateNewIdeas": "Generame 3 ideas nuevas basadas en lo que ya me funciona",
+        "captionsForEditing": "Tengo {n} videos en edición — ¿qué captions sugerís?",
+        "weekPlan": "Sugerime un plan de contenido para los próximos 7 días"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Resumen global de tu marca personal.",
+    "vsPrevious": "vs anterior",
+    "noPrevious": "sin datos previos",
+    "periodSubLabel": "últimos {days} días",
+    "kpis": {
+      "totalViews": "Vistas Totales",
+      "conversations": "Conversaciones generadas",
+      "comments": "Comentarios",
+      "storyReplies": "Respuestas a historias"
+    },
+    "quickStats": {
+      "title": "Resumen Rápido",
+      "totalReach": "Alcance Total",
+      "engagementRate": "Tasa de Engagement",
+      "engagementSub": "interacciones / alcance",
+      "bestReel": "Mejor Reel",
+      "bestReelSub": "views",
+      "newFollows": "Nuevos Follows",
+      "totalSales": "Ventas Totales",
+      "salesSub": "desde reels"
+    },
+    "sales": {
+      "billing": "Facturación",
+      "collected": "Efectivo recolectado",
+      "topSources": "Top fuentes de facturación",
+      "topSourcesPeriod": "Periodo seleccionado",
+      "noSales": "No hay ventas en este periodo",
+      "topSales": "Top Ventas",
+      "fromReels": "desde reels",
+      "saleCount": "{count, plural, one {# venta} other {# ventas}}"
+    },
+    "calendar": {
+      "postUntitled": "Post sin titulo",
+      "reelUntitled": "Reel sin titulo",
+      "story": "Historia",
+      "storyOf": "Historia del {date}",
+      "noCaption": "Sin caption"
+    },
+    "profileGrowth": {
+      "title": "Crecimiento de perfil",
+      "totalFollowers": "seguidores totales",
+      "conversionRate": "Conversión de perfil",
+      "visitsSub": "visitas al perfil"
+    },
+    "recentReels": "Reels recientes",
+    "newFollowersChart": {
+      "title": "Nuevos seguidores / día",
+      "gained": "ganados en el período",
+      "new": "nuevos"
+    }
+  },
+  "admin": {
+    "panelLabel": "Panel",
+    "backToApp": "Volver a Moka",
+    "nav": {
+      "dashboard": "Dashboard",
+      "clients": "Clientes",
+      "invitations": "Invitaciones",
+      "usage": "Usage"
+    },
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "subtitle": "Vista general de la plataforma.",
+      "stats": {
+        "clients": "Clientes",
+        "workspaces": "Workspaces",
+        "activeConnections": "Conexiones Activas",
+        "pendingInvitations": "Invitaciones Pendientes"
+      },
+      "recent": {
+        "title": "Últimos Registros",
+        "headerName": "Nombre",
+        "headerEmail": "Email",
+        "headerRole": "Rol",
+        "headerDate": "Fecha",
+        "empty": "No hay usuarios registrados."
+      }
+    },
+    "clients": {
+      "title": "Usuarios",
+      "subtitle": "Todos los workspaces registrados en la plataforma.",
+      "headerWorkspace": "Workspace",
+      "headerOwner": "Owner",
+      "headerConnection": "Conexión",
+      "headerTrial": "Trial",
+      "headerAdn": "ADN",
+      "headerStatus": "Estado",
+      "headerUsage": "Uso $",
+      "headerCreated": "Creado",
+      "empty": "No hay clientes registrados.",
+      "noConnection": "Sin conexión",
+      "pending": "Pendiente",
+      "trialDays": "días",
+      "trialExpired": "Vencido"
+    },
+    "invitations": {
+      "title": "Invitaciones",
+      "subtitle": "Generá links de registro para nuevos clientes.",
+      "form": {
+        "title": "Generar Invitación",
+        "emailLabel": "Email del cliente",
+        "emailPlaceholder": "cliente@ejemplo.com",
+        "trialLabel": "Trial gratis",
+        "languageLabel": "Idioma por defecto",
+        "languageHint": "El usuario lo puede cambiar después desde Settings. El trial gratis arranca cuando el usuario se registra.",
+        "submit": "Generar Link",
+        "copy": "Copiar",
+        "copied": "Copiado"
+      },
+      "list": {
+        "title": "Historial de Invitaciones",
+        "headerEmail": "Email",
+        "headerStatus": "Estado",
+        "headerCreated": "Creada",
+        "headerExpires": "Expira",
+        "headerAction": "Acción",
+        "empty": "No hay invitaciones.",
+        "cancel": "Cancelar",
+        "status": {
+          "pending": "Pendiente",
+          "used": "Usada",
+          "expired": "Expirada"
+        }
+      }
+    }
+  },
+  "onboarding": {
+    "thinking": "Moka está pensando...",
+    "complete": "ADN de Comunicación completo",
+    "completeHint": "Podés pedirle a Moka que modifique cualquier dato.",
+    "placeholder": "Escribí tu respuesta...",
+    "placeholderComplete": "Pedile a Moka que modifique algo...",
+    "shiftEnterHint": "Shift + Enter para nueva línea",
+    "errorMessage": "Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?",
+    "competitorCard": {
+      "savedCount": "{count, plural, one {# competidor cargado} other {# competidores cargados}}",
+      "savedHint": "Podés editarlos en cualquier momento",
+      "emptyTitle": "Cargá tus competidores principales",
+      "emptyHint": "Nombre, Instagram y qué te gusta de ellos",
+      "edit": "Editar",
+      "add": "Agregar competidores"
+    },
+    "progress": {
+      "header": "Progreso",
+      "section1": "Tu Negocio",
+      "section2": "Tu Contenido",
+      "section3": "Tu Mercado",
+      "section4": "Tu Marca",
+      "pauseHint": "Podés pausar y retomar cuando quieras."
+    }
+  },
+  "settingsAdn": {
+    "title": "ADN de Marca",
+    "subtitle": "Tu perfil de comunicación y estrategia. Editá cada sección directamente.",
+    "complete": "Completo",
+    "inProgress": "En progreso"
+  },
+  "settingsMetas": {
+    "title": "Metas",
+    "subtitle": "Objetivos mensuales de contenido y crecimiento — {month}",
+    "metricLabels": {
+      "views": "Views mensuales",
+      "followers": "Seguidores nuevos",
+      "engagement_rate": "Engagement Rate",
+      "likes": "Likes mensuales",
+      "saves": "Guardados mensuales",
+      "reach": "Alcance mensual"
+    },
+    "editor": {
+      "active": "Metas activas",
+      "empty": "No hay metas configuradas para este mes",
+      "addGoal": "Agregar meta",
+      "save": "Guardar",
+      "targetPlaceholder": "Objetivo",
+      "selectMetric": "Elegir métrica...",
+      "noMetricsAvailable": "Sin métricas disponibles"
+    }
+  },
+  "settingsIntegrations": {
+    "title": "Integraciones",
+    "subtitle": "Conectá tus cuentas de Instagram y YouTube.",
+    "instagram": {
+      "header": "Instagram",
+      "noUsername": "(sin username)",
+      "connectedSince": "Conectado desde {date}",
+      "igIdLabel": "IG ID",
+      "noAccount": "No hay una cuenta de Instagram conectada.",
+      "connectAccount": "Conectar cuenta"
+    },
+    "youtube": {
+      "header": "YouTube",
+      "noTitle": "(canal sin título)",
+      "connectedSince": "Conectado desde {date}",
+      "syncing": "sincronizando",
+      "subscribers": "{count} suscriptores",
+      "noChannel": "No tenés un canal de YouTube conectado.",
+      "connectChannel": "Conectar canal"
+    }
+  },
+  "adnEditor": {
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "emptyValue": "Sin completar — hacé click para editar",
+    "clickToEdit": "Click para editar",
+    "completeWithMoka": "Completar con Moka AI →",
+    "addCompetitorsWithMoka": "Agregar competidores con Moka AI →",
+    "noStrategies": "Sin estrategias cargadas. Completá el chat de ADN para agregarlas.",
+    "noCompetitors": "Sin competidores cargados.",
+    "noReferences": "Sin referencias cargadas.",
+    "sections": {
+      "profile": "Perfil de Marca",
+      "platforms": "Estrategia de Plataformas",
+      "market": "Mercado y Competencia",
+      "brand": "Marca y Lenguaje",
+      "competitors": "Competidores",
+      "references": "Referencias de Marca"
+    },
+    "fields": {
+      "businessDescription": {
+        "label": "Descripción del negocio",
+        "placeholder": "¿Qué hacés y a quién ayudás?"
+      },
+      "brandPersona": {
+        "label": "Persona de marca",
+        "placeholder": "¿Cómo es la voz y tono de tu marca?"
+      },
+      "avatar": {
+        "label": "Avatar del cliente ideal",
+        "placeholder": "¿Quién es tu cliente ideal? Describilo en detalle."
+      },
+      "mainOffer": {
+        "label": "Oferta principal",
+        "placeholder": "¿Qué producto o servicio principal vendés?"
+      },
+      "targetAudience": {
+        "label": "Audiencia objetivo",
+        "placeholder": "¿A quién va dirigido tu contenido?"
+      },
+      "industryState": {
+        "label": "Estado del mercado",
+        "placeholder": "¿Cómo está el mercado en tu industria?"
+      },
+      "differentiator": {
+        "label": "Diferenciador",
+        "placeholder": "¿Qué te diferencia de la competencia?"
+      },
+      "marketBeliefs": {
+        "label": "Creencias del mercado",
+        "placeholder": "¿Qué cree tu audiencia sobre tu industria?"
+      },
+      "burnedTopics": {
+        "label": "Temas quemados",
+        "placeholder": "¿Qué temas ya no funcionan en tu nicho?"
+      },
+      "currentTrends": {
+        "label": "Tendencias actuales",
+        "placeholder": "¿Qué tendencias están funcionando ahora?"
+      },
+      "whyChosen": {
+        "label": "Por qué te eligen",
+        "placeholder": "¿Por qué tus clientes te eligen a vos sobre la competencia?"
+      },
+      "nicheLanguage": {
+        "label": "Lenguaje del nicho",
+        "placeholder": "Palabras y frases específicas de tu comunidad"
+      },
+      "nicheTools": {
+        "label": "Herramientas del nicho",
+        "placeholder": "¿Qué herramientas usa tu audiencia?"
+      },
+      "filteringWords": {
+        "label": "Palabras filtro",
+        "placeholder": "Palabras que usás para atraer o repeler a tu audiencia"
+      },
+      "newMechanisms": {
+        "label": "Nuevos mecanismos",
+        "placeholder": "¿Qué enfoque nuevo o único tenés?"
+      }
+    }
+  },
+  "arkoChat": {
+    "thinking": "Pensando...",
+    "errors": {
+      "send": "Error al enviar mensaje",
+      "generate": "Error al generar respuesta.",
+      "server": "Error del servidor",
+      "timeout": "La respuesta se cortó (posible timeout del servidor). Intentá con una pregunta más corta o volvé a intentar.",
+      "processing": "Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?"
+    }
+  },
+  "agents": {
+    "title": "Moka AI",
+    "subtitle": "Tu consultor de marketing con acceso a toda la data de tu workspace.",
+    "placeholder": "Preguntale a Moka...",
+    "shiftEnterHint": "Shift + Enter para nueva línea",
+    "newConversation": "Nueva conversación",
+    "noSessions": "Sin conversaciones aún",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "daysAgo": "Hace {n} días",
+    "suggestions": {
+      "0": "Analizá mis últimos reels y decime qué patrón ves",
+      "1": "¿Cómo viene mi rendimiento este mes?",
+      "2": "Dame ideas de hooks basadas en lo que mejor me funciona",
+      "3": "¿Cuál es mi diferenciador principal vs la competencia?"
+    }
+  },
+  "customerVoice": {
+    "title": "Tu Identidad",
+    "subtitle": "El ADN completo de tu marca y el análisis de tu competencia.",
+    "editAdn": "Editar ADN",
+    "tabs": {
+      "adn": "ADN de Marca",
+      "competencia": "Competencia",
+      "calendario": "Calendario",
+      "metas": "Metas"
+    },
+    "adnEmpty": {
+      "title": "Tu perfil de marca todavía no tiene datos",
+      "description": "Completá tu ADN de Comunicación para que Moka conozca tu negocio, audiencia, competencia y marca.",
+      "cta": "Completar ADN"
+    },
+    "adn": {
+      "edit": "Editar",
+      "identity": "Identidad",
+      "identitySub": "Quién sos y qué hacés",
+      "fields": {
+        "business": "Negocio",
+        "mainOffer": "Oferta Principal",
+        "brandPersona": "Personalidad de Marca"
+      },
+      "avatar": "Tu Avatar",
+      "audience": "Audiencia",
+      "whyChoose": "Por qué te eligen",
+      "differentiator": "Diferenciador",
+      "newMechanisms": "Mecanismos Nuevos",
+      "marketIndustry": "Mercado e Industria",
+      "industryState": "Estado de la Industria",
+      "audienceExposure": "Exposición del Avatar",
+      "marketBeliefs": "Creencias del Mercado",
+      "burnedTopics": "Temas Quemados",
+      "currentTrends": "Tendencias Actuales",
+      "competitiveness": "Competitividad",
+      "nicheDna": "ADN del Nicho",
+      "nicheLanguage": "Lenguaje",
+      "nicheTools": "Herramientas",
+      "filteringWords": "Palabras Filtro",
+      "competitors": "Competidores",
+      "contentStrategy": "Estrategia de contenido",
+      "whatTested": "Qué probó",
+      "testResults": "Resultados",
+      "conclusions": "Conclusiones",
+      "currentStrategy": "Estrategia Actual",
+      "formatsAndQuantity": "Formatos y Cantidad",
+      "whyItWillWork": "Por qué va a funcionar",
+      "references": "Marcas de Referencia"
+    }
+  },
+  "ads": {
+    "title": "Ads Intelligence",
+    "subtitle": "Análisis de Meta Ads: data cuantitativa y cualitativa.",
+    "noWorkspace": "No se encontró workspace.",
+    "sync": {
+      "button": "Sincronizar Ads",
+      "syncing": "Sincronizando…",
+      "starting": "Sincronizando datos de Meta Ads…",
+      "completed": "Sincronización completada. Actualizando…",
+      "error": "Error al sincronizar. Intentá de nuevo.",
+      "connectionError": "Error de conexión."
+    },
+    "connection": {
+      "connected": "Meta Ads conectado",
+      "notConnected": "Meta Ads no conectado",
+      "lastSync": "Último sync:",
+      "never": "Nunca",
+      "justNow": "Justo ahora",
+      "minutesAgo": "hace {n}m",
+      "hoursAgo": "hace {n}h",
+      "daysAgo": "hace {n}d"
+    },
+    "banners": {
+      "noData": "Sin datos — sincronizá para cargar métricas",
+      "needsSync": "Sincronizá para activar filtro por fechas y tendencias"
+    },
+    "kpis": {
+      "spendTotal": "Spend Total",
+      "impressions": "Impresiones",
+      "clicks": "Clicks",
+      "ctrAvg": "CTR Promedio",
+      "cpmAvg": "CPM Promedio",
+      "videoPlays": "Video Plays"
+    },
+    "performance": {
+      "title": "Performance en el tiempo",
+      "subtitle": "Spend, clicks y CPM",
+      "subtitleNoData": "Spend, clicks y CPM — sincronizá para ver el gráfico",
+      "loading": "Cargando…",
+      "noDailyData": "Sin datos diarios disponibles. Sincronizá para generar el gráfico."
+    },
+    "campaigns": {
+      "title": "Campañas",
+      "count": "{n} campañas",
+      "headerCampaign": "Campaña",
+      "headerSpend": "Spend",
+      "headerImpressions": "Impresiones",
+      "headerClicks": "Clicks",
+      "headerCtr": "CTR",
+      "headerCpm": "CPM",
+      "headerPlays": "Plays",
+      "empty": "Sin campañas en este período",
+      "campaignNamed": "Campaña {n} · {name}",
+      "campaignFallback": "Campaña {id}",
+      "adsAndSets": "{ads} ads · {sets} ad sets"
+    },
+    "campaignDetail": {
+      "clicksPerAd": "Clicks por ad",
+      "conversionFunnel": "Funnel de conversión",
+      "keyMetrics": "Métricas clave",
+      "adsInCampaign": "Ads en esta campaña",
+      "impressions": "Impresiones",
+      "clicks": "Clicks",
+      "videoPlays": "Video plays",
+      "ctrLabel": "{ctr}% CTR",
+      "videoFromClicks": "{pct}% de clicks ven el video",
+      "metricCpm": "CPM",
+      "metricCtr": "CTR",
+      "metricReach": "Reach",
+      "metricVideoPlays": "Video Plays"
+    },
+    "geo": {
+      "title": "CTR por campaña",
+      "noData": "Sin datos",
+      "summary": "Resumen del período",
+      "reachTotal": "Reach Total",
+      "spendTotal": "Spend Total",
+      "ctrAvg": "CTR Avg",
+      "cpmAvg": "CPM Avg"
+    },
+    "ranking": {
+      "title": "Ranking de creativos",
+      "subtitle": "Ordenados por CTR · todos los ads",
+      "ctrHigh": "CTR ≥ 4%",
+      "ctrMid": "CTR 2.5–4%",
+      "ctrLow": "CTR < 2.5%",
+      "topBadge": "Top",
+      "metricCtr": "CTR",
+      "metricClicks": "Clicks",
+      "metricPlays": "Plays",
+      "spend": "Spend"
+    }
+  },
+  "ventas": {
+    "title": "Ventas",
+    "subtitle": "Facturación generada desde tu contenido.",
+    "newSale": "Nueva venta",
+    "kpis": {
+      "billing": "Facturación",
+      "billingSub": "{count, plural, one {# venta} other {# ventas}}",
+      "collected": "Efectivo Recolectado",
+      "collectedSub": "{pct}% del total",
+      "pending": "Por Cobrar",
+      "pendingSub": "pendiente de cobro"
+    },
+    "chart": {
+      "title": "Facturación mensual",
+      "billing": "Facturación",
+      "collected": "Efectivo recolectado"
+    },
+    "table": {
+      "title": "Historial de ventas",
+      "empty": "No hay ventas registradas aún",
+      "newSaleCta": "+ Nueva venta",
+      "headerSource": "Fuente / Cliente",
+      "headerDate": "Fecha",
+      "headerBilling": "Facturación",
+      "headerCollected": "Recolectado",
+      "headerType": "Tipo",
+      "headerStatus": "Estado",
+      "missing": "falta {amount}",
+      "fallbackSale": "Venta",
+      "addPayment": "Agregar pago",
+      "edit": "Editar venta",
+      "delete": "Eliminar venta",
+      "deleteConfirm": "¿Eliminar esta venta?",
+      "noTitle": "Sin título"
+    },
+    "sidebar": {
+      "sources": "Fuentes de facturación",
+      "topContent": "Top contenido"
+    },
+    "status": {
+      "collected": "Cobrado",
+      "cancelled": "Cancelado",
+      "pending": "Pendiente"
+    },
+    "paymentType": {
+      "full": "Pago completo",
+      "cuotas": "Cuotas",
+      "deposito": "Depósito/Seña"
+    },
+    "source": {
+      "reel": "Reel",
+      "historia": "Historia",
+      "post": "Post",
+      "link_bio": "Link en Bio",
+      "cta_bio": "CTA Bio",
+      "otro": "Otro"
+    },
+    "addPaymentModal": {
+      "title": "Agregar pago",
+      "remainingHint": "Falta cobrar {amount}",
+      "amountLabel": "Monto del pago",
+      "dateLabel": "Fecha del pago",
+      "newCollected": "Nuevo cobrado: {amount}",
+      "willBeFullyPaid": "Quedará saldado",
+      "willRemain": "Restarán {amount}",
+      "cancel": "Cancelar",
+      "submit": "Agregar pago",
+      "saving": "Guardando…",
+      "errorInvalidAmount": "Ingresá un monto válido",
+      "errorExceedsRemaining": "El monto excede lo que falta cobrar ({amount})",
+      "errorAddPayment": "Error al agregar pago"
+    },
+    "installmentsModal": {
+      "title": "Cuotas de la venta",
+      "noClient": "Sin cliente",
+      "summaryCollected": "Cobrado",
+      "summaryPending": "Por cobrar",
+      "summaryNext": "Próxima",
+      "loading": "Cargando cuotas…",
+      "empty": "Esta venta no tiene cuotas programadas.",
+      "overdue": "vencida",
+      "paid": "Cobrada",
+      "pending": "Pendiente",
+      "togglePaid": "Marcar como cobrada",
+      "togglePending": "Marcar como pendiente",
+      "footerNote": "Las cuotas se marcan automáticamente como cobradas cuando llega su fecha de vencimiento. Si un cliente no pagó, podés desmarcar la cuota y el total por cobrar se actualiza.",
+      "errorLoad": "Error al cargar cuotas",
+      "errorUpdate": "Error al actualizar"
+    }
+  },
+  "dashboardCharts": {
+    "reachTitle": "Alcance & Visibilidad",
+    "reachLegend": "Alcance",
+    "impressionsLegend": "Impresiones",
+    "engagementTitle": "Interacciones",
+    "likesLegend": "Me gusta",
+    "savesLegend": "Guardados",
+    "commentsLegend": "Comentarios",
+    "noReachData": "Sin datos de alcance",
+    "noEngagementData": "Sin datos de engagement"
+  },
+  "contentCalendar": {
+    "title": "Calendario de Contenido",
+    "subtitleSingular": "{count} publicación en {month}",
+    "subtitlePlural": "{count} publicaciones en {month}",
+    "totalSingular": "{count} publicación en {month}",
+    "totalPlural": "{count} publicaciones en {month}",
+    "filters": {
+      "all": "Todo",
+      "reels": "Reels",
+      "posts": "Posts",
+      "historias": "Historias"
+    },
+    "filterDisabled": "No hay contenido de este tipo en los últimos 90 días",
+    "story": "Historia",
+    "noTitle": "Sin título",
+    "publicationsOn": "{day} de {month} {year} — {count} publicaciones",
+    "views": "vistas",
+    "legend": {
+      "organicReel": "Reel orgánico",
+      "adsReel": "Reel con ads",
+      "post": "Post/Carrusel",
+      "story": "Historia"
+    },
+    "type": {
+      "story": "Historia",
+      "post": "Post",
+      "adsReel": "Reel con ads",
+      "organicReel": "Reel orgánico"
+    },
+    "months": ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
+    "daysShort": ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"]
+  },
+  "dateFilter": {
+    "presets": {
+      "ayer": "Ayer",
+      "7d": "7 días",
+      "14d": "14 días",
+      "30d": "30 días",
+      "90d": "90 días",
+      "este_mes": "Este mes",
+      "mes_anterior": "Mes anterior",
+      "custom": "Personalizado"
+    },
+    "rangeLabel": {
+      "ayer": "Ayer",
+      "7d": "Últimos 7 días",
+      "14d": "Últimos 14 días",
+      "30d": "Últimos 30 días",
+      "90d": "Últimos 90 días",
+      "este_mes": "Este mes",
+      "mes_anterior": "Mes anterior"
+    },
+    "calendar": {
+      "back": "Volver",
+      "fromLabel": "Inicio",
+      "toLabel": "Fin",
+      "cancel": "Cancelar",
+      "apply": "Aplicar",
+      "selectFrom": "Seleccioná fecha inicio",
+      "selectTo": "Seleccioná fecha fin",
+      "daysShort": ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"]
+    }
+  },
+  "adnBanner": {
+    "pendingPrefix": "Tu",
+    "pendingTitle": "ADN de Comunicación",
+    "pendingSuffix": "está pendiente. Completalo para que Moka AI pueda darte análisis y recomendaciones personalizadas.",
+    "completeCta": "Completar ADN",
+    "blockedTitle": "Moka AI necesita tu ADN",
+    "blockedDescription": "Para darte análisis y recomendaciones personalizadas, primero completá tu ADN de Comunicación."
+  },
+  "metaConnectionBanner": {
+    "title": "Tu cuenta de Instagram se desconectó",
+    "expiredDescription": "El token de Meta caducó o fue revocado. Reconectá para que vuelvan los syncs diarios de seguidores, views y métricas.",
+    "pendingDescription": "La conexión con Meta está pendiente de verificación. Reconectá para activar los syncs.",
+    "reconnectCta": "Reconectar"
+  },
+  "instagram": {
+    "pageTitle": "IG Intelligence",
+    "pageSubtitle": "Análisis profundo de tu cuenta de Instagram.",
+    "connectMetaHint": "(Conectá tu cuenta Meta para ver data real)",
+    "connectButton": "Conectar Instagram",
+    "detail": {
+      "openInInstagram": "Abrir en Instagram",
+      "trialReel": "Trial Reel",
+      "promoted": "Promocionado",
+      "publishedOn": "Publicado el {date}",
+      "previewAlt": "Preview del Reel",
+      "kpis": {
+        "likes": "Me gusta",
+        "saves": "Guardados",
+        "shares": "Compartidos",
+        "comments": "Comentarios",
+        "sales": "Ventas",
+        "attributed": "Atribuidas",
+        "noData": "Sin datos",
+        "ofViews": "{pct}% de vistas"
+      },
+      "sparkline": {
+        "title": "Evolución de Vistas",
+        "empty": "Sin datos de evolución aún. Se acumula con cada sync."
+      },
+      "core": {
+        "views": "Vistas",
+        "reach": "Alcance",
+        "engagement": "Engagement",
+        "watchTime": "T. de Vista",
+        "retention": "Retención",
+        "performance": "Rendimiento",
+        "orgPrefix": "Org: {value}",
+        "paidPrefix": "Pago: {value}",
+        "totalReach": "alcance total",
+        "intPerViews": "int / vistas",
+        "ofReel": "{pct}% del reel",
+        "average": "promedio",
+        "estimated": "estimada",
+        "vsBenchmark": "vs benchmark 90d"
+      },
+      "retentionPanel": {
+        "title": "Retención estimada",
+        "subtitle": "avg watch time / duración — no es curva real por segundo",
+        "watchTime": "Watch Time",
+        "duration": "Duración",
+        "abandonment": "Abandono",
+        "avgPerDuration": "avg / duración",
+        "average": "promedio",
+        "apifyOrDb": "Apify / DB",
+        "notAvailable": "No disponible",
+        "rows": {
+          "reelStart": "Inicio del Reel",
+          "reelStartDetail": "Base de reproducciones",
+          "avgViewerReaches": "Viewer promedio llega hasta",
+          "avgViewerDetail": "{watch} de {duration}",
+          "estimatedRetention": "Retención estimada",
+          "estimatedRetentionDetail": "{pct}% del Reel visto en promedio"
+        }
+      },
+      "breakdowns": {
+        "interactionsTitle": "Interacciones vs Benchmark 90d",
+        "interactionsSubtitle": "% sobre views — vs promedio de tu cuenta",
+        "current": "Actual",
+        "benchmark": "Benchmark",
+        "ratiosTitle": "Ratios clave",
+        "ratiosSubtitle": "Proporciones con denominador real",
+        "ofWord": "de",
+        "paidMetrics": "Métricas pagas",
+        "splitTitle": "Split Orgánico / Pagado",
+        "splitSubtitle": "Distribución real de views y alcance",
+        "retentionMini": "Retención"
+      },
+      "sales": {
+        "title": "Ventas generadas",
+        "perView": "${value} por view"
+      },
+      "benchmark": {
+        "noData": "Sin benchmark",
+        "muchHigher": "{ratio}x más alto",
+        "higher": "{pct}% más alto",
+        "average": "Cerca del promedio",
+        "lower": "{pct}% más bajo"
+      },
+      "daysShort": ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+    }
+  },
+  "youtube": {
+    "pageTitle": "YT Intelligence",
+    "pageSubtitle": "Análisis profundo de tu canal de YouTube.",
+    "needWorkspace": "Necesitás un workspace activo."
+  },
+  "auth": {
+    "login": {
+      "title": "Bienvenido",
+      "subtitle": "Ingresá a tu cuenta",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tu@email.com",
+      "passwordLabel": "Contraseña",
+      "submit": "Ingresar",
+      "submitting": "Ingresando…",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "inviteOnly": "Acceso solo por invitación."
+    },
+    "invite": {
+      "welcomeTitle": "Bienvenido a Moka",
+      "welcomeSubtitle": "Creá tu cuenta para comenzar.",
+      "invalidTitle": "Invitación no válida",
+      "invalidDescription": "Este link de invitación es inválido, ya fue usado o expiró.",
+      "fullNameLabel": "Nombre completo",
+      "fullNamePlaceholder": "Tu nombre",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "Mínimo 6 caracteres",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta…"
+    },
+    "errors": {
+      "invitationInvalid": "Invitación inválida o expirada",
+      "emailMismatch": "El email no coincide con la invitación"
+    },
+    "forgot": {
+      "title": "Recuperar contraseña",
+      "subtitle": "Te enviamos un link para restablecerla",
+      "emailLabel": "Email",
+      "emailPlaceholder": "tu@email.com",
+      "submit": "Enviar link",
+      "submitting": "Enviando…",
+      "backToLogin": "Volver a iniciar sesión",
+      "sentTitle": "Revisá tu email",
+      "sentBody": "Si existe una cuenta con ese email, te enviamos un link para restablecer tu contraseña. Revisá también la carpeta de spam."
+    },
+    "reset": {
+      "title": "Nueva contraseña",
+      "subtitle": "Elegí una contraseña nueva para tu cuenta",
+      "passwordLabel": "Nueva contraseña",
+      "passwordPlaceholder": "Mínimo 6 caracteres",
+      "confirmLabel": "Repetir contraseña",
+      "submit": "Guardar contraseña",
+      "submitting": "Guardando…",
+      "requestNew": "Pedir un link nuevo",
+      "errors": {
+        "tooShort": "La contraseña debe tener al menos 6 caracteres",
+        "mismatch": "Las contraseñas no coinciden",
+        "sessionMissing": "El link expiró o ya fue usado. Pedí uno nuevo.",
+        "generic": "No se pudo actualizar la contraseña. Probá de nuevo."
+      }
+    }
+  },
+  "igShell": {
+    "common": {"impressions": "Impresiones","reach": "Alcance","likes": "Me gusta","comments": "Comentarios","saves": "Guardados","shares": "Compartidos","followers": "Seguidores","save": "Guardar","cancel": "Cancelar"},
+    "tabs": {"dashboard": "Dashboard","reels": "Reels","stories": "Historias","publications": "Publicaciones","competition": "Competencia","references": "Referencias","demographics": "Demografía"},
+    "back": {"reels": "Volver a Reels","publications": "Volver a Publicaciones","stories": "Volver a Historias","instagram": "Volver a Instagram"},
+    "conversations": {"title": "Interacciones nuevas","noData": "Sin datos todavía","interactions": "interacciones"},
+    "metas": {
+      "title": "Metas del Mes","configureArrow": "Configurar →","empty": "No hay metas configuradas","configureGoals": "+ Configurar metas",
+      "metricLabels": {"views": "Views","followers": "Seguidores","engagementRate": "Eng. Rate","reach": "Alcance","likes": "Likes","saves": "Guardados"}
+    },
+    "dashboard": {
+      "empty": {"title": "Sin datos disponibles","description": "Sincroniza tu cuenta de Instagram para ver el dashboard completo."},
+      "viewsPerformance": "Rendimiento de visitas","avgReachPerDay": "Alcance prom/día","profileConversion": "Conversión de perfil","visits": "visitas",
+      "vsPreviousPeriod": "vs período anterior","profileGrowth": "Crecimiento de perfil","lastNDays": "últimos {days} días",
+      "newFollowersPerDay": "Nuevos seguidores / día","new": "Nuevos","keyInteractions": "Interacciones clave","bestReel": "Mejor Reel","bestReelAlt": "Mejor reel",
+      "firstOfReels": "1° de {total} Reels","totalViews": "views totales","noReelsInPeriod": "Sin reels en el período","recentReels": "Reels recientes"
+    },
+    "metrics": {
+      "empty": {"title": "Sin datos de cuenta","line1": "Sincroniza tu cuenta de Instagram para ver métricas de evolución, comunidad y demografía.","permissionsBefore": "Asegurate de tener los permisos","permissionsAnd": "e"},
+      "daysShort": ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+      "gender": {"male": "Hombre","female": "Mujer","other": "Otro"},
+      "kpis": {"totalImpressions": "Impresiones totales","avgReachPerDay": "Alcance promedio / día","totalInteractions": "Interacciones totales"},
+      "vsFirstHalf": "vs primera mitad del período",
+      "secondaryKpis": {
+        "engagementRate": {"label": "Tasa de engagement","desc": "Interacciones / Impresiones"},
+        "savesRate": {"label": "Tasa de guardados","desc": "Guardados / Alcance"},
+        "profileConv": {"label": "Conv. perfil → seguidor","desc": "Nuevos seguidores / Visitas"},
+        "profileVisits": {"label": "Visitas al perfil","desc": "Total del período"},
+        "contentPublished": {"label": "Contenido publicado","desc": "Posts activos en la cuenta"}
+      },
+      "reach": {"title": "Alcance & Visibilidad","subtitle": "Impresiones, alcance y visitas al perfil — {days} días","profileVisits": "Visitas perfil"},
+      "engagement": {"title": "Radiografía del Engagement","subtitle": "Qué tipo de interacciones generás — calidad vs cantidad","dailyBreakdown": "Desglose diario","composition": "Composición","insightLabel": "Insight","insightSaves": "Más <highlight>guardados</highlight> que comentarios — tu contenido tiene valor educativo o inspiracional.","insightComments": "Más <highlight>comentarios</highlight> que guardados — tu contenido genera conversación y comunidad."},
+      "community": {"title": "Comunidad","subtitle": "Captación de seguidores y mejores momentos para publicar","newFollowers": "Nuevos seguidores","avgPerDay": "Promedio / día","currentTotal": "Total actual","needTwoDays": "Se necesitan al menos 2 días de datos para graficar la curva de seguidores","interactionsByDay": "Interacciones por día de semana","historicalAvg": "Promedio histórico del período — usalo para elegir cuándo publicar","interactions": "Interacciones","bestDayToPost": "Mejor día para publicar","bestDayLine": "<dayHighlight>{day}</dayHighlight> — promedio de <avgHighlight>{avg}</avgHighlight> interacciones."},
+      "demographics": {"title": "Demografía","subtitle": "Distribución de tu audiencia (datos lifetime de la cuenta)","gender": "Género","ageByGender": "Edad por género","ageDistribution": "Distribución de edad","followersByCountry": "Seguidores por país","followersByCity": "Seguidores por ciudad"}
+    },
+    "goals": {
+      "titleForMonth": "Metas de {month}","dayProgress": "Día {elapsed} de {total} — {pct}% del mes","addGoal": "Agregar meta","monthProgress": "Progreso del mes","newGoal": "Nueva meta",
+      "selectMetric": "Seleccionar métrica...","targetValuePlaceholder": "Valor objetivo","remaining": "Faltan {value}","ahead": "Adelante del ritmo","behind": "Por detrás del ritmo","targetLabel": "Meta:",
+      "metricLabels": {"totalViews": "Views totales","followers": "Seguidores","likes": "Likes","saves": "Guardados","reach": "Alcance","engagementRate": "Engagement Rate"},
+      "empty": {"title": "No tenés metas configuradas","description": "Definí objetivos mensuales para views, seguidores, engagement y más. Vas a poder trackear tu progreso en tiempo real.","cta": "Crear primera meta"}
+    }
+  },
+  "igGrids": {
+    "common": {"likes": "Likes","saves": "Guardados","comments": "Comentarios","shares": "Compartidos"},
+    "daysShort": ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+    "timeAgo": {"today": "Hoy","yesterday": "Ayer","daySuffix": "d","weekSuffix": "sem","monthSuffix": "mes"},
+    "reels": {
+      "viewOnIg": "Ver en IG","noTitle": "Sin título","noCaption": "Sin caption","views": "views","engagement": "Engagement","engagementFormula": "likes + saves + cmts / views",
+      "contentTotals": "Totales de contenido","dayRadarFooter": "Promedio de views según día de publicación","followers": "seguidores","showMore": "Mostrar más","showMoreCount": "({count} más)",
+      "sortBy": "Ordenar por","sortDesc": "Mayor → Menor","sortAsc": "Menor → Mayor","pagination": "{shown} de {total}","empty": "No hay reels que coincidan con los filtros.",
+      "fullyOrganic": "100% orgánico","distSplit": "{organic}% orgánico · {paid}% pagado",
+      "summary": {"title": "Resumen · {count} reels","totalViews": "Views totales","average": "Promedio","topX3": "Top ×3+"},
+      "trend": {"title": "Evolución de Views","subtitle": "Views cronológicos · últimos {count} reels"},
+      "donut": {"likes": "Likes","saves": "Saves","cmts": "Cmts"},
+      "topSales": {"title": "Top Ventas","totalGenerated": "Total generado:"},
+      "top5": {"title": "Top 5 por Views"},
+      "sort": {"date": "Fecha","totalViews": "Views totales","organicViews": "Views orgánico","multiplier": "Multiplicador"},
+      "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "Todos"},
+      "distFilter": {"all": "Todos","organic": "Orgánico","paid": "Pagado"}
+    },
+    "posts": {
+      "summaryTitle": "Resumen · {count} publicaciones","carousels": "Carruseles","posts": "Posts","noDescription": "Sin descripción","noTitle": "Sin título",
+      "engagement": "Engagement","avgShort": "prom.","likesTrend": "Evolución de Likes","likesTrendSubtitle": "Cronológico · últimas {count} publicaciones","top5Likes": "Top 5 por Likes",
+      "carouselSingular": "Carrusel","postSingular": "Post","postAlt": "Post","impressionsLower": "impresiones","count": "{count} publicaciones",
+      "totals": {"likes": "Total likes","saves": "Total guardados","comments": "Total comentarios","shares": "Total compartidos","avgPerPost": "Prom. likes / post"},
+      "sort": {"date": "Fecha"},
+      "typeFilter": {"all": "Todos","posts": "Posts","carousels": "Carruseles"},
+      "empty": {"title": "Sin publicaciones en el período","description": "Sincronizá tu cuenta de Instagram para ver posts y carruseles."}
+    },
+    "stories": {
+      "summaryTitle": "Resumen · {count} historias","multiSlide": "Multi-slide","oneSlide": "1 slide","storiesLabel": "stories","performance": "Performance",
+      "avgReplyRate": "Tasa de respuesta prom.","avgCompletion": "Completion rate prom.","avgDropOff": "Drop-off prom. (inicio→fin)",
+      "followerReachTitle": "Alcance de seguidores","followerReachDesc": "Promedio de seguidores que ven cada historia","viewsAvg": "views prom.","followers": "seguidores",
+      "viewsTrend": "Evolución de Vistas","viewsTrendSubtitle": "Impresiones cronológicas · últimas {count}","views": "views","top5Impressions": "Top 5 por Impresiones",
+      "exampleSuffix": "ejemplo","example": "Ejemplo","active": "Activa","archived": "Archivada","slide": "Slide","slidesCount": "{count} slides","storyAlt": "Historia",
+      "completedPct": "{pct}% completado","backToStories": "Volver a historias","previous": "Anterior","next": "Siguiente",
+      "sequenceFlow": "Flujo de secuencia","dropOffLabel": "Drop-off: -{pct}%","entry": "entrada","dropOffCurve": "Curva de abandono","viewsPerSlide": "Vistas por slide",
+      "detailBySlide": "Detalle por slide","tableViews": "Vistas","tableDrop": "Drop","tableForward": "→ Avanzaron","tableBack": "← Volvieron","tableReplies": "💬 Resp.",
+      "metricsDelayHint": "Las métricas de historias recientes pueden tardar unos minutos en estar disponibles. Sincronizá de nuevo en un rato.",
+      "totals": {"impressions": "Total impresiones","replies": "Total respuestas","exits": "Total salidas","avgPerStory": "Prom. vistas / historia"},
+      "kpi": {"impressions": "Impresiones","completed": "Completaron","completionRate": "Completion Rate","slides": "Slides","replies": "Respuestas"},
+      "empty": {"title": "Sin historias guardadas","description": "Las historias se archivan automáticamente dentro de las 24hs de publicarse. Sincronizá tu cuenta para capturar las historias activas."}
+    },
+    "postDetail": {
+      "slide": "Slide","thumb": "Thumb","openInInstagram": "Abrir en Instagram","carouselWithSlides": "Carrusel · {count} slides","postBadge": "Post","noDescription": "Sin descripción",
+      "summary": "Resumen","views": "Views","reach": "Reach","impressions": "Impresiones","engRate": "Eng. Rate","interactionsDistribution": "Distribución de interacciones","pctOf": "{pct} de {basis}"
+    },
+    "perfChart": {"title": "Interacciones vs Benchmark","subtitle": "% sobre views totales vs promedio 90d","thisReel": "este reel","benchmark": "benchmark","reelLegend": "Reel","benchLegend": "Bench","likes": "Likes","saves": "Saves","comments": "Comments","shares": "Shares"},
+    "dailyChart": {"empty": "Sin datos diarios para este reel todavía.","viewsPerDay": "Views por día","engagementPerDay": "Engagement por día","views": "Views"},
+    "sparkline": {"views": "views","cumulative": "acumuladas"},
+    "dayRadar": {"title": "Views por día de semana","subtitle": "Distribución de views de este reel","viewsName": "Views","views": "views","bestDayLabel": "Día con más views"},
+    "heatmap": {"title": "Heatmap de Publicación","subtitle": "Intensidad de views por día · click para ver el reel","less": "Menos","more": "Más","views": "views","noCaption": "Sin caption"},
+    "scatter": {"title": "Views por Reel","subtitle": "Cada punto es un reel · click para verlo · línea = promedio","averageLabel": "promedio: {value} views","views": "views","vsAverage": "×{multiplier} vs promedio","noCaption": "Sin caption","clickToView": "Click para ver el reel →","legend": {"normal": "Normal","outlier": "×8+ outlier","average": "promedio"}}
+  },
+  "igAdvanced": {
+    "autoTitle": {"generating": "Generando título…"},
+    "reelChat": {
+      "askMoka": "Preguntale a Moka","headerTitle": "Moka AI — Reel","placeholder": "Preguntale sobre este reel...",
+      "empty": {"title": "Moka AI","body": "Preguntame lo que quieras sobre este reel. Tengo todas las métricas y el contexto de tu cuenta."},
+      "suggestions": {"whyWorked": "¿Por qué este reel funcionó tan bien?","whyFailed": "¿Por qué este reel no funcionó?","howImprove": "¿Cómo puedo mejorar este reel?","analyzeHook": "Analizá el hook de este reel","iterateIdeas": "Dame ideas para iterar este concepto","evaluateCta": "Evaluá el CTA de este reel","recommendAnalysis": "¿Qué análisis adicional me recomendás?","improveStructure": "¿Qué puedo mejorar en la estructura?"}
+    },
+    "sync": {"newCount": "{count, plural, one {# nuevo} other {# nuevos}}","tokenExpired": "Conexión con Meta expirada. Reconectá tu cuenta.","quickError": "Error en sync rápido","networkError": "Error de red","button": {"idle": "Sincronizar","quick": "Actualizando...","done": "Listo"}},
+    "ai": {
+      "common": {"yes": "Sí","no": "No"},
+      "actions": {"analyzeDeep": "Analizar en profundidad","reanalyze": "Re-analizar","retry": "Reintentar"},
+      "errors": {"noVideoUrl": "No hay URL de video disponible. Asegurate de haber sincronizado el reel via Apify.","unknown": "Error desconocido"},
+      "idle": {"title": "Análisis profundo con MokaAI","body": "Transcripción con timestamps, narrativa, análisis visual, tono de voz, insights y potencial viral — todo en un solo análisis.","noVideoHint": "No hay URL de video disponible. Sincronizá el reel via Apify primero."},
+      "loading": {"title": "Analizando con MokaAI","body": "Descargando y procesando el video. Puede tardar entre 30 y 90 segundos."},
+      "error": {"title": "Error al analizar"},
+      "done": {"heading": "Análisis MokaAI"},
+      "sections": {"transcript": "Transcripción","narrative": "Narrativa y estructura","visual": "Análisis visual","audio": "Tono de voz y delivery","insights": "Insights y potencial viral"},
+      "transcript": {"noAudio": "No se detectó audio hablado."},
+      "narrative": {"hook": "Hook","development": "Desarrollo","corePromise": "Promesa central","ctaDetected": "CTA detectado","noCta": "Sin CTA"},
+      "visual": {"format": "Formato","shotType": "Tipo de plano","scene": "Escena","orientation": "Orientación","people": "Personas","faceVisible": "Cara visible","onScreenText": "Texto en pantalla","firstFrame": "Primer frame","backgroundEnvironment": "Fondo / entorno"},
+      "audio": {"voiceType": "Tipo de voz","estimatedRate": "Velocidad estimada","fillerWords": "Muletillas detectadas"},
+      "insights": {"viralPotential": "Potencial viral","strengths": "Fortalezas","improvements": "Áreas de mejora"}
+    },
+    "initialSync": {
+      "badge": "Primera sincronización","currentStage": "Etapa actual","statusSyncing": "Sincronizando","statusPaused": "Pausada","estimatedProgress": "Progreso estimado","elapsedTime": "Tiempo transcurrido",
+      "elapsedHint": "La primera sincronización suele tardar más porque trae contenido histórico, métricas de cuenta y benchmarks base.","errorTitle": "Sincronización interrumpida",
+      "heading": {"line1": "Estamos preparando tu","line2": "Instagram Intelligence","subWithUsername": "Conectamos la cuenta @{username}. Ahora estamos trayendo y procesando tu información para que entres con data real desde el primer minuto.","subNoUsername": "Acabás de conectar tu cuenta. Ahora estamos trayendo y procesando tu información para que entres con data real desde el primer minuto."},
+      "phases": {"validate": {"title": "Validando la conexión","description": "Verificamos permisos, cuenta de Instagram Business y acceso al workspace."},"download": {"title": "Descargando tus contenidos","description": "Estamos trayendo tus Reels de los últimos 90 días."},"metrics": {"title": "Procesando métricas y Ads","description": "Consolidamos alcance, views, engagement y atribución paga cuando existe."},"dashboard": {"title": "Armando tu dashboard","description": "Calculamos benchmarks, ordenamos la data y dejamos todo listo para explorar."}},
+      "whatYoullSee": {"title": "Qué vas a ver al entrar","item1": "Tus Reels recientes","item2": "KPIs orgánicos y pagados","item3": "Benchmark inicial de 90 días","item4": "IG Metrics a nivel de cuenta"},
+      "actions": {"retry": "Reintentar sincronización","checkConnection": "Revisar conexión"},
+      "errors": {"kickoff": "No pudimos iniciar la sincronización.","timeout": "La sincronización está tardando más de lo esperado. Podés reintentar o entrar igual y refrescar en unos minutos.","stepFailed": "Alguno de los pasos de sincronización falló. Reintentá o revisá la conexión con Meta.","generic": "No pudimos completar la sincronización inicial."}
+    },
+    "competitor": {
+      "unnamed": "Sin nombre","fallbackName": "competidor","noCaption": "Sin caption","viewOnInstagram": "Ver en Instagram","addCompetitor": "+ Agregar competidor","reelsHeader": "Reels ({count})",
+      "hookTypes": {"transformacion": "Transformación","enemigo": "Enemigo","negativo": "Negativo","promesa": "Promesa","curiosidad": "Curiosidad","desconocido": "Sin clasificar"},
+      "stats": {"views": "Views","likes": "Likes","comments": "Comments","commentsShort": "Com.","shares": "Shares","sharesShort": "Comp."},
+      "actions": {"analyze": "Analizar","analyzing": "Analizando…","analyzingShort": "Analizando","viewAnalysis": "Ver análisis","reanalyze": "Re-analizar","scrapeAndAnalyze": "Scrape + Analizar"},
+      "progress": {"preparing": "Preparando scrape…","working": "Trabajando…","analyzingName": "Analizando {name}","phases": {"starting": "Iniciando","scraping_reels": "Scrapeando","uploading_thumbs": "Portadas","saving": "Guardando","analyzing": "Análisis IA","done": "Listo"}},
+      "typeFilter": {"reel": "Reel","trial": "Trial reel","all": "Todos"},
+      "trialToggle": {"mark": "Marcar como trial","unmark": "Desmarcar trial"},
+      "selection": {"start": "Seleccionar","cancel": "Cancelar","counter": "{selected} de {max} seleccionados","analyzeN": "Analizar {n}","analyzing": "Analizando…","select": "Seleccionar reel","deselect": "Deseleccionar reel","startingMessage": "Iniciando análisis de {n} reels...","failedCount": "{count} reel(es) fallaron — podés reintentar individualmente"},
+      "modal": {"hookPrefix": "Hook","mokaAnalysis": "Análisis Moka","narrativeStructure": "Estructura narrativa","strengths": "Fortalezas","opportunities": "Oportunidades","visualStyle": "Estilo visual","analyzedWith": "Analizado con {model}","transcript": "Transcripción","trialBadge": "Trial","publishedDate": "Publicado","duration": "Duración"},
+      "contentTypes": {"reputation": "Reputación","connection": "Conexión"},
+      "compare": {"you": "Yo","youShort": "Yo","them": "Ellos","themShort": "Ell.","youVs": "Yo vs {name}","avgViews": "Avg Views","avgLikes": "Avg Likes","avgCom": "Avg Com.","followers": "Seguidores"},
+      "charts": {"viewsTimeline": "Views por reel · en el tiempo","followerGrowth": "Seguidores · crecimiento","historyAccumulates": "El historial del competidor se acumula con cada re-análisis","viewsPerDay": "Views por día · 60 días","interactionsPerDay": "Interacciones por día · 60 días","noData": "Sin datos en el período"},
+      "insights": {"heading": "Patrones y comparativa","reels": "Reels","analyzed": "Analizados","avgViews": "Avg views","topReel": "Top reel","viewsCount": "{count} views","hookTypes": "Tipos de hook","frequentTopics": "Temas frecuentes","analyzePrompt": "Analizá los reels para ver patrones"},
+      "global": {"patterns": "Patrones globales — {count} reels analizados","topHook": "Hook top"},
+      "sort": {"views": "Views","likes": "Likes","date": "Fecha"},
+      "profile": {"followers": "seguidores","posts": "posts","scrape": "Scrape","whyBetter": "Por qué son mejores","whyBetterBrand": "Marca","whyBetterContent": "Contenido"},
+      "noReels": {"title": "No hay reels scrapeados aún","hint": "Hacé click en \"Scrape + Analizar\""},
+      "pagination": {"range": "{from}–{to} de {total}","previous": "← Anterior","next": "Siguiente →"},
+      "empty": {"title": "No hay competidores configurados","body": "Agregá competidores en tu ADN de Comunicación para analizar su estrategia.","cta": "Ir al ADN de Comunicación"},
+      "errors": {"loading": "Error cargando competidores","loadFailed": "No se pudieron cargar los competidores.","scraping": "Error en scraping","analyze": "Error al analizar","analyzeReel": "Error analizando reel","analyzeReelNetwork": "Error de red al analizar el reel","bulkAnalyzePartial": "{count} de {total} reels fallaron al analizar. Reintentá los que faltan."}
+    },
+    "references": {
+      "unnamed": "Sin nombre","headerTitle": "Referencias","addBtn": "Agregar","classifying": "clasificando con IA…","refCount": "{count, plural, one {# referencia} other {# referencias}}","hookCount": "{count, plural, one {# hook} other {# hooks}}",
+      "searchPlaceholder": "Buscar en hooks...","noMatch": "No hay hooks que coincidan con los filtros",
+      "noScrapedReels": {"title": "Ninguna referencia tiene reels escaneados todavía.","hint": "Clickeá <scan>Escanear</scan> en cada chip para traer sus hooks."},
+      "patterns": {"pregunta": "Pregunta","lista": "Lista","contraste": "Contraste","cta": "CTA","historia": "Historia","shock": "Shock","afirmacion": "Afirmación"},
+      "filters": {"all": "Todas","allPatterns": "Todos"},
+      "tier": {"all": "Todos","midTop": "Mid+Top","top": "🔥 Top"},
+      "sort": {"views": "Más vistas","likes": "Más likes","engagement": "Mejor engagement"},
+      "empty": {"title": "Sin referencias todavía","body": "Agregá marcas o creadores que te inspiren — Moka va a extraer y clasificar sus hooks automáticamente.","cta": "Agregar primera referencia"},
+      "chip": {"scan": "Escanear","scanning": "Escaneando","scanTitle": "Escanear perfil y reels","analyze": "Analizar","analyzing": "Analizando","analyzeTitle": "Analizar los {count} reels top con IA","deleteRef": "Eliminar referencia","confirmDelete": "Click de nuevo para confirmar"},
+      "card": {"copy": "Copiar","copied": "Copiado","analyze": "Analizar","analyzeTitle": "Analizar este reel con IA","viewAnalysis": "Ver análisis","viewAnalysisTitle": "Ver análisis del reel","viewOriginal": "Ver reel original"},
+      "modal": {"title": "Análisis del reel","analyzingWithGemini": "Analizando con Gemini…","notAnalyzedYet": "Este reel todavía no fue analizado. Moka va a usar el framework de Fran para detectar hook, estructura, CTA, fortalezas y debilidades.","analyzeNow": "Analizar ahora","summary": "Resumen","hookType": "Tipo de hook","contentType": "Tipo de contenido","topic": "Tema","cta": "CTA","narrativeStructure": "Estructura narrativa","ctaText": "CTA textual","strengths": "Fortalezas","weaknesses": "Debilidades","model": "Modelo","reanalyze": "Re-analizar","reanalyzing": "Re-analizando…"},
+      "add": {"title": "Agregar referencia","cancel": "Cancelar","add": "Agregar","saving": "Guardando…","fields": {"name": "Nombre","url": "URL de Instagram","inspiration": "Por qué te inspira","optional": "(opcional)"},"placeholders": {"name": "Nombre de la marca / creador","url": "@usuario o https://instagram.com/usuario","inspiration": "Sus hooks, su formato, su estética…"},"errors": {"nameRequired": "El nombre es obligatorio","saving": "Error guardando","connection": "Error de conexión"}}
+    }
+  },
+  "youtubeDeep": {
+    "tabs": {"canal": "Canal","videos": "Videos"},
+    "actions": {"sync": "Sincronizar","syncing": "Sincronizando…"},
+    "metrics": {"views": "Views","watchtime": "Watch time","likes": "Likes","comments": "Comentarios","comentarios": "Comentarios","engagement": "Engagement"},
+    "kpis": {"totalViews": "Views totales","totalViewsSub": "Prom: {avg}/video · acumulado","subscribers": "Suscriptores","likes": "Likes","comments": "Comentarios","percentOfViews": "{pct}% de views · acumulado","avgEngagement": "Engagement promedio","avgEngagementSub": "(L+C) / Views · acumulado"},
+    "notices": {"lifetimeTitle": "Métrica acumulada desde publicación","lifetimeBody": "Los totales del canal muestran views acumuladas desde la publicación de cada video. Para ver la evolución día a día, abrí un video específico."},
+    "channel": {"fallback": "Canal","subscribersAndVideos": "{subscribers} suscriptores · {videos} videos","analyticsTitle": "Canal analytics","currentSubscribers": "Suscriptores actuales","cumulativeTotals": "Totales acumulados · {count} videos del período","hrsEst": " hrs est.","topContent": "Top contenido · views acumuladas","chartFootnote": "Datos por video · métrica acumulada al día de hoy · ordenados por fecha de publicación","metricSub": {"views": "Views totales de cada video al día de hoy","watchtime": "Horas estimadas de reproducción (acumulado)","likes": "Likes totales de cada video al día de hoy","comentarios": "Comentarios totales de cada video al día de hoy"}},
+    "charts": {"viewsPerVideo": {"title": "Views por video","subtitle": "Views acumuladas al día de hoy · ordenado por fecha de publicación"},"videosCount": "{count} videos","engagementBreakdown": "Engagement desglosado","engagementPerVideo": "Engagement por video","engagementFormula": "(L+C) / Views","durationVsViews": {"title": "Duración vs. Views","subtitle": "minutos · vistas","xName": "Duración","minLabel": "min","footnote": "Cada punto es un video"}},
+    "emptyState": {"title": "No hay videos en este período.","body": "Cambiá el filtro de fechas o sincronizá tu canal."},
+    "video": {"untitled": "Sin título","viewsCount": "{count} views","backToVideos": "Volver a videos","publishedOn": "Publicado {date}","rankInPeriod": "#{rank} en el período","viewOnYouTube": "Ver en YouTube","tabs": {"overview": "Overview","alcance": "Alcance","engagement": "Engagement"},"kpi": {"watchTimeEst": "Watch time est.","watchTimeFormula": "duración × views / 3600","hoursValue": "{hours} hrs","viewsAboveAvg": "+{delta} vs promedio","viewsBelowAvg": "-{delta} vs promedio","percentOfViews": "{pct}% de views","likeRate": "Like rate","commentRate": "Comment rate"},"compareTitle": "Este video vs. top del período","barHighlight": "Barra resaltada = este video","performanceVsAvg": "Rendimiento vs. promedio del canal","vsAvg": "{pct}% vs avg","avgLabel": "avg","viewsEvolution": {"title": "Evolución de views","subtitle": "{count} días de datos · desde publicación","total": "{count} views totales"}},
+    "alcance": {"funnelTitle": "Conversión de audiencia","totalEngagement": "Engagement total","likeRateConnector": "{pct}% like rate","commentRateConnector": "{pct}% comment rate","engagementConnector": "{pct}% engagement","vsAvg": "vs {pct}% promedio"},
+    "engagement": {"rateTitle": "Engagement rate","formula": "(Likes + Comentarios) / Views","deltaVsAvg": "{pp}pp vs promedio del canal ({avg}%)","breakdownTitle": "Desglose de interacciones","metricsVsAvg": "Métricas vs. promedio del canal","channelAverage": "Promedio canal: {pct}%","ppAbove": "▲ {pp}pp por encima","ppBelow": "▼ {pp}pp por debajo","rankByViews": "Ranking por views","rankByEngagement": "Ranking por engagement","outOfVideos": "de {count} videos en el período","outOfVideosWithViews": "de {count} videos con views"},
+    "videosTab": {"tableTitle": "Todos los videos","summary": {"videos": "Videos","avgViews": "Views promedio","totalLikes": "Likes totales"},"sort": {"recent": "Más recientes","views": "Más views","likes": "Más likes","engagement": "Mejor engagement"},"columns": {"video": "Video","views": "Views","likes": "Likes","commentsShort": "Coment.","engPct": "Eng%","durationShort": "Dur."},"emptyTable": "No hay videos sincronizados. Click en Sincronizar para traer tus videos."},
+    "timeAgo": {"today": "Hoy","yesterday": "Ayer","days": "Hace {count} días","weeks": "Hace {count} sem","months": "{count, plural, one {Hace # mes} other {Hace # meses}}","years": "{count, plural, one {Hace # año} other {Hace # años}}"},
+    "connect": {"title": "Conectá tu canal de YouTube","body": "Vinculá tu cuenta de Google para acceder a las métricas completas de YouTube Studio: retención, CTR, watch time, traffic sources y más.","connecting": "Conectando...","connectWithGoogle": "Conectar con Google","footnote": "Necesitás una cuenta de Google con un canal de YouTube. Solo pedimos permisos de lectura.","errors": {"cantStart": "No se pudo iniciar la conexión","connection": "Error de conexión"}}
+  },
+  "customerVoiceDeep": {
+    "competitor": {
+      "comparison": "Comparativa","followersChartTitle": "Seguidores","followersTooltipUnit": "seguidores","avgViewsChartTitle": "Views promedio / reel","avgViewsTooltipUnit": "views avg","topHooksChartTitle": "Hooks más usados",
+      "emptyTitle": "No tenés competidores configurados","emptyDescription": "Agregá competidores desde el onboarding de ADN o editando tu perfil.",
+      "statusDownloading": "Descargando perfil y reels...","statusError": "Error: {message}","errorDownloadingData": "Error descargando datos","statusNoPublicReels": "No se encontraron reels públicos",
+      "statusReelsDownloaded": "{count} reels descargados. Analizando top 5 con IA...","statusAnalyzeError": "Reels descargados pero error en análisis: {message}","statusDone": "Listo: {downloaded} reels descargados, {analyzed} analizados con IA",
+      "statusConnectionError": "Error de conexión","errorAddingReel": "Error agregando reel","reelsAnalyzedSummary": "{reels} reels · {analyzed} analizados","processing": "procesando...","unanalyzedSuffix": "· {count} sin analizar",
+      "noData": "Sin datos","analyzing": "Analizando...","reanalyze": "Re-analizar","analyze": "Analizar","analyzingReelsLong": "Analizando reels con IA... esto puede tomar hasta 2 minutos",
+      "statFollowers": "Followers","statPosts": "Posts","statReels": "Reels","statLastAnalysis": "Último análisis","never": "Nunca",
+      "topReelsHeading": "Top Reels ({count})","hookTypesLabel": "Tipos de hook","hookTypesPopoverTitle": "Tipos de Hook (Framework Fran)","addReel": "Agregar reel","add": "Agregar","noCaption": "(sin caption)","noAnalysis": "Sin análisis",
+      "reanalyzeAi": "Re-analizar con IA","analyzeAi": "Analizar con IA","deleteReel": "Eliminar reel","labelHook": "Hook","labelVideoFormat": "Formato del video","labelNarrativeStructure": "Estructura narrativa","labelTranscript": "Transcripción","labelAiSummary": "Resumen IA","labelStrengths": "Fortalezas","labelWeaknesses": "Debilidades",
+      "contentTypeReputation": "Reputación","contentTypeConnection": "Conexión","ctaPrefix": "CTA","noAiHint": "Sin análisis IA. Hacé click en <icon></icon> para analizar este reel.",
+      "whatYouLike": "Qué te gusta","brandPrefix": "Marca","contentPrefix": "Contenido",
+      "hookTypes": {"transformacion": {"label": "Transformación","description": "Muestra un antes/después o cambio personal"},"enemigo": {"label": "Enemigo","description": "Señala un problema oculto o enemigo común"},"negativo": {"label": "Negativo","description": "Advierte sobre errores o cosas que no hacer"},"promesa": {"label": "Promesa","description": "Promete enseñar o revelar algo valioso"},"curiosidad": {"label": "Curiosidad","description": "Genera intriga con preguntas o datos sorprendentes"},"desconocido": {"label": "Sin clasificar","description": "No se detectó un tipo de hook conocido"}}
+    },
+    "calendar": {
+      "days": ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+      "months": ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+      "statusIdea": "Idea","statusInProgress": "En progreso","statusReady": "Listo","statusPublished": "Publicado",
+      "newIdea": "Nueva idea","titlePlaceholder": "Título del contenido...","descriptionPlaceholder": "Notas o descripción (opcional)...","platformGeneral": "General","typeOptionEmpty": "Tipo...",
+      "save": "Guardar","saving": "Guardando...","cancel": "Cancelar","filterAll": "Todos","viewsSuffix": "views","moreReels": "+{count} más","moreIdeas": "+{count} ideas",
+      "dateHeading": "{day} de {month}","reelAlt": "Reel","published": "Publicado","planned": "Planificado","emptyPast": "Sin publicaciones este día","emptyFuture": "Día libre — podés planificar algo","addIdea": "Agregar idea",
+      "legendPublished": "Reel publicado","legendTopPerformer": "Top performer ×3+","legendIgIdea": "Idea IG","legendYtIdea": "Idea YT","legendToday": "Hoy"
+    }
+  },
+  "onboardingDeep": {
+    "competitorModal": {
+      "title": "Competidores","subtitle": "Agregá tus competidores principales y qué te gusta de ellos","entryLabel": "Competidor {num}",
+      "nameLabel": "Nombre *","namePlaceholder": "Ej: Juan Pérez","instagramLabel": "Instagram","instagramPlaceholder": "@usuario o URL",
+      "likesBrandLabel": "¿Qué te gusta de su marca?","likesBrandPlaceholder": "Qué te llama la atención de su marca, posicionamiento, identidad...",
+      "likesContentLabel": "¿Qué te gusta de su contenido?","likesContentPlaceholder": "Qué tipo de contenido hacen que te gusta, formatos, estilo...",
+      "addAnother": "Agregar otro competidor","validCount": "{count, plural, =0 {0 competidores con nombre} one {# competidor con nombre} other {# competidores con nombre}}",
+      "cancel": "Cancelar","save": "Guardar competidores","saving": "Guardando..."
+    },
+    "docs": {
+      "title": "ADN","section1Title": "Tu Negocio","section2Title": "Tu Contenido","section3Title": "Tu Mercado","section4Title": "Tu Marca",
+      "addAction": "+ agregar","editAction": "editar","noDataYet": "Sin datos todavía","noCompetitors": "Sin competidores cargados","platform": "Plataforma",
+      "competitorsHeading": "Competidores ({count})","referencesHeading": "Referencias ({count})","fieldCount": "{count, plural, one {# campo} other {# campos}}","bottomHint": "Hacé click en una sección para ver y editar los datos capturados.",
+      "fields": {"business_description": "Negocio","brand_persona": "Personaje de marca","avatar_description": "Avatar / Cliente ideal","target_audience": "Audiencia objetivo","main_offer": "Oferta principal","industry_state": "Estado de la industria","audience_exposure": "Exposición del avatar","market_beliefs": "Creencias del mercado","burned_topics": "Temas quemados","current_trends": "Tendencias","competitiveness": "Competitividad","differentiator": "Diferenciador","why_clients_choose": "Por qué te eligen","niche_language": "Lenguaje de nicho","niche_tools": "Herramientas del nicho","filtering_words": "Palabras filtro","new_mechanisms": "Mecanismos nuevos","what_tested": "Qué probaste","test_results": "Resultados","conclusions": "Conclusiones","current_strategy": "Estrategia actual","formats_and_quantity": "Formatos y cantidad","why_it_will_work": "Por qué va a funcionar"}
+    }
+  },
+  "salesForm": {
+    "newSale": "Nueva Venta","editSale": "Editar Venta","stepLabel": "Paso {step} de {total} — {name}","step1Name": "Información de la venta","step2Name": "Fuente & Cliente",
+    "paymentTypeLabel": "Tipo de pago","amountCollectedLabel": "Monto cobrado","billingAndCollectedMatch": "Facturación y efectivo recolectado coinciden","dealTotalLabel": "Valor total del deal",
+    "installmentsCountLabel": "N° de cuotas","locked": "(no cambia)","perInstallmentLabel": "Valor por cuota","firstInstallmentDateLabel": "Fecha de la primera cuota",
+    "installmentsCadenceHint": "Las siguientes cuotas se generan cada 30 días. La fecha de venta se sincroniza automáticamente con este valor (podés cambiarla después).",
+    "billing": "Facturación","cashCollected": "Efectivo recolectado","dueProgress": "({paid}/{total} cuotas vencidas)","pending": "Por cobrar",
+    "undueInstallmentsNote": "Las cuotas no vencidas quedan como pendientes. Si ya las cobraste, podés marcarlas después desde el detalle.",
+    "depositLabel": "Seña / depósito","expectedRemainingLabel": "Cobro restante estimado","depositCollected": "Seña cobrada",
+    "saleDateLabel": "Fecha de venta","notesLabel": "Comentario (opcional)","notesPlaceholder": "Detalles adicionales...",
+    "sourceLabel": "Fuente de la venta","reelSourceLabel": "Reel que generó la venta","searchByCaptionPlaceholder": "Buscar por caption...","untitled": "Sin título","noResults": "Sin resultados",
+    "storySourceLabel": "Historia que generó la venta","storyOf": "Historia del {date}","storyMetrics": "{slides} slide(s) · {impressions} imp. · {reach} alcance","describeStoryPlaceholder": "Describí la historia...",
+    "postSourceLabel": "Post que generó la venta","describePostPlaceholder": "Describí el post...","linkPlatformLabel": "Plataforma del link",
+    "describeSourceLabel": "Describí la fuente","describeSourcePlaceholder": "Referido, evento, DM directo...",
+    "clientLabel": "Cliente (opcional)","clientPlaceholder": "Nombre del cliente...",
+    "next": "Siguiente","back": "Atrás","saving": "Guardando...","saveChanges": "Guardar cambios","saveSale": "Guardar venta",
+    "errorInvalidAmount": "Ingresá un monto válido","errorSaving": "Error al guardar",
+    "notesInstallments": "{count, plural, one {# cuota} other {# cuotas}} de {amount}","notesExpectedRemaining": "Cobro restante estimado: {date}"
+  },
+  "adminDeep": {
+    "client": {
+      "backToClients": "Volver a Clientes","active": "Activo","inactive": "Inactivo","slugCreated": "{slug} · Creado {date}",
+      "totalCost": "Costo Total","costSplit": "IA ${ai} · Integ. ${integ}","aiCalls": "Llamadas IA","tokensCount": "{count} tokens","integrations": "Integraciones","integSummary": "${cost} · {ok} ok · {err} err","types": "Tipos",
+      "usageByMonth": "Uso por Mes","usageByType": "Uso por Tipo","month": "Mes","calls": "Calls","tokens": "Tokens","cost": "Costo","type": "Tipo","noUsage": "Sin uso.",
+      "recentCalls": "Últimas Llamadas","feature": "Feature","model": "Modelo","input": "Input","output": "Output","date": "Fecha","noCallsYet": "Sin llamadas todavía.",
+      "recentIntegrations": "Últimas Integraciones","operation": "Operación","items": "Items","status": "Status",
+      "owner": "Owner","adminBadge": "admin","registered": "Registrado {date}","metaConnection": "Conexión Meta","connectedOn": "Conectado {date}","tokenExpired": "Token expirado","notConnected": "No conectó Meta todavía"
+    },
+    "adnPanel": {
+      "title": "ADN de Comunicación","sectionsProgress": "{done}/{total} secciones",
+      "section": {"profile": "Perfil","strategies": "Estrategias","market": "Mercado","competitors": "Competidores","brand": "Marca","references": "Referencias"},
+      "field": {"idealAvatar": "Avatar / cliente ideal","targetAudience": "Audiencia objetivo","audienceExposure": "Exposición de la audiencia"},
+      "noName": "Sin nombre","brandTag": "Marca: ","contentTag": "Contenido: "
+    },
+    "usage": {
+      "pageTitle": "Usage","pageSubtitle": "Monitoreo de consumo: modelos IA, integraciones externas y costos por sección.",
+      "stats": {"totalCost": "Costo Total","totalCostSub": "IA ${ai} · Integ. ${integ}","totalTokens": "Total Tokens","totalTokensSub": "{count} llamadas IA","operations": "Operaciones","operationsSub": "{ai} IA · {integ} integ.","avgLatency": "Latencia Prom.","avgLatencySub": "{count} tipos distintos"},
+      "byModelOp": "Consumo por Modelo / Operación","byWorkspace": "Consumo por Workspace","type": "Tipo","calls": "Calls","tokens": "Tokens","cost": "Costo","ops": "Ops","workspace": "Workspace","noData": "Sin datos todavía.","avgLatencyShort": "{ms}ms avg",
+      "recentOps": "Últimas Operaciones","section": "Sección","modelOp": "Modelo / Op.","date": "Fecha","noOps": "Sin operaciones todavía.",
+      "dailyCost": "Costo Diario","costBySection": "Costo por Sección","llmLegend": "IA (LLM)","integLegend": "Integraciones","opsWord": "operaciones",
+      "feature": {"aiAgents": "Moka AI Chat","aiAgentsShort": "Moka AI Chat","onboardingAdn": "Onboarding ADN","competitorAnalysis": "Análisis Competidores (IA)","competitorAnalysisShort": "Análisis Competidores","competitorScraping": "Scraping Competidores","videoAnalysis": "Análisis Video (Reels)","reelDiagnostics": "Diagnóstico Reels","metricsAnalysis": "Análisis Métricas","reelScrape": "Sync Reels (Meta)"}
+    }
+  }
+}

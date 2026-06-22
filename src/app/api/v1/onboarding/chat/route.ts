@@ -12,9 +12,11 @@ import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { callLLM, type LLMMessage } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { getAdnProgress, getOrCreateAdnSession, markOnboardingComplete } from '@/services/adn-progress.service';
-import { buildAdnSystemPrompt, ADN_TOOLS, ADN_WELCOME_MESSAGE } from '@/services/adn-prompts';
+import { buildAdnSystemPrompt, ADN_TOOLS, getAdnWelcomeMessage } from '@/services/adn-prompts';
 import { logLLMUsage } from '@/services/llm-usage.service';
 import { invalidateWorkspaceCache } from '@/services/arko-ai-context';
+import { getUserLanguage } from '@/i18n/server';
+import type { PromptLocale } from '@/services/arko-ai-prompts';
 
 // ─── Tool execution: save extracted data to DB ───────────────────────────────
 
@@ -104,9 +106,10 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
 
-    const [progress, sessionId] = await Promise.all([
+    const [progress, sessionId, locale] = await Promise.all([
       getAdnProgress(supabase, auth.workspaceId),
       getOrCreateAdnSession(supabase, auth.workspaceId, auth.userId),
+      getUserLanguage(auth.userId) as Promise<PromptLocale>,
     ]);
 
     // Load chat messages
@@ -120,7 +123,7 @@ export async function GET(request: Request) {
       progress,
       session_id: sessionId,
       messages: messages ?? [],
-      welcome_message: ADN_WELCOME_MESSAGE,
+      welcome_message: getAdnWelcomeMessage(locale),
     });
   } catch (err) {
     console.error('[onboarding/chat] GET error:', err);
@@ -173,8 +176,9 @@ export async function POST(request: Request) {
         content: m.content,
       }));
 
-    // Build system prompt with current progress
-    const systemPrompt = buildAdnSystemPrompt(progress);
+    // Build system prompt with current progress + user locale
+    const userLocale = (await getUserLanguage(auth.userId)) as PromptLocale;
+    const systemPrompt = buildAdnSystemPrompt(progress, userLocale);
 
     // Call LLM with feature config
     const config = getLLMConfig('onboarding-adn');

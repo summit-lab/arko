@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { api401, api500 } from '@/lib/api/response';
 import crypto from 'crypto';
 import { env, getMetaRedirectUri } from '@/lib/env';
+import { META_GRAPH_VERSION } from '@/lib/meta/constants';
 
 const REQUIRED_SCOPES = [
   'instagram_basic',
@@ -80,8 +81,10 @@ export async function POST(request: Request) {
       last_error: null,
     }, { onConflict: 'workspace_id' });
 
-    // Build Meta OAuth URL (PRD 4.3 Step 1)
-    const oauthUrl = new URL('https://www.facebook.com/v25.0/dialog/oauth');
+    // Build Meta OAuth URL (PRD 4.3 Step 1). Nota: el diálogo OAuth vive en
+    // www.facebook.com (no graph.facebook.com), por eso usa META_GRAPH_VERSION
+    // (el número de versión) y no GRAPH_BASE.
+    const oauthUrl = new URL(`https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`);
     oauthUrl.searchParams.set('client_id', env.META_APP_ID!);
     oauthUrl.searchParams.set('redirect_uri', getMetaRedirectUri());
     oauthUrl.searchParams.set('state', statePayload);

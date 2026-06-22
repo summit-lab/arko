@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { ReelsSummary } from "./ReelsGrid";
-import { LayoutDashboard, Clapperboard, BarChart3, BookImage, Swords, Grid2X2, BookMarked } from "lucide-react";
 
 // Skeleton for lazy-loaded tabs
 const TabSkeleton = () => (
@@ -21,8 +20,9 @@ const ReelsGrid = dynamic(() => import("./ReelsGrid").then(m => ({ default: m.Re
 const StoriesGrid = dynamic(() => import("./StoriesGrid").then(m => ({ default: m.StoriesGrid })), { ssr: false, loading: TabSkeleton });
 const PublicacionesGrid = dynamic(() => import("./PublicacionesGrid").then(m => ({ default: m.PublicacionesGrid })), { ssr: false, loading: TabSkeleton });
 const IGMetricsClient = dynamic(() => import("./IGMetricsClient").then(m => ({ default: m.IGMetricsClient })), { ssr: false, loading: TabSkeleton });
-const CompetitorTab = dynamic(() => import("./CompetitorTab").then(m => ({ default: m.CompetitorTab })), { ssr: false, loading: TabSkeleton });
-const ReferencesTab = dynamic(() => import("./ReferencesTab").then(m => ({ default: m.ReferencesTab })), { ssr: false, loading: TabSkeleton });
+// CompetitorTab y ReferencesTab ya NO se cargan aca: se renderizan server-side en
+// CompetitorsLoader/ReferencesLoader (streameados via <Suspense> desde el page) y
+// llegan como slots — asi su data pesada no bloquea el paint de la tab reels.
 
 // Lazy-load heavy dashboard (charts) — only when user visits the tab
 const IGDashboard = dynamic(
@@ -168,25 +168,13 @@ export interface InstagramShellProps {
   posts: PostCard[];
   reelsSummary: ReelsSummary | undefined;
   reelsMissingDuration: number;
+  benchmarksByType: { normal: number; trial: number; all: number };
   workspaceId: string | null;
-  // Pre-fetched data for instant tab switching (no client-side fetch on mount)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initialCompetitors: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initialReferences: any[];
+  // Slots streameados via <Suspense> desde el page: la data pesada de competencia
+  // y referencias se carga FUERA del critical path (no bloquea el paint de reels).
+  competenciaSlot: ReactNode;
+  referenciasSlot: ReactNode;
 }
-
-// ─── Tab definitions ───
-
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "dashboard",     label: "Dashboard",     icon: LayoutDashboard },
-  { key: "reels",         label: "Reels",         icon: Clapperboard },
-  { key: "historias",     label: "Historias",     icon: BookImage },
-  { key: "publicaciones", label: "Publicaciones", icon: Grid2X2 },
-  { key: "competencia",   label: "Competencia",   icon: Swords },
-  { key: "referencias",   label: "Referencias",   icon: BookMarked },
-  { key: "metrics",       label: "Demografía",    icon: BarChart3 },
-];
 
 // ─── Component ───
 
@@ -202,22 +190,18 @@ export function InstagramShell({
   storySequences,
   posts,
   reelsSummary,
+  benchmarksByType,
   workspaceId,
-  initialCompetitors,
-  initialReferences,
+  competenciaSlot,
+  referenciasSlot,
 }: InstagramShellProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const searchParams = useSearchParams();
 
-  // Update URL without server roundtrip (shallow)
-  const handleTabChange = useCallback((key: TabKey) => {
-    if (key === activeTab) return;
-    setActiveTab(key);
-    // Update URL for shareability + back button, using replaceState (no navigation)
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", key);
-    window.history.replaceState(null, "", `/instagram?${params.toString()}`);
-  }, [activeTab, searchParams]);
+  // Re-sync when initialTab changes (sidebar navigation via router.push)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Posts summary
   const postsSummary = posts.length > 0 ? (() => {
@@ -235,28 +219,7 @@ export function InstagramShell({
 
   return (
     <>
-      {/* ── Tabs (instant, client-side) ── */}
-      <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
-        {TABS.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-250 cursor-pointer ${
-                active
-                  ? "text-white bg-white/[0.1] border border-white/[0.1]"
-                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.04] border border-transparent"
-              }`}
-            >
-              <tab.icon size={14} strokeWidth={active ? 2.2 : 1.6} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Tab content (instant switch, no server roundtrip) ── */}
+      {/* ── Tab content ── */}
 
       {activeTab === "dashboard" && (
         <IGDashboard
@@ -269,46 +232,27 @@ export function InstagramShell({
       )}
 
       {activeTab === "reels" && (
-        <ReelsGrid reels={reels} summary={reelsSummary} />
+        <ReelsGrid reels={reels} summary={reelsSummary} benchmarksByType={benchmarksByType} />
       )}
 
       {activeTab === "historias" && (
-        <StoriesGrid sequences={storySequences} totalFollowers={totalFollowers} />
+        <StoriesGrid
+          sequences={storySequences}
+          totalFollowers={totalFollowers}
+          initialSelectedId={searchParams.get("story")}
+        />
       )}
 
       {activeTab === "publicaciones" && (
         <PublicacionesGrid posts={posts} summary={postsSummary} />
       )}
 
-      {activeTab === "competencia" && (() => {
-        // Filter out reels with 0 views (just-published, not synced yet) so the
-        // "Yo" averages use a symmetric denominator with the "Ellos" side (which
-        // also filters views > 0 in CompetitorTab.tsx ComparisonCharts). Without
-        // this filter, day-1 reels artificially depress the user's averages and
-        // make "Yo" always look worse than competitors.
-        const reelsWithViews = reels.filter((r) => (r.views_total ?? 0) > 0);
-        const n = reelsWithViews.length;
-        return (
-        <CompetitorTab
-          workspaceId={workspaceId ?? null}
-          initialCompetitors={initialCompetitors}
-          myStats={{
-            avgViews:    n > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.views_total, 0) / n) : 0,
-            followers:   totalFollowers,
-            avgLikes:    n > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.likes,       0) / n) : 0,
-            avgComments: n > 0 ? Math.round(reelsWithViews.reduce((s, r) => s + r.comments,    0) / n) : 0,
-          }}
-          myReels={reels.map((r) => ({ published_at: r.published_at, views_total: r.views_total }))}
-          myFollowerHistory={dailyInsights
-            .filter((d) => d.followers_total > 0)
-            .map((d) => ({ date: d.metric_date, followers: d.followers_total }))}
-        />
-        );
-      })()}
+      {/* Competencia/Referencias: slots streameados via <Suspense> desde el page.
+          La data pesada (myStats/myReels se derivan en el page) NO bloquea el paint
+          de la tab reels (default). */}
+      {activeTab === "competencia" && competenciaSlot}
 
-      {activeTab === "referencias" && (
-        <ReferencesTab workspaceId={workspaceId ?? null} initialReferences={initialReferences} />
-      )}
+      {activeTab === "referencias" && referenciasSlot}
 
       {activeTab === "metrics" && (
         <IGMetricsClient dailyInsights={dailyInsights} demographics={demographics} />

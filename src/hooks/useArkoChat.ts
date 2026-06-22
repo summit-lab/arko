@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type { ChatMessage, ToolStep } from "@/components/chat/ChatShared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -12,9 +13,30 @@ export interface ReelChatContext {
   gemini_analysis: string | null;
 }
 
+export interface ScriptChatContext {
+  type: "script";
+  script_id: string;
+  title: string | null;
+  content_type: string | null;
+  status: string | null;
+  planned_date: string | null;
+  script: string | null;
+}
+
+export interface MesaDeTrabajoChatContext {
+  type: "mesa-de-trabajo";
+}
+
+export type ArkoChatContext = ReelChatContext | ScriptChatContext | MesaDeTrabajoChatContext;
+
 interface UseArkoChatOptions {
   workspaceId: string;
-  context?: ReelChatContext;
+  context?: ArkoChatContext;
+  onContentAdded?: (items: Record<string, unknown>[]) => void;
+  onContentUpdated?: (item: Record<string, unknown>) => void;
+  onContentDeleted?: (id: string) => void;
+  /** Llamado cuando Moka propone un cambio de script vía propose_script_change. */
+  onScriptChangePending?: (pending: Record<string, unknown>) => void;
 }
 
 interface UseArkoChatReturn {
@@ -35,7 +57,12 @@ interface UseArkoChatReturn {
 export function useArkoChat({
   workspaceId,
   context,
+  onContentAdded,
+  onContentUpdated,
+  onContentDeleted,
+  onScriptChangePending,
 }: UseArkoChatOptions): UseArkoChatReturn {
+  const t = useTranslations("arkoChat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -88,7 +115,7 @@ export function useArkoChat({
       };
       setMessages((prev) => [...prev, userMsg]);
       setIsLoading(true);
-      setStatusLabel("Pensando...");
+      setStatusLabel(t("thinking"));
       setToolSteps([]);
 
       let streamCompleted = false;
@@ -114,7 +141,7 @@ export function useArkoChat({
           body: JSON.stringify(body),
         });
 
-        if (!res.ok || !res.body) throw new Error("Error al enviar mensaje");
+        if (!res.ok || !res.body) throw new Error(t("errors.send"));
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -173,7 +200,7 @@ export function useArkoChat({
                     id: event.message?.id ?? `resp-${Date.now()}`,
                     role: "assistant",
                     content:
-                      event.message?.content ?? "Error al generar respuesta.",
+                      event.message?.content ?? t("errors.generate"),
                     created_at:
                       event.message?.created_at ?? new Date().toISOString(),
                   };
@@ -184,8 +211,28 @@ export function useArkoChat({
                   break;
                 }
 
+                case "content_added":
+                  if (onContentAdded && Array.isArray(event.items)) onContentAdded(event.items as Record<string, unknown>[]);
+                  break;
+
+                case "content_updated":
+                  if (onContentUpdated && event.item) onContentUpdated(event.item as Record<string, unknown>);
+                  break;
+
+                case "content_deleted": {
+                  const deletedId = (typeof event.id === "string" ? event.id : event.item?.id) as string | undefined;
+                  if (onContentDeleted && deletedId) onContentDeleted(deletedId);
+                  break;
+                }
+
+                case "script_change_pending":
+                  if (onScriptChangePending && event.pending) {
+                    onScriptChangePending(event.pending as Record<string, unknown>);
+                  }
+                  break;
+
                 case "error":
-                  throw new Error(event.message || "Error del servidor");
+                  throw new Error(event.message || t("errors.server"));
               }
             } catch (parseErr) {
               if (
@@ -203,8 +250,7 @@ export function useArkoChat({
           const errorMsg: ChatMessage = {
             id: `err-${Date.now()}`,
             role: "assistant",
-            content:
-              "La respuesta se cortó (posible timeout del servidor). Intentá con una pregunta más corta o volvé a intentar.",
+            content: t("errors.timeout"),
             created_at: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, errorMsg]);
@@ -216,8 +262,7 @@ export function useArkoChat({
         const errorMsg: ChatMessage = {
           id: `err-${Date.now()}`,
           role: "assistant",
-          content:
-            "Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?",
+          content: t("errors.processing"),
           created_at: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -226,7 +271,7 @@ export function useArkoChat({
         setToolSteps([]);
       }
     },
-    [isLoading, workspaceId, context, updateSessionId],
+    [isLoading, workspaceId, context, updateSessionId, t, onContentAdded, onContentUpdated, onContentDeleted, onScriptChangePending],
   );
 
   return {

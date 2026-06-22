@@ -6,55 +6,58 @@ import { ReelChatPanel } from "@/components/instagram/ReelChatPanel";
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
 
 // ─── Serializer ──────────────────────────────────────────────────────────────
+// NOTE: This text is fed to the LLM as context — keep stable English labels
+// regardless of the user's UI locale. The model normalizes its output to the
+// user's voice elsewhere.
 
 function serializeGeminiForChat(analysis: GeminiVideoAnalysis): string {
   const lines: string[] = [];
   if (analysis.transcript) {
-    lines.push(`**Transcripción:** ${analysis.transcript.substring(0, 500)}${analysis.transcript.length > 500 ? "..." : ""}`);
+    lines.push(`**Transcript:** ${analysis.transcript.substring(0, 500)}${analysis.transcript.length > 500 ? "..." : ""}`);
   }
   if (analysis.transcript_lines?.length) {
     lines.push("");
-    lines.push("**Líneas con clasificación:**");
+    lines.push("**Classified lines:**");
     for (const line of analysis.transcript_lines.slice(0, 10)) {
       lines.push(`- [${line.type}] ${line.text}`);
     }
   }
   if (analysis.narrative) {
     lines.push("");
-    lines.push("**Análisis narrativo:**");
+    lines.push("**Narrative analysis:**");
     lines.push(`- Hook: ${analysis.narrative.hook || "—"}`);
-    lines.push(`- Desarrollo: ${analysis.narrative.development_summary || "—"}`);
-    lines.push(`- CTA: ${analysis.narrative.has_cta ? (analysis.narrative.cta_text || "Sí") : "No detectado"}`);
-    lines.push(`- Promesa central: ${analysis.narrative.core_promise || "—"}`);
+    lines.push(`- Development: ${analysis.narrative.development_summary || "—"}`);
+    lines.push(`- CTA: ${analysis.narrative.has_cta ? (analysis.narrative.cta_text || "Yes") : "Not detected"}`);
+    lines.push(`- Core promise: ${analysis.narrative.core_promise || "—"}`);
     lines.push(`- Topic cluster: ${analysis.narrative.topic_cluster || "—"}`);
   }
   if (analysis.visual) {
     lines.push("");
-    lines.push("**Análisis visual:**");
-    lines.push(`- Formato: ${analysis.visual.format_type || "—"}`);
-    lines.push(`- Escena: ${analysis.visual.scene_type || "—"}`);
-    lines.push(`- Plano: ${analysis.visual.shot_type || "—"}`);
-    lines.push(`- Personas: ${analysis.visual.people_count ?? "—"}`);
-    lines.push(`- Texto en pantalla: ${analysis.visual.text_on_screen ? "Sí" : "No"}`);
+    lines.push("**Visual analysis:**");
+    lines.push(`- Format: ${analysis.visual.format_type || "—"}`);
+    lines.push(`- Scene: ${analysis.visual.scene_type || "—"}`);
+    lines.push(`- Shot: ${analysis.visual.shot_type || "—"}`);
+    lines.push(`- People: ${analysis.visual.people_count ?? "—"}`);
+    lines.push(`- On-screen text: ${analysis.visual.text_on_screen ? "Yes" : "No"}`);
   }
   if (analysis.audio) {
     lines.push("");
-    lines.push("**Análisis de audio:**");
-    lines.push(`- Tono: ${analysis.audio.tone || "—"}`);
-    lines.push(`- Energía: ${analysis.audio.energy_level || "—"}`);
-    lines.push(`- WPM estimado: ${analysis.audio.estimated_wpm ?? "—"}`);
-    lines.push(`- Muletillas: ${analysis.audio.filler_words_detected?.length ? "Sí" : "No"}`);
+    lines.push("**Audio analysis:**");
+    lines.push(`- Tone: ${analysis.audio.tone || "—"}`);
+    lines.push(`- Energy: ${analysis.audio.energy_level || "—"}`);
+    lines.push(`- Estimated WPM: ${analysis.audio.estimated_wpm ?? "—"}`);
+    lines.push(`- Filler words: ${analysis.audio.filler_words_detected?.length ? "Yes" : "No"}`);
   }
   if (analysis.insights) {
     lines.push("");
     lines.push("**Insights:**");
     if (analysis.insights.strengths?.length) {
-      lines.push(`- Fortalezas: ${analysis.insights.strengths.join("; ")}`);
+      lines.push(`- Strengths: ${analysis.insights.strengths.join("; ")}`);
     }
     if (analysis.insights.improvements?.length) {
-      lines.push(`- Mejoras: ${analysis.insights.improvements.join("; ")}`);
+      lines.push(`- Improvements: ${analysis.insights.improvements.join("; ")}`);
     }
-    lines.push(`- Potencial viral: ${analysis.insights.viral_potential || "—"} (${analysis.insights.viral_potential_reason || ""})`);
+    lines.push(`- Viral potential: ${analysis.insights.viral_potential || "—"} (${analysis.insights.viral_potential_reason || ""})`);
   }
   return lines.join("\n");
 }

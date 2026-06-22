@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthUser } from './auth-claims'
 
 // Public routes: no auth required
-const PUBLIC_ROUTES = ['/login', '/invite', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/data-deletion']
+const PUBLIC_ROUTES = ['/login', '/invite', '/forgot-password', '/reset-password', '/auth/confirm', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -36,11 +37,12 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very
-  // hard to debug issues with users being randomly logged out.
-
-  const { data: { user } } = await supabase.auth.getUser()
+  // Do not run code between createServerClient and the auth call below.
+  // A simple mistake could make it very hard to debug issues with users
+  // being randomly logged out.
+  // getAuthUser usa getClaims (validacion local del JWT, sin round-trip a Auth en
+  // cada request) y cae a getUser solo si no hay claims — ver auth-claims.ts.
+  const user = await getAuthUser(supabase)
 
   const pathname = request.nextUrl.pathname
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
@@ -113,21 +115,34 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    // Cache role for admin checks
-    if (!request.cookies.get('arko_user_role')) {
+    // Cache role + language for admin checks and i18n
+    if (!request.cookies.get('arko_user_role') || !request.cookies.get('NEXT_LOCALE')) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, language')
         .eq('id', user.id)
         .maybeSingle()
       if (profile) {
-        supabaseResponse.cookies.set('arko_user_role', profile.role, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60, // 1 hour
-          path: '/',
-        })
+        if (!request.cookies.get('arko_user_role')) {
+          supabaseResponse.cookies.set('arko_user_role', profile.role, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60, // 1 hour
+            path: '/',
+          })
+        }
+        if (!request.cookies.get('NEXT_LOCALE')) {
+          const lang = profile.language === 'en' ? 'en' : 'es'
+          supabaseResponse.cookies.set('NEXT_LOCALE', lang, {
+            // Readable from client (next-intl reads via document.cookie on client transitions)
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 365, // 1 year
+            path: '/',
+          })
+        }
       }
     }
 

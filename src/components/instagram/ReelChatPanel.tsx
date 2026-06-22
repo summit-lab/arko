@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { X, MessageSquareText } from "lucide-react";
 import {
   ArkoMessage,
@@ -27,25 +28,26 @@ interface ReelChatPanelProps {
 function buildSuggestions(
   performerMultiple: number,
   hasGemini: boolean,
+  t: (key: string) => string,
 ): string[] {
   const suggestions: string[] = [];
 
   if (performerMultiple >= 1.5) {
-    suggestions.push("¿Por qué este reel funcionó tan bien?");
+    suggestions.push(t("reelChat.suggestions.whyWorked"));
   } else if (performerMultiple < 0.8 && performerMultiple > 0) {
-    suggestions.push("¿Por qué este reel no funcionó?");
+    suggestions.push(t("reelChat.suggestions.whyFailed"));
   } else {
-    suggestions.push("¿Cómo puedo mejorar este reel?");
+    suggestions.push(t("reelChat.suggestions.howImprove"));
   }
 
-  suggestions.push("Analizá el hook de este reel");
-  suggestions.push("Dame ideas para iterar este concepto");
-  suggestions.push("Evaluá el CTA de este reel");
+  suggestions.push(t("reelChat.suggestions.analyzeHook"));
+  suggestions.push(t("reelChat.suggestions.iterateIdeas"));
+  suggestions.push(t("reelChat.suggestions.evaluateCta"));
 
   if (!hasGemini) {
-    suggestions.push("¿Qué análisis adicional me recomendás?");
+    suggestions.push(t("reelChat.suggestions.recommendAnalysis"));
   } else {
-    suggestions.push("¿Qué puedo mejorar en la estructura?");
+    suggestions.push(t("reelChat.suggestions.improveStructure"));
   }
 
   return suggestions.slice(0, 5);
@@ -62,6 +64,7 @@ export function ReelChatPanel({
   performerMultiple,
   hasGeminiAnalysis,
 }: ReelChatPanelProps) {
+  const t = useTranslations("igAdvanced");
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [hasDiscoveredSession, setHasDiscoveredSession] = useState(false);
@@ -88,7 +91,7 @@ export function ReelChatPanel({
     },
   });
 
-  const suggestions = buildSuggestions(performerMultiple, hasGeminiAnalysis);
+  const suggestions = buildSuggestions(performerMultiple, hasGeminiAnalysis, t);
 
   // Auto-scroll on new messages
   const scrollToBottom = useCallback(() => {
@@ -172,7 +175,7 @@ export function ReelChatPanel({
             <ArkoLogoSmall size={14} opacity={0.6} />
           </div>
           <span className="text-[13px] font-light text-popover-foreground/80 group-hover:text-popover-foreground transition-colors">
-            Preguntale a Moka
+            {t("reelChat.askMoka")}
           </span>
           <MessageSquareText className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
         </button>
@@ -180,7 +183,7 @@ export function ReelChatPanel({
 
       {/* Slide-in panel */}
       <div
-        className={`fixed top-0 right-0 z-50 flex flex-col w-[720px] max-w-[90vw] h-dvh border-l border-border bg-popover backdrop-blur-2xl shadow-[-8px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={`fixed top-0 right-0 z-[80] flex flex-col w-[720px] max-w-[90vw] h-dvh border-l border-border bg-popover backdrop-blur-2xl shadow-[-8px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[-8px_0_40px_rgba(0,0,0,0.6)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -191,7 +194,7 @@ export function ReelChatPanel({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-medium text-popover-foreground truncate">
-              Moka AI — Reel
+              {t("reelChat.headerTitle")}
             </p>
             <p className="text-[10px] text-muted-foreground font-light truncate">
               {captionPreview}
@@ -243,7 +246,7 @@ export function ReelChatPanel({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Preguntale sobre este reel..."
+              placeholder={t("reelChat.placeholder")}
               disabled={isLoading}
               rows={1}
               className="w-full bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground font-light resize-none focus:outline-none leading-relaxed px-4 pt-3 pb-2.5 pr-12 disabled:opacity-40"
@@ -275,7 +278,7 @@ export function ReelChatPanel({
       {/* Backdrop overlay when panel is open */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-[70] bg-black/30 backdrop-blur-sm transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -292,6 +295,7 @@ function ReelChatEmpty({
   suggestions: string[];
   onSuggestionClick: (text: string) => void;
 }) {
+  const t = useTranslations("igAdvanced");
   return (
     <div className="flex flex-col items-center py-8">
       <div className="relative mb-5">
@@ -305,10 +309,10 @@ function ReelChatEmpty({
       </div>
 
       <p className="text-[13px] font-light text-foreground mb-1">
-        Moka AI
+        {t("reelChat.empty.title")}
       </p>
       <p className="text-[11px] text-muted-foreground font-light text-center mb-6 max-w-[280px]">
-        Preguntame lo que quieras sobre este reel. Tengo todas las métricas y el contexto de tu cuenta.
+        {t("reelChat.empty.body")}
       </p>
 
       <div className="w-full space-y-2">

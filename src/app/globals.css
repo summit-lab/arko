@@ -374,6 +374,21 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading-local), "Manrope Bold", ui-sans-serif, system-ui, sans-serif;
   }
+  button:not([disabled]),
+  [role="button"],
+  [role="tab"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  [role="menuitem"],
+  [role="option"],
+  [role="combobox"],
+  a[href],
+  select,
+  label,
+  summary {
+    cursor: pointer;
+  }
 }
 
 /* ── Custom scrollbar — Glass style (global) ── */
@@ -395,6 +410,94 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
 }
+
+/* ── Moka head tilt — al hover del logo del topbar, anima la cabecita como un
+      perrito curioso. Primero mira a la derecha, despues se asienta inclinada
+      a la izquierda y se queda asi mientras el hover dure (fill-mode forwards).
+      transform-origin al centro-inferior para que el giro sea del cuello. ── */
+@keyframes moka-head-tilt {
+  0%   { transform: rotate(0deg); }
+  40%  { transform: rotate(14deg); }
+  100% { transform: rotate(-16deg); }
+}
+
+.moka-head-tilt {
+  transform-origin: 50% 65%;
+  transition: transform 0.35s ease-out;
+}
+
+.group:hover .moka-head-tilt {
+  animation: moka-head-tilt 0.9s ease-in-out forwards;
+}
+
+/* Variante solo-derecha para el logo de Moka AI — mas sutil, un tilt hacia
+   la derecha y se queda ahi mientras dure el hover. */
+@keyframes moka-head-tilt-right {
+  to { transform: rotate(18deg); }
+}
+
+.moka-head-tilt-right {
+  transform-origin: 50% 65%;
+  transition: transform 0.35s ease-out;
+}
+
+.group:hover .moka-head-tilt-right {
+  animation: moka-head-tilt-right 0.5s ease-out forwards;
+}
+
+/* ── Pipeline — prominent horizontal scrollbar for the Kanban board ── */
+.pipeline-scroll::-webkit-scrollbar { height: 8px; }
+.pipeline-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin: 0 4px;
+}
+.pipeline-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+}
+.pipeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.40);
+}
+.pipeline-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) rgba(255, 255, 255, 0.05);
+}
+html:not(.dark) .pipeline-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+html:not(.dark) .pipeline-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.22); }
+html:not(.dark) .pipeline-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.40); }
+html:not(.dark) .pipeline-scroll { scrollbar-color: rgba(0, 0, 0, 0.22) rgba(0, 0, 0, 0.05); }
+
+/* ── Stories sequence — thicker + more visible scrollbar for the slide strip,
+      since the global 6px scrollbar is nearly invisible for a prominent
+      horizontal scroll the user is meant to interact with ── */
+.stories-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.stories-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 5px;
+  margin: 0 12px;
+}
+.stories-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.stories-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+.stories-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.03);
+}
+html:not(.dark) .stories-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.04); }
+html:not(.dark) .stories-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.22); background-clip: padding-box; }
+html:not(.dark) .stories-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.38); background-clip: padding-box; }
+html:not(.dark) .stories-scroll { scrollbar-color: rgba(0, 0, 0, 0.22) rgba(0, 0, 0, 0.04); }
 
 /* ── Autofill override for dark theme inputs ── */
 .autofill-dark:-webkit-autofill,
@@ -667,5 +770,36 @@ html:not(.dark) .autofill-dark:-webkit-autofill:focus {
 @keyframes barGrow {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
+}
+
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* ─── Comentarios inline en el editor (estilo Google Docs / Notion) ──────── */
+.comment-mark {
+  background-color: rgba(254, 240, 138, 0.45);
+  border-bottom: 1.5px solid rgba(234, 179, 8, 0.55);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.comment-mark:hover {
+  background-color: rgba(253, 224, 71, 0.7);
+}
+.dark .comment-mark {
+  background-color: rgba(234, 179, 8, 0.22);
+  border-bottom-color: rgba(234, 179, 8, 0.55);
+}
+.dark .comment-mark:hover {
+  background-color: rgba(234, 179, 8, 0.35);
+}
+.comment-mark-flash {
+  animation: commentFlash 800ms ease-out;
+}
+@keyframes commentFlash {
+  0%   { background-color: rgba(250, 204, 21, 0.95); }
+  100% { background-color: rgba(254, 240, 138, 0.45); }
 }
 

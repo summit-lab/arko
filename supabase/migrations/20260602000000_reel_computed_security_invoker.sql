@@ -1,0 +1,24 @@
+-- =============================================================
+-- Fix de seguridad: reel_computed como SECURITY INVOKER
+-- =============================================================
+-- Problema (advisor: security_definer_view, nivel ERROR):
+--   La vista public.reel_computed corría como SECURITY DEFINER, es decir
+--   con los permisos del creador (postgres), salteando la RLS del usuario
+--   que consulta. Eso significaba que la vista podía leer filas de
+--   reels/reel_metrics de CUALQUIER workspace, sin aplicar el aislamiento
+--   por tenant. Riesgo de lectura cross-tenant.
+--
+-- Fix:
+--   security_invoker = on hace que la vista se ejecute con los permisos
+--   del usuario que la consulta, por lo que la RLS de las tablas base
+--   (reels, reel_metrics, reel_metrics_paid) se aplica correctamente.
+--
+-- Impacto: ninguno en datos ni columnas. La vista devuelve exactamente
+--   las mismas filas para cada usuario autenticado (verificado en Dev y
+--   Prod: conteos y sumas idénticos antes/después).
+--
+-- Reversible con:
+--   ALTER VIEW public.reel_computed SET (security_invoker = off);
+-- =============================================================
+
+ALTER VIEW public.reel_computed SET (security_invoker = on);

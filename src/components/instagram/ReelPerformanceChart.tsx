@@ -4,6 +4,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import { useChartTheme } from "@/hooks/useChartTheme";
 
 interface ReelPerformanceChartProps {
@@ -28,6 +29,7 @@ function CustomTooltip({ active, payload, label }: {
   payload?: Array<{ name: string; value: number; color: string; dataKey: string }>;
   label?: string;
 }) {
+  const t = useTranslations("igGrids");
   if (!active || !payload?.length) return null;
   const actual = payload.find((p) => p.dataKey === "actual");
   const benchmark = payload.find((p) => p.dataKey === "benchmark");
@@ -37,13 +39,13 @@ function CustomTooltip({ active, payload, label }: {
       {actual && (
         <div className="flex items-baseline gap-1.5 mb-1">
           <span className="text-[18px] font-light" style={{ color: "#7A86E0" }}>{actual.value.toFixed(2)}%</span>
-          <span className="text-[10px] text-muted-foreground">este reel</span>
+          <span className="text-[10px] text-muted-foreground">{t("perfChart.thisReel")}</span>
         </div>
       )}
       {benchmark && benchmark.value > 0 && (
         <div className="flex items-baseline gap-1.5">
           <span className="text-[15px] font-light text-muted-foreground">{benchmark.value.toFixed(2)}%</span>
-          <span className="text-[10px] text-muted-foreground">benchmark</span>
+          <span className="text-[10px] text-muted-foreground">{t("perfChart.benchmark")}</span>
         </div>
       )}
     </div>
@@ -55,24 +57,25 @@ export function ReelPerformanceChart({
   benchmarkLikes, benchmarkSaves, benchmarkComments, benchmarkShares,
 }: ReelPerformanceChartProps) {
   const chart = useChartTheme();
+  const t = useTranslations("igGrids");
   const data = [
     {
-      name: "Likes",
+      name: t("perfChart.likes"),
       actual: pct(likes, viewsTotal),
       benchmark: benchmarkLikes ?? 0,
     },
     {
-      name: "Saves",
+      name: t("perfChart.saves"),
       actual: pct(saves, viewsTotal),
       benchmark: benchmarkSaves ?? 0,
     },
     {
-      name: "Comments",
+      name: t("perfChart.comments"),
       actual: pct(comments, viewsTotal),
       benchmark: benchmarkComments ?? 0,
     },
     {
-      name: "Shares",
+      name: t("perfChart.shares"),
       actual: pct(shares, viewsTotal),
       benchmark: benchmarkShares ?? 0,
     },
@@ -84,18 +87,18 @@ export function ReelPerformanceChart({
     <div className="glass-panel flex h-full flex-col rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.08em]">Interacciones vs Benchmark</p>
-          <p className="text-[10px] text-white/20 mt-0.5">% sobre views totales vs promedio 90d</p>
+          <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.08em]">{t("perfChart.title")}</p>
+          <p className="text-[10px] text-white/20 mt-0.5">{t("perfChart.subtitle")}</p>
         </div>
         {hasBenchmark && (
           <div className="flex items-center gap-3 text-[9px]">
             <div className="flex items-center gap-1">
               <div className="h-2 w-2 rounded-sm" style={{ background: "#7A86E0" }} />
-              <span className="text-white/35">Reel</span>
+              <span className="text-white/35">{t("perfChart.reelLegend")}</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="h-[1.5px] w-3 rounded" style={{ background: chart.benchmarkLine }} />
-              <span className="text-white/35">Bench</span>
+              <span className="text-white/35">{t("perfChart.benchLegend")}</span>
             </div>
           </div>
         )}
@@ -126,7 +129,7 @@ export function ReelPerformanceChart({
             <Tooltip content={<CustomTooltip />} cursor={{ fill: chart.cursorFill }} />
             <Bar
               dataKey="actual"
-              name="Este reel"
+              name={t("perfChart.thisReel")}
               fill="url(#perfBarGrad)"
               radius={[6, 6, 0, 0]}
               maxBarSize={56}
@@ -137,7 +140,7 @@ export function ReelPerformanceChart({
               <Line
                 type="monotone"
                 dataKey="benchmark"
-                name="Benchmark"
+                name={t("perfChart.benchmark")}
                 stroke={chart.benchmarkLine}
                 strokeWidth={2}
                 strokeDasharray="6 4"

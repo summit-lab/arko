@@ -11,6 +11,7 @@
 
 import { callLLM, type LLMMessage } from './llm.service';
 import { getLLMConfig } from './llm-config';
+import type { PromptLocale } from './arko-ai-prompts';
 
 // ─── Specialist types ────────────────────────────────────────────────────────
 
@@ -429,31 +430,43 @@ export async function callSpecialist(
   domain: SpecialistDomain,
   question: string,
   contextData: string,
-  adnContext: string
+  adnContext: string,
+  locale: PromptLocale = 'es'
 ): Promise<SpecialistResult> {
   const specialistPrompt = SPECIALIST_PROMPTS[domain];
   if (!specialistPrompt) {
     return {
       domain,
-      analysis: `Especialista "${domain}" no encontrado.`,
+      analysis: locale === 'en' ? `Specialist "${domain}" not found.` : `Especialista "${domain}" no encontrado.`,
       tokensUsed: 0,
       latencyMs: 0,
     };
   }
 
-  const systemPrompt = `${specialistPrompt}
+  // Same trade-off as Moka's main prompt: specialist framework body stays in
+  // Spanish (canonical Fran content) but a directive at the top forces English
+  // output for EN users. Specialists are invoked tool-style and their output
+  // is consumed by Moka, who then synthesizes the final reply in `locale`.
+  const langDirective = locale === 'en'
+    ? `## Output language\n**You MUST respond in clear, natural English.** The framework below is in Spanish (canonical source from Francisco Doglio); translate concepts on the fly into English for your output.\n\n---\n\n`
+    : '';
+  const adnHeader = locale === 'en' ? '## User workspace DNA' : '## ADN del workspace del usuario';
+  const dataHeader = locale === 'en' ? '## Available data' : '## Datos disponibles';
+  const noDataPlaceholder = locale === 'en' ? '_No additional data provided._' : '_No se proporcionaron datos adicionales._';
+
+  const systemPrompt = `${langDirective}${specialistPrompt}
 
 ---
 
-## ADN del workspace del usuario
+${adnHeader}
 
 ${adnContext}
 
 ---
 
-## Datos disponibles
+${dataHeader}
 
-${contextData || '_No se proporcionaron datos adicionales._'}`;
+${contextData || noDataPlaceholder}`;
 
   const messages: LLMMessage[] = [
     { role: 'user', content: question },
@@ -462,19 +475,34 @@ ${contextData || '_No se proporcionaron datos adicionales._'}`;
   const config = getLLMConfig('ai-agents');
   const start = Date.now();
 
-  const response = await callLLM({
-    provider: config.provider,
-    model: config.model,
-    messages,
-    system: systemPrompt,
-    maxTokens: config.maxTokens,
-  });
+  let response;
+  try {
+    response = await callLLM({
+      provider: config.provider,
+      model: config.model,
+      messages,
+      system: systemPrompt,
+      maxTokens: config.maxTokens,
+    });
+  } catch (err) {
+    const latencyMs = Date.now() - start;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[specialist:${domain}] callLLM failed:`, errMsg);
+    return {
+      domain,
+      analysis: locale === 'en'
+        ? `Specialist "${domain}" temporarily unavailable. Please try again.`
+        : `El especialista "${domain}" no está disponible temporalmente. Intentá de nuevo.`,
+      tokensUsed: 0,
+      latencyMs,
+    };
+  }
 
   const latencyMs = Date.now() - start;
 
   return {
     domain,
-    analysis: response.text || 'No se pudo generar el análisis especializado.',
+    analysis: response.text || (locale === 'en' ? 'Specialized analysis could not be generated.' : 'No se pudo generar el análisis especializado.'),
     tokensUsed: response.totalTokens,
     latencyMs,
   };

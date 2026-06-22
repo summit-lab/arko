@@ -4,12 +4,14 @@
  * Requiere video_url pública (Apify) en el body.
  */
 
-// Aumentar timeout a 120s — el proceso de upload + análisis puede tardar ~60-90s
-export const maxDuration = 120;
+// Vercel Pro hard cap is 300s. Tier 1 (2.5-flash) usually finishes under 90s,
+// but if we fall through retries + tier 2 (2.5-pro, slower) + transcript rescue
+// the worst case approaches 4 min. Keep the full headroom.
+export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
-import { apiSuccess, api400, api404, api500 } from '@/lib/api/response';
+import { apiSuccess, api400, api404, apiError, api500 } from '@/lib/api/response';
 import { persistGeminiAnalysis } from '@/services/gemini-analysis-persistence.service';
 import { analyzeVideoWithGemini, isGeminiEnabled } from '@/services/gemini-video.service';
 import { logLLMUsage } from '@/services/llm-usage.service';
@@ -56,8 +58,28 @@ export async function POST(
 
     // Ejecutar análisis con Gemini
     const t0 = Date.now();
-    const { analysis, usage } = await analyzeVideoWithGemini(videoUrl);
+    const { analysis, usage, model, complete, partialReason } = await analyzeVideoWithGemini(videoUrl);
     const latencyMs = Date.now() - t0;
+
+    // If we got NOTHING usable (no transcript, not complete) the upstream provider
+    // is fully down. Don't persist a fake skeleton — that would overwrite any
+    // previous good analysis and mark the reel as "completed" with empty fields.
+    // Surface a 503 so the client can keep showing "Reintentar" cleanly.
+    if (!complete && analysis.transcript.trim().length === 0) {
+      console.error(
+        `[arkoai-analyze] reel=${id} all tiers failed without transcript: ${partialReason ?? 'unknown'}`,
+      );
+      return apiError(
+        'Service Unavailable',
+        'ArkoAI está saturado momentáneamente y no pudo analizar el video. Reintentá en unos minutos.',
+        503,
+        { reason: partialReason ?? 'unknown', model },
+      );
+    }
+
+    console.log(
+      `[arkoai-analyze] reel=${id} ${complete ? 'OK' : 'PARTIAL'} via ${model} in ${latencyMs}ms${complete ? '' : ` (${partialReason ?? 'unknown'})`}`,
+    );
 
     await persistGeminiAnalysis({
       supabase,
@@ -75,16 +97,29 @@ export async function POST(
         text: '',
         toolCalls: [],
         provider: 'google',
-        model: 'gemini-2.5-flash',
+        model,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
         totalTokens: usage.totalTokens,
-        stopReason: 'end',
+        stopReason: complete ? 'end' : 'error',
       },
       latencyMs,
     }).catch(() => {});
 
-    return apiSuccess({ analysis }, 200);
+    return apiSuccess(
+      {
+        analysis,
+        meta: {
+          model,
+          complete,
+          latency_ms: latencyMs,
+          ...(complete ? {} : { partial_reason: partialReason ?? 'desconocido' }),
+        },
+        // Kept for backwards-compat with any client that already reads these:
+        ...(complete ? {} : { partial: true, partial_reason: partialReason ?? 'desconocido' }),
+      },
+      200,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     console.error('[arkoai-analyze]', message);
