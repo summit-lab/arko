@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { ReelThumbnail } from "./ReelThumbnail";
 import {
   Heart, Bookmark, MessageCircle, Share2, Eye,
   Images, ChevronLeft, ChevronRight, ExternalLink,
@@ -54,7 +54,6 @@ function pctOf(part: number, total: number): string {
 // ─── Carousel Gallery ───
 
 function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fallbackUrl: string | null }) {
-  const t = useTranslations("igGrids");
   const [current, setCurrent] = useState(0);
 
   // If no slides, show single image
@@ -68,22 +67,21 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
 
   return (
     <div className="relative w-full">
-      {/* Main image */}
+      {/* Main image — ReelThumbnail (<img> + onError, fuera del optimizer de
+          next/image): los media_url de carousel_slides son URLs crudas de Meta
+          que expiran → via optimizer daban 502/hueco sin fallback. key resetea
+          el estado de error al navegar entre slides. */}
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-xl">
-        {images[current] ? (
-          <Image
-            src={images[current]!}
-            alt={`${t("postDetail.slide")} ${current + 1}`}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 400px"
-            priority={current === 0}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <Grid2X2 className="h-8 w-8 text-white/15" />
-          </div>
-        )}
+        <ReelThumbnail
+          key={images[current] ?? current}
+          src={images[current]}
+          priority
+          placeholder={
+            <div className="flex items-center justify-center h-full">
+              <Grid2X2 className="h-8 w-8 text-white/15" />
+            </div>
+          }
+        />
 
         {/* Slide counter */}
         {totalSlides > 1 && (
@@ -126,13 +124,15 @@ function CarouselGallery({ slides, fallbackUrl }: { slides: CarouselSlide[]; fal
                 i === current ? "ring-2 ring-indigo-400 opacity-100" : "opacity-40 hover:opacity-70"
               }`}
             >
-              {url ? (
-                <Image src={url} alt={`${t("postDetail.thumb")} ${i + 1}`} fill className="object-cover" sizes="56px" />
-              ) : (
-                <div className="flex items-center justify-center h-full bg-white/[0.03]">
-                  <Grid2X2 className="h-3 w-3 text-white/20" />
-                </div>
-              )}
+              <ReelThumbnail
+                key={url ?? i}
+                src={url}
+                placeholder={
+                  <div className="flex items-center justify-center h-full bg-white/[0.03]">
+                    <Grid2X2 className="h-3 w-3 text-white/20" />
+                  </div>
+                }
+              />
             </button>
           ))}
         </div>

@@ -7,6 +7,7 @@ import { SyncControls } from "@/components/instagram/SyncControls";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, toISOStart, nextDay } from "@/lib/date-utils";
 import { latestCleanFollowersTotal } from "@/lib/follower-metrics";
+import { signStorageThumbs, pickThumb } from "@/lib/storage-thumbs";
 import { DurationEnricher } from "@/components/instagram/DurationEnricher";
 import { InstagramShell, type TabKey } from "@/components/instagram/InstagramShell";
 import type { ReelsSummary } from "@/components/instagram/ReelsGrid";
@@ -193,11 +194,11 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
       salesByReel.set(s.reel_id, (salesByReel.get(s.reel_id) ?? 0) + Number(s.amount_total));
     }
 
-    // ── Storage-first para reels/posts ──
-    // Los thumbnails re-hosteados en reel-media dan una URL estable (no expira, sin
-    // 502). Firmamos todos los media_storage_path en UN batch y los preferimos sobre
-    // la URL cruda de scontent (que expira). Fallback a thumbnail_url cuando el reel
-    // todavia no fue re-hosteado (backfill gradual del sync).
+    // ── Storage-first para reels/posts/historias ──
+    // Los thumbnails re-hosteados (reel-media / story-media) dan una URL estable
+    // (no expira, sin 502). Firmado batch + fallback via helper compartido
+    // (src/lib/storage-thumbs). Los DOS buckets se firman EN PARALELO — antes
+    // eran 2 awaits seriales en el critical path de toda la pagina.
     const reelStoragePaths: string[] = [];
     for (const r of (mediaResult?.data ?? []) as Array<{ media_storage_path: string | null }>) {
       if (r.media_storage_path) reelStoragePaths.push(r.media_storage_path);
@@ -205,41 +206,21 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
     for (const r of (postsResult?.data ?? []) as Array<{ media_storage_path: string | null }>) {
       if (r.media_storage_path) reelStoragePaths.push(r.media_storage_path);
     }
-    const reelSignedMap = new Map<string, string>();
-    if (reelStoragePaths.length > 0) {
-      const { data: signedUrls } = await supabase.storage
-        .from("reel-media")
-        .createSignedUrls(reelStoragePaths, 3600);
-      for (const su of signedUrls ?? []) {
-        if (su.signedUrl && su.path) reelSignedMap.set(su.path, su.signedUrl);
+    const storyStoragePaths: string[] = [];
+    for (const seq of (storiesResult?.data ?? []) as Array<{ ig_story_slides: Array<{ media_storage_path: string | null }> }>) {
+      for (const slide of seq.ig_story_slides || []) {
+        if (slide.media_storage_path) storyStoragePaths.push(slide.media_storage_path);
       }
     }
+    const [reelSignedMap, storySignedMap] = await Promise.all([
+      signStorageThumbs(supabase, "reel-media", reelStoragePaths),
+      signStorageThumbs(supabase, "story-media", storyStoragePaths),
+    ]);
     const reelThumb = (storagePath: string | null, raw: string | null): string | null =>
-      (storagePath ? reelSignedMap.get(storagePath) ?? null : null) || raw;
+      pickThumb(reelSignedMap, storagePath, raw);
 
     // ── Process stories ──
     if (storiesResult?.data) {
-      // Collect all storage paths that need signed URLs
-      const allStoragePaths: string[] = [];
-      for (const seq of storiesResult.data as Array<{ ig_story_slides: Array<{ media_storage_path: string | null }> }>) {
-        for (const slide of seq.ig_story_slides || []) {
-          if (slide.media_storage_path) allStoragePaths.push(slide.media_storage_path);
-        }
-      }
-
-      // Generate signed URLs in bulk (1 hour expiry)
-      const signedUrlMap = new Map<string, string>();
-      if (allStoragePaths.length > 0) {
-        const { data: signedUrls } = await supabase.storage
-          .from("story-media")
-          .createSignedUrls(allStoragePaths, 3600);
-        if (signedUrls) {
-          for (const su of signedUrls) {
-            if (su.signedUrl && su.path) signedUrlMap.set(su.path, su.signedUrl);
-          }
-        }
-      }
-
       storySequences = (storiesResult.data as Array<{
         id: string; ig_story_id: string; published_at: string; expires_at: string | null;
         total_impressions: number; total_reach: number; total_replies: number; total_exits: number;
@@ -265,7 +246,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
           ? [...seq.ig_story_slides].sort((a, b) => a.slide_index - b.slide_index).map((slide) => {
               // Storage-first: IG CDN signed URLs expire in hours/days, but the DB string stays truthy
               // forever, so always prefer the archived storage URL when available.
-              const archivedUrl = slide.media_storage_path ? signedUrlMap.get(slide.media_storage_path) ?? null : null;
+              const archivedUrl = slide.media_storage_path ? storySignedMap.get(slide.media_storage_path) ?? null : null;
               return {
                 ...slide,
                 thumbnail_url: archivedUrl || slide.thumbnail_url,
