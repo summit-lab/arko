@@ -11,7 +11,7 @@ import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { callLLM, type LLMMessage } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
-import { getAdnProgress, getOrCreateAdnSession, markOnboardingComplete } from '@/services/adn-progress.service';
+import { getAdnProgress, getAdnData, getOrCreateAdnSession, markOnboardingComplete } from '@/services/adn-progress.service';
 import { buildAdnSystemPrompt, ADN_TOOLS, getAdnWelcomeMessage } from '@/services/adn-prompts';
 import { logLLMUsage } from '@/services/llm-usage.service';
 import { invalidateWorkspaceCache } from '@/services/arko-ai-context';
@@ -165,8 +165,13 @@ export async function POST(request: Request) {
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
 
-    // Get current ADN progress
-    const progress = await getAdnProgress(supabase, auth.workspaceId);
+    // Get current ADN progress + already-captured values, so the model can SEE
+    // what's already answered (incl. fields filled manually in the editor) and
+    // never re-asks them.
+    const [progress, adnData] = await Promise.all([
+      getAdnProgress(supabase, auth.workspaceId),
+      getAdnData(supabase, auth.workspaceId),
+    ]);
 
     // Build messages for LLM (convert DB history to LLM format)
     const llmMessages: LLMMessage[] = (history ?? [])
@@ -178,7 +183,7 @@ export async function POST(request: Request) {
 
     // Build system prompt with current progress + user locale
     const userLocale = (await getUserLanguage(auth.userId)) as PromptLocale;
-    const systemPrompt = buildAdnSystemPrompt(progress, userLocale);
+    const systemPrompt = buildAdnSystemPrompt(progress, userLocale, adnData);
 
     // Call LLM with feature config
     const config = getLLMConfig('onboarding-adn');

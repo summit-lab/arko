@@ -27,18 +27,26 @@ function EditableField({
 }) {
   const t = useTranslations("adnEditor");
   const [editing, setEditing] = useState(false);
+  // `current` = valor confirmado que se muestra en modo lectura.
+  // El prop `value` viene del server component y queda stale tras guardar
+  // (no hay router.refresh), por eso mantenemos una copia local optimista.
+  const [current, setCurrent] = useState(value ?? "");
   const [draft, setDraft] = useState(value ?? "");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
     setSaving(true);
-    await onSave(draft);
-    setSaving(false);
-    setEditing(false);
+    try {
+      await onSave(draft);
+      setCurrent(draft);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleCancel() {
-    setDraft(value ?? "");
+    setDraft(current);
     setEditing(false);
   }
 
@@ -90,8 +98,8 @@ function EditableField({
       onClick={() => setEditing(true)}
     >
       <p className="text-[10px] text-white/25 uppercase tracking-wider font-medium mb-1">{label}</p>
-      {value ? (
-        <p className="text-[13px] text-white/65 font-light leading-relaxed">{value}</p>
+      {current ? (
+        <p className="text-[13px] text-white/65 font-light leading-relaxed">{current}</p>
       ) : (
         <p className="text-[13px] text-white/20 font-light italic">{t("emptyValue")}</p>
       )}

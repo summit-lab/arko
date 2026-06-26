@@ -8,12 +8,16 @@
  */
 
 import type { LLMTool } from './llm.service';
-import type { AdnProgress } from './adn-progress.service';
+import type { AdnProgress, AdnData } from './adn-progress.service';
 import type { PromptLocale } from './arko-ai-prompts';
 
 // ─── System Prompt Builder ───────────────────────────────────────────────────
 
-export function buildAdnSystemPrompt(progress: AdnProgress, locale: PromptLocale = 'es'): string {
+export function buildAdnSystemPrompt(
+  progress: AdnProgress,
+  locale: PromptLocale = 'es',
+  data?: AdnData,
+): string {
   const langDirective = locale === 'en'
     ? `## Output language\n**You MUST conduct this onboarding in clear, natural English.** All your messages to the user must be in English. The framework below is written in Spanish (canonical source); translate every concept on the fly when speaking to the user. Tool calls and stored field values MUST also be in English (so the user's DNA records are stored in their language).\n\n---\n\n`
     : '';
@@ -137,9 +141,14 @@ IMPORTANTE para Sección 4: Las preguntas 2, 3 y 4 se pueden hacer juntas en un 
 ## Progreso actual del usuario
 ${formatProgress(progress)}
 
+## Datos YA capturados — NO los vuelvas a preguntar
+El usuario pudo haber cargado parte de su ADN a mano desde el editor (no necesariamente en este chat). Todo lo que aparezca acá ya está guardado en su perfil: tratalo como si el usuario te lo hubiera dicho y NUNCA lo preguntes de nuevo. Como mucho, mencionalo brevemente para confirmarlo o profundizar.
+
+${formatCapturedData(data)}
+
 ## Instrucciones de flujo
-- Empezá por la primera sección incompleta
-- Dentro de cada sección, preguntá lo que aún no se respondió
+- Empezá por la primera pregunta cuyo campo siga vacío. Si una sección entera ya está cargada (ver "Datos YA capturados"), saltala y arrancá en la siguiente sección incompleta. NUNCA abras el chat preguntando algo que ya figura como capturado.
+- Dentro de cada sección, preguntá SOLO lo que aún no se respondió
 - Cuando una respuesta cubre múltiples campos, guardá todos en un solo tool call
 - Para COMPETIDORES: NO preguntes por texto. Usá el marcador {{COMPETITOR_FORM}} para que la interfaz muestre el formulario. NO uses la herramienta save_competitor — los competidores se guardan desde el formulario.
 - Si los competidores ya están cargados (count > 0), NO muestres el formulario de nuevo — simplemente continuá con la siguiente pregunta de la sección
@@ -166,6 +175,90 @@ function formatProgress(progress: AdnProgress): string {
   lines.push(`ADN completo: ${progress.overall_complete ? 'SÍ' : 'NO'}`);
 
   return lines.join('\n');
+}
+
+/** Render only the filled fields of a row as bullet lines: "  - campo: valor". */
+function fieldLines(pairs: Array<[string, string | null | undefined]>): string[] {
+  return pairs
+    .filter(([, v]) => v != null && String(v).trim() !== '')
+    .map(([k, v]) => `  - ${k}: ${String(v).trim()}`);
+}
+
+/**
+ * Render the actual stored ADN values so the model can SEE what's already
+ * answered (e.g. fields the user filled manually in the editor) and never
+ * re-asks them. Progress flags alone (formatProgress) proved too weak a signal.
+ */
+function formatCapturedData(data?: AdnData): string {
+  if (!data) return '(sin datos previos)';
+  const blocks: string[] = [];
+
+  if (data.profile) {
+    const p = data.profile;
+    const lines = fieldLines([
+      ['business_description', p.business_description],
+      ['brand_persona', p.brand_persona],
+      ['avatar_description', p.avatar_description],
+      ['target_audience', p.target_audience],
+      ['main_offer', p.main_offer],
+    ]);
+    if (lines.length) blocks.push(`Sección 1 — Tu Negocio:\n${lines.join('\n')}`);
+  }
+
+  if (data.strategies?.length) {
+    const stratLines = data.strategies.flatMap((s) => [
+      `  Plataforma ${s.platform}:`,
+      ...fieldLines([
+        ['what_tested', s.what_tested],
+        ['test_results', s.test_results],
+        ['conclusions', s.conclusions],
+        ['current_strategy', s.current_strategy],
+        ['formats_and_quantity', s.formats_and_quantity],
+        ['why_it_will_work', s.why_it_will_work],
+      ]).map((l) => `  ${l}`),
+    ]);
+    if (stratLines.length) blocks.push(`Sección 2 — Tu Contenido:\n${stratLines.join('\n')}`);
+  }
+
+  if (data.market) {
+    const m = data.market;
+    const lines = fieldLines([
+      ['industry_state', m.industry_state],
+      ['audience_exposure', m.audience_exposure],
+      ['market_beliefs', m.market_beliefs],
+      ['burned_topics', m.burned_topics],
+      ['current_trends', m.current_trends],
+      ['competitiveness', m.competitiveness],
+      ['differentiator', m.differentiator],
+    ]);
+    if (lines.length) blocks.push(`Sección 3 — Tu Mercado:\n${lines.join('\n')}`);
+  }
+
+  if (data.competitors?.length) {
+    const lines = data.competitors.map(
+      (c) => `  - ${c.name ?? '—'}${c.ig_url ? ` (${c.ig_url})` : ''}`,
+    );
+    blocks.push(`Sección 3 — Competidores cargados (${data.competitors.length}):\n${lines.join('\n')}`);
+  }
+
+  if (data.brand) {
+    const b = data.brand;
+    const lines = fieldLines([
+      ['why_clients_choose', b.why_clients_choose],
+      ['niche_language', b.niche_language],
+      ['niche_tools', b.niche_tools],
+      ['filtering_words', b.filtering_words],
+      ['new_mechanisms', b.new_mechanisms],
+    ]);
+    if (lines.length) blocks.push(`Sección 4 — Tu Marca:\n${lines.join('\n')}`);
+  }
+
+  if (data.references?.length) {
+    const lines = data.references.map((r) => `  - ${r.brand_name ?? '—'}`);
+    blocks.push(`Sección 4 — Referencias cargadas (${data.references.length}):\n${lines.join('\n')}`);
+  }
+
+  return blocks.length > 0 ? blocks.join('\n\n') : '(el usuario todavía no completó ningún campo)';
 }
 
 // ─── Welcome Message ─────────────────────────────────────────────────────────
