@@ -2,8 +2,17 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { signStorageThumbs, pickThumb } from "@/lib/storage-thumbs";
 import { VentasClient } from "./VentasClient";
+import { getServerTier } from "@/lib/tier/server";
+import { hasFeature, TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 export default async function VentasPage() {
+  const tier = await getServerTier();
+  if (!hasFeature(tier, "sales")) {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId();
 

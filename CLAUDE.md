@@ -103,20 +103,25 @@ EJECUTAR inmediatamente (no describir):
 
 MCP de Supabase configurado. Guía: `docs/07-mcp-guide.md`
 
+> **Realidad operativa (actualizado 2026-06-29):** Dev Arko (`hrsvglgswatwklivkoyp`) quedó **abandonado** y desincronizado. La DB de trabajo es **Prod Arko (`zphvrohosizkbrnxtppj`)**. Ya no hay ambiente de desarrollo: **toda migración es, de hecho, un release a producción.**
+
 ### Regla INVIOLABLE
 
-> **La IA SOLO aplica migraciones en Dev Arko (`hrsvglgswatwklivkoyp`).**
-> **NUNCA toca Prod Arko en desarrollo, ni aunque el humano lo pida.**
+> **Lectura libre; escritura SOLO con confirmación explícita y SQL mostrado.**
+> La IA puede hacer `SELECT` en Prod en cualquier momento. **NUNCA** aplica DDL/DML (migraciones, `UPDATE`, `DELETE`, etc.) sin haber mostrado el SQL exacto y recibido confirmación explícita del humano en ese mismo intercambio. Una confirmación previa NO habilita cambios futuros.
 
-| Acción | Dev | Prod (desarrollo) | Prod (release) |
-|--------|-----|-------------------|----------------|
-| SELECT | SI | SI | SI |
-| Migraciones/DDL/DML | SI | **NUNCA** | SI (con confirmación) |
+| Acción | Prod Arko |
+|--------|-----------|
+| SELECT / inspección | SI (siempre) |
+| Migraciones / DDL / DML | SI, **solo vía protocolo de release** |
 
-**Release** = el developer dice explícitamente "pasá a PROD" / "release a producción".
-Si no lo dice → siempre es desarrollo → PROD intocable.
+**Protocolo de release (obligatorio para todo cambio en Prod):**
+1. **Mostrar el SQL exacto** (idealmente como archivo en `supabase/migrations/`).
+2. **Confirmación explícita** del humano sobre ese SQL puntual.
+3. **Aplicar de a una** (una migración por vez), preferentemente aditiva y reversible (incluir rollback).
+4. **Verificar** el resultado con `SELECT` después de aplicar.
 
-**Protocolo release:** Listar pendientes → Mostrar SQL → Confirmación explícita → Aplicar de a una → Verificar.
+**Antes de escribir una migración:** inspeccionar el estado REAL de Prod (no asumir desde los archivos del repo ni los docs — pueden estar desincronizados).
 
 **Orden:** DB primero, código después. Nunca al revés.
 

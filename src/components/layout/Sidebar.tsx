@@ -21,9 +21,11 @@ import {
   ChevronRight,
   Wrench,
   Pencil,
+  Lock,
 } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 import { useTheme } from "./ThemeProvider";
+import { navFeature, hasFeature, type Tier } from "@/lib/tier/config";
 
 const BROWN = "#111111";
 const BROWN_LIGHT = "rgba(0,0,0,0.65)";
@@ -80,9 +82,10 @@ interface SidebarProps {
   adnPending?: boolean;
   brandName?: string | null;
   logoUrl?: string | null;
+  tier?: Tier;
 }
 
-export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUrl }: SidebarProps) {
+export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUrl, tier = "pro" }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -218,6 +221,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
   function renderNavLink(item: NavItem, height = "h-[42px]") {
     const isActive = isItemActive(item.href, item.tab);
     const linkHref = item.tab ? `${item.href}?tab=${item.tab}` : item.href;
+    const lockFeature = navFeature(item.href, item.tab);
+    const locked = lockFeature ? !hasFeature(tier, lockFeature) : false;
     return (
       <Link
         href={linkHref}
@@ -240,6 +245,9 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
         >
           {item.name}
         </span>
+        {locked && (
+          <Lock size={13} strokeWidth={1.5} className="relative z-10 shrink-0 ml-auto text-amber-400/50" />
+        )}
         {isActive && (
           <div
             className="absolute right-0 top-0 bottom-0 w-[16px] pointer-events-none"
@@ -451,6 +459,8 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
                 {masHerramientasItems.map((item) => {
                   const isActive = isItemActive(item.href, item.tab);
                   const linkHref = item.tab ? `${item.href}?tab=${item.tab}` : item.href;
+                  const lockFeature = navFeature(item.href, item.tab);
+                  const locked = lockFeature ? !hasFeature(tier, lockFeature) : false;
                   return (
                     <Link
                       key={item.name + (item.tab ?? "")}
@@ -475,6 +485,9 @@ export function Sidebar({ isAdmin = false, adnPending = false, brandName, logoUr
                       >
                         {item.name}
                       </span>
+                      {locked && (
+                        <Lock size={12} strokeWidth={1.5} className="relative z-10 shrink-0 ml-auto text-amber-400/50" />
+                      )}
                     </Link>
                   );
                 })}

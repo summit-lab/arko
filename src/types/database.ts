@@ -6,7 +6,7 @@
 
 // ─── Enums ───────────────────────────────────────────────────
 
-export type WorkspacePlan = 'pro';
+export type WorkspacePlan = 'demo' | 'standard' | 'pro';
 
 // Duración del trial gratis que el admin asigna al crear la invitación.
 export type TrialDays = 30 | 60 | 90;
@@ -90,6 +90,7 @@ export interface Workspace {
   trial_days: TrialDays | null;
   trial_started_at: string | null;
   trial_ends_at: string | null;
+  onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
 }

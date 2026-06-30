@@ -6,7 +6,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api404, api500 } from '@/lib/api/response';
 import { callLLM } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
@@ -16,7 +17,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'reelAiAnalysis');
     if (isAuthError(auth)) return auth;
 
     const { id } = await params;

@@ -6,7 +6,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { getAdnProgress, getAdnData } from '@/services/adn-progress.service';
 import { invalidateWorkspaceCache } from '@/services/arko-ai-context';
@@ -20,7 +21,7 @@ function isAllowedTable(table: string): table is AllowedTable {
 
 export async function PATCH(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const body = await request.json();
@@ -73,7 +74,7 @@ export async function PATCH(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const supabase = await createClient();
@@ -112,7 +113,7 @@ function buildWhyBetter(c: CompetitorInput): string | null {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const body = await request.json();
@@ -197,7 +198,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const { searchParams } = new URL(request.url);

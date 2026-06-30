@@ -1,0 +1,105 @@
+/**
+ * Tier entitlements — fuente ÚNICA de verdad del sistema de 3 tiers
+ * (demo / standard / pro). Todos los límites y el acceso a features viven acá;
+ * en la DB solo se guarda `workspaces.plan` + `trial_ends_at`.
+ *
+ * Mapeo comercial (1:1): demo = lead, standard = "Free Trial" (con countdown),
+ * pro = "Full" (pago). Etiquetas visibles en TIER_LABEL.
+ *
+ * Pura: sin I/O, sin React. La consumen auth.ts (resolveTier), guard.ts
+ * (hasFeature), layout/Sidebar (UI), instagram/page (ownReelsCap) y, en
+ * [FASE 2], el budget-guard (dailyBudget) y los clamps.
+ */
+
+export type Tier = 'demo' | 'standard' | 'pro';
+
+export type Feature =
+  | 'competitors'
+  | 'audience'
+  | 'sales'
+  | 'worktable'
+  | 'mokaAI'
+  | 'youtube'
+  | 'ads'
+  | 'reelAiAnalysis';
+
+export interface TierConfig {
+  dailyBudgetUsd: number; // [FASE 2] cap diario = llm_usage + integration_usage
+  maxCompetitors: number; // [FASE 2]
+  maxReelsPerScrape: number; // [FASE 2]
+  maxBulkAnalyze: number; // [FASE 2]
+  ownReelsCap: number; // FASE 1: tope de reels propios visibles en el dashboard
+  features: Record<Feature, boolean>;
+}
+
+const ALL_ON: Record<Feature, boolean> = {
+  competitors: true, audience: true, sales: true, worktable: true,
+  mokaAI: true, youtube: true, ads: true, reelAiAnalysis: true,
+};
+const ALL_OFF: Record<Feature, boolean> = {
+  competitors: false, audience: false, sales: false, worktable: false,
+  mokaAI: false, youtube: false, ads: false, reelAiAnalysis: false,
+};
+
+export const TIER_CONFIG: Record<Tier, TierConfig> = {
+  demo:     { dailyBudgetUsd: 0.15, maxCompetitors: 0, maxReelsPerScrape: 0,   maxBulkAnalyze: 0, ownReelsCap: 12,  features: ALL_OFF },
+  standard: { dailyBudgetUsd: 0.50, maxCompetitors: 3, maxReelsPerScrape: 20,  maxBulkAnalyze: 3, ownReelsCap: 200, features: ALL_ON },
+  pro:      { dailyBudgetUsd: 0.50, maxCompetitors: 5, maxReelsPerScrape: 100, maxBulkAnalyze: 5, ownReelsCap: 200, features: ALL_ON },
+};
+
+/** Etiquetas visibles. La DB mantiene los valores canónicos demo/standard/pro. */
+export const TIER_LABEL: Record<Tier, string> = {
+  demo: 'Demo',
+  standard: 'Free Trial',
+  pro: 'Full',
+};
+
+export const cfg = (t: Tier) => TIER_CONFIG[t];
+export const hasFeature = (t: Tier, f: Feature) => TIER_CONFIG[t].features[f];
+export const dailyBudget = (t: Tier) => TIER_CONFIG[t].dailyBudgetUsd; // [FASE 2]
+export const clampReels = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxReelsPerScrape); // [FASE 2]
+export const clampCompetitors = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxCompetitors); // [FASE 2]
+
+/**
+ * AUTO-DOWNGRADE lazy: un standard con trial vencido se trata como demo,
+ * sin tocar la DB. Fail-closed ante valores nulos/desconocidos.
+ */
+export function resolveTier(plan: string | null, trialEndsAt: string | null): Tier {
+  if (plan === 'pro') return 'pro';
+  if (plan === 'standard') {
+    if (!trialEndsAt) return 'standard';
+    const end = new Date(trialEndsAt);
+    // Fail-closed: fecha inválida → tratar como vencido (demo).
+    return Number.isNaN(end.getTime()) || end < new Date() ? 'demo' : 'standard';
+  }
+  return 'demo';
+}
+
+/**
+ * Feature asociada a un item del Sidebar (href + tab). null = sin gate
+ * (Dashboard, Reels, Historias, Publicaciones = contenido propio, gratis).
+ */
+export function navFeature(href: string, tab?: string | null): Feature | null {
+  if (href === '/instagram') {
+    if (tab === 'competencia') return 'competitors';
+    if (tab === 'metrics') return 'audience';
+    return null; // reels, historias, publicaciones
+  }
+  switch (href) {
+    case '/ventas': return 'sales';
+    case '/mesa-de-trabajo': return 'worktable';
+    case '/agents': return 'mokaAI';
+    case '/youtube': return 'youtube';
+    case '/ads': return 'ads';
+    case '/settings/adn': return 'mokaAI';
+    default: return null;
+  }
+}
+
+/** Texto EXACTO del pop-up trampa del Demo (confirmado con el usuario). */
+export const TRAP = {
+  title: 'Este plan no está disponible.',
+  description: 'Comunicate con nuestro equipo para acceder a un plan premium con todas las funciones.',
+  ctaText: 'Volver al dashboard',
+  ctaHref: '/',
+} as const;

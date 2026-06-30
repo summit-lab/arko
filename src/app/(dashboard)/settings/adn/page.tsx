@@ -4,6 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdnData, getAdnProgress } from "@/services/adn-progress.service";
 import { AdnEditor } from "@/components/settings/AdnEditor";
+import { getServerTier } from "@/lib/tier/server";
+import { TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 export const metadata = {
   title: "ADN de Marca | Moka",
@@ -17,6 +20,14 @@ export default async function AdnSettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Demo: el ADN no aplica (no usa Moka AI).
+  const tier = await getServerTier();
+  if (tier === "demo") {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
 
   const [adnData, progress] = await Promise.all([
     getAdnData(supabase, workspaceId),

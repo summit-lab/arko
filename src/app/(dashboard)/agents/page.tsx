@@ -1,8 +1,17 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import ArkoAIClient from "./AgentsClient";
+import { getServerTier } from "@/lib/tier/server";
+import { hasFeature, TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 export default async function ArkoAIPage() {
+  const tier = await getServerTier();
+  if (!hasFeature(tier, "mokaAI")) {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
   const cookieStore = await cookies();
   const adnComplete =
     cookieStore.get("arko_onboarding_completed")?.value === "true";

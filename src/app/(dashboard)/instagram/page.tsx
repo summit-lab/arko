@@ -15,6 +15,9 @@ import { ReelTitlesBulkGenerator } from "@/components/instagram/ReelTitlesBulkGe
 import { CompetitorsLoader } from "@/components/instagram/CompetitorsLoader";
 import { ReferencesLoader } from "@/components/instagram/ReferencesLoader";
 import { Suspense } from "react";
+import { getServerTier } from "@/lib/tier/server";
+import { navFeature, hasFeature, cfg, TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 // Fallback de los slots streameados (competencia / referencias) mientras su data
 // pesada llega por <Suspense>. La tab reels (default) ya pinto para entonces.
@@ -39,6 +42,15 @@ function TabContentSkeleton() {
 export default async function InstagramPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; preset?: string; tab?: string }> }) {
   const params = await searchParams;
   const activeTab = (params.tab as TabKey) || "reels";
+  // Tier gate: tabs bloqueadas (competencia/metrics) → trap pop-up en Demo.
+  const tier = await getServerTier();
+  const tabFeature = navFeature("/instagram", activeTab);
+  if (tabFeature && !hasFeature(tier, tabFeature)) {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
+  const reelsLimit = cfg(tier).ownReelsCap; // 12 en Demo, 200 en standard/pro
   const dateRange = parseDateParams(params, "90d");
   const t = await getTranslations("instagram");
   const tNav = await getTranslations("nav");
@@ -128,7 +140,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         .gte("published_at", periodStartIso)
         .lt("published_at", periodEndIsoExclusive)
         .order("published_at", { ascending: false })
-        .limit(200),
+        .limit(reelsLimit),
       supabase.from("reel_benchmarks").select("avg_views_90d, avg_views_by_type").eq("workspace_id", workspaceId).order("calculated_at", { ascending: false }).limit(1).maybeSingle(),
       supabase
         .from("ig_account_insights")
@@ -450,20 +462,29 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
         reelsMissingDuration={reelsMissingDuration}
         benchmarksByType={benchmarksForShell}
         workspaceId={workspaceId}
+        tier={tier}
         competenciaSlot={
-          <Suspense fallback={<TabContentSkeleton />}>
-            <CompetitorsLoader
-              workspaceId={workspaceId}
-              myStats={myStats}
-              myReels={myReels}
-              myFollowerHistory={myFollowerHistory}
-            />
-          </Suspense>
+          hasFeature(tier, "competitors") ? (
+            <Suspense fallback={<TabContentSkeleton />}>
+              <CompetitorsLoader
+                workspaceId={workspaceId}
+                myStats={myStats}
+                myReels={myReels}
+                myFollowerHistory={myFollowerHistory}
+              />
+            </Suspense>
+          ) : (
+            <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+          )
         }
         referenciasSlot={
-          <Suspense fallback={<TabContentSkeleton />}>
-            <ReferencesLoader workspaceId={workspaceId} />
-          </Suspense>
+          hasFeature(tier, "competitors") ? (
+            <Suspense fallback={<TabContentSkeleton />}>
+              <ReferencesLoader workspaceId={workspaceId} />
+            </Suspense>
+          ) : (
+            <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+          )
         }
       />
 
