@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { LockedPreview } from "./LockedPreview";
+import { LockedPreview, type PreviewKind } from "./LockedPreview";
 
 /**
  * Overlay/página de feature bloqueada por tier (blur + candado). Lo usa:
@@ -20,6 +20,8 @@ interface FeatureLockProps {
   ctaText?: string;
   ctaHref?: string;
   variant?: "overlay" | "page";
+  /** Qué mock de fondo borroso mostrar (variant="page"). Default: metrics. */
+  preview?: PreviewKind;
 }
 
 function LockCard({
@@ -73,16 +75,18 @@ export function FeatureLock({
   ctaText = "Volver al dashboard",
   ctaHref = "/",
   variant = "overlay",
+  preview = "metrics",
 }: FeatureLockProps) {
   if (variant === "page") {
     return (
       <div className="relative w-full min-h-[calc(100vh-80px)] overflow-hidden">
-        {/* Fondo: preview premium de la feature, BORROSO (decorativo) */}
+        {/* Fondo: preview premium de la feature, BORROSO (decorativo).
+            Sin scale → respeta los márgenes de la app (no sangra bajo el sidebar). */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 select-none scale-[1.03] opacity-90 blur-[6px]"
+          className="pointer-events-none absolute inset-0 select-none opacity-95 blur-[7px]"
         >
-          <LockedPreview />
+          <LockedPreview kind={preview} />
         </div>
 
         {/* Scrim para profundidad y foco en el candado (suave, deja ver el fondo) */}

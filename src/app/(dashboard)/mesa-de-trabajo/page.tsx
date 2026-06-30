@@ -14,7 +14,7 @@ export default async function MesaDeTrabajoPage() {
   const tier = await getServerTier();
   if (!hasFeature(tier, "worktable")) {
     return (
-      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+      <FeatureLock variant="page" preview="board" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
     );
   }
   const cookieStore = await cookies();

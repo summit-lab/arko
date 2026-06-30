@@ -14,7 +14,7 @@ export default async function YouTubePage({ searchParams }: { searchParams: Prom
   const tier = await getServerTier();
   if (!hasFeature(tier, "youtube")) {
     return (
-      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+      <FeatureLock variant="page" preview="metrics" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
     );
   }
   const params = await searchParams;
