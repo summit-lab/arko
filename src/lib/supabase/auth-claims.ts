@@ -24,6 +24,13 @@ export async function getAuthUser(
     /* cae a getUser abajo */
   }
 
-  const { data } = await supabase.auth.getUser();
-  return data.user ? { id: data.user.id, email: data.user.email ?? null } : null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data.user ? { id: data.user.id, email: data.user.email ?? null } : null;
+  } catch {
+    // Cookie de sesión corrupta (o Auth inalcanzable): tratar como deslogueado
+    // (fail-safe). Sin este catch, una excepción acá sube al middleware → 500 en
+    // TODAS las rutas y el usuario queda trabado hasta borrar cookies a mano.
+    return null;
+  }
 }
