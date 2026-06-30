@@ -1,7 +1,11 @@
-import { redirect } from "next/navigation";
+import { RegisterForm } from "./RegisterForm";
 
-// Registration is only available via invitation links
-// This page redirects to login as a safety measure
+export const metadata = {
+  title: "Crear cuenta | Moka",
+};
+
+// Registro self-serve para el funnel: crea una cuenta con plan='demo'
+// (lo asigna el trigger handle_new_user cuando no hay invitación).
 export default function RegisterPage() {
-  redirect("/login");
+  return <RegisterForm />;
 }

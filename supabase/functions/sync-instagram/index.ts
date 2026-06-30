@@ -784,8 +784,19 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
       await supabase.from("sync_jobs").update({ processed_items: processedWork }).eq("id", syncJobId);
     }
 
-    // Enrich durations via Apify
-    const apifyToken = getApifyToken();
+    // Enrich durations via Apify — GATEADO POR TIER: el Demo NO gasta en Apify.
+    // Solo standard (trial activo) / pro. resolveTier inline (el edge Deno no
+    // puede importar src/lib/tier/config.ts).
+    const { data: tierWs } = await supabase
+      .from("workspaces")
+      .select("plan, trial_ends_at")
+      .eq("id", workspaceId)
+      .single();
+    const tierPlan = tierWs?.plan;
+    const tierTrialActive = !tierWs?.trial_ends_at || new Date(tierWs.trial_ends_at) >= new Date();
+    const tierCanSpend = tierPlan === "pro" || (tierPlan === "standard" && tierTrialActive);
+
+    const apifyToken = tierCanSpend ? getApifyToken() : null;
     if (apifyToken) {
       const { data: reelsMissingDuration } = await supabase
         .from("reels")

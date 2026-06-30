@@ -5,13 +5,14 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { callLLM } from '@/services/llm.service';
+import { callLLM, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
+import { logLLMUsage } from '@/services/llm-usage.service';
 
 const BATCH_SIZE = 5;
 const MAX_REELS_PER_RUN = 20; // Limitar para no bloquear demasiado
 
-async function generateTitle(inputText: string, source: 'transcripción' | 'caption'): Promise<string> {
+async function generateTitle(inputText: string, source: 'transcripción' | 'caption'): Promise<{ title: string; response: LLMResponse }> {
   const cfg = getLLMConfig('reel-auto-title');
   const response = await callLLM({
     provider: cfg.provider,
@@ -26,7 +27,7 @@ async function generateTitle(inputText: string, source: 'transcripción' | 'capt
     ],
   });
   const raw = response.text.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '').replace(/#\w+/g, '').trim();
-  return raw.slice(0, 60).trim();
+  return { title: raw.slice(0, 60).trim(), response };
 }
 
 export async function generateMissingTitles(workspaceId: string): Promise<{ generated: number }> {
@@ -44,6 +45,10 @@ export async function generateMissingTitles(workspaceId: string): Promise<{ gene
     .limit(MAX_REELS_PER_RUN);
 
   if (!reels || reels.length === 0) return { generated: 0 };
+
+  // Owner para el logging de costo (esta función corre en background, sin userId).
+  const { data: ws } = await supabase.from('workspaces').select('owner_id').eq('id', workspaceId).single();
+  const ownerId = ws?.owner_id as string | undefined;
 
   // Obtener transcripciones disponibles
   const reelIds = reels.map((r) => r.id);
@@ -70,7 +75,10 @@ export async function generateMissingTitles(workspaceId: string): Promise<{ gene
             ? transcript.slice(0, 2000)
             : (r.caption as string).slice(0, 500);
 
-          const auto_title = await generateTitle(inputText, source);
+          const { title: auto_title, response } = await generateTitle(inputText, source);
+          if (ownerId) {
+            logLLMUsage(supabase, { workspaceId, userId: ownerId, feature: 'reel-auto-title', response }).catch(() => {});
+          }
           await supabase
             .from('reels')
             .update({ auto_title })
