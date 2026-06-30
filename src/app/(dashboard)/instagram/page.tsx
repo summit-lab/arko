@@ -47,7 +47,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
   const tabFeature = navFeature("/instagram", activeTab);
   if (tabFeature && !hasFeature(tier, tabFeature)) {
     return (
-      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+      <FeatureLock variant="page" preview={tabFeature === "audience" ? "audience" : "competitors"} title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
     );
   }
   const reelsLimit = cfg(tier).ownReelsCap; // 12 en Demo, 200 en standard/pro
@@ -474,7 +474,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
               />
             </Suspense>
           ) : (
-            <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+            <FeatureLock variant="page" preview="competitors" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
           )
         }
         referenciasSlot={
@@ -483,7 +483,7 @@ export default async function InstagramPage({ searchParams }: { searchParams: Pr
               <ReferencesLoader workspaceId={workspaceId} />
             </Suspense>
           ) : (
-            <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+            <FeatureLock variant="page" preview="competitors" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
           )
         }
       />

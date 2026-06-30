@@ -9,7 +9,7 @@ export default async function AdsPage() {
   const tier = await getServerTier();
   if (!hasFeature(tier, "ads")) {
     return (
-      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+      <FeatureLock variant="page" preview="metrics" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
     );
   }
   const workspaceId = await getWorkspaceId();

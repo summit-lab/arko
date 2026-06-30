@@ -25,7 +25,7 @@ export default async function AdnSettingsPage() {
   const tier = await getServerTier();
   if (tier === "demo") {
     return (
-      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+      <FeatureLock variant="page" preview="chat" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
     );
   }
 

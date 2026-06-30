@@ -9,7 +9,7 @@ export default async function ArkoAIPage() {
   const tier = await getServerTier();
   if (!hasFeature(tier, "mokaAI")) {
     return (
-      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+      <FeatureLock variant="page" preview="chat" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
     );
   }
   const cookieStore = await cookies();
