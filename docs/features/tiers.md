@@ -8,6 +8,22 @@
 
 ---
 
+## 0. Nomenclatura — tier técnico ↔ etiqueta de UI
+
+Cada etapa del funnel es **un solo tier** (relación 1:1). El valor canónico vive en `workspaces.plan` y lo usa todo el código; la **etiqueta** es solo lo que se muestra en el admin/UI. **No se ven los dos a la vez:** en la app solo aparece la etiqueta.
+
+| Etapa del funnel | Etiqueta (lo que se ve en la app) | Valor en DB (`workspaces.plan`) | Trial |
+|---|---|---|---|
+| Lead (funnel gratis) | **Demo** | `demo` | — (permanente) |
+| Prueba gratis | **Free Trial** | `standard` | sí (30/60/90; al vencer → `demo`) |
+| Pago | **Full** | `pro` | — (permanente) |
+
+**Por qué `standard`/`pro` difieren de su etiqueta:** la DB ya tenía `pro` clavado (23 workspaces + mucho código lo usan), así que renombrarlo a `full` sería churn sin beneficio. Se mantiene el valor canónico y se relabela en la UI. `demo` no diverge (misma palabra en ambos).
+
+El mapeo vive en `TIER_LABEL` en `src/lib/tier/config.ts` (fuente única de las etiquetas). Si en el futuro se quiere unificar a un solo nombre: o se muestran los técnicos en el admin (cero trabajo), o se renombran los valores en la DB (migración).
+
+---
+
 ## 1. Resumen + SUPUESTOS A CONFIRMAR
 
 **Qué construimos.** Un sistema de 3 tiers asignados 100% manualmente por el admin (cero pagos por Moka, cero Stripe). El tier es **derivado, nunca almacenado como runtime-state**: una función pura `resolveTier(plan, trial_ends_at)` es la única verdad, y el auto-downgrade de trial vencido es esa función evaluada lazy (cero cron, cero trigger de expiración). El server (`authenticateRequest` → `requireFeature`) es el único guardián del dinero; la UI es cosmética y puede estar stale sin riesgo. Un objeto `TIER_CONFIG` en código es el único lugar con números (cumple el SPEC: nada de tabla de config en DB).
