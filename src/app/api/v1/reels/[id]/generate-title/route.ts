@@ -11,6 +11,7 @@ import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api404, api500 } from '@/lib/api/response';
 import { callLLM } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
+import { logLLMUsage } from '@/services/llm-usage.service';
 
 export async function POST(
   request: Request,
@@ -71,6 +72,14 @@ export async function POST(
         },
       ],
     });
+
+    // Log de costo (no-bloqueante) — antes faltaba y dejaba ciego el tracking de LLM.
+    logLLMUsage(supabase, {
+      workspaceId: auth.workspaceId,
+      userId: auth.userId,
+      feature: 'reel-auto-title',
+      response,
+    }).catch(() => {});
 
     const rawTitle = response.text.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '').replace(/#\w+/g, '').trim();
     const auto_title = rawTitle.slice(0, 60).trim();

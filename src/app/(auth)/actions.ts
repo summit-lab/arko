@@ -35,6 +35,48 @@ export async function login(formData: FormData) {
   redirect('/')
 }
 
+/**
+ * Registro self-serve (funnel Demo). Sin invitación → handle_new_user crea el
+ * workspace con plan='demo'. Devuelve { confirm: true } si Supabase requiere
+ * confirmación por email (no hay sesión todavía).
+ */
+export async function register(formData: FormData) {
+  const supabase = await createClient()
+
+  const email = ((formData.get('email') as string) ?? '').trim().toLowerCase()
+  const password = (formData.get('password') as string) ?? ''
+  const fullName = ((formData.get('full_name') as string) ?? '').trim()
+
+  if (!email || !email.includes('@')) return { error: 'Ingresá un email válido.' }
+  if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres.' }
+
+  // Limpiar cookies stale antes de crear la sesión nueva (mismo motivo que login()).
+  const cookieStore = await cookies()
+  cookieStore.delete('arko_workspace_id')
+  cookieStore.delete('arko_user_role')
+  cookieStore.delete('arko_onboarding_completed')
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: fullName || email.split('@')[0], default_language: 'es' },
+    },
+  })
+
+  if (error) {
+    // Email ya registrado u otro error de Supabase.
+    return { error: error.message }
+  }
+
+  // Con "Confirm email" activado, signUp no devuelve sesión → avisar al user.
+  if (!data.session) {
+    return { confirm: true }
+  }
+
+  redirect('/')
+}
+
 export async function registerWithInvite(formData: FormData) {
   const supabase = await createClient()
 

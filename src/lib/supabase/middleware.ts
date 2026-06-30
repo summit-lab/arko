@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthUser } from './auth-claims'
 
 // Public routes: no auth required
-const PUBLIC_ROUTES = ['/login', '/invite', '/forgot-password', '/reset-password', '/auth/confirm', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
+const PUBLIC_ROUTES = ['/login', '/register', '/invite', '/forgot-password', '/reset-password', '/auth/confirm', '/api/v1/health', '/api/v1/auth/meta/callback', '/api/v1/auth/meta/deauthorize', '/api/v1/auth/meta/data-deletion', '/landing-arko', '/privacy', '/terms', '/data-deletion']
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -48,12 +48,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
   const isApiRoute = pathname.startsWith('/api/')
 
-  // Block /register — registration only via /invite/[token]
-  if (pathname === '/register') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // /register es self-serve (funnel Demo): crea cuenta con plan='demo'. Público.
 
   // If not authenticated and trying to access protected route → redirect to login
   if (!user && !isPublicRoute && !isApiRoute) {
