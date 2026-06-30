@@ -4,12 +4,13 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 
 export async function GET(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const url = new URL(request.url);

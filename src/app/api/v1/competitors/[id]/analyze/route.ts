@@ -10,7 +10,8 @@
 export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { analyzeCompetitorReels } from '@/services/competitor-analysis.service';
 import { logLLMUsage, calculateCost } from '@/services/llm-usage.service';
@@ -26,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'competitors');
     if (isAuthError(auth)) return auth;
 
     const { id: competitorId } = await params;

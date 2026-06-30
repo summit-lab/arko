@@ -27,7 +27,8 @@
 export const maxDuration = 120;
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
@@ -236,7 +237,7 @@ export async function POST(request: Request) {
       // Hoisted so the catch block can localize error messages.
       let userLocale: PromptLocale = 'es';
       try {
-        const auth = await authenticateRequest(request);
+        const auth = await requireFeature(request, 'mokaAI');
         if (isAuthError(auth)) {
           controller.enqueue(sseEvent({ type: 'error', message: 'No autorizado' }));
           controller.close();

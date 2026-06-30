@@ -9,7 +9,8 @@ export const maxDuration = 120;
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { getApifyToken } from '@/lib/env';
 
@@ -69,7 +70,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'competitors');
     if (isAuthError(auth)) return auth;
 
     const token = resolveToken();

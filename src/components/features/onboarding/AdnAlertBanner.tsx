@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 export function AdnAlertBanner() {
   const pathname = usePathname();
@@ -50,41 +51,12 @@ export function AdnAlertBanner() {
 export function AdnBlockOverlay() {
   const t = useTranslations("adnBanner");
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-xl">
-      <div className="text-center max-w-sm px-6">
-        <div className="h-12 w-12 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto mb-4">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-amber-400"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </div>
-        <p className="text-[15px] font-medium text-foreground mb-1.5">
-          {t("blockedTitle")}
-        </p>
-        <p className="text-[13px] text-muted-foreground font-light mb-5 leading-relaxed">
-          {t("blockedDescription")}
-        </p>
-        <Link
-          href="/onboarding/adn"
-          className="inline-flex items-center gap-2 text-[13px] font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition-colors px-5 py-2.5 rounded-xl bg-amber-500/[0.1] hover:bg-amber-500/[0.18] border border-amber-500/25"
-        >
-          {t("completeCta")}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
-        </Link>
-      </div>
-    </div>
+    <FeatureLock
+      variant="overlay"
+      title={t("blockedTitle")}
+      description={t("blockedDescription")}
+      ctaText={t("completeCta")}
+      ctaHref="/onboarding/adn"
+    />
   );
 }

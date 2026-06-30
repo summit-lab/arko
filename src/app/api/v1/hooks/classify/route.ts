@@ -17,7 +17,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getGeminiKey } from '@/lib/env';
-import { apiSuccess, api500, api401 } from '@/lib/api/response';
+import { apiSuccess, api500, api401, api403 } from '@/lib/api/response';
+import { resolveTier, hasFeature, TRAP } from '@/lib/tier/config';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -172,9 +173,21 @@ export async function POST(request: Request): Promise<Response> {
 
     const supabase = await createClient();
 
-    // Auth: must belong to workspace
+    // Auth: el user debe ser DUEÑO del workspace + el tier debe permitir la feature.
+    // (Antes tomaba workspace_id del body sin verificar pertenencia y gastaba Gemini
+    // sin chequear tier — un Demo, o cualquier user, disparaba clasificación paga.)
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return api401();
+    const { data: ws } = await supabase
+      .from('workspaces')
+      .select('plan, trial_ends_at')
+      .eq('id', workspaceId)
+      .eq('owner_id', user.id)
+      .single();
+    if (!ws) return api403('No tenés acceso a este workspace');
+    if (!hasFeature(resolveTier(ws.plan, ws.trial_ends_at), 'competitors')) {
+      return api403(TRAP.description);
+    }
 
     const apiKey = getGeminiKey()?.trim();
     if (!apiKey) {

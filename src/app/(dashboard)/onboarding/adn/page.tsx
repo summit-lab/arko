@@ -6,6 +6,7 @@ import { getAdnProgress, getOrCreateAdnSession, getAdnData } from "@/services/ad
 import { getAdnWelcomeMessage } from "@/services/adn-prompts";
 import { getUserLanguage } from "@/i18n/server";
 import type { PromptLocale } from "@/services/arko-ai-prompts";
+import { getServerTier } from "@/lib/tier/server";
 
 export const metadata = {
   title: "ADN de Comunicación | Moka",
@@ -24,6 +25,12 @@ export default async function AdnOnboardingPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     redirect("/login");
+  }
+
+  // Demo saltea el ADN (no usa Moka AI, que es para lo que sirve el ADN).
+  const tier = await getServerTier();
+  if (tier === "demo") {
+    redirect("/");
   }
 
   const [progress, sessionId, adnData, locale] = await Promise.all([

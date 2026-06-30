@@ -3,11 +3,20 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import { MesaDeTrabajoShell } from "@/components/features/mesa-de-trabajo/MesaDeTrabajoShell";
 import type { ContentItem, CalendarReel } from "@/types/content-plan";
+import { getServerTier } from "@/lib/tier/server";
+import { hasFeature, TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 const BASE_SELECT = "id, planned_date, title, description, platform, content_type, status, created_at, updated_at";
 const FULL_SELECT = `${BASE_SELECT}, script, source_type, source_ref, metrics`;
 
 export default async function MesaDeTrabajoPage() {
+  const tier = await getServerTier();
+  if (!hasFeature(tier, "worktable")) {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
   const cookieStore = await cookies();
   const workspaceId = await getWorkspaceId();
   const workspaceIdCookie = cookieStore.get("arko_workspace_id")?.value ?? workspaceId ?? "";

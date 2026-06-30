@@ -6,7 +6,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 
 export async function GET(
@@ -14,7 +15,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'competitors');
     if (isAuthError(auth)) return auth;
 
     const { id: competitorId } = await params;

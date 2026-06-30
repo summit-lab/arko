@@ -6,6 +6,7 @@ import { MetaConnectionBanner } from "@/components/features/meta/MetaConnectionB
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { resolveTier, type Tier } from "@/lib/tier/config";
 
 export default async function DashboardLayout({
   children,
@@ -28,12 +29,13 @@ export default async function DashboardLayout({
   let logoUrl: string | null = null;
   let metaConnectionStatus: string | null = null;
   let metaConnectionLastError: string | null = null;
+  let tier: Tier = "pro";
   if (workspaceId) {
     const supabase = await createClient();
     const [{ data: wsData }, { data: metaData }] = await Promise.all([
       supabase
         .from("workspaces")
-        .select("name, settings, onboarding_completed")
+        .select("name, settings, onboarding_completed, plan, trial_ends_at")
         .eq("id", workspaceId)
         .single(),
       supabase
@@ -50,6 +52,7 @@ export default async function DashboardLayout({
       if (wsData.onboarding_completed === true) {
         onboardingCompleted = true;
       }
+      tier = isAdmin ? "pro" : resolveTier(wsData.plan ?? null, wsData.trial_ends_at ?? null);
     }
     if (metaData) {
       metaConnectionStatus = metaData.status ?? null;
@@ -57,7 +60,8 @@ export default async function DashboardLayout({
     }
   }
 
-  const showAdnAlert = !onboardingCompleted && !isAdmin;
+  // Demo saltea el ADN (no usa Moka AI): nada de nudge ni banner.
+  const showAdnAlert = !onboardingCompleted && !isAdmin && tier !== "demo";
   // Banner solo cuando hay conexión configurada y NO está activa. Si el
   // usuario nunca conectó Meta, mostramos el flujo de onboarding normal,
   // no este banner.
@@ -84,7 +88,7 @@ export default async function DashboardLayout({
       <Suspense fallback={null}>
         <NavProgressBar />
       </Suspense>
-      <Sidebar isAdmin={isAdmin} adnPending={!onboardingCompleted && !isAdmin} brandName={brandName} logoUrl={logoUrl} />
+      <Sidebar isAdmin={isAdmin} adnPending={!onboardingCompleted && !isAdmin && tier !== "demo"} brandName={brandName} logoUrl={logoUrl} tier={tier} />
       <div className="flex-1 flex flex-col pl-[260px]">
         <Suspense fallback={
           <div className="h-[80px] w-full shrink-0" />

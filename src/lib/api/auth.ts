@@ -5,10 +5,13 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { api401, api403 } from './response';
+import { resolveTier, type Tier } from '@/lib/tier/config';
 
-interface AuthResult {
+export interface AuthResult {
   userId: string;
   workspaceId: string;
+  /** Tier efectivo (con auto-downgrade de trial vencido aplicado). */
+  tier: Tier;
 }
 
 /**
@@ -35,10 +38,10 @@ export async function authenticateRequest(
     return api403('Falta workspace_id en la request');
   }
 
-  // Verify user owns this workspace
+  // Verify user owns this workspace + derive tier (plan + trial vencido)
   const { data: workspace, error: wsError } = await supabase
     .from('workspaces')
-    .select('id')
+    .select('id, plan, trial_ends_at')
     .eq('id', workspaceId)
     .eq('owner_id', user.id)
     .single();
@@ -47,7 +50,11 @@ export async function authenticateRequest(
     return api403('No tienes acceso a este workspace');
   }
 
-  return { userId: user.id, workspaceId };
+  return {
+    userId: user.id,
+    workspaceId,
+    tier: resolveTier(workspace.plan, workspace.trial_ends_at),
+  };
 }
 
 /**

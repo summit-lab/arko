@@ -11,7 +11,8 @@
 export const maxDuration = 60;
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { analyzeSingleReferenceReel } from '@/services/reference-analysis.service';
 import { calculateCost } from '@/services/llm-usage.service';
@@ -21,7 +22,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string; shortCode: string }> }
 ) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'competitors');
     if (isAuthError(auth)) return auth;
 
     const { id: referenceId, shortCode } = await params;

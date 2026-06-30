@@ -14,6 +14,7 @@ export function InvitationForm() {
   const [loading, setLoading] = useState(false);
   const [defaultLanguage, setDefaultLanguage] = useState<Locale>("es");
   const [trialDays, setTrialDays] = useState<30 | 60 | 90>(30);
+  const [plan, setPlan] = useState<"demo" | "standard" | "pro">("standard");
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -95,26 +96,50 @@ export function InvitationForm() {
           </div>
           <div>
             <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
-              {t("trialLabel")}
+              Plan
             </label>
-            <input type="hidden" name="trial_days" value={trialDays} />
+            <input type="hidden" name="plan" value={plan} />
             <div className="inline-flex items-center h-[42px] rounded-lg bg-white/[0.04] border border-white/[0.08] p-0.5">
-              {([30, 60, 90] as const).map((d) => (
+              {([["demo", "Demo"], ["standard", "Free Trial"], ["pro", "Full"]] as const).map(([val, label]) => (
                 <button
-                  key={d}
+                  key={val}
                   type="button"
-                  onClick={() => setTrialDays(d)}
+                  onClick={() => setPlan(val)}
                   className={`h-[34px] px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer ${
-                    trialDays === d
+                    plan === val
                       ? "bg-white/[0.08] text-white"
                       : "text-white/40 hover:text-white/70"
                   }`}
                 >
-                  {d}d
+                  {label}
                 </button>
               ))}
             </div>
           </div>
+          {plan === "standard" && (
+            <div>
+              <label className="text-[11px] text-white/40 uppercase tracking-[0.1em] font-medium mb-2 block">
+                {t("trialLabel")}
+              </label>
+              <input type="hidden" name="trial_days" value={trialDays} />
+              <div className="inline-flex items-center h-[42px] rounded-lg bg-white/[0.04] border border-white/[0.08] p-0.5">
+                {([30, 60, 90] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setTrialDays(d)}
+                    className={`h-[34px] px-3 rounded-md text-[13px] font-medium transition-all cursor-pointer ${
+                      trialDays === d
+                        ? "bg-white/[0.08] text-white"
+                        : "text-white/40 hover:text-white/70"
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             type="submit"
             disabled={loading}

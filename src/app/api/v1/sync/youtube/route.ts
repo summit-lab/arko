@@ -8,13 +8,14 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api500 } from '@/lib/api/response';
 import { env } from '@/lib/env';
 
 export async function POST(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'youtube');
     if (isAuthError(auth)) return auth;
 
     const url = new URL(request.url);

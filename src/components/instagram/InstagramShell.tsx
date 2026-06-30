@@ -4,6 +4,8 @@ import { useState, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { ReelsSummary } from "./ReelsGrid";
+import { hasFeature, TRAP, type Tier } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 // Skeleton for lazy-loaded tabs
 const TabSkeleton = () => (
@@ -177,6 +179,7 @@ export interface InstagramShellProps {
   // y referencias se carga FUERA del critical path (no bloquea el paint de reels).
   competenciaSlot: ReactNode;
   referenciasSlot: ReactNode;
+  tier?: Tier;
 }
 
 // ─── Component ───
@@ -197,6 +200,7 @@ export function InstagramShell({
   workspaceId,
   competenciaSlot,
   referenciasSlot,
+  tier = "pro",
 }: InstagramShellProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const searchParams = useSearchParams();
@@ -258,7 +262,11 @@ export function InstagramShell({
       {activeTab === "referencias" && referenciasSlot}
 
       {activeTab === "metrics" && (
-        <IGMetricsClient dailyInsights={dailyInsights} demographics={demographics} />
+        hasFeature(tier, "audience") ? (
+          <IGMetricsClient dailyInsights={dailyInsights} demographics={demographics} />
+        ) : (
+          <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+        )
       )}
     </>
   );

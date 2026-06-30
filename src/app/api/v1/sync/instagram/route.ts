@@ -16,6 +16,7 @@ import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { apiSuccess, api500 } from '@/lib/api/response';
 import { env } from '@/lib/env';
 import { generateMissingTitles } from '@/services/reel-titles.service';
+import { hasFeature } from '@/lib/tier/config';
 
 // Vercel Pro plan permite hasta 300s. `after()` corre post-response pero
 // DENTRO de la misma invocación serverless — si el route termina antes que
@@ -110,8 +111,10 @@ export async function POST(request: Request) {
             console.error(`[sync/instagram] step=${step} unhandled:`, err);
           }
         }
-        // Enriquecer títulos al final (no crítico, solo afecta reels nuevos).
-        await generateMissingTitles(auth.workspaceId).catch(() => { /* no crítico */ });
+        // Enriquecer títulos cuesta LLM → solo tiers con análisis IA (no Demo).
+        if (hasFeature(auth.tier, 'reelAiAnalysis')) {
+          await generateMissingTitles(auth.workspaceId).catch(() => { /* no crítico */ });
+        }
       });
 
       return NextResponse.json(
@@ -155,7 +158,10 @@ export async function POST(request: Request) {
       return api500();
     }
 
-    generateMissingTitles(auth.workspaceId).catch(() => { /* background, no crítico */ });
+    // Títulos con LLM: solo tiers con análisis IA (no Demo).
+    if (hasFeature(auth.tier, 'reelAiAnalysis')) {
+      generateMissingTitles(auth.workspaceId).catch(() => { /* background, no crítico */ });
+    }
 
     return apiSuccess(data);
   } catch (err) {

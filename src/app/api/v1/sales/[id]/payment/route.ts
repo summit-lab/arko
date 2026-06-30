@@ -18,6 +18,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
+import { resolveTier, hasFeature, TRAP } from "@/lib/tier/config";
 
 interface PaymentBody {
   amount: number;
@@ -41,6 +42,17 @@ export async function POST(
   const workspaceId = await getWorkspaceId();
   if (!workspaceId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = await createClient();
+  // Tier gate: Ventas está bloqueado en Demo.
+  const { data: ws } = await supabase
+    .from("workspaces")
+    .select("plan, trial_ends_at")
+    .eq("id", workspaceId)
+    .single();
+  if (!hasFeature(resolveTier(ws?.plan ?? null, ws?.trial_ends_at ?? null), "sales")) {
+    return Response.json({ error: "Forbidden", message: TRAP.description }, { status: 403 });
   }
 
   let body: PaymentBody;
@@ -68,8 +80,6 @@ export async function POST(
       { status: 400 }
     );
   }
-
-  const supabase = await createClient();
 
   // Single atomic call — row lock, overflow guard, status flip, and notes
   // append all happen inside the DB. Any P0001 from the function means the

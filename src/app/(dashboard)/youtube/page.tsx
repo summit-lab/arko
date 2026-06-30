@@ -6,8 +6,17 @@ import { YouTubeConnect } from "@/components/youtube/YouTubeConnect";
 import { YouTubeDashboard, type YTChannel, type YTVideo } from "@/components/youtube/YouTubeDashboard";
 import { DateFilter } from "@/components/ui/DateFilter";
 import { parseDateParams, toISOStart } from "@/lib/date-utils";
+import { getServerTier } from "@/lib/tier/server";
+import { hasFeature, TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 export default async function YouTubePage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const tier = await getServerTier();
+  if (!hasFeature(tier, "youtube")) {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
   const params = await searchParams;
   const workspaceId = await getWorkspaceId();
   const dateRange = parseDateParams(params, "90d");

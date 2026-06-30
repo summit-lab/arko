@@ -22,6 +22,11 @@ export async function createInvitation(formData: FormData) {
   const rawTrial = Number(formData.get("trial_days"));
   const trialDays = [30, 60, 90].includes(rawTrial) ? rawTrial : 30;
 
+  // Tier asignado por el admin: demo (lead) / standard (free trial) / pro (full).
+  // El trigger handle_new_user solo estampa el trial si el plan es 'standard'.
+  const rawPlan = formData.get("plan");
+  const plan = rawPlan === "demo" || rawPlan === "standard" || rawPlan === "pro" ? rawPlan : "standard";
+
   // Check if there's already a pending invitation for this email
   const { data: existing } = await supabase
     .from("invitations")
@@ -52,6 +57,7 @@ export async function createInvitation(formData: FormData) {
       invited_by: user.id,
       default_language: defaultLanguage,
       trial_days: trialDays,
+      plan,
     })
     .select("token")
     .single();

@@ -1,8 +1,17 @@
 import { getTranslations } from "next-intl/server";
 import { getWorkspaceId } from "@/lib/workspace";
 import AdsClient from "./AdsClient";
+import { getServerTier } from "@/lib/tier/server";
+import { hasFeature, TRAP } from "@/lib/tier/config";
+import { FeatureLock } from "@/components/common/FeatureLock";
 
 export default async function AdsPage() {
+  const tier = await getServerTier();
+  if (!hasFeature(tier, "ads")) {
+    return (
+      <FeatureLock variant="page" title={TRAP.title} description={TRAP.description} ctaText={TRAP.ctaText} ctaHref={TRAP.ctaHref} />
+    );
+  }
   const workspaceId = await getWorkspaceId();
   const t = await getTranslations("ads");
 

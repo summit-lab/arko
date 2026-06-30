@@ -10,7 +10,8 @@
 export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api404, apiError, api500 } from '@/lib/api/response';
 import { persistGeminiAnalysis } from '@/services/gemini-analysis-persistence.service';
 import { analyzeVideoWithGemini, isGeminiEnabled } from '@/services/gemini-video.service';
@@ -39,7 +40,7 @@ export async function POST(
       return api400('ArkoAI no está configurado en el servidor. Falta la API key.');
     }
 
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'reelAiAnalysis');
     if (isAuthError(auth)) return auth;
 
     const { id } = await params;

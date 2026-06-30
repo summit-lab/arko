@@ -7,7 +7,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { callLLM, type LLMMessage } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
@@ -101,7 +102,7 @@ async function executeToolCall(
 
 export async function GET(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const supabase = await createClient();
@@ -135,7 +136,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'mokaAI');
     if (isAuthError(auth)) return auth;
 
     const body = await request.json();

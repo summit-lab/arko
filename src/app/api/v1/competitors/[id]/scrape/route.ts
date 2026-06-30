@@ -14,7 +14,8 @@ export const maxDuration = 300; // cubre scrape (~120s) + analyze (~90s) en afte
 
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { scrapeCompetitor, isCompetitorScrapingEnabled } from '@/services/competitor-scraper.service';
 import { analyzeCompetitorReels } from '@/services/competitor-analysis.service';
@@ -26,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'competitors');
     if (isAuthError(auth)) return auth;
 
     if (!isCompetitorScrapingEnabled()) {

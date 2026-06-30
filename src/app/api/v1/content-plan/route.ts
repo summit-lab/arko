@@ -6,7 +6,8 @@
  */
 
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import type { ContentType, ContentStatus, ContentPlatform, ContentMetrics } from '@/types/content-plan';
 
@@ -21,7 +22,7 @@ const FULL_SELECT = `${BASE_SELECT}, script, reference_url, raw_video_url, edite
 
 export async function GET(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'worktable');
     if (isAuthError(auth)) return auth;
 
     const supabase = await createClient();
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'worktable');
     if (isAuthError(auth)) return auth;
 
     const body = await request.json() as {
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'worktable');
     if (isAuthError(auth)) return auth;
 
     const body = await request.json() as {
@@ -227,7 +228,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'worktable');
     if (isAuthError(auth)) return auth;
 
     const url = new URL(request.url);

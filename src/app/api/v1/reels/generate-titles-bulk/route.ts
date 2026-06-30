@@ -4,13 +4,14 @@
  * Usa el service compartido.
  */
 
-import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api500 } from '@/lib/api/response';
 import { generateMissingTitles } from '@/services/reel-titles.service';
 
 export async function POST(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    const auth = await requireFeature(request, 'reelAiAnalysis');
     if (isAuthError(auth)) return auth;
 
     const result = await generateMissingTitles(auth.workspaceId);
