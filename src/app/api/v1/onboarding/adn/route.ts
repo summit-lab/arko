@@ -11,6 +11,8 @@ import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { getAdnProgress, getAdnData } from '@/services/adn-progress.service';
 import { invalidateWorkspaceCache } from '@/services/arko-ai-context';
+import { cfg } from '@/lib/tier/config';
+import { isUnlimitedWorkspace } from '@/lib/api/credit-guard';
 
 const ALLOWED_TABLES = ['workspace_profile', 'workspace_market', 'workspace_brand'] as const;
 type AllowedTable = (typeof ALLOWED_TABLES)[number];
@@ -144,6 +146,19 @@ export async function POST(request: Request) {
     const toUpdate = valid.filter((c) => c.id && existingIds.has(c.id));
     const toInsert = valid.filter((c) => !c.id);
     const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+
+    // Tope de competidores por tier (standard 3 / pro 5): cada competidor
+    // seguido cuesta ~$2/mes de refresh de Apify PARA SIEMPRE. Grandfathering:
+    // quien ya tiene más que el cap puede editar/borrar, pero no AGREGAR.
+    // Exento: billetera unlimited (override de admin, ej. Francisco).
+    const cap = cfg(auth.tier).maxCompetitors;
+    const finalCount = toUpdate.length + toInsert.length;
+    if (
+      toInsert.length > 0 && finalCount > cap && finalCount > existingIds.size &&
+      !(await isUnlimitedWorkspace(supabase, auth.workspaceId))
+    ) {
+      return api400(`Tu plan permite seguir hasta ${cap} competidores. Eliminá uno para agregar otro.`);
+    }
 
     // 1) Update existentes — preserva scraped_data, last_scraped_at y reels (FK)
     for (const c of toUpdate) {

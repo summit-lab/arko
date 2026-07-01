@@ -16,6 +16,7 @@ const OPERATION_PRICING: Record<string, OperationPricing> = {
   'reel-scrape': { perCall: 0.0033 },        // $0.0023 reel + $0.001 actor start
   'competitor-profile-scrape': { perCall: 0.01 },  // Apify profile scraper per profile
   'competitor-reel-scrape': { perCall: 0.0039 },   // $0.0033 reel + $0.006 shares count per reel
+  'competitor-grid-scrape': { perCall: 0.0025 },   // Apify post-scraper por post del grid (trial detection). Antes: costo 100% invisible (~$0.50/scrape).
 };
 
 function getOperationCost(operation: string, itemsCount: number): number {

@@ -24,10 +24,11 @@ export type Feature =
   | 'reelAiAnalysis';
 
 export interface TierConfig {
-  dailyBudgetUsd: number; // [FASE 2] cap diario = llm_usage + integration_usage
-  maxCompetitors: number; // [FASE 2]
-  maxReelsPerScrape: number; // [FASE 2]
-  maxBulkAnalyze: number; // [FASE 2]
+  dailyBudgetUsd: number; // cap diario Moka Coins = llm_usage + integration_usage (×1000 = coins)
+  maxCompetitors: number; // tope de competidores seguibles (cada uno = costo de cron perpetuo)
+  maxReelsPerScrape: number; // tope de reels por scrape manual de competidor
+  maxBulkAnalyze: number; // tope de tandas de análisis IA encadenadas (×5 reels c/u)
+  scrapeWindowDays: number; // ventana máx de reels a scrapear de un competidor
   ownReelsCap: number; // FASE 1: tope de reels propios visibles en el dashboard
   features: Record<Feature, boolean>;
 }
@@ -42,9 +43,9 @@ const ALL_OFF: Record<Feature, boolean> = {
 };
 
 export const TIER_CONFIG: Record<Tier, TierConfig> = {
-  demo:     { dailyBudgetUsd: 0.15, maxCompetitors: 0, maxReelsPerScrape: 0,   maxBulkAnalyze: 0, ownReelsCap: 12,  features: ALL_OFF },
-  standard: { dailyBudgetUsd: 0.50, maxCompetitors: 3, maxReelsPerScrape: 20,  maxBulkAnalyze: 3, ownReelsCap: 200, features: ALL_ON },
-  pro:      { dailyBudgetUsd: 0.50, maxCompetitors: 5, maxReelsPerScrape: 100, maxBulkAnalyze: 5, ownReelsCap: 200, features: ALL_ON },
+  demo:     { dailyBudgetUsd: 0.15, maxCompetitors: 0, maxReelsPerScrape: 0,   maxBulkAnalyze: 0, scrapeWindowDays: 0,  ownReelsCap: 12,  features: ALL_OFF },
+  standard: { dailyBudgetUsd: 0.50, maxCompetitors: 3, maxReelsPerScrape: 20,  maxBulkAnalyze: 3, scrapeWindowDays: 30, ownReelsCap: 200, features: ALL_ON },
+  pro:      { dailyBudgetUsd: 0.50, maxCompetitors: 5, maxReelsPerScrape: 100, maxBulkAnalyze: 5, scrapeWindowDays: 90, ownReelsCap: 200, features: ALL_ON },
 };
 
 /** Etiquetas visibles. La DB mantiene los valores canónicos demo/standard/pro. */
@@ -56,11 +57,11 @@ export const TIER_LABEL: Record<Tier, string> = {
 
 export const cfg = (t: Tier) => TIER_CONFIG[t];
 export const hasFeature = (t: Tier, f: Feature) => TIER_CONFIG[t].features[f];
-export const dailyBudget = (t: Tier) => TIER_CONFIG[t].dailyBudgetUsd; // [FASE 2]
+export const dailyBudget = (t: Tier) => TIER_CONFIG[t].dailyBudgetUsd;
 /** Allotment diario de Moka Coins = dailyBudgetUsd × 1000 (1 MC = $0.001). */
 export const dailyCoins = (t: Tier) => Math.round(TIER_CONFIG[t].dailyBudgetUsd * 1000);
-export const clampReels = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxReelsPerScrape); // [FASE 2]
-export const clampCompetitors = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxCompetitors); // [FASE 2]
+export const clampReels = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxReelsPerScrape);
+export const clampCompetitors = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxCompetitors);
 
 /**
  * AUTO-DOWNGRADE lazy: un standard con trial vencido se trata como demo,

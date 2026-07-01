@@ -219,8 +219,11 @@ export async function fetchApifyReelPublicData(reelUrl: string | null | undefine
       },
       body: JSON.stringify({
         includeDownloadedVideo: false,
-        includeSharesCount: true,
-        includeTranscript: true,
+        // Sin shares/transcript: los ÚNICOS consumidores de esta función usan
+        // video_duration_seconds (enrich-durations) y video_url (gemini-analyze
+        // rescrape) — pagar los add-ons del actor acá era plata tirada.
+        includeSharesCount: false,
+        includeTranscript: false,
         resultsLimit: 1,
         skipPinnedPosts: false,
         username: [normalizedUrl],

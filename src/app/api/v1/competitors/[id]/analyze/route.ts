@@ -12,9 +12,12 @@ export const maxDuration = 300;
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
+import { assertCredits, isUnlimitedWorkspace } from '@/lib/api/credit-guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { analyzeCompetitorReels } from '@/services/competitor-analysis.service';
 import { logLLMUsage, calculateCost } from '@/services/llm-usage.service';
+import { cfg } from '@/lib/tier/config';
+import { arToday } from '@/lib/credits';
 
 const MAX_BULK_REEL_IDS = 5;
 
@@ -32,6 +35,27 @@ export async function POST(
 
     const { id: competitorId } = await params;
     const supabase = await createClient();
+
+    const over = await assertCredits(supabase, auth);
+    if (over) return over;
+
+    // Techo diario de la CADENA de análisis: la UI puede encadenar requests de
+    // a 5; sin este cap un workspace podía analizar 50+ reels/día (~340
+    // coins). standard = 15 reels/día, pro = 25 (maxBulkAnalyze × 5). El día
+    // resetea a medianoche AR, igual que las Moka Coins.
+    // Exento: billetera unlimited (override de admin, ej. Francisco).
+    if (!(await isUnlimitedWorkspace(supabase, auth.workspaceId))) {
+      const chainCap = cfg(auth.tier).maxBulkAnalyze * MAX_BULK_REEL_IDS;
+      const { count: analysesToday } = await supabase
+        .from('llm_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', auth.workspaceId)
+        .eq('feature', 'competitor-analysis')
+        .gt('created_at', `${arToday()}T00:00:00-03:00`);
+      if ((analysesToday ?? 0) >= chainCap) {
+        return api400(`Alcanzaste el límite diario de análisis de competidores (${chainCap} reels). Se renueva a la medianoche.`);
+      }
+    }
 
     // Optional reelIds[] in body — when present, analyze exactly those reels
     // (the user picked them with the multi-select UI). Capped server-side at

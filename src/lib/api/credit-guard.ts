@@ -20,6 +20,24 @@ import { creditView, type CreditBalanceRow } from '@/lib/credits';
 const HARD_GATE = process.env.CREDITS_HARD_GATE === 'true';
 
 /**
+ * ¿La billetera del workspace tiene monedas infinitas (override de admin)?
+ * Los workspaces `unlimited` (ej. Francisco) además QUEDAN EXENTOS de los
+ * límites de consumo: techo de coins por mensaje de chat, tope diario de
+ * análisis de competidor, cooldown de scrape y cap de competidores.
+ */
+export async function isUnlimitedWorkspace(
+  supabase: SupabaseClient,
+  workspaceId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('workspace_credit_balances')
+    .select('unlimited')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+  return Boolean(data?.unlimited);
+}
+
+/**
  * Devuelve un 403 si el workspace se quedó sin Moka Coins por hoy (solo con el
  * hard-gate encendido). Devuelve null si puede seguir (o si el gate está soft).
  */

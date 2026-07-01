@@ -28,14 +28,15 @@ const APIFY_REEL_SCRAPER_ACTOR = 'apify~instagram-reel-scraper';
 const APIFY_POST_SCRAPER_ACTOR = 'apify~instagram-post-scraper';
 const APIFY_BASE_URL = 'https://api.apify.com/v2/acts';
 
-// Ventana de scrape: reels publicados en los últimos 90 días. Usamos 90 días
-// para capturar creadores con posting frecuente (40-60 reels/trimestre).
-// El cap de 100 sigue aplicando para limitar el costo de Apify.
+// Defaults (el caller los clampea por tier via opts: standard 20 reels/30 días,
+// pro 100 reels/90 días — TIER_CONFIG.maxReelsPerScrape / scrapeWindowDays).
 const SCRAPE_WINDOW_DAYS = 90;
 const MAX_REELS_PER_SCRAPE = 100;
-// Para el grid usamos un límite mayor: necesitamos el set más completo posible
-// de shortcodes del perfil para que la detección de trials sea precisa.
-const MAX_GRID_POSTS = 200;
+// Grid para trial-detection: el PRIMER scrape necesita la historia completa
+// (200 posts); los re-scrapes solo comparan reels nuevos → 30 alcanza.
+// Antes era 200 SIEMPRE = ~$0.50 invisibles por click (más que los reels).
+const MAX_GRID_POSTS_FIRST = 200;
+const MAX_GRID_POSTS_RESCRAPE = 30;
 
 // ─── Progress reporting ─────────────────────────────────────────────────────
 
@@ -47,7 +48,10 @@ type ScrapeProgress = {
     | 'scraping_grid'
     | 'uploading_thumbs'
     | 'saving'
-    | 'done';
+    | 'done'
+    // Terminal con falla: la UI lo muestra como error amigable (no overlay) y
+    // lo ack-ea con DELETE /scrape para que no re-aparezca.
+    | 'error';
   message: string;
   current?: number;
   total?: number;
@@ -170,7 +174,16 @@ export interface ScrapeResult {
   profile: CompetitorProfileData | null;
   reels: CompetitorReelData[];
   reelsInserted: number;
+  /** Posts del grid efectivamente scrapeados (para loguear su costo Apify). */
+  gridPostsScraped: number;
   error?: string;
+}
+
+export interface ScrapeOptions {
+  /** Tope de reels a traer (clamp por tier; default MAX_REELS_PER_SCRAPE). */
+  maxReels?: number;
+  /** Ventana máx en días (clamp por tier; default SCRAPE_WINDOW_DAYS). */
+  windowDays?: number;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -249,10 +262,10 @@ async function scrapeProfile(username: string, token: string): Promise<Competito
 
 // ─── Reels Scraping ─────────────────────────────────────────────────────────
 
-async function scrapeReels(username: string, token: string, limit: number): Promise<CompetitorReelData[]> {
+async function scrapeReels(username: string, token: string, limit: number, windowDays: number): Promise<CompetitorReelData[]> {
   const endpoint = `${APIFY_BASE_URL}/${APIFY_REEL_SCRAPER_ACTOR}/run-sync-get-dataset-items?${new URLSearchParams({ token })}`;
 
-  // Ventana de 30 días: el actor soporta `onlyPostsNewerThan` con un string
+  // Ventana acotada: el actor soporta `onlyPostsNewerThan` con un string
   // relativo tipo "30 days". Si no lo respeta, filtramos por fecha nosotros
   // abajo — esa defensa es barata.
   const response = await fetch(endpoint, {
@@ -261,7 +274,7 @@ async function scrapeReels(username: string, token: string, limit: number): Prom
     body: JSON.stringify({
       username: [`https://www.instagram.com/${username}/reels/`],
       resultsLimit: limit,
-      onlyPostsNewerThan: `${SCRAPE_WINDOW_DAYS} days`,
+      onlyPostsNewerThan: `${windowDays} days`,
       includeTranscript: false,
       includeSharesCount: true,
       includeDownloadedVideo: false,
@@ -272,15 +285,19 @@ async function scrapeReels(username: string, token: string, limit: number): Prom
   });
 
   if (!response.ok) {
-    console.warn(`[competitor-scraper] Reels scrape failed for @${username}:`, response.status);
-    return [];
+    // NO tragarse el error: desde el 26/6 la fase de reels falló para TODOS los
+    // workspaces (profile OK, reels 0) y nadie lo vio porque acá se devolvía []
+    // como si fuera éxito. Tiramos con el status + body real de Apify para que
+    // el caller lo loguee en integration_usage (status='error') y sea visible.
+    const body = await response.text().catch(() => '');
+    throw new Error(`Apify reels HTTP ${response.status}: ${body.slice(0, 300)}`);
   }
 
   const data = await response.json() as ApifyReelResult[];
 
   // Filtro adicional por fecha: si el actor no respeta `onlyPostsNewerThan`,
   // cortamos cualquier reel publicado antes del umbral.
-  const cutoffMs = Date.now() - SCRAPE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const cutoffMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
 
   return data
     .filter((item) => {
@@ -339,7 +356,7 @@ async function scrapeGridShortcodes(
   username: string,
   token: string,
   limit: number,
-): Promise<Set<string> | null> {
+): Promise<{ shortcodes: Set<string>; posts: number } | null> {
   const endpoint = `${APIFY_BASE_URL}/${APIFY_POST_SCRAPER_ACTOR}/run-sync-get-dataset-items?${new URLSearchParams({ token })}`;
 
   try {
@@ -376,7 +393,7 @@ async function scrapeGridShortcodes(
       if (sc) shortcodes.add(sc);
     }
     console.log(`[competitor-scraper] Grid @${username}: ${data.length} posts → ${shortcodes.size} shortcodes`);
-    return shortcodes;
+    return { shortcodes, posts: data.length };
   } catch (err) {
     console.warn('[competitor-scraper] Grid scrape exception:', err);
     return null;
@@ -424,65 +441,108 @@ async function downloadAndUploadImage(
 export async function scrapeCompetitor(
   supabase: SupabaseClient,
   competitorId: string,
-  workspaceId: string
+  workspaceId: string,
+  opts?: ScrapeOptions
 ): Promise<ScrapeResult> {
   const token = getApifyToken();
   if (!token) {
-    return { profile: null, reels: [], reelsInserted: 0, error: 'APIFY_API_TOKEN not configured' };
+    return { profile: null, reels: [], reelsInserted: 0, gridPostsScraped: 0, error: 'APIFY_API_TOKEN not configured' };
   }
 
   await setProgress(supabase, competitorId, { phase: 'starting', message: 'Preparando scrape...' });
 
   const { data: competitor, error: fetchError } = await supabase
     .from('workspace_competitors')
-    .select('id, name, ig_url, workspace_id')
+    .select('id, name, ig_url, workspace_id, last_scraped_at')
     .eq('id', competitorId)
     .eq('workspace_id', workspaceId)
     .maybeSingle();
 
   if (fetchError || !competitor) {
-    return { profile: null, reels: [], reelsInserted: 0, error: 'Competitor not found' };
+    return { profile: null, reels: [], reelsInserted: 0, gridPostsScraped: 0, error: 'Competitor not found' };
   }
 
   if (!competitor.ig_url) {
-    return { profile: null, reels: [], reelsInserted: 0, error: 'No Instagram URL configured for this competitor' };
+    return { profile: null, reels: [], reelsInserted: 0, gridPostsScraped: 0, error: 'No Instagram URL configured for this competitor' };
   }
 
   const username = extractUsername(competitor.ig_url);
+  const maxReels = opts?.maxReels ?? MAX_REELS_PER_SCRAPE;
+  const tierWindowDays = opts?.windowDays ?? SCRAPE_WINDOW_DAYS;
 
-  // Fase 1-3 en paralelo: profile, reels del último mes, grid del perfil.
+  // Ventana INCREMENTAL: re-scrapear la ventana completa del tier en cada
+  // click era el pozo de plata clásico (re-pagar los mismos reels de 90 días
+  // una y otra vez). Si hay un scrape previo reciente, solo pedimos lo nuevo
+  // (+7 días de colchón para que el actor actualice métricas recientes).
+  // Full refresh si el último scrape fue hace >30 días o nunca.
+  const prevScrapedAtMs = competitor.last_scraped_at
+    ? new Date(competitor.last_scraped_at).getTime()
+    : null;
+  let windowDays = tierWindowDays;
+  if (prevScrapedAtMs) {
+    const daysSince = (Date.now() - prevScrapedAtMs) / 86_400_000;
+    if (daysSince <= 30) {
+      windowDays = Math.max(1, Math.min(tierWindowDays, Math.ceil(daysSince) + 7));
+    }
+  }
+
+  // Grid dinámico: 200 posts solo el PRIMER scrape (trial-detection necesita
+  // la historia completa); 30 en re-scrapes (solo comparamos reels nuevos).
+  const { count: existingReelCount } = await supabase
+    .from('competitor_reels')
+    .select('id', { count: 'exact', head: true })
+    .eq('competitor_id', competitorId);
+  const gridLimit = (existingReelCount ?? 0) > 0 ? MAX_GRID_POSTS_RESCRAPE : MAX_GRID_POSTS_FIRST;
+
+  // Fase 1-3 en paralelo: profile, reels de la ventana, grid del perfil.
   // Los 3 actors de Apify son independientes; correrlos concurrentes corta
   // ~60-90s del scrape total.
   await setProgress(supabase, competitorId, {
     phase: 'scraping_reels',
-    message: `Bajando reels y perfil de @${username} (últimos ${SCRAPE_WINDOW_DAYS} días)...`,
+    message: `Bajando reels y perfil de @${username} (últimos ${windowDays} días)...`,
   });
 
-  const [profile, reels, gridShortcodes] = await Promise.all([
+  // Si la fase de reels falla (HTTP de Apify o timeout), capturamos el motivo
+  // para devolverlo como `error` en vez de fingir "éxito con 0 reels".
+  let reelsError: string | null = null;
+
+  const [profile, reels, gridResult] = await Promise.all([
     scrapeProfile(username, token).catch((err) => {
       console.error('[competitor-scraper] Profile error:', err);
       return null;
     }),
-    scrapeReels(username, token, MAX_REELS_PER_SCRAPE).catch((err) => {
+    scrapeReels(username, token, maxReels, windowDays).catch((err) => {
+      reelsError = err instanceof Error ? err.message : String(err);
       console.error('[competitor-scraper] Reels error:', err);
       return [] as CompetitorReelData[];
     }),
-    scrapeGridShortcodes(username, token, MAX_GRID_POSTS).catch((err) => {
+    scrapeGridShortcodes(username, token, gridLimit).catch((err) => {
       console.error('[competitor-scraper] Grid error:', err);
       return null;
     }),
   ]);
 
-  // Tag `maybe_trial` comparando reels vs grid. Si no pudimos traer el grid
-  // (Apify post-scraper falló), defaulteamos a `false` (reel normal) en vez de
-  // dejar NULL: la mayoría de los reels NO son trials, y dejar null hacía que
-  // el tab "Trials" quedara vacío y "Reels" mostrara todo cuando el grid
-  // scrape fallaba. El usuario puede marcar manualmente los trials reales con
-  // toggle-trial si la detección automática se equivoca.
+  const gridShortcodes = gridResult?.shortcodes ?? null;
+  const gridPostsScraped = gridResult?.posts ?? 0;
+
+  // Tag `maybe_trial` SOLO para reels NUEVOS (publicados después del scrape
+  // anterior). Antes el upsert re-computaba y PISABA maybe_trial de TODOS los
+  // reels en cada re-scrape — borrando toggles manuales del usuario y, con el
+  // grid recortado a 30 en re-scrapes, marcando como "trial" reels viejos que
+  // simplemente ya no entran en el grid chico. Los reels existentes conservan
+  // su valor en DB (se excluye la columna del upsert).
+  const isNewReel = (reel: CompetitorReelData): boolean => {
+    if (!prevScrapedAtMs) return true;
+    if (!reel.published_at) return true;
+    const ts = new Date(reel.published_at).getTime();
+    return !Number.isFinite(ts) || ts > prevScrapedAtMs;
+  };
+
   let trialCount = 0;
+  const newReels = reels.filter(isNewReel);
   if (gridShortcodes && gridShortcodes.size > 0) {
-    console.log(`[competitor-scraper] Trial detection @${username}: ${reels.length} reels, ${gridShortcodes.size} grid shortcodes`);
-    for (const reel of reels) {
+    console.log(`[competitor-scraper] Trial detection @${username}: ${newReels.length} reels nuevos, ${gridShortcodes.size} grid shortcodes`);
+    for (const reel of newReels) {
       if (!reel.short_code) {
         reel.maybe_trial = false;
         continue;
@@ -491,8 +551,12 @@ export async function scrapeCompetitor(
       if (reel.maybe_trial) trialCount++;
     }
   } else {
-    console.warn(`[competitor-scraper] Grid scrape returned 0 shortcodes for @${username} — defaulting all reels to maybe_trial=false`);
-    for (const reel of reels) {
+    // Grid falló/vacío: default false (la mayoría NO son trials; null dejaba
+    // el tab Trials vacío). Solo para nuevos — los viejos conservan su valor.
+    if (newReels.length > 0) {
+      console.warn(`[competitor-scraper] Grid scrape returned 0 shortcodes for @${username} — defaulting new reels to maybe_trial=false`);
+    }
+    for (const reel of newReels) {
       reel.maybe_trial = false;
     }
   }
@@ -531,6 +595,13 @@ export async function scrapeCompetitor(
           follower_count: profile.ig_follower_count,
         }, { onConflict: 'competitor_id,snapshot_date' });
     }
+  }
+
+  // Reels falló de verdad (HTTP/timeout de Apify — distinto de "cuenta sin
+  // reels"): cortar acá devolviendo el motivo real. El route lo loguea en
+  // integration_usage con status='error' y así deja de ser invisible.
+  if (reelsError && reels.length === 0) {
+    return { profile, reels: [], reelsInserted: 0, gridPostsScraped, error: `Reels scrape: ${reelsError}` };
   }
 
   // Fase 4: upload thumbnails. Emitimos progreso granular — esta es la parte
@@ -585,47 +656,54 @@ export async function scrapeCompetitor(
   // The unique index `(competitor_id, short_code) WHERE short_code IS NOT NULL`
   // (migration 20260326000019) supports the conflict target.
   const scrapedAt = new Date().toISOString();
-  const rowsToUpsert = reelsWithStableUrls
-    .filter((reel) => reel.short_code) // upsert needs the conflict key
-    .map((reel) => ({
-      competitor_id: competitorId,
-      workspace_id: workspaceId,
-      short_code: reel.short_code,
-      permalink: reel.permalink,
-      caption: reel.caption,
-      likes_count: reel.likes_count,
-      comments_count: reel.comments_count,
-      views_count: reel.views_count,
-      shares_count: reel.shares_count,
-      duration_seconds: reel.duration_seconds,
-      published_at: reel.published_at,
-      thumbnail_url: reel.thumbnail_url,
-      video_url: reel.video_url,
-      transcript: reel.transcript,
-      hashtags: reel.hashtags,
-      mentions: reel.mentions,
-      music_artist: reel.music_artist,
-      music_name: reel.music_name,
-      location_name: reel.location_name,
-      location_id: reel.location_id,
-      tagged_users: reel.tagged_users,
-      product_type: reel.product_type,
-      is_video: reel.is_video,
-      maybe_trial: reel.maybe_trial,
-      raw_data: reel,
-      scraped_at: scrapedAt,
-    }));
+  const buildRow = (reel: CompetitorReelData) => ({
+    competitor_id: competitorId,
+    workspace_id: workspaceId,
+    short_code: reel.short_code,
+    permalink: reel.permalink,
+    caption: reel.caption,
+    likes_count: reel.likes_count,
+    comments_count: reel.comments_count,
+    views_count: reel.views_count,
+    shares_count: reel.shares_count,
+    duration_seconds: reel.duration_seconds,
+    published_at: reel.published_at,
+    thumbnail_url: reel.thumbnail_url,
+    video_url: reel.video_url,
+    transcript: reel.transcript,
+    hashtags: reel.hashtags,
+    mentions: reel.mentions,
+    music_artist: reel.music_artist,
+    music_name: reel.music_name,
+    location_name: reel.location_name,
+    location_id: reel.location_id,
+    tagged_users: reel.tagged_users,
+    product_type: reel.product_type,
+    is_video: reel.is_video,
+    raw_data: reel,
+    scraped_at: scrapedAt,
+  });
+
+  const withShortCode = reelsWithStableUrls.filter((reel) => reel.short_code); // upsert needs the conflict key
+  // Split: los NUEVOS escriben maybe_trial (recién computado); los EXISTENTES
+  // omiten la columna → el upsert refresca métricas sin pisar el valor en DB
+  // (incluye toggles manuales del usuario).
+  const rowsNew = withShortCode.filter(isNewReel).map((reel) => ({ ...buildRow(reel), maybe_trial: reel.maybe_trial }));
+  const rowsExisting = withShortCode.filter((reel) => !isNewReel(reel)).map(buildRow);
+  const rowsToUpsert = [...rowsNew, ...rowsExisting];
 
   let reelsInserted = 0;
   if (rowsToUpsert.length > 0) {
-    const { error: bulkError, count } = await supabase
-      .from('competitor_reels')
-      .upsert(rowsToUpsert, { onConflict: 'competitor_id,short_code', count: 'exact' });
-
-    if (bulkError) {
-      console.error('[competitor-scraper] Bulk upsert error:', bulkError.message);
-    } else {
-      reelsInserted = count ?? rowsToUpsert.length;
+    for (const rows of [rowsNew, rowsExisting]) {
+      if (rows.length === 0) continue;
+      const { error: bulkError, count } = await supabase
+        .from('competitor_reels')
+        .upsert(rows, { onConflict: 'competitor_id,short_code', count: 'exact' });
+      if (bulkError) {
+        console.error('[competitor-scraper] Bulk upsert error:', bulkError.message);
+      } else {
+        reelsInserted += count ?? rows.length;
+      }
     }
 
     // Daily per-reel metrics snapshot. PRIMARY KEY (reel_id, snapshot_date) makes
@@ -667,7 +745,7 @@ export async function scrapeCompetitor(
     message: `Scrape terminado: ${reelsInserted} reels`,
   });
 
-  return { profile, reels: reelsWithStableUrls, reelsInserted };
+  return { profile, reels: reelsWithStableUrls, reelsInserted, gridPostsScraped };
 }
 
 // ─── Check if scraping is available ─────────────────────────────────────────

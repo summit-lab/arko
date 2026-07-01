@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
+import { CoinCost } from "@/components/common/CoinCost";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1828,6 +1829,24 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
         if (status === "analyzing") serverConfirmedAnalyzing = true;
 
+        // Scrape falló server-side: el route dejó phase 'error' con copy
+        // amigable (el detalle técnico quedó en integration_usage). Mostramos
+        // el banner, cortamos el "Analizando..." y ack-eamos con DELETE para
+        // que el error no re-aparezca en el próximo load/poll. Antes este caso
+        // era INVISIBLE: el cliente quedaba mirando "Analizando..." infinito.
+        if (progress?.phase === "error") {
+          sentFinalLoad = true;
+          setError(progress.message || "No pudimos actualizar este competidor. Reintentá en unos minutos.");
+          setCompetitors((prev) => prev.map((c) =>
+            c.id === pollingCompetitorId ? { ...c, analysis_status: "idle", scrape_progress: null } : c,
+          ));
+          try {
+            await fetch(`/api/v1/competitors/${pollingCompetitorId}/scrape`, { method: "DELETE", headers });
+          } catch { /* best-effort: si falla, el próximo poll lo reintenta */ }
+          if (!cancelled) await load();
+          return;
+        }
+
         // Don't overwrite optimistic local state with a stale server "idle"
         // response that came in before the scrape route set status=analyzing
         // on its end. We only trust idle once the server has confirmed
@@ -1944,7 +1963,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             <div className={`space-y-3 min-w-0 transition-opacity duration-150 ${isPanelStale ? "opacity-50" : "opacity-100"}`}>
               {/* Profile header — el overlay de progreso se monta sólo sobre este card */}
               <div className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.08] relative">
-                {(selected.analysis_status === "analyzing" || selected.scrape_progress != null) && (
+                {(selected.analysis_status === "analyzing" ||
+                  (selected.scrape_progress != null && selected.scrape_progress.phase !== "error")) && (
                   <ScrapeProgressOverlay competitor={selected} />
                 )}
                 <div className="flex items-start gap-3">
@@ -1981,25 +2001,30 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     )}
                   </div>
 
-                  <button
-                    onClick={() => handleScrapeAndAnalyze(selected.id)}
-                    disabled={scraping === selected.id || selected.analysis_status === "analyzing"}
-                    className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40 max-w-[320px]"
-                    style={GLASS}
-                  >
-                    {(scraping === selected.id || selected.analysis_status === "analyzing") ? (
-                      <>
-                        <RefreshCw size={12} className="animate-spin text-white/40 shrink-0" />
-                        <span className="text-white/50 truncate">
-                          {selected.scrape_progress?.message ?? t("competitor.actions.analyzing")}
-                        </span>
-                      </>
-                    ) : selected.competitor_reels.length > 0 ? (
-                      <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">{t("competitor.actions.reanalyze")}</span></>
-                    ) : (
-                      <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">{t("competitor.actions.scrapeAndAnalyze")}</span></>
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <button
+                      onClick={() => handleScrapeAndAnalyze(selected.id)}
+                      disabled={scraping === selected.id || selected.analysis_status === "analyzing"}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40 max-w-[320px]"
+                      style={GLASS}
+                    >
+                      {(scraping === selected.id || selected.analysis_status === "analyzing") ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin text-white/40 shrink-0" />
+                          <span className="text-white/50 truncate">
+                            {selected.scrape_progress?.message ?? t("competitor.actions.analyzing")}
+                          </span>
+                        </>
+                      ) : selected.competitor_reels.length > 0 ? (
+                        <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">{t("competitor.actions.reanalyze")}</span></>
+                      ) : (
+                        <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">{t("competitor.actions.scrapeAndAnalyze")}</span></>
+                      )}
+                    </button>
+                    {scraping !== selected.id && selected.analysis_status !== "analyzing" && (
+                      <CoinCost action="competitor-analysis" note="La actualización de datos está incluida en tu plan." />
                     )}
-                  </button>
+                  </div>
                 </div>
               </div>
 

@@ -36,6 +36,10 @@ interface AnthropicApiResponse {
   usage: {
     input_tokens: number;
     output_tokens: number;
+    /** Tokens escritos al prompt cache (se facturan a 1.25×). */
+    cache_creation_input_tokens?: number;
+    /** Tokens leídos del prompt cache (se facturan a 0.1×). */
+    cache_read_input_tokens?: number;
   };
 }
 
@@ -49,13 +53,26 @@ export async function callAnthropic(options: LLMOptions): Promise<LLMResponse> {
 
   const { messages, system, tools, maxTokens = 2048, model } = options;
 
+  // PROMPT CACHING (reduce ~85-90% del costo de input en iteraciones del tool
+  // loop y mensajes seguidos de una sesión):
+  //  - cache_control en el bloque system → cachea tools + system prompt
+  //    (~10k tokens estáticos que antes se re-pagaban a precio full en CADA
+  //    iteración de CADA mensaje).
+  //  - cache_control en el último mensaje → cachea el prefijo completo de la
+  //    conversación (historia + tool results de iteraciones previas).
+  // Requisito: el system prompt no debe embeber timestamps/aleatoriedad (hoy
+  // no lo hace) — si cambia byte a byte, el cache no pega.
   const body: Record<string, unknown> = {
     model,
     max_tokens: maxTokens,
-    system,
-    messages: messages.map((m) => ({
+    system: [
+      { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
+    ],
+    messages: messages.map((m, i) => ({
       role: m.role,
-      content: m.content,
+      content: i === messages.length - 1
+        ? [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }]
+        : m.content,
     })),
   };
 
@@ -100,12 +117,22 @@ export async function callAnthropic(options: LLMOptions): Promise<LLMResponse> {
     }
   }
 
+  // Facturación honesta con caching: `input_tokens` de la API EXCLUYE los
+  // tokens cacheados. Cache write = 1.25× tarifa, cache read = 0.1×. Plegamos
+  // ambos a "tokens de input equivalentes" para que calculateCost() (tarifa
+  // plana por token) dé el USD real y las Moka Coins debiten lo justo.
+  const cacheCreation = data.usage.cache_creation_input_tokens ?? 0;
+  const cacheRead = data.usage.cache_read_input_tokens ?? 0;
+  const effectiveInputTokens = Math.round(
+    data.usage.input_tokens + cacheCreation * 1.25 + cacheRead * 0.1,
+  );
+
   return {
     text,
     toolCalls,
-    inputTokens: data.usage.input_tokens,
+    inputTokens: effectiveInputTokens,
     outputTokens: data.usage.output_tokens,
-    totalTokens: data.usage.input_tokens + data.usage.output_tokens,
+    totalTokens: effectiveInputTokens + data.usage.output_tokens,
     stopReason: data.stop_reason,
     model: data.model,
     provider: 'anthropic',
