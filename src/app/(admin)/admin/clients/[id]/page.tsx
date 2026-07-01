@@ -5,7 +5,10 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, User, Wifi, Cpu, DollarSign, Zap, Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { AdnDetailPanel } from "./AdnDetailPanel";
 import { ClientLanguagePicker } from "./ClientLanguagePicker";
+import { CreditAdminControl } from "./CreditAdminControl";
 import { isLocale, type Locale } from "@/i18n/config";
+import { resolveTier, type Tier } from "@/lib/tier/config";
+import type { CreditBalanceRow } from "@/lib/credits";
 
 interface UsageRow {
   id: string;
@@ -59,7 +62,7 @@ export default async function ClientDetailPage({
   // Fetch workspace
   const { data: workspace, error: wsError } = await supabase
     .from("workspaces")
-    .select("id, name, slug, is_active, created_at, owner_id, onboarding_completed")
+    .select("id, name, slug, is_active, created_at, owner_id, onboarding_completed, plan, trial_ends_at")
     .eq("id", id)
     .single();
 
@@ -75,6 +78,7 @@ export default async function ClientDetailPage({
     profileRes, strategiesRes, marketRes, competitorsRes, brandRes, referencesRes,
     { data: usageRows },
     { data: integrationRows },
+    { data: creditBal },
   ] = await Promise.all([
     supabase.from("meta_connections").select("status, ig_username, page_name, created_at").eq("workspace_id", id).limit(1),
     supabase.from("profiles").select("id, email, full_name, role, created_at, language").eq("id", workspace.owner_id).single(),
@@ -86,7 +90,11 @@ export default async function ClientDetailPage({
     supabase.from("workspace_references").select("brand_name, brand_url, what_they_like").eq("workspace_id", id),
     supabase.from("llm_usage").select("*").eq("workspace_id", id).order("created_at", { ascending: false }).limit(500),
     supabase.from("integration_usage").select("id, feature, provider, operation, items_count, cost_usd, latency_ms, status, created_at").eq("workspace_id", id).order("created_at", { ascending: false }).limit(500),
+    supabase.from("workspace_credit_balances").select("period_date, spent_today_coins, unlimited, bonus_daily_coins").eq("workspace_id", id).maybeSingle(),
   ]);
+
+  const clientTier: Tier = resolveTier(workspace.plan ?? null, workspace.trial_ends_at ?? null);
+  const creditRow = (creditBal ?? null) as CreditBalanceRow | null;
 
   const connection = metaConnections?.[0] ?? null;
 
@@ -455,6 +463,9 @@ export default async function ClientDetailPage({
                 />
               )}
             </div>
+
+            {/* Moka Coins — control de créditos */}
+            <CreditAdminControl workspaceId={workspace.id} tier={clientTier} initialRow={creditRow} />
 
             {/* Meta connection */}
             <div className="glass-card px-5 py-4">

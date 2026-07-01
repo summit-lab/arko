@@ -5,6 +5,9 @@ import { getWorkspaceId } from "@/lib/workspace";
 import { latestCleanFollowersTotal } from "@/lib/follower-metrics";
 import { cache } from "react";
 import { HeaderClient } from "./HeaderClient";
+import { resolveTier, TIER_LABEL, type Tier } from "@/lib/tier/config";
+import type { CreditBalanceRow } from "@/lib/credits";
+import { CreditChip } from "./CreditChip";
 
 function fmtHeader(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -32,14 +35,33 @@ const getUserProfile = cache(async () => {
 export async function Header() {
   const { user, profile } = await getUserProfile();
 
+  const isAdmin = profile?.role === "admin";
+
   // ── Fetch real IG stats ──
   let headerViews = "—";
   let headerFollowers = "—";
   let headerEngRate = "—";
+  // ── Moka Coins wallet (el chip se suscribe a Realtime en el cliente) ──
+  let creditWorkspaceId: string | null = null;
+  let creditRow: CreditBalanceRow | null = null;
+  let creditPlan: string | null = null;
+  let creditTrialEndsAt: string | null = null;
   try {
     const supabase = await createClient();
     const workspaceId = await getWorkspaceId();
     if (workspaceId) {
+      creditWorkspaceId = workspaceId;
+      const [{ data: ws }, { data: bal }] = await Promise.all([
+        supabase.from("workspaces").select("plan, trial_ends_at").eq("id", workspaceId).single(),
+        supabase
+          .from("workspace_credit_balances")
+          .select("period_date, spent_today_coins, unlimited, bonus_daily_coins")
+          .eq("workspace_id", workspaceId)
+          .maybeSingle(),
+      ]);
+      creditPlan = ws?.plan ?? null;
+      creditTrialEndsAt = ws?.trial_ends_at ?? null;
+      creditRow = bal ?? null;
       // Header stats fijos: ventana de 90 dias (no afectado por filtros del dashboard).
       // Vistas = SUM(impressions) account-level — misma metrica que IG nativo.
       const { data: insights } = await supabase
@@ -63,7 +85,7 @@ export async function Header() {
   } catch { /* header stats are non-critical */ }
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
-  const isAdmin = profile?.role === "admin";
+  const creditTier: Tier = isAdmin ? "pro" : resolveTier(creditPlan, creditTrialEndsAt);
 
   return (
     <header className="h-[80px] w-full flex items-center justify-center px-6 z-50 sticky top-0 backdrop-blur-xl bg-background/85 dark:bg-black/55">
@@ -103,7 +125,7 @@ export async function Header() {
                     : "bg-accent text-muted-foreground border-border"
                 }`}
               >
-                {isAdmin ? "ADMIN" : "PRO"}
+                {isAdmin ? "ADMIN" : TIER_LABEL[creditTier]}
               </span>
             </div>
           </div>
@@ -130,9 +152,14 @@ export async function Header() {
           ))}
         </div>
 
-        {/* Right — Search, Date, Bell */}
-        <div className="flex items-center gap-2">
-          {/* Search bar removed */}
+        {/* Right — Moka Coins, Date, Bell */}
+        <div className="flex items-center gap-3">
+          {creditWorkspaceId && (
+            <>
+              <CreditChip workspaceId={creditWorkspaceId} tier={creditTier} initialRow={creditRow} />
+              <div className="w-[1px] h-6 bg-border" />
+            </>
+          )}
 
           <HeaderClient />
 

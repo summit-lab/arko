@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
+import { assertCredits } from '@/lib/api/credit-guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { getApifyToken } from '@/lib/env';
 
@@ -78,6 +79,9 @@ export async function POST(
 
     const { id } = await params;
     const supabase = await createClient();
+
+    const over = await assertCredits(supabase, auth);
+    if (over) return over;
 
     // Load reference
     const { data: ref } = await supabase
