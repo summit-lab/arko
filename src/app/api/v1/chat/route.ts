@@ -32,20 +32,33 @@ export const maxDuration = 300;
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
-import { assertCredits } from '@/lib/api/credit-guard';
+import { assertCredits, isUnlimitedWorkspace } from '@/lib/api/credit-guard';
 import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
-import { logLLMUsage } from '@/services/llm-usage.service';
+import { logLLMUsage, calculateCost } from '@/services/llm-usage.service';
 import { ARKO_TOOLS, executeArkoTool, loadWorkspaceSnapshot, classifyMessageComplexity, loadPipelineSnapshot } from '@/services/arko-ai-context';
 import { buildArkoSystemPrompt, buildReelContextPrompt, buildScriptContextPrompt, buildPipelineContextPrompt, type PromptLocale } from '@/services/arko-ai-prompts';
 import { getUserLanguage } from '@/i18n/server';
 
 const MAX_TOOL_ITERATIONS = 5;
 
+/** Techo duro de Moka Coins por MENSAJE (1 MC = $0.001). Si el costo acumulado
+ *  de las iteraciones lo alcanza, el loop corta y sintetiza con lo que tiene —
+ *  garantiza que un mensaje jamás coma >~30% del día (incidente 2026-07-01:
+ *  mensajes de hasta 1.027 coins con billetera diaria de 500). */
+const MAX_COINS_PER_MESSAGE = 150;
+
+/** Tool results largos (query_reels con 30 reels, get_reel_details con
+ *  transcript completo) se re-pagan como input en CADA iteración siguiente.
+ *  12k chars (~3k tokens) conservan lo útil sin inflar el loop. */
+const MAX_TOOL_RESULT_CHARS = 12_000;
+
 /** Max tokens allowed for chat history to avoid context-length errors.
- *  Claude Sonnet supports 200K input; we reserve headroom for system prompt,
- *  tools definitions, workspace snapshot, reel context, and tool results. */
-const MAX_HISTORY_TOKENS = 80_000;
+ *  80K era el mayor driver del costo por mensaje (~24k tokens de input por
+ *  iteración): sesiones largas arrastraban decenas de miles de tokens de
+ *  historia a CADA iteración. 30K mantiene el contexto útil (≈15-20 mensajes)
+ *  a una fracción del costo; el prompt caching abarata el resto. */
+const MAX_HISTORY_TOKENS = 30_000;
 
 /** Rough token estimator: ~4 chars per token (heuristic, good enough for truncation). */
 function estimateTokens(text: string): number {
@@ -468,6 +481,12 @@ export async function POST(request: Request) {
         } else {
           // ─── Complex path: Claude Sonnet with full tool loop ─────────────────
           const config = getLLMConfig('ai-agents');
+          // Costo USD acumulado del MENSAJE (iteraciones + especialistas) para
+          // el techo duro de MAX_COINS_PER_MESSAGE. Los workspaces `unlimited`
+          // (override de admin, ej. Francisco) NO tienen techo: análisis a
+          // fondo sin cortar el loop.
+          let messageCostUsd = 0;
+          const walletUnlimited = await isUnlimitedWorkspace(supabase, auth.workspaceId);
 
           for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
             controller.enqueue(sseEvent({
@@ -500,8 +519,20 @@ export async function POST(request: Request) {
               latencyMs: llmLatency,
             }).catch(() => {});
 
+            messageCostUsd += calculateCost(response.model, response.inputTokens, response.outputTokens);
+
             // If Claude returned text and no tool calls → done
             if (response.toolCalls.length === 0) {
+              assistantContent = response.text || ERROR_MESSAGES[userLocale].fallback;
+              break;
+            }
+
+            // Techo duro por mensaje: si ya quemamos MAX_COINS_PER_MESSAGE, NO
+            // arrancamos otra iteración — sintetizamos con lo acumulado. El
+            // desborde máximo es lo que costó la iteración en curso.
+            // Exento: billetera unlimited.
+            if (!walletUnlimited && messageCostUsd * 1000 >= MAX_COINS_PER_MESSAGE) {
+              console.warn(`[chat] Mensaje alcanzó el techo de ${MAX_COINS_PER_MESSAGE} coins (${(messageCostUsd * 1000).toFixed(0)}) — corto el tool loop en iteración ${i + 1}`);
               assistantContent = response.text || ERROR_MESSAGES[userLocale].fallback;
               break;
             }
@@ -544,11 +575,38 @@ export async function POST(request: Request) {
 
             const toolResultParts: string[] = [];
             for (let t = 0; t < toolCalls.length; t++) {
-              toolResultParts.push(`[Tool: ${toolCalls[t].name}]\n${toolResults[t].result}`);
+              // Truncar resultados largos: se re-pagan como input en CADA
+              // iteración siguiente del loop.
+              const rawResult = toolResults[t].result;
+              const trimmedResult = rawResult.length > MAX_TOOL_RESULT_CHARS
+                ? `${rawResult.slice(0, MAX_TOOL_RESULT_CHARS)}\n[...resultado truncado]`
+                : rawResult;
+              toolResultParts.push(`[Tool: ${toolCalls[t].name}]\n${trimmedResult}`);
               if (toolResults[t].specialistUsed) {
                 const s = toolResults[t].specialistUsed!;
                 specialistsUsed.push({ domain: s.domain, tokensUsed: s.tokensUsed, latencyMs: s.latencyMs });
                 totalInputTokens += s.tokensUsed;
+                // Loguear el costo REAL del especialista (corre Sonnet aparte;
+                // antes: ~30 coins invisibles por llamada, ni logueadas ni
+                // debitadas). Split 85/15 in/out (convención del codebase).
+                const sIn = Math.round(s.tokensUsed * 0.85);
+                const sOut = s.tokensUsed - sIn;
+                const sCost = calculateCost(config.model, sIn, sOut);
+                messageCostUsd += sCost;
+                supabase.from('llm_usage').insert({
+                  workspace_id: auth.workspaceId,
+                  user_id: auth.userId,
+                  feature: 'ai-agents',
+                  provider: config.provider,
+                  model: config.model,
+                  input_tokens: sIn,
+                  output_tokens: sOut,
+                  total_tokens: s.tokensUsed,
+                  cost_usd: sCost,
+                  latency_ms: s.latencyMs,
+                }).then(({ error }) => {
+                  if (error) console.error('[chat] specialist usage log error:', error.message);
+                });
               }
               if (toolResults[t].contentAdded?.length) {
                 controller.enqueue(sseEvent({ type: 'content_added', items: toolResults[t].contentAdded }));

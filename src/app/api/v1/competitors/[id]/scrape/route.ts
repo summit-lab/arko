@@ -16,12 +16,17 @@ import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
-import { assertCredits } from '@/lib/api/credit-guard';
+import { assertCredits, isUnlimitedWorkspace } from '@/lib/api/credit-guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { scrapeCompetitor, isCompetitorScrapingEnabled } from '@/services/competitor-scraper.service';
 import { analyzeCompetitorReels } from '@/services/competitor-analysis.service';
 import { logIntegrationUsage } from '@/services/integration-usage.service';
 import { calculateCost } from '@/services/llm-usage.service';
+import { clampReels, cfg } from '@/lib/tier/config';
+
+/** Cooldown entre scrapes manuales: el refresh programado (L/Mi/V) ya mantiene
+ *  los datos frescos; cada click re-dispara 3 actors de Apify (~$0.90 real). */
+const MANUAL_SCRAPE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 export async function POST(
   request: Request,
@@ -40,6 +45,24 @@ export async function POST(
 
     const over = await assertCredits(supabase, auth);
     if (over) return over;
+
+    // Cooldown 6h: evita que clicks repetidos quemen Apify al pedo. (El
+    // last_scraped_at también lo toca el cron, pero corre 04:00 UTC = 1AM AR
+    // → a la mañana ya está libre.)
+    const { data: compRow } = await supabase
+      .from('workspace_competitors')
+      .select('last_scraped_at')
+      .eq('id', competitorId)
+      .eq('workspace_id', auth.workspaceId)
+      .maybeSingle();
+    if (
+      compRow?.last_scraped_at &&
+      Date.now() - new Date(compRow.last_scraped_at).getTime() < MANUAL_SCRAPE_COOLDOWN_MS &&
+      // Exento: billetera unlimited (override de admin, ej. Francisco).
+      !(await isUnlimitedWorkspace(supabase, auth.workspaceId))
+    ) {
+      return api400('Este competidor se actualizó hace poco — los datos ya están frescos. Se refresca automáticamente varias veces por semana.');
+    }
 
     // Marcar 'analyzing' YA (rápido). analysis_started_at lo lee el watchdog
     // pg_cron para distinguir runs legítimas en curso de rows stuck.
@@ -61,7 +84,11 @@ export async function POST(
 
       const startMs = Date.now();
       try {
-        const result = await scrapeCompetitor(supabase, competitorId, auth.workspaceId);
+        // Clamps por tier: standard 20 reels/30 días, pro 100 reels/90 días.
+        const result = await scrapeCompetitor(supabase, competitorId, auth.workspaceId, {
+          maxReels: clampReels(auth.tier, 100),
+          windowDays: cfg(auth.tier).scrapeWindowDays,
+        });
         const latencyMs = Date.now() - startMs;
 
         if (result.error) {
@@ -84,26 +111,38 @@ export async function POST(
             .eq('workspace_id', auth.workspaceId);
           await logIntegrationUsage(supabase, {
             workspaceId: auth.workspaceId, userId: auth.userId,
-            feature: 'competitor-scraping', provider: 'apify', operation: 'competitor-profile-scrape',
+            feature: 'competitor-base-load', provider: 'apify', operation: 'competitor-profile-scrape',
             itemsCount: 0, latencyMs, status: 'error',
             metadata: { competitorId, error: result.error },
           });
           return;
         }
 
-        // Log profile scrape
+        // Log profile scrape. Feature 'competitor-base-load' = SERVICIO: se
+        // loguea el costo real pero NO debita la billetera del cliente (la
+        // carga de datos está incluida en el plan; solo la IA on-demand paga).
         await logIntegrationUsage(supabase, {
           workspaceId: auth.workspaceId, userId: auth.userId,
-          feature: 'competitor-scraping', provider: 'apify', operation: 'competitor-profile-scrape',
+          feature: 'competitor-base-load', provider: 'apify', operation: 'competitor-profile-scrape',
           itemsCount: result.profile ? 1 : 0, latencyMs, status: 'success',
           metadata: { competitorId },
         });
+
+        // Log grid scrape (trial detection) — antes era 100% invisible (~$0.50/click).
+        if (result.gridPostsScraped > 0) {
+          await logIntegrationUsage(supabase, {
+            workspaceId: auth.workspaceId, userId: auth.userId,
+            feature: 'competitor-base-load', provider: 'apify', operation: 'competitor-grid-scrape',
+            itemsCount: result.gridPostsScraped, latencyMs, status: 'success',
+            metadata: { competitorId },
+          });
+        }
 
         if (result.reelsInserted > 0) {
           // Log reels scrape
           await logIntegrationUsage(supabase, {
             workspaceId: auth.workspaceId, userId: auth.userId,
-            feature: 'competitor-scraping', provider: 'apify', operation: 'competitor-reel-scrape',
+            feature: 'competitor-base-load', provider: 'apify', operation: 'competitor-reel-scrape',
             itemsCount: result.reels.length, latencyMs, status: 'success',
             metadata: { competitorId, reelsFound: result.reels.length, reelsInserted: result.reelsInserted },
           });

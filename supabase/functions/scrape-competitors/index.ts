@@ -30,10 +30,12 @@ const APIFY_PROFILE_ACTOR = "apify~instagram-profile-scraper";
 const APIFY_REEL_ACTOR = "apify~instagram-reel-scraper";
 const APIFY_BASE = "https://api.apify.com/v2/acts";
 
-// Daily cron only refreshes metrics for the most recent reels — full reel
-// discovery is the manual scrape's job. 50 covers most active accounts in the
-// last 30 days without inflating Apify cost.
-const REEL_METRICS_LIMIT = 50;
+// El cron solo refresca métricas de reels RECIENTES — el discovery completo es
+// del scrape manual. 25 + ventana de 14 días (los competidores publican ~5.7
+// reels nuevos/14d): antes eran 50 reels SIN filtro de fecha, todos los días,
+// para los 85 competidores = ~$105-160/mes, el 55-80% de la factura de Apify.
+const REEL_METRICS_LIMIT = 25;
+const REEL_METRICS_WINDOW = "14 days";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,6 +136,8 @@ async function scrapeReelMetrics(username: string, token: string, limit: number)
       body: JSON.stringify({
         username: [`https://www.instagram.com/${username}/`],
         resultsLimit: limit,
+        onlyPostsNewerThan: REEL_METRICS_WINDOW,
+        skipPinnedPosts: true,
       }),
       signal: AbortSignal.timeout(120_000),
     });
@@ -176,8 +180,42 @@ async function scrapeOne(
   if (!comp.ig_url) return { ok: false, error: "no_ig_url" };
 
   const username = extractUsername(comp.ig_url);
+
+  // Owner para el user_id del logging (integration_usage.user_id es NOT NULL).
+  const { data: wsOwner } = await supabase
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", comp.workspace_id)
+    .single();
+  const ownerId = (wsOwner as { owner_id?: string } | null)?.owner_id ?? null;
+
+  // Log del gasto del cron. Feature 'competitor-scheduled-refresh' = categoría
+  // SERVICE en credit_category(): se loguea el costo real pero NO debita la
+  // billetera de nadie. Antes este cron era el 55-80% de la factura de Apify
+  // y no dejaba NI UNA fila de log.
+  const logUsage = (operation: string, itemsCount: number, costUsd: number, status: string) => {
+    if (!ownerId) return;
+    supabase.from("integration_usage").insert({
+      workspace_id: comp.workspace_id,
+      user_id: ownerId,
+      feature: "competitor-scheduled-refresh",
+      provider: "apify",
+      operation,
+      items_count: itemsCount,
+      cost_usd: costUsd,
+      status,
+      metadata: { competitor_id: competitorId, source: "cron" },
+    }).then(({ error }: { error: { message: string } | null }) => {
+      if (error) console.warn(`[scrape-competitors] usage log error: ${error.message}`);
+    });
+  };
+
   const profile = await scrapeProfile(username, token);
-  if (!profile) return { ok: false, error: "apify_empty" };
+  if (!profile) {
+    logUsage("competitor-profile-scrape", 0, 0, "error");
+    return { ok: false, error: "apify_empty" };
+  }
+  logUsage("competitor-profile-scrape", 1, 0.01, "success");
 
   const followerCount = profile.followersCount ?? null;
 
@@ -226,6 +264,7 @@ async function scrapeOne(
   let reelsSnapped = 0;
   try {
     const fresh = await scrapeReelMetrics(username, token, REEL_METRICS_LIMIT);
+    logUsage("competitor-reel-scrape", fresh.length, Number((fresh.length * 0.0039).toFixed(6)), fresh.length > 0 ? "success" : "error");
     if (fresh.length > 0) {
       const shortCodes = fresh.map((r) => r.short_code);
       const { data: existing } = await supabase

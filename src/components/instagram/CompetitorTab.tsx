@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
+import { CoinCost } from "@/components/common/CoinCost";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2000,25 +2001,30 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     )}
                   </div>
 
-                  <button
-                    onClick={() => handleScrapeAndAnalyze(selected.id)}
-                    disabled={scraping === selected.id || selected.analysis_status === "analyzing"}
-                    className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40 max-w-[320px]"
-                    style={GLASS}
-                  >
-                    {(scraping === selected.id || selected.analysis_status === "analyzing") ? (
-                      <>
-                        <RefreshCw size={12} className="animate-spin text-white/40 shrink-0" />
-                        <span className="text-white/50 truncate">
-                          {selected.scrape_progress?.message ?? t("competitor.actions.analyzing")}
-                        </span>
-                      </>
-                    ) : selected.competitor_reels.length > 0 ? (
-                      <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">{t("competitor.actions.reanalyze")}</span></>
-                    ) : (
-                      <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">{t("competitor.actions.scrapeAndAnalyze")}</span></>
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <button
+                      onClick={() => handleScrapeAndAnalyze(selected.id)}
+                      disabled={scraping === selected.id || selected.analysis_status === "analyzing"}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer disabled:opacity-40 max-w-[320px]"
+                      style={GLASS}
+                    >
+                      {(scraping === selected.id || selected.analysis_status === "analyzing") ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin text-white/40 shrink-0" />
+                          <span className="text-white/50 truncate">
+                            {selected.scrape_progress?.message ?? t("competitor.actions.analyzing")}
+                          </span>
+                        </>
+                      ) : selected.competitor_reels.length > 0 ? (
+                        <><RefreshCw size={12} className="text-white/55" /><span className="text-white/55">{t("competitor.actions.reanalyze")}</span></>
+                      ) : (
+                        <><Zap size={12} className="text-violet-600 dark:text-violet-400" /><span className="text-violet-700 dark:text-violet-300">{t("competitor.actions.scrapeAndAnalyze")}</span></>
+                      )}
+                    </button>
+                    {scraping !== selected.id && selected.analysis_status !== "analyzing" && (
+                      <CoinCost action="competitor-analysis" note="La actualización de datos está incluida en tu plan." />
                     )}
-                  </button>
+                  </div>
                 </div>
               </div>
 

@@ -7,6 +7,7 @@ import {
   TrendingUp, AlertCircle, Loader2, Sparkles,
 } from "lucide-react";
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
+import { CoinCost } from "@/components/common/CoinCost";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -158,15 +159,18 @@ export function GeminiAnalysis({ reelId, workspaceId, videoUrl, initialAnalysis,
                 </p>
               )}
             </div>
-            <button
-              onClick={handleAnalyze}
-              disabled={!videoUrl}
-              style={{ color: "#ffffff" }}
-              className="flex-shrink-0 flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-semibold transition-colors"
-            >
-              <Brain className="h-4 w-4" style={{ color: "#ffffff" }} />
-              {t("ai.actions.analyzeDeep")}
-            </button>
+            <div className="flex-shrink-0 flex flex-col items-end gap-1">
+              <button
+                onClick={handleAnalyze}
+                disabled={!videoUrl}
+                style={{ color: "#ffffff" }}
+                className="flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-semibold transition-colors"
+              >
+                <Brain className="h-4 w-4" style={{ color: "#ffffff" }} />
+                {t("ai.actions.analyzeDeep")}
+              </button>
+              <CoinCost action="video-analysis" />
+            </div>
           </div>
         </div>
 

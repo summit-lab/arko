@@ -798,14 +798,35 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
 
     const apifyToken = tierCanSpend ? getApifyToken() : null;
     if (apifyToken) {
-      const { data: reelsMissingDuration } = await supabase
-        .from("reels")
-        .select("id, permalink")
-        .eq("workspace_id", workspaceId)
-        .eq("media_product_type", "REELS")
-        .is("duration_seconds", null)
-        .not("permalink", "is", null)
-        .limit(5);
+      // Circuit-breaker: si la última hora acumuló ≥10 errores de enrichment
+      // (Apify caído / sin créditos), saltear el paso — antes una tormenta de
+      // errores se reintentaba en cada sync de cada workspace (4x/día) y llegó
+      // a 100-350 runs pagos fallados POR DÍA durante los cortes de créditos.
+      const { count: recentErrors } = await supabase
+        .from("integration_usage")
+        .select("id", { count: "exact", head: true })
+        .eq("feature", "ig-sync-enrichment")
+        .eq("status", "error")
+        .gt("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+      const enrichmentBlocked = (recentErrors ?? 0) >= 10;
+      if (enrichmentBlocked) {
+        // NO return: el snapshot diario de métricas (más abajo) debe correr igual.
+        console.warn(`[sync] Enrichment SKIPPED: ${recentErrors} errores en la última hora (Apify probablemente caído)`);
+      }
+
+      // Negative-cache: máx 3 intentos por reel — los irresolubles no se
+      // re-scrapean para siempre (71-76% de intentos fallaban en Prod).
+      const { data: reelsMissingDuration } = enrichmentBlocked
+        ? { data: [] as { id: string; permalink: string | null; duration_enrich_attempts: number | null }[] }
+        : await supabase
+            .from("reels")
+            .select("id, permalink, duration_enrich_attempts")
+            .eq("workspace_id", workspaceId)
+            .eq("media_product_type", "REELS")
+            .is("duration_seconds", null)
+            .not("permalink", "is", null)
+            .lt("duration_enrich_attempts", 3)
+            .limit(5);
 
       // Get workspace owner for usage logging
       const { data: wsOwner } = await supabase
@@ -825,7 +846,9 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
           const duration = await fetchApifyReelDuration(reel.permalink!, apifyToken);
           const latencyMs = Date.now() - t0;
 
-          // Log integration usage
+          // Log integration usage. cost 0 en error: Apify no entregó items,
+          // no inflar el reporte con costo fantasma (antes los ~6.855 intentos
+          // fallidos acumulaban $22+ sintéticos en los logs).
           if (ownerId) {
             supabase.from("integration_usage").insert({
               workspace_id: workspaceId,
@@ -833,8 +856,8 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
               feature: "ig-sync-enrichment",
               provider: "scraper",
               operation: "reel-scrape",
-              items_count: 1,
-              cost_usd: 0.0033,
+              items_count: duration ? 1 : 0,
+              cost_usd: duration ? 0.0033 : 0,
               latency_ms: latencyMs,
               status: duration ? "success" : "error",
             }).then(() => {});
@@ -843,6 +866,12 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
           if (duration) {
             await supabase.from("reels").update({ duration_seconds: duration }).eq("id", reel.id);
             result.durationsEnriched++;
+          } else {
+            // Contar el intento fallido: a los 3 el reel sale de la selección.
+            await supabase
+              .from("reels")
+              .update({ duration_enrich_attempts: ((reel as { duration_enrich_attempts?: number | null }).duration_enrich_attempts ?? 0) + 1 })
+              .eq("id", reel.id);
           }
         } catch { /* non-blocking */ }
       }));

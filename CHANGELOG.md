@@ -5,6 +5,38 @@
  
 ---
 
+## [unreleased] — 2026-07-02
+
+### Feat — Moka Coins v2 + dieta Apify: precio justo por acción y factura ~$200→~$55/mes
+
+Audit ultracode (6 agentes, Prod-verified) tras dos incidentes: (a) un cliente pasó de 500→0 coins con UN click de "analizar competidor" (86 reels × $0.0039 = 335 coins debitados por un scrape que el cron ya hace gratis a las 4AM); (b) factura Apify ~$200/mes con ~15 usuarios, con el **90% del gasto invisible** (el cron diario de 85 competidores no logueaba NADA = $105-160/mes; el grid de 200 posts por scrape manual = $0.50/click sin loguear; el enrichment reintentaba reels irresolubles para siempre: 71-76% de intentos fallidos, ~6.855 runs pagos tirados).
+
+**Precio justo (regla: ningún click come >150 coins = 30% del día):**
+- **Scrape de datos = SERVICIO, 0 coins** (migración `20260702000000`): rama `service` en `credit_category` (`competitor-base-load`, `competitor-scheduled-refresh`, `reference-base-load` + legacy `competitor-scraping`/`reference-scraping` para el overlap de deploy); el trigger sale temprano con todo lo no-debitable. "Analizar competidor" pasa de 250-730c a ~30c (solo la IA).
+- **Chat complejo: prompt caching** (`anthropic.service.ts`: `cache_control` en system + último mensaje, con plegado honesto de cache read 0.1×/write 1.25× a tokens equivalentes) + `MAX_HISTORY_TOKENS` 80k→30k + tool results truncados a 12k chars + **techo duro `MAX_COINS_PER_MESSAGE=150`** (corta el tool loop y sintetiza) + el especialista ahora se loguea/debita (corría Sonnet gratis e invisible, ~30c/llamada). De 163-213c (máx 1.027) a ~40-70c por mensaje.
+- **Previsto pre-acción**: `src/lib/credit-estimates.ts` + `CoinCost` badge (`~30 Moka`) en "Scrape + Analizar" y "Análisis profundo" de video.
+- **Clamps por tier cableados** (dejaron de ser [FASE 2]): `maxReelsPerScrape` (20/100) + `scrapeWindowDays` (30/90) en el scrape manual; `maxCompetitors` (3/5) al guardar ADN (grandfathering: con más que el cap se puede editar/borrar, no agregar); techo diario de análisis de competidor `maxBulkAnalyze×5` (15/25 reels/día, reset medianoche AR); `assertCredits` en analyze.
+
+**Dieta Apify (~$200-370 → ~$55/mes):**
+- **Cron competidores** (el 55-80% de la factura): límite 50→25 reels + `onlyPostsNewerThan: 14 days` + `skipPinnedPosts` + cadencia diaria→**L/Mi/V** + filtro plan standard/pro + actividad LLM 14d (migración `20260702000100`) + **por fin loguea** (`competitor-scheduled-refresh`, service). $315→~$36/mes proyectado.
+- **Scrape manual**: ventana **incremental** (días desde el último scrape +7, full si >30d — antes re-pagaba los mismos 90 días en cada click), grid **200 posts solo el primer scrape / 30 en re-scrapes** (+ logueado como `competitor-grid-scrape`, nuevo en `OPERATION_PRICING`), **cooldown 6h**, y `maybe_trial` solo se computa para reels NUEVOS (antes cada re-scrape pisaba los toggles manuales del usuario).
+- **Enrichment**: `reels.duration_enrich_attempts` (máx 3 intentos, negative-cache), costo 0 + items 0 en filas de error (basta de costo fantasma), circuit-breaker en sync (≥10 errores/hora → skip), y `fetchApifyReelPublicData` sin `includeSharesCount`/`includeTranscript` (ningún caller los usa).
+
+Números proyectados: día típico de un pro activo 1.570→**~340 coins**; máx por click **150**; cobertura de logging Apify <10%→~100%. Verificación: `tsc --noEmit` limpio. Post-launch: loguear referencias/rescrape, badge de coins en composers de chat, re-medir 7 días antes de `CREDITS_HARD_GATE=true`. Request original: "de 500 a cero con un click no puede pasar… previsto de cuántas coins usa la acción… $200/mes de Apify con 15 usuarios es muy loco, revisá parte por parte".
+
+#### Archivos
+- `supabase/migrations/20260702000000_moka_coins_v2_service_reclass.sql` (+rollback) — categoría service + trigger + `duration_enrich_attempts`.
+- `supabase/migrations/20260702000100_competitor_cron_diet.sql` (+rollback) — cron L/Mi/V + filtro tier/actividad.
+- `src/services/anthropic.service.ts` — prompt caching + facturación honesta de cache.
+- `src/app/api/v1/chat/route.ts` — techo 150c/mensaje, historia 30k, tool results 12k, log del especialista.
+- `src/services/competitor-scraper.service.ts` + `src/app/api/v1/competitors/[id]/scrape/route.ts` — incremental + grid dinámico + cooldown + clamps + `competitor-base-load` + log grid.
+- `src/app/api/v1/competitors/[id]/analyze/route.ts` — techo diario por tier + assertCredits.
+- `supabase/functions/scrape-competitors/index.ts` — dieta + logging. · `supabase/functions/sync-instagram/index.ts` — negative-cache + circuit-breaker + costo 0 en error.
+- `src/app/api/v1/reels/enrich-durations/route.ts` — negative-cache. · `src/services/apify-reel.service.ts` — sin flags caros.
+- `src/lib/tier/config.ts` — `scrapeWindowDays` + clamps activos. · `src/services/integration-usage.service.ts` — pricing grid.
+- `src/lib/credit-estimates.ts` + `src/components/common/CoinCost.tsx` (nuevos) + badges en `CompetitorTab.tsx`/`GeminiAnalysis.tsx`.
+- `src/app/api/v1/onboarding/adn/route.ts` — enforcement `maxCompetitors`.
+
 ## [unreleased] — 2026-07-01
 
 ### Feat — Moka Coins v1: billetera de créditos con chip en vivo + control de admin
