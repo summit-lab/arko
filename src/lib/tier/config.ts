@@ -45,7 +45,8 @@ const ALL_OFF: Record<Feature, boolean> = {
 export const TIER_CONFIG: Record<Tier, TierConfig> = {
   demo:     { dailyBudgetUsd: 0.15, maxCompetitors: 0, maxReelsPerScrape: 0,   maxBulkAnalyze: 0, scrapeWindowDays: 0,  ownReelsCap: 12,  features: ALL_OFF },
   standard: { dailyBudgetUsd: 0.50, maxCompetitors: 3, maxReelsPerScrape: 20,  maxBulkAnalyze: 3, scrapeWindowDays: 30, ownReelsCap: 200, features: ALL_ON },
-  pro:      { dailyBudgetUsd: 0.50, maxCompetitors: 5, maxReelsPerScrape: 100, maxBulkAnalyze: 5, scrapeWindowDays: 90, ownReelsCap: 200, features: ALL_ON },
+  // Pro 1000 coins/día ($1): entran ~3 análisis profundos (techo 300c c/u) + chat normal.
+  pro:      { dailyBudgetUsd: 1.00, maxCompetitors: 5, maxReelsPerScrape: 100, maxBulkAnalyze: 5, scrapeWindowDays: 90, ownReelsCap: 200, features: ALL_ON },
 };
 
 /** Etiquetas visibles. La DB mantiene los valores canónicos demo/standard/pro. */

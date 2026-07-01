@@ -43,10 +43,11 @@ import { getUserLanguage } from '@/i18n/server';
 const MAX_TOOL_ITERATIONS = 5;
 
 /** Techo duro de Moka Coins por MENSAJE (1 MC = $0.001). Si el costo acumulado
- *  de las iteraciones lo alcanza, el loop corta y sintetiza con lo que tiene —
- *  garantiza que un mensaje jamás coma >~30% del día (incidente 2026-07-01:
- *  mensajes de hasta 1.027 coins con billetera diaria de 500). */
-const MAX_COINS_PER_MESSAGE = 150;
+ *  de las iteraciones lo alcanza, el loop corta y sintetiza con lo que tiene.
+ *  300 cubre análisis profundos legítimos ("analizá mis últimos 100 reels +
+ *  identidad de marca" ≈ 150-250c con caching) sin permitir el descontrol del
+ *  incidente 2026-07-01 (mensajes de hasta 1.027 coins). Exento: unlimited. */
+const MAX_COINS_PER_MESSAGE = 300;
 
 /** Tool results largos (query_reels con 30 reels, get_reel_details con
  *  transcript completo) se re-pagan como input en CADA iteración siguiente.
