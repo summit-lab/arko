@@ -8,7 +8,7 @@
  * Logs cost to llm_usage with feature 'reference-analysis'.
  */
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';

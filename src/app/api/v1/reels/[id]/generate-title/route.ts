@@ -5,6 +5,8 @@
  * Guarda el resultado en reels.auto_title.
  */
 
+export const maxDuration = 120; // trabajo pesado (LLM/Gemini/Apify): headroom anti-timeout
+
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';

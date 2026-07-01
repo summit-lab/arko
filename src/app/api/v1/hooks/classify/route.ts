@@ -14,6 +14,8 @@
  * Returns: { classifications: [{ reel_short_code, pattern, language, translation }] }
  */
 
+export const maxDuration = 300; // trabajo pesado (LLM/Gemini/Apify): headroom anti-timeout
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getGeminiKey } from '@/lib/env';

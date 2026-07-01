@@ -4,6 +4,8 @@
  * Usa el service compartido.
  */
 
+export const maxDuration = 300; // trabajo pesado (LLM/Gemini/Apify): headroom anti-timeout
+
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api500 } from '@/lib/api/response';
