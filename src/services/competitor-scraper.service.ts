@@ -272,8 +272,12 @@ async function scrapeReels(username: string, token: string, limit: number): Prom
   });
 
   if (!response.ok) {
-    console.warn(`[competitor-scraper] Reels scrape failed for @${username}:`, response.status);
-    return [];
+    // NO tragarse el error: desde el 26/6 la fase de reels falló para TODOS los
+    // workspaces (profile OK, reels 0) y nadie lo vio porque acá se devolvía []
+    // como si fuera éxito. Tiramos con el status + body real de Apify para que
+    // el caller lo loguee en integration_usage (status='error') y sea visible.
+    const body = await response.text().catch(() => '');
+    throw new Error(`Apify reels HTTP ${response.status}: ${body.slice(0, 300)}`);
   }
 
   const data = await response.json() as ApifyReelResult[];
@@ -458,12 +462,17 @@ export async function scrapeCompetitor(
     message: `Bajando reels y perfil de @${username} (últimos ${SCRAPE_WINDOW_DAYS} días)...`,
   });
 
+  // Si la fase de reels falla (HTTP de Apify o timeout), capturamos el motivo
+  // para devolverlo como `error` en vez de fingir "éxito con 0 reels".
+  let reelsError: string | null = null;
+
   const [profile, reels, gridShortcodes] = await Promise.all([
     scrapeProfile(username, token).catch((err) => {
       console.error('[competitor-scraper] Profile error:', err);
       return null;
     }),
     scrapeReels(username, token, MAX_REELS_PER_SCRAPE).catch((err) => {
+      reelsError = err instanceof Error ? err.message : String(err);
       console.error('[competitor-scraper] Reels error:', err);
       return [] as CompetitorReelData[];
     }),
@@ -531,6 +540,14 @@ export async function scrapeCompetitor(
           follower_count: profile.ig_follower_count,
         }, { onConflict: 'competitor_id,snapshot_date' });
     }
+  }
+
+  // Reels falló de verdad (HTTP/timeout de Apify — distinto de "cuenta sin
+  // reels"): cortar acá devolviendo el motivo real. El route lo loguea en
+  // integration_usage con status='error' y así deja de ser invisible.
+  if (reelsError && reels.length === 0) {
+    await setProgress(supabase, competitorId, { phase: 'done', message: 'Error bajando reels del competidor' });
+    return { profile, reels: [], reelsInserted: 0, error: `Reels scrape: ${reelsError}` };
   }
 
   // Fase 4: upload thumbnails. Emitimos progreso granular — esta es la parte
