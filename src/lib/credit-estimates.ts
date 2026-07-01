@@ -17,7 +17,7 @@ export interface ActionEstimate {
 export const ACTION_ESTIMATES = {
   /** Mensaje de chat complejo (sesiones de reel/guion/Mesa fuerzan complex).
    *  max = MAX_COINS_PER_MESSAGE del route (techo duro server-side). */
-  'chat-complex':        { typ: 50, max: 150 },
+  'chat-complex':        { typ: 50, max: 300 },
   'chat-simple':         { typ: 1,  max: 9 },
   /** Análisis de video propio (Gemini flash; max = tier-up a pro). */
   'video-analysis':      { typ: 5,  max: 75 },
