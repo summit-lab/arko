@@ -23,8 +23,11 @@
  *   { type: 'error',      message }
  */
 
-// Extend timeout to 120s — tool loop + specialist sub-agents can take 60-90s
-export const maxDuration = 120;
+// 300s (máx de Vercel Pro) — el tool loop (hasta 5 iteraciones) + sub-agentes
+// especialistas en preguntas complejas (ej. análisis de 120 días) se pasaba de
+// 120s y el stream se cortaba ("posible timeout del servidor"). Otras rutas
+// pesadas ya usan 300.
+export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';

@@ -5,7 +5,7 @@
  * Safe to call as fire-and-forget from the frontend.
  */
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';

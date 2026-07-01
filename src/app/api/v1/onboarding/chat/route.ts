@@ -6,6 +6,8 @@
  * POST: Processes a user message, calls LLM with tool_use for data extraction.
  */
 
+export const maxDuration = 120; // trabajo pesado (LLM/Gemini/Apify): headroom anti-timeout
+
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
