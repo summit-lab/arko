@@ -1828,6 +1828,24 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
 
         if (status === "analyzing") serverConfirmedAnalyzing = true;
 
+        // Scrape falló server-side: el route dejó phase 'error' con copy
+        // amigable (el detalle técnico quedó en integration_usage). Mostramos
+        // el banner, cortamos el "Analizando..." y ack-eamos con DELETE para
+        // que el error no re-aparezca en el próximo load/poll. Antes este caso
+        // era INVISIBLE: el cliente quedaba mirando "Analizando..." infinito.
+        if (progress?.phase === "error") {
+          sentFinalLoad = true;
+          setError(progress.message || "No pudimos actualizar este competidor. Reintentá en unos minutos.");
+          setCompetitors((prev) => prev.map((c) =>
+            c.id === pollingCompetitorId ? { ...c, analysis_status: "idle", scrape_progress: null } : c,
+          ));
+          try {
+            await fetch(`/api/v1/competitors/${pollingCompetitorId}/scrape`, { method: "DELETE", headers });
+          } catch { /* best-effort: si falla, el próximo poll lo reintenta */ }
+          if (!cancelled) await load();
+          return;
+        }
+
         // Don't overwrite optimistic local state with a stale server "idle"
         // response that came in before the scrape route set status=analyzing
         // on its end. We only trust idle once the server has confirmed
@@ -1944,7 +1962,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             <div className={`space-y-3 min-w-0 transition-opacity duration-150 ${isPanelStale ? "opacity-50" : "opacity-100"}`}>
               {/* Profile header — el overlay de progreso se monta sólo sobre este card */}
               <div className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.08] relative">
-                {(selected.analysis_status === "analyzing" || selected.scrape_progress != null) && (
+                {(selected.analysis_status === "analyzing" ||
+                  (selected.scrape_progress != null && selected.scrape_progress.phase !== "error")) && (
                   <ScrapeProgressOverlay competitor={selected} />
                 )}
                 <div className="flex items-start gap-3">

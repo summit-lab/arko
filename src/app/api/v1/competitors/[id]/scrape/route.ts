@@ -65,7 +65,23 @@ export async function POST(
         const latencyMs = Date.now() - startMs;
 
         if (result.error) {
-          await resetStatus();
+          // Estado de error VISIBLE para el cliente: idle + scrape_progress
+          // phase 'error' con copy amigable (el detalle técnico va SOLO al log).
+          // Antes esto quedaba como "éxito con 0 reels" y el cliente veía
+          // "Analizando..." colgado sin explicación. La UI muestra el banner
+          // y ack-ea con DELETE para que no re-aparezca.
+          await supabase
+            .from('workspace_competitors')
+            .update({
+              analysis_status: 'idle',
+              analysis_started_at: null,
+              scrape_progress: {
+                phase: 'error',
+                message: 'No pudimos actualizar este competidor. Reintentá en unos minutos.',
+              },
+            })
+            .eq('id', competitorId)
+            .eq('workspace_id', auth.workspaceId);
           await logIntegrationUsage(supabase, {
             workspaceId: auth.workspaceId, userId: auth.userId,
             feature: 'competitor-scraping', provider: 'apify', operation: 'competitor-profile-scrape',
@@ -133,5 +149,36 @@ export async function POST(
   } catch (error) {
     console.error('[competitors/scrape] Error:', error);
     return api500('Error scraping competitor');
+  }
+}
+
+/**
+ * DELETE /api/v1/competitors/[id]/scrape
+ * Ack del estado de error: la UI ya mostró el banner y limpia el
+ * scrape_progress persistido para que el error no re-aparezca en el próximo
+ * load/poll. Solo limpia si NO hay un run activo (analysis_status='idle').
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await requireFeature(request, 'competitors');
+    if (isAuthError(auth)) return auth;
+
+    const { id: competitorId } = await params;
+    const supabase = await createClient();
+
+    await supabase
+      .from('workspace_competitors')
+      .update({ scrape_progress: null })
+      .eq('id', competitorId)
+      .eq('workspace_id', auth.workspaceId)
+      .eq('analysis_status', 'idle');
+
+    return apiSuccess({ cleared: true });
+  } catch (error) {
+    console.error('[competitors/scrape] DELETE Error:', error);
+    return api500('Error clearing scrape state');
   }
 }

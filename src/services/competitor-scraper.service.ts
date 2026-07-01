@@ -47,7 +47,10 @@ type ScrapeProgress = {
     | 'scraping_grid'
     | 'uploading_thumbs'
     | 'saving'
-    | 'done';
+    | 'done'
+    // Terminal con falla: la UI lo muestra como error amigable (no overlay) y
+    // lo ack-ea con DELETE /scrape para que no re-aparezca.
+    | 'error';
   message: string;
   current?: number;
   total?: number;
@@ -546,7 +549,6 @@ export async function scrapeCompetitor(
   // reels"): cortar acá devolviendo el motivo real. El route lo loguea en
   // integration_usage con status='error' y así deja de ser invisible.
   if (reelsError && reels.length === 0) {
-    await setProgress(supabase, competitorId, { phase: 'done', message: 'Error bajando reels del competidor' });
     return { profile, reels: [], reelsInserted: 0, error: `Reels scrape: ${reelsError}` };
   }
 
