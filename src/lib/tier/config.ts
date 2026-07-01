@@ -57,6 +57,8 @@ export const TIER_LABEL: Record<Tier, string> = {
 export const cfg = (t: Tier) => TIER_CONFIG[t];
 export const hasFeature = (t: Tier, f: Feature) => TIER_CONFIG[t].features[f];
 export const dailyBudget = (t: Tier) => TIER_CONFIG[t].dailyBudgetUsd; // [FASE 2]
+/** Allotment diario de Moka Coins = dailyBudgetUsd × 1000 (1 MC = $0.001). */
+export const dailyCoins = (t: Tier) => Math.round(TIER_CONFIG[t].dailyBudgetUsd * 1000);
 export const clampReels = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxReelsPerScrape); // [FASE 2]
 export const clampCompetitors = (t: Tier, n: number) => Math.min(n, TIER_CONFIG[t].maxCompetitors); // [FASE 2]
 

@@ -3,10 +3,12 @@ import { Header } from "@/components/layout/Header";
 import { NavProgressBar } from "@/components/layout/NavigationProvider";
 import { AdnAlertBanner } from "@/components/features/onboarding/AdnAlertBanner";
 import { MetaConnectionBanner } from "@/components/features/meta/MetaConnectionBanner";
+import { CreditDepletionBanner } from "@/components/features/credits/CreditDepletionBanner";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { resolveTier, type Tier } from "@/lib/tier/config";
+import { creditView } from "@/lib/credits";
 
 export default async function DashboardLayout({
   children,
@@ -30,9 +32,11 @@ export default async function DashboardLayout({
   let metaConnectionStatus: string | null = null;
   let metaConnectionLastError: string | null = null;
   let tier: Tier = "pro";
+  let creditRemaining = 0;
+  let creditAllotment = 0;
   if (workspaceId) {
     const supabase = await createClient();
-    const [{ data: wsData }, { data: metaData }] = await Promise.all([
+    const [{ data: wsData }, { data: metaData }, { data: balData }] = await Promise.all([
       supabase
         .from("workspaces")
         .select("name, settings, onboarding_completed, plan, trial_ends_at")
@@ -41,6 +45,11 @@ export default async function DashboardLayout({
       supabase
         .from("meta_connections")
         .select("status, last_error")
+        .eq("workspace_id", workspaceId)
+        .maybeSingle(),
+      supabase
+        .from("workspace_credit_balances")
+        .select("period_date, spent_today_coins, unlimited, bonus_daily_coins")
         .eq("workspace_id", workspaceId)
         .maybeSingle(),
     ]);
@@ -58,6 +67,9 @@ export default async function DashboardLayout({
       metaConnectionStatus = metaData.status ?? null;
       metaConnectionLastError = metaData.last_error ?? null;
     }
+    const view = creditView(tier, balData);
+    creditAllotment = view.allotment; // Infinity si unlimited → no se muestra banner
+    creditRemaining = view.remaining;
   }
 
   // Demo saltea el ADN (no usa Moka AI): nada de nudge ni banner.
@@ -101,6 +113,9 @@ export default async function DashboardLayout({
               status={metaConnectionStatus!}
               lastError={metaConnectionLastError}
             />
+          )}
+          {!isAdmin && Number.isFinite(creditAllotment) && creditAllotment > 0 && (
+            <CreditDepletionBanner remaining={creditRemaining} allotment={creditAllotment} />
           )}
           {showAdnAlert && <AdnAlertBanner />}
           {children}

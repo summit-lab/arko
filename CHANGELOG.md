@@ -5,6 +5,39 @@
  
 ---
 
+## [unreleased] — 2026-07-01
+
+### Feat — Moka Coins v1: billetera de créditos con chip en vivo + control de admin
+
+Sistema de créditos ("Moka Coins", **1 MC = $0.001** = `round(cost_usd × 1000)`) sobre las tablas de usage existentes. Cap diario por tier derivado de `dailyBudgetUsd × 1000`: demo 150, standard/pro 500. La DB **solo ACUMULA** gasto vía trigger `AFTER INSERT` en `llm_usage`/`integration_usage`; el tier/allotment vive en TS (`TIER_CONFIG`, fuente única). Clasificación por `feature`: solo el allowlist (ai/scraping on-demand) debita; los **syncs automáticos** (`ig-sync-enrichment`/`ig-reel-enrichment`) y cualquier feature desconocida caen en `system` y **NUNCA debitan** (fail-safe). El débito es best-effort (`EXCEPTION`-safe: si falla no rompe el logging de usage).
+
+- **Chip en vivo** en el header (Supabase Realtime sobre `workspace_credit_balances`): `restantes / allotment`, baja al instante aunque el gasto ocurra en background. Demo = chip fijo con candado (nunca gasta). Unlimited = ∞.
+- **Alertas**: banner de agotamiento (ámbar ≥80%, rojo 0%) + estados de color del chip.
+- **Guard de corte** (`assertCredits`) cableado en chat, análisis de video, scrape competidor/referencia — **SOFT** en lanzamiento (`CREDITS_HARD_GATE` off: mide, no bloquea).
+- **Control de admin** en `/admin/clients/[id]`: monedas infinitas (`unlimited`), cupo diario extra (`bonus_daily_coins`), reset de hoy — vía RPC `moka_admin_adjust` gated `is_admin()`.
+- **Fix pricing**: `gemini-2.5-pro` estaba sin tarifar (el tier-up de video logueaba $0); agregado + `console.warn` ante cualquier modelo sin pricing.
+
+Migraciones (Prod, aplicadas + verificadas): `20260701000000_moka_coins_v1`, `20260701000100_moka_coins_admin`. Verificación: `tsc --noEmit` limpio; 26 balances backfilleados en 0; clasificador validado (`ig-*-enrichment → system`); Realtime activo. Request original: "las moka coins hay que hacerlas... un número que se dibuje arriba y se actualice en tiempo real... alertas de sin créditos... los syncs automáticos que se cuenten por fuera... capear el gasto de verdad" + "agregar en el panel de admin sumar coins / monedas infinitas".
+
+### Fix — `reel_metrics_daily`: trigger `updated_at` roto rompía los UPDATE
+
+La tabla de métricas más grande (87 MB) tenía el trigger `BEFORE UPDATE handle_updated_at_reel_metrics_daily`, pero **no tiene columna `updated_at`** → todo `UPDATE` fallaba con `record "new" has no field "updated_at"` (rompía en silencio el refresh de métricas de un día ya sincronizado). La función `handle_updated_at()` se usa OK en otras 21 tablas; acá estaba mal aplicada. Fix: quitar el trigger. Migración `20260701000200_fix_reel_metrics_daily_updated_at_trigger` (aplicada + verificada con `UPDATE` real).
+
+> **Nota operativa** (no es código): durante la sesión hubo un incidente de **saturación de compute de la DB** (checkpoints de 40-55s, timeouts de conexión incluso en el SQL Editor) — **NO** causado por Moka Coins (la base es ~200 MB). Resuelto subiendo el compute add-on. Syncs recuperados (97 completed en 6h). Los clientes vieron syncs colgados "al 10%" que el watchdog reseteaba; se autorresolvió.
+
+#### Archivos
+- `supabase/migrations/20260701000000_moka_coins_v1.sql` (+rollback) — tabla balances + trigger débito + RLS + Realtime + backfill.
+- `supabase/migrations/20260701000100_moka_coins_admin.sql` (+rollback) — columnas `unlimited`/`bonus_daily_coins` + RPC `moka_admin_adjust` + policy admin.
+- `supabase/migrations/20260701000200_fix_reel_metrics_daily_updated_at_trigger.sql` (+rollback).
+- `src/lib/credits.ts` (nuevo) — peg, reset AR, `creditView`. · `src/lib/tier/config.ts` — `dailyCoins()`.
+- `src/lib/api/credit-guard.ts` (nuevo) — `assertCredits` (flag soft).
+- `src/services/llm-usage.service.ts` — pricing `gemini-2.5-pro` + warn.
+- `src/components/layout/CreditChip.tsx` (nuevo) + `Header.tsx` — chip Realtime + badge de tier real (antes hardcodeaba "PRO").
+- `src/components/features/credits/CreditDepletionBanner.tsx` (nuevo) + `src/app/(dashboard)/layout.tsx`.
+- `src/app/(admin)/admin/clients/[id]/CreditAdminControl.tsx` (nuevo) + `actions.ts` + `page.tsx`.
+- `src/app/api/v1/{chat, reels/[id]/gemini-analyze, competitors/[id]/scrape, references/[id]/scrape}/route.ts` — guard.
+- `docs/features/moka-coins.md` — estado → v1 implementado.
+
 ## [unreleased] — 2026-06-22
 
 ### Fix — Chat Moka caído (modelos Anthropic retirados) + análisis Gemini 403 por URL de video caducada

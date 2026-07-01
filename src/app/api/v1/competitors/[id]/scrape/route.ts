@@ -16,6 +16,7 @@ import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
+import { assertCredits } from '@/lib/api/credit-guard';
 import { apiSuccess, api400, api500 } from '@/lib/api/response';
 import { scrapeCompetitor, isCompetitorScrapingEnabled } from '@/services/competitor-scraper.service';
 import { analyzeCompetitorReels } from '@/services/competitor-analysis.service';
@@ -36,6 +37,9 @@ export async function POST(
 
     const { id: competitorId } = await params;
     const supabase = await createClient();
+
+    const over = await assertCredits(supabase, auth);
+    if (over) return over;
 
     // Marcar 'analyzing' YA (rápido). analysis_started_at lo lee el watchdog
     // pg_cron para distinguir runs legítimas en curso de rows stuck.

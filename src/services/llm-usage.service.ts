@@ -30,6 +30,7 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
   'claude-3-5-haiku-20241022':   { inputPer1M: 0.80,  outputPer1M: 4.00 },
   'claude-opus-4-20250514':      { inputPer1M: 15.00, outputPer1M: 75.00 },
   // Google
+  'gemini-2.5-pro':              { inputPer1M: 1.25,  outputPer1M: 10.00 }, // tier-up de video (≤200k ctx). Verificar vs precio vivo de Google.
   'gemini-2.5-flash':            { inputPer1M: 0.15,  outputPer1M: 0.60 },
   'gemini-2.0-flash':            { inputPer1M: 0.10,  outputPer1M: 0.40 },
   'gemini-1.5-flash':            { inputPer1M: 0.075, outputPer1M: 0.30 },
@@ -49,6 +50,9 @@ function findPricing(model: string): ModelPricing | null {
       bestLength = key.length;
     }
   }
+  // Sin pricing => cost_usd=0 => 0 Moka Coins (gasto invisible). Avisar para que
+  // un cambio de modelo no regrese en silencio a "gratis" (así se detectó gemini-2.5-pro).
+  if (!bestMatch) console.warn(`[llm-usage] Modelo SIN pricing: "${model}" → cost_usd=0. Agregar a MODEL_PRICING.`);
   return bestMatch;
 }
 

@@ -12,6 +12,7 @@ export const maxDuration = 300;
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
+import { assertCredits } from '@/lib/api/credit-guard';
 import { apiSuccess, api400, api404, apiError, api500 } from '@/lib/api/response';
 import { persistGeminiAnalysis } from '@/services/gemini-analysis-persistence.service';
 import { analyzeVideoWithGemini, isGeminiEnabled } from '@/services/gemini-video.service';
@@ -45,6 +46,9 @@ export async function POST(
 
     const { id } = await params;
     const supabase = await createClient();
+
+    const over = await assertCredits(supabase, auth);
+    if (over) return over;
 
     // Verificar que el reel pertenece al workspace
     const { data: reel, error: reelError } = await supabase

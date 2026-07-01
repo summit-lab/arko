@@ -32,6 +32,7 @@ export const maxDuration = 300;
 import { createClient } from '@/lib/supabase/server';
 import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
+import { assertCredits } from '@/lib/api/credit-guard';
 import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage } from '@/services/llm-usage.service';
@@ -278,6 +279,14 @@ export async function POST(request: Request) {
           : null;
 
         const supabase = await createClient();
+
+        // Corte por Moka Coins (soft en lanzamiento; no-op si CREDITS_HARD_GATE está off).
+        if (await assertCredits(supabase, auth)) {
+          controller.enqueue(sseEvent({ type: 'error', message: 'Te quedaste sin Moka Coins por hoy. Se renuevan a la medianoche.' }));
+          controller.close();
+          return;
+        }
+
         let sessionId = session_id;
         let isReelSession = false;
         let reelContextData: string | null = null;
