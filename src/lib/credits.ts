@@ -17,6 +17,44 @@ export const usdToCoins = (usd: number): number => Math.round((usd || 0) * MC_PE
 /** Huso de negocio: el reset del contador coincide con la medianoche AR. */
 export const AR_TZ = 'America/Argentina/Buenos_Aires';
 
+// ─── Buckets de costo ────────────────────────────────────────────────────────
+
+export type CreditBucket = 'ai' | 'scraping' | 'service' | 'system';
+
+/**
+ * ESPEJO de public.credit_category() en la DB (migración 20260702000200) —
+ * mantener SINCRONIZADAS a mano. La usa el admin para agrupar reportes sin
+ * pegarle a la RPC por cada fila. 'ai' y 'scraping' DEBITAN la billetera del
+ * cliente; 'service' y 'system' los absorbe Moka. Desconocido => 'system'.
+ */
+export function creditCategory(feature: string): CreditBucket {
+  switch (feature) {
+    case 'ai-agents':
+    case 'ai-agents-light':
+    case 'ai-agents-specialist':
+    case 'onboarding-adn':
+    case 'competitor-analysis':
+    case 'reference-analysis':
+    case 'arkoai-video-analysis':
+    case 'reel-auto-title':
+    case 'hooks-classify':
+      return 'ai';
+    case 'reel-analysis-rescrape':
+      return 'scraping';
+    case 'competitor-base-load':
+    case 'competitor-scheduled-refresh':
+    case 'reference-base-load':
+    case 'competitor-scraping':   // legacy
+    case 'reference-scraping':    // legacy
+      return 'service';
+    default:
+      return 'system';
+  }
+}
+
+/** ¿El bucket debita la billetera del cliente? */
+export const bucketDebits = (b: CreditBucket) => b === 'ai' || b === 'scraping';
+
 /** Fecha "de hoy" en huso AR como 'YYYY-MM-DD' (en-CA da formato ISO). */
 export function arToday(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: AR_TZ });

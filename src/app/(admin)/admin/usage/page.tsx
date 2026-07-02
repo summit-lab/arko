@@ -1,8 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { Cpu, DollarSign, Zap, TrendingUp, Globe, ChevronLeft, ChevronRight } from "lucide-react";
+import { Cpu, DollarSign, Zap, TrendingUp, Globe, ChevronLeft, ChevronRight, AlertTriangle, Scale } from "lucide-react";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { UsageDailyChart } from "./UsageDailyChart";
+import { creditCategory, bucketDebits, type CreditBucket } from "@/lib/credits";
+import { resolveTier, TIER_LABEL, type Tier } from "@/lib/tier/config";
+
+/** Referencia de la factura mensual real de Apify (para la card de
+ *  reconciliación). Actualizar a mano cuando cambie el plan/factura. */
+const APIFY_INVOICE_REF_USD = 200;
 
 interface LLMRow {
   id: string;
@@ -10,8 +17,6 @@ interface LLMRow {
   feature: string;
   provider: string;
   model: string;
-  input_tokens: number;
-  output_tokens: number;
   total_tokens: number;
   cost_usd: number;
   latency_ms: number | null;
@@ -80,6 +85,32 @@ function getFeatureLabel(feature: string, t: Translator): string {
 
 const CALLS_PER_PAGE = 30;
 
+/** PostgREST capea cada request a ~1000 filas (db-max-rows) — el bug original
+ *  de esta página: `.limit(500)` SIN ventana de tiempo mostraba una fracción
+ *  arbitraria del gasto. Paginamos con .range() hasta agotar la ventana. */
+async function fetchAllRows<T>(
+  supabase: SupabaseClient,
+  table: string,
+  columns: string,
+  sinceIso: string,
+): Promise<T[]> {
+  const out: T[] = [];
+  const PAGE = 1000;
+  for (let i = 0; i < 25; i++) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: false })
+      .range(i * PAGE, i * PAGE + PAGE - 1);
+    if (error) { console.error(`[admin/usage] ${table} fetch error:`, error.message); break; }
+    if (!data || data.length === 0) break;
+    out.push(...(data as T[]));
+    if (data.length < PAGE) break;
+  }
+  return out;
+}
+
 export default async function UsagePage({
   searchParams,
 }: {
@@ -92,21 +123,83 @@ export default async function UsagePage({
   const locale = await getLocale();
   const dateLocale = locale === "en" ? "en-US" : "es-AR";
 
-  // Fetch both tables in parallel
-  const [{ data: llmRows }, { data: integrationRows }] = await Promise.all([
-    supabase.from("llm_usage").select("*").order("created_at", { ascending: false }).limit(500),
-    supabase.from("integration_usage").select("*").order("created_at", { ascending: false }).limit(500),
+  // Ventana REAL de 30 días (paginado — antes: 500 filas sin ventana = mentira)
+  const since30d = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const [rows, intRows, { data: allWorkspaces }] = await Promise.all([
+    fetchAllRows<LLMRow>(supabase, "llm_usage",
+      "id, workspace_id, feature, provider, model, total_tokens, cost_usd, latency_ms, created_at", since30d),
+    fetchAllRows<IntegrationRow>(supabase, "integration_usage",
+      "id, workspace_id, feature, provider, operation, items_count, cost_usd, latency_ms, status, created_at", since30d),
+    supabase.from("workspaces").select("id, name, plan, trial_ends_at"),
   ]);
 
-  const rows = (llmRows ?? []) as LLMRow[];
-  const intRows = (integrationRows ?? []) as IntegrationRow[];
+  const wsInfo = new Map((allWorkspaces ?? []).map((w) => [w.id as string, {
+    name: (w.name as string | null) ?? null,
+    tier: resolveTier((w.plan as string | null) ?? null, (w.trial_ends_at as string | null) ?? null),
+  }]));
 
   // ── Aggregate totals ──
+  // USD de integraciones: SOLO filas success (las error llevan el costo del
+  // actor-start $0.001, se muestran aparte como "en errores").
+  const intRowsOk = intRows.filter((r) => r.status === "success");
   const llmCost = rows.reduce((s, r) => s + Number(r.cost_usd), 0);
-  const intCost = intRows.reduce((s, r) => s + Number(r.cost_usd), 0);
+  const intCost = intRowsOk.reduce((s, r) => s + Number(r.cost_usd), 0);
+  const intErrorCost = intRows.reduce((s, r) => s + (r.status !== "success" ? Number(r.cost_usd) : 0), 0);
   const totalCost = llmCost + intCost;
   const totalTokens = rows.reduce((s, r) => s + r.total_tokens, 0);
   const totalOps = rows.length + intRows.length;
+
+  // ── Buckets (espejo de credit_category): qué debita el cliente vs qué absorbe Moka ──
+  const bucketAgg = new Map<CreditBucket, { cost: number; calls: number }>();
+  const addBucket = (feature: string, cost: number) => {
+    const b = creditCategory(feature);
+    const e = bucketAgg.get(b) ?? { cost: 0, calls: 0 };
+    e.cost += cost; e.calls += 1;
+    bucketAgg.set(b, e);
+  };
+  for (const r of rows) addBucket(r.feature, Number(r.cost_usd));
+  for (const r of intRowsOk) addBucket(r.feature, Number(r.cost_usd));
+  const debitadoCost = (bucketAgg.get('ai')?.cost ?? 0) + (bucketAgg.get('scraping')?.cost ?? 0);
+  const absorbidoCost = (bucketAgg.get('service')?.cost ?? 0) + (bucketAgg.get('system')?.cost ?? 0);
+
+  // ── Por plan (tier efectivo con auto-downgrade) ──
+  const planAgg = new Map<Tier, { cost: number; debitado: number; absorbido: number; ops: number }>();
+  const addPlan = (workspaceId: string, feature: string, cost: number) => {
+    const tier = wsInfo.get(workspaceId)?.tier ?? 'demo';
+    const e = planAgg.get(tier) ?? { cost: 0, debitado: 0, absorbido: 0, ops: 0 };
+    e.cost += cost; e.ops += 1;
+    if (bucketDebits(creditCategory(feature))) e.debitado += cost; else e.absorbido += cost;
+    planAgg.set(tier, e);
+  };
+  for (const r of rows) addPlan(r.workspace_id, r.feature, Number(r.cost_usd));
+  for (const r of intRowsOk) addPlan(r.workspace_id, r.feature, Number(r.cost_usd));
+
+  // ── Salud: errores de integraciones (últimos 7 días) ──
+  const since7d = Date.now() - 7 * 86_400_000;
+  const healthMap = new Map<string, { feature: string; operation: string; errors: number; total: number; lastError: string | null }>();
+  for (const r of intRows) {
+    if (new Date(r.created_at).getTime() < since7d) continue;
+    const key = `${r.feature}|${r.operation}`;
+    const e = healthMap.get(key) ?? { feature: r.feature, operation: r.operation, errors: 0, total: 0, lastError: null };
+    e.total += 1;
+    if (r.status !== "success") {
+      e.errors += 1;
+      if (!e.lastError || r.created_at > e.lastError) e.lastError = r.created_at;
+    }
+    healthMap.set(key, e);
+  }
+  const healthRows = Array.from(healthMap.values())
+    .filter((h) => h.errors > 0)
+    .sort((a, b) => b.errors - a.errors)
+    .slice(0, 8);
+
+  // ── Reconciliación Apify: mes calendario vs factura de referencia ──
+  const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const apifyMonthCost = intRowsOk.reduce((s, r) =>
+    s + (r.created_at >= monthStartIso ? Number(r.cost_usd) : 0), 0);
+  const dayOfMonth = new Date().getDate();
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const apifyProjected = dayOfMonth > 0 ? (apifyMonthCost / dayOfMonth) * daysInMonth : 0;
 
   const allLatencies = [
     ...rows.filter((r) => r.latency_ms).map((r) => r.latency_ms!),
@@ -128,7 +221,7 @@ export default async function UsagePage({
       dailyMap.set(day, { llm_cost: Number(r.cost_usd), integration_cost: 0, llm_calls: 1, integration_calls: 0 });
     }
   }
-  for (const r of intRows) {
+  for (const r of intRowsOk) {
     const day = new Date(r.created_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" });
     const existing = dailyMap.get(day);
     if (existing) {
@@ -154,7 +247,7 @@ export default async function UsagePage({
       featureMap.set(r.feature, { cost: Number(r.cost_usd), calls: 1 });
     }
   }
-  for (const r of intRows) {
+  for (const r of intRowsOk) {
     const existing = featureMap.get(r.feature);
     if (existing) {
       existing.cost += Number(r.cost_usd);
@@ -187,7 +280,7 @@ export default async function UsagePage({
       });
     }
   }
-  for (const r of intRows) {
+  for (const r of intRowsOk) {
     const key = `integ:${r.operation}`;
     const existing = typeMap.get(key);
     if (existing) {
@@ -228,7 +321,7 @@ export default async function UsagePage({
       });
     }
   }
-  for (const r of intRows) {
+  for (const r of intRowsOk) {
     const existing = wsMap.get(r.workspace_id);
     if (existing) {
       existing.total_cost += Number(r.cost_usd);
@@ -244,17 +337,10 @@ export default async function UsagePage({
     }
   }
 
-  if (wsMap.size > 0) {
-    const { data: workspaces } = await supabase
-      .from("workspaces")
-      .select("id, name")
-      .in("id", Array.from(wsMap.keys()));
-    for (const ws of workspaces ?? []) {
-      const entry = wsMap.get(ws.id);
-      if (entry) entry.workspace_name = ws.name;
-    }
+  for (const entry of wsMap.values()) {
+    entry.workspace_name = wsInfo.get(entry.workspace_id)?.name ?? null;
   }
-  const workspaceUsage = Array.from(wsMap.values()).sort((a, b) => b.total_cost - a.total_cost);
+  const workspaceUsage = Array.from(wsMap.values()).sort((a, b) => b.total_cost - a.total_cost).slice(0, 10);
 
   // ── Unified timeline (LLM + integrations merged, sorted by date) ──
   const unified: UnifiedRow[] = [
@@ -282,12 +368,26 @@ export default async function UsagePage({
   const safePage = Math.min(currentPage, totalPages);
   const paginatedOps = unified.slice((safePage - 1) * CALLS_PER_PAGE, safePage * CALLS_PER_PAGE);
 
+  // Labels hardcodeados en español (panel interno de admin, patrón CreditAdminControl)
   const stats = [
-    { label: t("usage.stats.totalCost"), value: `$${totalCost.toFixed(4)}`, sub: t("usage.stats.totalCostSub", { ai: llmCost.toFixed(4), integ: intCost.toFixed(4) }), icon: DollarSign, color: "text-emerald-400" },
-    { label: t("usage.stats.totalTokens"), value: formatNumber(totalTokens), sub: t("usage.stats.totalTokensSub", { count: rows.length }), icon: Zap, color: "text-blue-400" },
-    { label: t("usage.stats.operations"), value: totalOps.toString(), sub: t("usage.stats.operationsSub", { ai: rows.length, integ: intRows.length }), icon: Cpu, color: "text-violet-400" },
+    { label: "Costo 30 días", value: `$${totalCost.toFixed(2)}`, sub: `IA $${llmCost.toFixed(2)} · Integ $${intCost.toFixed(2)}${intErrorCost > 0.005 ? ` · +$${intErrorCost.toFixed(2)} en errores` : ""}`, icon: DollarSign, color: "text-emerald-400" },
+    { label: "Tokens 30 días", value: formatNumber(totalTokens), sub: t("usage.stats.totalTokensSub", { count: rows.length }), icon: Zap, color: "text-blue-400" },
+    { label: "Operaciones 30 días", value: totalOps.toString(), sub: t("usage.stats.operationsSub", { ai: rows.length, integ: intRows.length }), icon: Cpu, color: "text-violet-400" },
     { label: t("usage.stats.avgLatency"), value: `${avgLatency}ms`, sub: t("usage.stats.avgLatencySub", { count: typeUsage.length }), icon: TrendingUp, color: "text-amber-400" },
   ];
+
+  const BUCKET_META: Record<CreditBucket, { label: string; hint: string; color: string }> = {
+    ai:       { label: "IA on-demand",      hint: "debita al cliente", color: "text-violet-400" },
+    scraping: { label: "Scraping on-demand", hint: "debita al cliente", color: "text-blue-400" },
+    service:  { label: "Servicio",          hint: "lo absorbe Moka",   color: "text-amber-400" },
+    system:   { label: "Sistema",           hint: "lo absorbe Moka",   color: "text-white/50" },
+  };
+  const TIER_ORDER: Tier[] = ['pro', 'standard', 'demo'];
+  const TIER_BADGE: Record<Tier, string> = {
+    demo: "bg-white/[0.08] text-white/50",
+    standard: "bg-amber-500/15 text-amber-400",
+    pro: "bg-violet-500/15 text-violet-300",
+  };
 
   return (
     <div className="px-8 py-10 space-y-8">
@@ -315,6 +415,127 @@ export default async function UsagePage({
           </div>
         ))}
       </div>
+
+      {/* ── Buckets: qué debita el cliente vs qué absorbe Moka ── */}
+      <div className="grid grid-cols-4 gap-5">
+        {(Object.keys(BUCKET_META) as CreditBucket[]).map((b) => {
+          const meta = BUCKET_META[b];
+          const agg = bucketAgg.get(b) ?? { cost: 0, calls: 0 };
+          const pct = totalCost > 0 ? (agg.cost / totalCost) * 100 : 0;
+          return (
+            <div key={b} className="glass-card px-5 py-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">{meta.label}</p>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${bucketDebits(b) ? "bg-violet-500/10 text-violet-300" : "bg-white/[0.06] text-white/40"}`}>
+                  {meta.hint}
+                </span>
+              </div>
+              <p className={`text-[22px] font-light tracking-tight ${meta.color}`}>${agg.cost.toFixed(2)}</p>
+              <p className="text-[10px] text-white/25 mt-0.5">{pct.toFixed(0)}% del total · {agg.calls} ops</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Por plan + Reconciliación Apify ── */}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="glass-panel rounded-xl p-6">
+          <h3 className="text-[15px] font-light text-white tracking-wide mb-5">Gasto por plan (30 días)</h3>
+          <div className="space-y-1">
+            <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
+              <div className="col-span-3">Plan</div>
+              <div className="col-span-2 text-right">Ops</div>
+              <div className="col-span-2 text-right">Total</div>
+              <div className="col-span-2 text-right">Debitado</div>
+              <div className="col-span-3 text-right">Absorbido</div>
+            </div>
+            {TIER_ORDER.map((tier) => {
+              const agg = planAgg.get(tier) ?? { cost: 0, debitado: 0, absorbido: 0, ops: 0 };
+              return (
+                <div key={tier} className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/[0.03] transition-all px-2">
+                  <div className="col-span-3">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[tier]}`}>{TIER_LABEL[tier]}</span>
+                  </div>
+                  <div className="col-span-2 text-right text-[13px] font-light text-white/50">{agg.ops}</div>
+                  <div className="col-span-2 text-right text-[13px] font-medium text-emerald-400/80">${agg.cost.toFixed(2)}</div>
+                  <div className="col-span-2 text-right text-[12px] font-light text-violet-300/80">${agg.debitado.toFixed(2)}</div>
+                  <div className="col-span-3 text-right text-[12px] font-light text-white/40">${agg.absorbido.toFixed(2)}</div>
+                </div>
+              );
+            })}
+            <p className="text-[10px] text-white/20 pt-3 px-2">
+              Debitado = IA/scraping on-demand (paga el cliente en coins) · Absorbido = servicio + sistema (lo paga Moka).
+            </p>
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Scale size={15} className="text-amber-400" />
+            <h3 className="text-[15px] font-light text-white tracking-wide">Reconciliación Apify + LLM (mes calendario)</h3>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Logueado este mes (success)</p>
+              <p className="text-[28px] font-light text-white/85 tracking-tight">${apifyMonthCost.toFixed(2)}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Proyección fin de mes</p>
+                <p className="text-[18px] font-light text-emerald-400/85">${apifyProjected.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium">Factura Apify de referencia</p>
+                <p className="text-[18px] font-light text-white/50">${APIFY_INVOICE_REF_USD}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-white/25 leading-relaxed">
+              Si la proyección queda muy por debajo de la factura de referencia (~$200 pre-dieta), la dieta Apify está funcionando.
+              Tarifas verificadas contra cargos reales el 2026-07-01 — el logueado debería reconciliar ~100% con la factura nueva.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Salud: errores de integraciones (7 días) ── */}
+      {healthRows.length > 0 && (
+        <div className="glass-panel rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <AlertTriangle size={15} className="text-rose-400" />
+            <h3 className="text-[15px] font-light text-white tracking-wide">Salud de integraciones — errores últimos 7 días</h3>
+          </div>
+          <div className="space-y-1">
+            <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
+              <div className="col-span-4">Feature / Operación</div>
+              <div className="col-span-2 text-right">Errores</div>
+              <div className="col-span-2 text-right">Total</div>
+              <div className="col-span-2 text-right">% error</div>
+              <div className="col-span-2 text-right">Último error</div>
+            </div>
+            {healthRows.map((h) => {
+              const pct = h.total > 0 ? (h.errors / h.total) * 100 : 0;
+              return (
+                <div key={`${h.feature}|${h.operation}`} className="grid grid-cols-12 gap-2 items-center py-2.5 rounded-lg hover:bg-white/[0.03] transition-all px-2">
+                  <div className="col-span-4">
+                    <p className="text-[12px] font-light text-white/70">{h.feature}</p>
+                    <p className="text-[10px] text-white/25">{h.operation}</p>
+                  </div>
+                  <div className="col-span-2 text-right text-[13px] font-medium text-rose-400/80">{h.errors}</div>
+                  <div className="col-span-2 text-right text-[13px] font-light text-white/50">{h.total}</div>
+                  <div className="col-span-2 text-right">
+                    <span className={`text-[12px] font-medium ${pct >= 50 ? "text-rose-400" : pct >= 20 ? "text-amber-400" : "text-white/50"}`}>
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="col-span-2 text-right text-[11px] text-white/25">
+                    {h.lastError ? new Date(h.lastError).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" }) + " " + new Date(h.lastError).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" }) : "—"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts: Daily cost + Cost by feature */}
       <UsageDailyChart dailyData={dailyData} featureData={featureData} />
@@ -352,33 +573,45 @@ export default async function UsagePage({
           </div>
         </div>
 
-        {/* By Workspace */}
+        {/* By Workspace — Top 10, con plan y link al detalle del cliente */}
         <div className="glass-panel rounded-xl p-6">
           <h3 className="text-[15px] font-light text-white tracking-wide mb-5">
-            {t("usage.byWorkspace")}
+            Top 10 workspaces por gasto (30 días)
           </h3>
           <div className="space-y-1">
             <div className="grid grid-cols-12 gap-2 text-[10px] text-white/30 uppercase tracking-[0.1em] font-medium pb-3 border-b border-white/[0.06] px-2">
-              <div className="col-span-4">{t("usage.workspace")}</div>
+              <div className="col-span-5">{t("usage.workspace")}</div>
               <div className="col-span-2 text-right">{t("usage.ops")}</div>
-              <div className="col-span-3 text-right">{t("usage.tokens")}</div>
+              <div className="col-span-2 text-right">{t("usage.tokens")}</div>
               <div className="col-span-3 text-right">{t("usage.cost")}</div>
             </div>
             {workspaceUsage.length === 0 && (
               <p className="text-white/25 text-[13px] py-4 text-center">{t("usage.noData")}</p>
             )}
-            {workspaceUsage.map((w) => (
-              <div key={w.workspace_id} className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2">
-                <div className="col-span-4 text-[12px] font-light text-white/70 truncate">
-                  {w.workspace_name ?? w.workspace_id.slice(0, 8)}
-                </div>
-                <div className="col-span-2 text-right text-[13px] font-light text-white/50">{w.call_count}</div>
-                <div className="col-span-3 text-right text-[13px] font-light text-white/50">{w.total_tokens > 0 ? formatNumber(w.total_tokens) : "—"}</div>
-                <div className="col-span-3 text-right">
-                  <span className="text-[13px] font-medium text-emerald-400/80">${w.total_cost.toFixed(4)}</span>
-                </div>
-              </div>
-            ))}
+            {workspaceUsage.map((w) => {
+              const tier = wsInfo.get(w.workspace_id)?.tier ?? 'demo';
+              return (
+                <Link
+                  key={w.workspace_id}
+                  href={`/admin/clients/${w.workspace_id}`}
+                  className="grid grid-cols-12 gap-2 items-center py-3 rounded-lg hover:bg-white/[0.03] transition-all duration-200 px-2 cursor-pointer"
+                >
+                  <div className="col-span-5 flex items-center gap-2 min-w-0">
+                    <span className="text-[12px] font-light text-white/70 truncate">
+                      {w.workspace_name ?? w.workspace_id.slice(0, 8)}
+                    </span>
+                    <span className={`shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded-full ${TIER_BADGE[tier]}`}>
+                      {TIER_LABEL[tier]}
+                    </span>
+                  </div>
+                  <div className="col-span-2 text-right text-[13px] font-light text-white/50">{w.call_count}</div>
+                  <div className="col-span-2 text-right text-[13px] font-light text-white/50">{w.total_tokens > 0 ? formatNumber(w.total_tokens) : "—"}</div>
+                  <div className="col-span-3 text-right">
+                    <span className="text-[13px] font-medium text-emerald-400/80">${w.total_cost.toFixed(2)}</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>
