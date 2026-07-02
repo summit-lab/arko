@@ -42,8 +42,9 @@ export async function POST(
     const latencyMs = Date.now() - startMs;
 
     // Log each successful analysis to llm_usage (mirrors competitor-analyze pattern).
+    // Split 92/8: ratio REAL medido en video Gemini (85/15 sobre-cobraba con la tarifa corregida).
     for (const r of results.filter((res) => res.success && res.tokensUsed > 0)) {
-      const estimatedInput = Math.round(r.tokensUsed * 0.85);
+      const estimatedInput = Math.round(r.tokensUsed * 0.92);
       const estimatedOutput = r.tokensUsed - estimatedInput;
       const costUsd = calculateCost('gemini-2.5-flash', estimatedInput, estimatedOutput);
       await supabase.from('llm_usage').insert({

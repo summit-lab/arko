@@ -153,8 +153,9 @@ export async function POST(
             const aStart = Date.now();
             const results = await analyzeCompetitorReels(supabase, competitorId, auth.workspaceId);
             const aLatency = Date.now() - aStart;
+            // Split 92/8: ratio REAL medido en video Gemini (85/15 sobre-cobraba).
             for (const r of results.filter((x) => x.success && x.tokensUsed > 0)) {
-              const estIn = Math.round(r.tokensUsed * 0.85);
+              const estIn = Math.round(r.tokensUsed * 0.92);
               const estOut = r.tokensUsed - estIn;
               await supabase.from('llm_usage').insert({
                 workspace_id: auth.workspaceId, user_id: auth.userId,

@@ -846,9 +846,11 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
           const duration = await fetchApifyReelDuration(reel.permalink!, apifyToken);
           const latencyMs = Date.now() - t0;
 
-          // Log integration usage. cost 0 en error: Apify no entregó items,
-          // no inflar el reporte con costo fantasma (antes los ~6.855 intentos
-          // fallidos acumulaban $22+ sintéticos en los logs).
+          // Log integration usage. Tarifas VERIFICADAS contra cargos reales de
+          // la cuenta (plan Apify SCALE, runs 2026-07-01): 1 reel = $0.0024
+          // ($0.0014 reel + $0.001 actor-start); run fallido/0 items = $0.001
+          // (el start se cobra igual). Antes: 0.0033 en éxito (inflado) y
+          // también en error (fantasma, ~$22 acumulados).
           if (ownerId) {
             supabase.from("integration_usage").insert({
               workspace_id: workspaceId,
@@ -857,7 +859,7 @@ async function syncInstagramReels(supabase: any, workspaceId: string, syncJobId:
               provider: "scraper",
               operation: "reel-scrape",
               items_count: duration ? 1 : 0,
-              cost_usd: duration ? 0.0033 : 0,
+              cost_usd: duration ? 0.0024 : 0.001,
               latency_ms: latencyMs,
               status: duration ? "success" : "error",
             }).then(() => {});

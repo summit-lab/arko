@@ -589,15 +589,20 @@ export async function POST(request: Request) {
                 totalInputTokens += s.tokensUsed;
                 // Loguear el costo REAL del especialista (corre Sonnet aparte;
                 // antes: ~30 coins invisibles por llamada, ni logueadas ni
-                // debitadas). Split 85/15 in/out (convención del codebase).
-                const sIn = Math.round(s.tokensUsed * 0.85);
-                const sOut = s.tokensUsed - sIn;
+                // debitadas). Usa el split REAL de la llamada (el 85/15
+                // estimado sobre-cobraba ~43%; ratio real de Sonnet ~97/3).
+                // Fallback 95/5 solo si el split real no vino.
+                const sIn = s.inputTokens > 0 ? s.inputTokens : Math.round(s.tokensUsed * 0.95);
+                const sOut = s.outputTokens > 0 ? s.outputTokens : s.tokensUsed - sIn;
                 const sCost = calculateCost(config.model, sIn, sOut);
                 messageCostUsd += sCost;
                 supabase.from('llm_usage').insert({
                   workspace_id: auth.workspaceId,
                   user_id: auth.userId,
-                  feature: 'ai-agents',
+                  // Feature propia (≠ 'ai-agents'): permite separar en reportes
+                  // el costo de especialistas del mensaje principal. Mapeada a
+                  // bucket 'ai' en credit_category() (debita igual).
+                  feature: 'ai-agents-specialist',
                   provider: config.provider,
                   model: config.model,
                   input_tokens: sIn,
