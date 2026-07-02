@@ -220,6 +220,7 @@ const STATUS_LABELS: Record<PromptLocale, { thinking: string; analyzing: string;
 const ERROR_MESSAGES: Record<PromptLocale, {
   fallback: string;
   tooManyTools: string;
+  costCapReached: string;
   generic: string;
   contextTooLong: string;
   rateLimit: string;
@@ -229,6 +230,7 @@ const ERROR_MESSAGES: Record<PromptLocale, {
   es: {
     fallback: 'Disculpá, no pude generar una respuesta. ¿Podés intentar de nuevo?',
     tooManyTools: 'Disculpá, necesité demasiadas consultas para responder. ¿Podés reformular tu pregunta?',
+    costCapReached: 'Esta consulta requería un análisis más profundo del que entra en un solo mensaje. Probá con una pregunta más específica (por ejemplo, sobre un aspecto puntual) y te la respondo completa.',
     generic: 'Hubo un error al procesar tu mensaje. ¿Podés intentar de nuevo?',
     contextTooLong: 'La conversación es demasiado larga. Por favor iniciá una nueva sesión para continuar.',
     rateLimit: 'Estamos procesando muchas consultas. Esperá unos segundos y volvé a intentar.',
@@ -238,6 +240,7 @@ const ERROR_MESSAGES: Record<PromptLocale, {
   en: {
     fallback: "Sorry, I couldn't generate a response. Can you try again?",
     tooManyTools: 'Sorry, I needed too many queries to answer. Can you rephrase your question?',
+    costCapReached: 'This question needed a deeper analysis than fits in a single message. Try a more specific question (e.g., about one particular aspect) and I can answer it fully.',
     generic: 'Something went wrong processing your message. Can you try again?',
     contextTooLong: 'The conversation is too long. Please start a new session to continue.',
     rateLimit: "We're processing many queries. Wait a few seconds and try again.",
@@ -309,9 +312,15 @@ export async function POST(request: Request) {
 
         const supabase = await createClient();
 
-        // Corte por Moka Coins (soft en lanzamiento; no-op si CREDITS_HARD_GATE está off).
-        if (await assertCredits(supabase, auth)) {
-          controller.enqueue(sseEvent({ type: 'error', message: 'Te quedaste sin Moka Coins por hoy. Se renuevan a la medianoche.' }));
+        // Corte por Moka Coins (duro para demo; soft para pagos hasta calibrar).
+        const creditsBlocked = await assertCredits(supabase, auth);
+        if (creditsBlocked) {
+          // Usar el copy del guard (para demo incluye el upsell al plan completo).
+          const blockedBody = await creditsBlocked.json().catch(() => null) as { message?: string } | null;
+          controller.enqueue(sseEvent({
+            type: 'error',
+            message: blockedBody?.message ?? 'Te quedaste sin Moka Coins por hoy. Se renuevan a la medianoche.',
+          }));
           controller.close();
           return;
         }
@@ -551,7 +560,10 @@ export async function POST(request: Request) {
             // Exento: billetera unlimited.
             if (!walletUnlimited && messageCostUsd * 1000 >= messageCap) {
               console.warn(`[chat] Mensaje alcanzó el techo de ${messageCap} coins (${(messageCostUsd * 1000).toFixed(0)}) — corto el tool loop en iteración ${i + 1}`);
-              assistantContent = response.text || ERROR_MESSAGES[userLocale].fallback;
+              // Si el modelo no llegó a escribir texto, el copy explica que la
+              // consulta era muy profunda y sugiere acotarla — NO el fallback
+              // genérico que parece error e invita a reintentar (= gastar más).
+              assistantContent = response.text || ERROR_MESSAGES[userLocale].costCapReached;
               break;
             }
 

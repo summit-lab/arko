@@ -59,7 +59,13 @@ export async function assertCredits(
 
   const view = creditView(auth.tier, data as CreditBalanceRow | null);
   if (view.remaining <= 0) {
-    return api403('Te quedaste sin Moka Coins por hoy. Se renuevan a la medianoche.');
+    // Para el DEMO, quedarse sin coins es EL momento del funnel: el copy
+    // vende el upgrade, no "esperá a mañana".
+    return api403(
+      auth.tier === 'demo'
+        ? 'Usaste todas tus Moka Coins de hoy. Se renuevan a la medianoche — o comunicate con nuestro equipo para pasarte a un plan completo y seguir ahora.'
+        : 'Te quedaste sin Moka Coins por hoy. Se renuevan a la medianoche.',
+    );
   }
   return null;
 }
