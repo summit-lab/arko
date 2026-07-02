@@ -29,9 +29,11 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
   'claude-sonnet-4-20250514':    { inputPer1M: 3.00,  outputPer1M: 15.00 },
   'claude-3-5-haiku-20241022':   { inputPer1M: 0.80,  outputPer1M: 4.00 },
   'claude-opus-4-20250514':      { inputPer1M: 15.00, outputPer1M: 75.00 },
-  // Google
-  'gemini-2.5-pro':              { inputPer1M: 1.25,  outputPer1M: 10.00 }, // tier-up de video (≤200k ctx). Verificar vs precio vivo de Google.
-  'gemini-2.5-flash':            { inputPer1M: 0.15,  outputPer1M: 0.60 },
+  // Google (verificado contra pricing oficial 2026-07: flash estaba a la MITAD
+  // del input y ¼ del output → subcobrábamos justo la feature que más escala)
+  'gemini-2.5-pro':              { inputPer1M: 1.25,  outputPer1M: 10.00 }, // tier-up de video (≤200k ctx; prompts reales 11-38K). Validada vs oficial.
+  'gemini-2.5-flash':            { inputPer1M: 0.30,  outputPer1M: 2.50 },
+  // Legacy (apagados por Google) — solo para costear usage histórico, no elegir en features nuevas:
   'gemini-2.0-flash':            { inputPer1M: 0.10,  outputPer1M: 0.40 },
   'gemini-1.5-flash':            { inputPer1M: 0.075, outputPer1M: 0.30 },
 };
@@ -41,11 +43,21 @@ function findPricing(model: string): ModelPricing | null {
   if (MODEL_PRICING[model]) return MODEL_PRICING[model];
 
   // Fuzzy match: OpenAI returns "gpt-4.1-mini-2025-04-14" but we store "gpt-4.1-mini"
-  // Try matching by prefix (longest match wins)
+  // Try matching by prefix (longest match wins). BOUNDARY obligatorio: solo
+  // acepta sufijo de fecha/versión ("-2025...") o compuesto ("+", "/") — una
+  // VARIANTE como "gemini-2.5-flash-lite" ($0.10/0.40 oficial) NO debe cobrar
+  // a tarifa flash (0.30/2.50): cae al warn de "sin pricing" y se agrega
+  // entrada explícita.
   let bestMatch: ModelPricing | null = null;
   let bestLength = 0;
   for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
-    if (model.startsWith(key) && key.length > bestLength) {
+    if (!model.startsWith(key) || key.length <= bestLength) continue;
+    const next = model[key.length];
+    const boundaryOk =
+      model.length === key.length ||
+      next === '+' || next === '/' ||
+      (next === '-' && /\d/.test(model[key.length + 1] ?? ''));
+    if (boundaryOk) {
       bestMatch = pricing;
       bestLength = key.length;
     }

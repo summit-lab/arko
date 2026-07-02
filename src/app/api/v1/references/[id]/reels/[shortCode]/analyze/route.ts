@@ -43,8 +43,9 @@ export async function POST(
     const result = await analyzeSingleReferenceReel(supabase, referenceId, shortCode, auth.workspaceId);
     const latencyMs = Date.now() - startMs;
 
+    // Split 92/8: ratio REAL medido en video Gemini (85/15 sobre-cobraba con la tarifa corregida).
     if (result.success && result.tokensUsed > 0) {
-      const estimatedInput = Math.round(result.tokensUsed * 0.85);
+      const estimatedInput = Math.round(result.tokensUsed * 0.92);
       const estimatedOutput = result.tokensUsed - estimatedInput;
       const costUsd = calculateCost('gemini-2.5-flash', estimatedInput, estimatedOutput);
 

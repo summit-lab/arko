@@ -7,6 +7,27 @@
 
 ## [unreleased] — 2026-07-02
 
+### Fix — Verdad de tarifas: constantes verificadas contra cargos REALES + splits medidos
+
+Audit ultracode de pricing (tarifas oficiales LLM vía web + **cargos reales de la cuenta de Apify** vía API con el token del owner — los runs del 2026-07-01 cuadran exacto: 86 reels+shares = $0.5514 = 86×0.0064+0.001). Anthropic y OpenAI estaban **perfectos** (91% del gasto LLM); los errores estaban en Google y Apify:
+
+- **`gemini-2.5-flash` 0.15/0.60 → 0.30/2.50** (oficial): subcobrábamos ½ input y ¼ output en la feature que más escala.
+- **Apify (plan SCALE, verificado run por run):** `reel-scrape` 0.0033→**0.0024**, `competitor-reel-scrape` 0.0039→**0.0064** (reel 0.0014 + shares 0.005), `competitor-profile-scrape` 0.01→**0.002** (5× inflada), `competitor-grid-scrape` 0.0025→**0.0013**; cron edge reels 0.0039×n→**0.0014×n+0.001**; runs con error → **$0.001** (el actor-start se cobra igual; un ABORTED cobró $0.83 completo). Nuevo `APIFY_FAILED_RUN_USD` + `costUsdOverride` en `logIntegrationUsage`.
+- **Splits estimados 85/15 REFUTADOS por Prod** (real: Sonnet 97/3 n=325; video Gemini 92/8): especialista del chat usa el **split real de la llamada** (SpecialistResult ahora trae inputTokens/outputTokens) y los 5 call sites de análisis Gemini pasan a 92/8 — sin esto, la tarifa flash corregida sobre-cobraría ~32%.
+- **`ai-agents-specialist`**: el especialista loguea con feature propia (separable en reportes; migración `20260702000200` lo mapea a bucket `ai`, debita igual). Hecho ahora que hay 0 filas históricas.
+- **`findPricing` con boundary**: solo sufijo fecha/versión o compuesto — una variante tipo `gemini-2.5-flash-lite` ya no cobraría a tarifa flash (cae al warn de sin-pricing).
+- **Histórico NO se reescribe** (corte 2026-07-01 documentado; junio logueó $38 de ~$160 reales de Apify).
+
+Reconciliación cerrada: ciclo Apify de junio = **$160.35 de usage** + fee del plan ≈ la factura ~$200 del owner. Request original: "¿los costos por token de cada modelo y los de Apify son correctos? quizás estamos calculando algo que no es la verdad".
+
+#### Archivos
+- `src/services/llm-usage.service.ts` — flash 0.30/2.50, boundary en findPricing, comments legacy.
+- `src/services/integration-usage.service.ts` — 4 constantes verificadas + `APIFY_FAILED_RUN_USD` + `costUsdOverride`.
+- `supabase/functions/sync-instagram/index.ts` + `scrape-competitors/index.ts` — tarifas reales en hardcodes.
+- `src/services/arko-ai-specialists.ts` — split real en SpecialistResult. · `src/app/api/v1/chat/route.ts` — especialista con split real + feature propia.
+- 5 rutas de análisis Gemini — split 92/8. · `src/app/api/v1/reels/enrich-durations/route.ts` — error a $0.001.
+- `supabase/migrations/20260702000200_credit_category_specialist.sql`.
+
 ### Feat — Moka Coins v2 + dieta Apify: precio justo por acción y factura ~$200→~$55/mes
 
 Audit ultracode (6 agentes, Prod-verified) tras dos incidentes: (a) un cliente pasó de 500→0 coins con UN click de "analizar competidor" (86 reels × $0.0039 = 335 coins debitados por un scrape que el cron ya hace gratis a las 4AM); (b) factura Apify ~$200/mes con ~15 usuarios, con el **90% del gasto invisible** (el cron diario de 85 competidores no logueaba NADA = $105-160/mes; el grid de 200 posts por scrape manual = $0.50/click sin loguear; el enrichment reintentaba reels irresolubles para siempre: 71-76% de intentos fallidos, ~6.855 runs pagos tirados).

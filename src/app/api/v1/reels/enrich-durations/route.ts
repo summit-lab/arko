@@ -12,7 +12,7 @@ import { isAuthError } from '@/lib/api/auth';
 import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api500 } from '@/lib/api/response';
 import { fetchApifyReelPublicData } from '@/services/apify-reel.service';
-import { logIntegrationUsage } from '@/services/integration-usage.service';
+import { logIntegrationUsage, APIFY_FAILED_RUN_USD } from '@/services/integration-usage.service';
 
 const CONCURRENCY = 4;
 const MAX_REELS = 20;
@@ -55,9 +55,9 @@ export async function POST(request: Request) {
             const latencyMs = Date.now() - t0;
             const duration = apifyData?.video_duration_seconds ?? null;
 
-            // itemsCount 0 en error: Apify no entregó items → no inflar el
-            // costo logueado con "costo fantasma" (antes cada fallo sumaba
-            // $0.0033 sintéticos al reporte).
+            // Error: items=0 pero el actor-start de Apify se cobra igual →
+            // logueamos el costo real del run fallido ($0.001), ni $0 ni el
+            // costo completo fantasma.
             logIntegrationUsage(supabase, {
               workspaceId: auth.workspaceId,
               userId: auth.userId,
@@ -65,6 +65,7 @@ export async function POST(request: Request) {
               provider: 'scraper',
               operation: 'reel-scrape',
               itemsCount: apifyData ? 1 : 0,
+              costUsdOverride: apifyData ? undefined : APIFY_FAILED_RUN_USD,
               latencyMs,
               status: apifyData ? 'success' : 'error',
             }).catch(() => {});

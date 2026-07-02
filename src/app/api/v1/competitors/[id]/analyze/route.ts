@@ -105,8 +105,9 @@ export async function POST(
 
     // Log each successful analysis to llm_usage
     for (const r of results.filter(res => res.success && res.tokensUsed > 0)) {
-      // Estimate input/output split (Gemini doesn't split cleanly in our flow)
-      const estimatedInput = Math.round(r.tokensUsed * 0.85);
+      // Split 92/8: ratio REAL medido en filas de video Gemini con usage exacto
+      // (el 85/15 anterior + tarifa flash corregida sobre-cobraría ~32%).
+      const estimatedInput = Math.round(r.tokensUsed * 0.92);
       const estimatedOutput = r.tokensUsed - estimatedInput;
       const costUsd = calculateCost('gemini-2.5-flash', estimatedInput, estimatedOutput);
 

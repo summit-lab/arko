@@ -26,6 +26,10 @@ export interface SpecialistResult {
   domain: SpecialistDomain;
   analysis: string;
   tokensUsed: number;
+  /** Split REAL de la llamada (para costear sin estimar — el 85/15 estimado
+   *  sobre-cobraba ~43%: el ratio real de Sonnet es ~97/3). */
+  inputTokens: number;
+  outputTokens: number;
   latencyMs: number;
 }
 
@@ -439,6 +443,8 @@ export async function callSpecialist(
       domain,
       analysis: locale === 'en' ? `Specialist "${domain}" not found.` : `Especialista "${domain}" no encontrado.`,
       tokensUsed: 0,
+      inputTokens: 0,
+      outputTokens: 0,
       latencyMs: 0,
     };
   }
@@ -494,6 +500,8 @@ ${contextData || noDataPlaceholder}`;
         ? `Specialist "${domain}" temporarily unavailable. Please try again.`
         : `El especialista "${domain}" no está disponible temporalmente. Intentá de nuevo.`,
       tokensUsed: 0,
+      inputTokens: 0,
+      outputTokens: 0,
       latencyMs,
     };
   }
@@ -504,6 +512,8 @@ ${contextData || noDataPlaceholder}`;
     domain,
     analysis: response.text || (locale === 'en' ? 'Specialized analysis could not be generated.' : 'No se pudo generar el análisis especializado.'),
     tokensUsed: response.totalTokens,
+    inputTokens: response.inputTokens,
+    outputTokens: response.outputTokens,
     latencyMs,
   };
 }
