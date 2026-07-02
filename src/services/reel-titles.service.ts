@@ -52,15 +52,17 @@ export async function generateMissingTitles(workspaceId: string): Promise<{ gene
 
   // Obtener transcripciones disponibles
   const reelIds = reels.map((r) => r.id);
+  // Columna real en Prod: transcript_clean (transcript_text NO existe — tiraba
+  // "column does not exist" en cada corrida y los títulos salían solo del caption).
   const { data: transcripts } = await supabase
     .from('reel_transcripts')
-    .select('reel_id, transcript_text')
+    .select('reel_id, transcript_clean')
     .in('reel_id', reelIds)
     .eq('processing_status', 'completed')
-    .not('transcript_text', 'is', null);
+    .not('transcript_clean', 'is', null);
 
   const transcriptMap = new Map(
-    (transcripts ?? []).map((t) => [t.reel_id, t.transcript_text as string])
+    (transcripts ?? []).map((t) => [t.reel_id, t.transcript_clean as string])
   );
 
   // Procesar en lotes

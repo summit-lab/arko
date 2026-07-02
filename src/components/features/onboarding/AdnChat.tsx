@@ -119,11 +119,16 @@ export function AdnChat({
       },
       body: JSON.stringify({ competitors }),
     });
-    if (res.ok) {
-      const result = await res.json();
-      setProgress(result.data.progress);
-      setAdnData(result.data.data);
+    if (!res.ok) {
+      // Propagar el motivo real (ej. tope de competidores del plan): el modal
+      // lo muestra y NO se cierra. Antes el fallo era silencioso y el usuario
+      // perdía todo lo tipeado.
+      const j = await res.json().catch(() => null);
+      throw new Error(j?.message ?? j?.error ?? "No se pudo guardar. Probá de nuevo.");
     }
+    const result = await res.json();
+    setProgress(result.data.progress);
+    setAdnData(result.data.data);
   }, [workspaceId]);
 
   async function handleSubmit(e: React.FormEvent) {

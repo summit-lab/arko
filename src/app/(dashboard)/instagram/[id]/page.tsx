@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import { getWorkspaceId } from "@/lib/workspace";
+import { getServerTier } from "@/lib/tier/server";
+import { hasFeature } from "@/lib/tier/config";
 import { signStorageThumbs, pickThumb } from "@/lib/storage-thumbs";
 import { hydrateGeminiAnalysis, normalizeSingleRelation } from "@/services/gemini-analysis-persistence.service";
 import type { GeminiVideoAnalysis } from "@/services/gemini-video.service";
@@ -1055,7 +1057,10 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           reelSummary={serializeReelForArko(reel, reel.benchmark, engagementRate, retentionRate)}
           reelCaption={reel.caption}
           performerMultiple={reel.performer_multiple}
-          showChat={!isDemo}
+          // `isDemo` acá es "reel de MUESTRA", no el tier: un demo con IG
+          // conectado veía el chat en sus 12 reels reales y cada mensaje
+          // moría en 403 — parecía roto, no bloqueado.
+          showChat={!isDemo && hasFeature(await getServerTier(), 'mokaAI')}
         />
       )}
     </div>

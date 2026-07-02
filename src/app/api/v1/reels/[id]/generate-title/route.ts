@@ -43,16 +43,17 @@ export async function POST(
       return apiSuccess({ auto_title: reel.auto_title });
     }
 
-    // Intentar obtener transcripción (no es obligatoria)
+    // Intentar obtener transcripción (no es obligatoria). Columna real en
+    // Prod: transcript_clean (transcript_text NO existe — la query fallaba).
     const { data: transcript } = await supabase
       .from('reel_transcripts')
-      .select('transcript_text, processing_status')
+      .select('transcript_clean, processing_status')
       .eq('reel_id', id)
       .maybeSingle();
 
-    const hasTranscript = transcript?.processing_status === 'completed' && !!transcript.transcript_text;
+    const hasTranscript = transcript?.processing_status === 'completed' && !!transcript.transcript_clean;
     const inputText = hasTranscript
-      ? transcript!.transcript_text!.slice(0, 2000)
+      ? transcript!.transcript_clean!.slice(0, 2000)
       : reel.caption?.slice(0, 500) ?? null;
 
     if (!inputText) {

@@ -9,13 +9,16 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { authenticateRequest, isAuthError } from '@/lib/api/auth';
+import { requireFeature } from '@/lib/api/guard';
 import { apiSuccess, api500 } from '@/lib/api/response';
 import { NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 
 export async function POST(request: Request) {
   try {
-    const auth = await authenticateRequest(request);
+    // Gate de tier: era la ÚNICA ruta con gasto real (sync-youtube) sin
+    // requireFeature en toda la API — un demo podía disparar el sync de YT.
+    const auth = await requireFeature(request, 'youtube');
     if (isAuthError(auth)) return auth;
 
     const body = await request.json();

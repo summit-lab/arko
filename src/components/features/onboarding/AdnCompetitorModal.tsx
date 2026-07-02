@@ -34,6 +34,7 @@ export function AdnCompetitorModal({
     { ...EMPTY_ENTRY },
   ]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Re-sync entries when modal opens
   useEffect(() => {
@@ -73,9 +74,14 @@ export function AdnCompetitorModal({
     if (valid.length === 0) return;
 
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave(valid);
       onClose();
+    } catch (err) {
+      // NO cerrar el modal: antes un save fallido (ej. tope de competidores
+      // del plan) cerraba igual y el usuario perdía TODO lo tipeado sin aviso.
+      setSaveError(err instanceof Error ? err.message : t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -229,7 +235,11 @@ export function AdnCompetitorModal({
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06]">
           <p className="text-[11px] text-white/20 font-light">
-            {t("validCount", { count: validCount })}
+            {saveError ? (
+              <span className="text-rose-400 font-normal">{saveError}</span>
+            ) : (
+              t("validCount", { count: validCount })
+            )}
           </p>
           <div className="flex items-center gap-3">
             <button

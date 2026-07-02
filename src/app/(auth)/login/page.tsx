@@ -106,8 +106,13 @@ export default function LoginPage() {
       </form>
 
       <div className="mt-6 text-center">
+        {/* Antes: "Acceso solo por invitación" sin salida — dead-end para
+            todo el tráfico del funnel Demo que aterriza en /login. */}
         <p className="text-sm text-muted-foreground">
-          {t('inviteOnly')}
+          {t('inviteOnly')}{' '}
+          <Link href="/register" className="text-violet-500 hover:text-violet-400 font-medium transition-colors">
+            {t('registerCta')}
+          </Link>
         </p>
       </div>
     </div>

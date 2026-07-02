@@ -33,9 +33,14 @@ export interface TierConfig {
   features: Record<Feature, boolean>;
 }
 
+// youtube: false para TODOS los tiers (2026-07-02, decisión del dueño):
+// la conexión a YouTube se retira del producto — no visible en ningún plan.
+// Las rutas API con requireFeature('youtube') devuelven 403 y /youtube
+// muestra el lock si alguien entra por URL directa. El item del Sidebar se
+// removió. Para revivirla: youtube: true + restaurar el item del Sidebar.
 const ALL_ON: Record<Feature, boolean> = {
   competitors: true, audience: true, sales: true, worktable: true,
-  mokaAI: true, youtube: true, ads: true, reelAiAnalysis: true,
+  mokaAI: true, youtube: false, ads: true, reelAiAnalysis: true,
 };
 const ALL_OFF: Record<Feature, boolean> = {
   competitors: false, audience: false, sales: false, worktable: false,

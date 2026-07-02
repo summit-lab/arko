@@ -1056,7 +1056,8 @@
       "submit": "Ingresar",
       "submitting": "Ingresando…",
       "forgotPassword": "¿Olvidaste tu contraseña?",
-      "inviteOnly": "Acceso solo por invitación."
+      "inviteOnly": "¿No tenés cuenta?",
+      "registerCta": "Probá Moka gratis"
     },
     "invite": {
       "welcomeTitle": "Bienvenido a Moka",
@@ -1312,7 +1313,7 @@
       "likesBrandLabel": "¿Qué te gusta de su marca?","likesBrandPlaceholder": "Qué te llama la atención de su marca, posicionamiento, identidad...",
       "likesContentLabel": "¿Qué te gusta de su contenido?","likesContentPlaceholder": "Qué tipo de contenido hacen que te gusta, formatos, estilo...",
       "addAnother": "Agregar otro competidor","validCount": "{count, plural, =0 {0 competidores con nombre} one {# competidor con nombre} other {# competidores con nombre}}",
-      "cancel": "Cancelar","save": "Guardar competidores","saving": "Guardando..."
+      "cancel": "Cancelar","save": "Guardar competidores","saving": "Guardando...","saveError": "No se pudo guardar. Probá de nuevo."
     },
     "docs": {
       "title": "ADN","section1Title": "Tu Negocio","section2Title": "Tu Contenido","section3Title": "Tu Mercado","section4Title": "Tu Marca",
