@@ -376,11 +376,11 @@ export default async function UsagePage({
     { label: t("usage.stats.avgLatency"), value: `${avgLatency}ms`, sub: t("usage.stats.avgLatencySub", { count: typeUsage.length }), icon: TrendingUp, color: "text-amber-400" },
   ];
 
-  const BUCKET_META: Record<CreditBucket, { label: string; hint: string; color: string }> = {
-    ai:       { label: "IA on-demand",      hint: "debita al cliente", color: "text-violet-400" },
-    scraping: { label: "Scraping on-demand", hint: "debita al cliente", color: "text-blue-400" },
-    service:  { label: "Servicio",          hint: "lo absorbe Moka",   color: "text-amber-400" },
-    system:   { label: "Sistema",           hint: "lo absorbe Moka",   color: "text-white/50" },
+  const BUCKET_META: Record<CreditBucket, { label: string; hint: string; color: string; note?: string }> = {
+    ai:       { label: "IA on-demand",      hint: "debita al cliente", color: "text-violet-400", note: "chat, análisis, especialistas" },
+    scraping: { label: "Scraping on-demand", hint: "debita al cliente", color: "text-blue-400", note: "solo re-scrapes puntuales — los scrapes de competidores van a Servicio" },
+    service:  { label: "Servicio",          hint: "lo absorbe Moka",   color: "text-amber-400", note: "scrapes de competidores/referencias (manual + cron)" },
+    system:   { label: "Sistema",           hint: "lo absorbe Moka",   color: "text-white/50", note: "sync propio, enrichment" },
   };
   const TIER_ORDER: Tier[] = ['pro', 'standard', 'demo'];
   const TIER_BADGE: Record<Tier, string> = {
@@ -432,6 +432,7 @@ export default async function UsagePage({
               </div>
               <p className={`text-[22px] font-light tracking-tight ${meta.color}`}>${agg.cost.toFixed(2)}</p>
               <p className="text-[10px] text-white/25 mt-0.5">{pct.toFixed(0)}% del total · {agg.calls} ops</p>
+              {meta.note && <p className="text-[9px] text-white/20 mt-1 leading-snug">{meta.note}</p>}
             </div>
           );
         })}
