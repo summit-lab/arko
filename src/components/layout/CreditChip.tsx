@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Coins, Lock, Infinity as InfinityIcon } from "lucide-react";
+import { Coins, Infinity as InfinityIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tier } from "@/lib/tier/config";
 import { creditView, type CreditBalanceRow } from "@/lib/credits";
@@ -20,14 +20,13 @@ interface CreditChipProps {
  * request o en background, sin recargar. Respeta los overrides de admin
  * (unlimited → ∞, bonus → allotment mayor), que llegan en el mismo payload.
  *
- * Demo no gasta nunca (features OFF): chip fijo con candado, sin suscripción.
+ * Los DEMO también gastan desde la "probada" (análisis de reels + Moka en el
+ * reel, 2026-07-02) → chip vivo para todos los tiers.
  */
 export function CreditChip({ workspaceId, tier, initialRow }: CreditChipProps) {
   const [row, setRow] = useState<CreditBalanceRow | null>(initialRow);
-  const isDemo = tier === "demo";
 
   useEffect(() => {
-    if (isDemo) return; // demo nunca debita → chip estático
     const supabase = createClient();
     const channel = supabase
       .channel(`wallet:${workspaceId}`)
@@ -45,33 +44,25 @@ export function CreditChip({ workspaceId, tier, initialRow }: CreditChipProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [workspaceId, isDemo]);
+  }, [workspaceId]);
 
   const view = creditView(tier, row);
   const pctLeft = view.allotment > 0 ? view.remaining / view.allotment : 0;
-  const tone = isDemo
-    ? "text-muted-foreground"
-    : view.unlimited
-      ? "text-yellow-400"
-      : pctLeft <= 0
-        ? "text-rose-400"
-        : pctLeft <= 0.2
-          ? "text-amber-400"
-          : "text-yellow-400";
+  const tone = view.unlimited
+    ? "text-yellow-400"
+    : pctLeft <= 0
+      ? "text-rose-400"
+      : pctLeft <= 0.2
+        ? "text-amber-400"
+        : "text-yellow-400";
 
-  const title = isDemo
-    ? "Moka Coins — plan Demo"
-    : view.unlimited
-      ? "Moka Coins ilimitadas"
-      : `Te quedan ${view.remaining} de ${view.allotment} Moka Coins hoy · se renuevan a la medianoche`;
+  const title = view.unlimited
+    ? "Moka Coins ilimitadas"
+    : `Te quedan ${view.remaining} de ${view.allotment} Moka Coins hoy · se renuevan a la medianoche`;
 
   return (
     <div className="flex items-center gap-2" title={title}>
-      {isDemo ? (
-        <Lock className="h-3.5 w-3.5 text-muted-foreground opacity-60" strokeWidth={1.8} />
-      ) : (
-        <Coins className={`h-4 w-4 ${tone} opacity-80`} strokeWidth={1.8} />
-      )}
+      <Coins className={`h-4 w-4 ${tone} opacity-80`} strokeWidth={1.8} />
       <div className="flex flex-col leading-none">
         <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-[0.1em]">Moka</span>
         {view.unlimited ? (
