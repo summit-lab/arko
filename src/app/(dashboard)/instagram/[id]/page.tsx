@@ -686,6 +686,11 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
   // ─── REEL detail layout ─────────────────────────────────────────
   const PALETTE = ["#7A86E0", "#AF6EC7", "#4BCEAF", "#EB6991", "#373A71"] as const;
 
+  // Chat visible con mokaAI (pagos) O reelAiAnalysis (la "probada" del demo:
+  // Moka SOLO dentro del reel, con corte duro de coins server-side).
+  const viewerTier = await getServerTier();
+  const canChatOnReel = hasFeature(viewerTier, 'mokaAI') || hasFeature(viewerTier, 'reelAiAnalysis');
+
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-5 px-6 py-8 sm:px-10 lg:px-[4%] min-w-0 overflow-hidden">
       <InstagramBackButton />
@@ -1057,10 +1062,8 @@ export default async function ReelDetailPage({ params }: { params: Promise<{ id:
           reelSummary={serializeReelForArko(reel, reel.benchmark, engagementRate, retentionRate)}
           reelCaption={reel.caption}
           performerMultiple={reel.performer_multiple}
-          // `isDemo` acá es "reel de MUESTRA", no el tier: un demo con IG
-          // conectado veía el chat en sus 12 reels reales y cada mensaje
-          // moría en 403 — parecía roto, no bloqueado.
-          showChat={!isDemo && hasFeature(await getServerTier(), 'mokaAI')}
+          // `isDemo` acá es "reel de MUESTRA" (datos falsos), no el tier.
+          showChat={!isDemo && canChatOnReel}
         />
       )}
     </div>

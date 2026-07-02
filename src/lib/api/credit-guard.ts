@@ -45,7 +45,11 @@ export async function assertCredits(
   supabase: SupabaseClient,
   auth: AuthResult,
 ): Promise<Response | null> {
-  if (!HARD_GATE) return null; // modo soft / visibilidad
+  // DEMO: hard-gate SIEMPRE, aunque el flag global esté en soft. El demo
+  // tiene features de IA "de probada" (reelAiAnalysis) cuyo costo asume Moka
+  // — sin corte duro, 100 demos serían gasto sin techo. Pagos: siguen soft
+  // hasta calibrar con datos reales.
+  if (!HARD_GATE && auth.tier !== 'demo') return null; // modo soft / visibilidad
 
   const { data } = await supabase
     .from('workspace_credit_balances')

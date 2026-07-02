@@ -30,9 +30,9 @@
 export const maxDuration = 300;
 
 import { createClient } from '@/lib/supabase/server';
-import { isAuthError } from '@/lib/api/auth';
-import { requireFeature } from '@/lib/api/guard';
+import { authenticateRequest, isAuthError } from '@/lib/api/auth';
 import { assertCredits, isUnlimitedWorkspace } from '@/lib/api/credit-guard';
+import { hasFeature, TRAP } from '@/lib/tier/config';
 import { callLLM, type LLMMessage, type LLMOptions, type LLMResponse } from '@/services/llm.service';
 import { getLLMConfig } from '@/services/llm-config';
 import { logLLMUsage, calculateCost } from '@/services/llm-usage.service';
@@ -48,6 +48,10 @@ const MAX_TOOL_ITERATIONS = 5;
  *  identidad de marca" ≈ 150-250c con caching) sin permitir el descontrol del
  *  incidente 2026-07-01 (mensajes de hasta 1.027 coins). Exento: unlimited. */
 const MAX_COINS_PER_MESSAGE = 300;
+
+/** Techo por mensaje para la "probada" del DEMO (chat solo dentro de un
+ *  reel): la mitad de su billetera diaria de 150 → ~2 mensajes profundos/día. */
+const DEMO_MAX_COINS_PER_MESSAGE = 75;
 
 /** Tool results largos (query_reels con 30 reels, get_reel_details con
  *  transcript completo) se re-pagan como input en CADA iteración siguiente.
@@ -255,7 +259,7 @@ export async function POST(request: Request) {
       // Hoisted so the catch block can localize error messages.
       let userLocale: PromptLocale = 'es';
       try {
-        const auth = await requireFeature(request, 'mokaAI');
+        const auth = await authenticateRequest(request);
         if (isAuthError(auth)) {
           controller.enqueue(sseEvent({ type: 'error', message: 'No autorizado' }));
           controller.close();
@@ -291,6 +295,17 @@ export async function POST(request: Request) {
               script: string | null;
             }
           : null;
+
+        // Gate de tier (después de parsear el contexto): mokaAI habilita TODO
+        // el chat; los DEMO tienen una "probada" acotada — SOLO chat dentro de
+        // un reel (reelContext), cubierta por reelAiAnalysis y con corte DURO
+        // de coins (assertCredits fuerza hard-gate para demo).
+        const demoReelTaste = !!reelContext && hasFeature(auth.tier, 'reelAiAnalysis');
+        if (!hasFeature(auth.tier, 'mokaAI') && !demoReelTaste) {
+          controller.enqueue(sseEvent({ type: 'error', message: TRAP.description }));
+          controller.close();
+          return;
+        }
 
         const supabase = await createClient();
 
@@ -488,6 +503,8 @@ export async function POST(request: Request) {
           // fondo sin cortar el loop.
           let messageCostUsd = 0;
           const walletUnlimited = await isUnlimitedWorkspace(supabase, auth.workspaceId);
+          // Demo: techo por mensaje reducido (75c = media billetera diaria).
+          const messageCap = auth.tier === 'demo' ? DEMO_MAX_COINS_PER_MESSAGE : MAX_COINS_PER_MESSAGE;
 
           for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
             controller.enqueue(sseEvent({
@@ -528,12 +545,12 @@ export async function POST(request: Request) {
               break;
             }
 
-            // Techo duro por mensaje: si ya quemamos MAX_COINS_PER_MESSAGE, NO
+            // Techo duro por mensaje: si ya quemamos el cap del tier, NO
             // arrancamos otra iteración — sintetizamos con lo acumulado. El
             // desborde máximo es lo que costó la iteración en curso.
             // Exento: billetera unlimited.
-            if (!walletUnlimited && messageCostUsd * 1000 >= MAX_COINS_PER_MESSAGE) {
-              console.warn(`[chat] Mensaje alcanzó el techo de ${MAX_COINS_PER_MESSAGE} coins (${(messageCostUsd * 1000).toFixed(0)}) — corto el tool loop en iteración ${i + 1}`);
+            if (!walletUnlimited && messageCostUsd * 1000 >= messageCap) {
+              console.warn(`[chat] Mensaje alcanzó el techo de ${messageCap} coins (${(messageCostUsd * 1000).toFixed(0)}) — corto el tool loop en iteración ${i + 1}`);
               assistantContent = response.text || ERROR_MESSAGES[userLocale].fallback;
               break;
             }

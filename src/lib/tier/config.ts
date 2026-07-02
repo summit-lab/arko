@@ -48,7 +48,12 @@ const ALL_OFF: Record<Feature, boolean> = {
 };
 
 export const TIER_CONFIG: Record<Tier, TierConfig> = {
-  demo:     { dailyBudgetUsd: 0.15, maxCompetitors: 0, maxReelsPerScrape: 0,   maxBulkAnalyze: 0, scrapeWindowDays: 0,  ownReelsCap: 12,  features: ALL_OFF },
+  // Demo "con probada" (2026-07-02): reelAiAnalysis ON — puede analizar SUS
+  // reels con Gemini, generar títulos y chatear con Moka DENTRO de un reel
+  // (el chat general/ADN siguen off vía mokaAI). El gasto lo asume Moka pero
+  // está capado DURO: assertCredits fuerza hard-gate para tier demo aunque
+  // CREDITS_HARD_GATE global esté off → máx 150 coins = $0.15/día por demo.
+  demo:     { dailyBudgetUsd: 0.15, maxCompetitors: 0, maxReelsPerScrape: 0,   maxBulkAnalyze: 0, scrapeWindowDays: 0,  ownReelsCap: 12,  features: { ...ALL_OFF, reelAiAnalysis: true } },
   standard: { dailyBudgetUsd: 0.50, maxCompetitors: 3, maxReelsPerScrape: 20,  maxBulkAnalyze: 3, scrapeWindowDays: 30, ownReelsCap: 200, features: ALL_ON },
   // Pro 1000 coins/día ($1): entran ~3 análisis profundos (techo 300c c/u) + chat normal.
   pro:      { dailyBudgetUsd: 1.00, maxCompetitors: 5, maxReelsPerScrape: 100, maxBulkAnalyze: 5, scrapeWindowDays: 90, ownReelsCap: 200, features: ALL_ON },
