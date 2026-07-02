@@ -1649,12 +1649,22 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
       // "Unexpected token 'A'... is not valid JSON" (el bug que viste).
       const res = await fetch(`/api/v1/competitors/${competitorId}/scrape`, { method: "POST", headers });
       if (!res.ok) {
-        // Leer como TEXTO para no crashear. Igual el route ya marcó 'analyzing' y
-        // el scrape arranca de fondo → dejamos que el polling tome el control.
+        // Leer como TEXTO para no crashear (504/HTML plano de Vercel).
         const txt = await res.text().catch(() => "");
         let msg = t("competitor.errors.scraping");
-        try { const j = JSON.parse(txt); msg = j?.error ?? j?.message ?? msg; } catch { /* no-JSON (504/HTML): el scrape igual arrancó */ }
+        try { const j = JSON.parse(txt); msg = j?.message ?? j?.error ?? msg; } catch { /* no-JSON (504/HTML): el scrape igual arrancó */ }
         console.warn("[competitor-scrape] kickoff non-ok:", res.status, msg);
+        // 4xx = el server RECHAZÓ el scrape (cooldown 6h, límite, permiso): NO
+        // arrancó nada → mostrar el motivo y cortar el estado optimista. Antes
+        // esto dejaba un "Analizando..." falso ~15s que moría sin mensaje.
+        if (res.status >= 400 && res.status < 500) {
+          setError(msg);
+          setCompetitors((prev) => prev.map((c) =>
+            c.id === competitorId ? { ...c, analysis_status: "idle", scrape_progress: null } : c,
+          ));
+          return;
+        }
+        // 5xx/504: el scrape puede haber arrancado igual → el polling decide.
       }
       // Éxito (o 504 con el scrape ya en curso): el polling se encarga del resto.
     } catch (err) {

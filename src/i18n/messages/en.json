@@ -1056,7 +1056,8 @@
       "submit": "Sign in",
       "submitting": "Signing in…",
       "forgotPassword": "Forgot your password?",
-      "inviteOnly": "Invitation-only access."
+      "inviteOnly": "Don't have an account?",
+      "registerCta": "Try Moka for free"
     },
     "invite": {
       "welcomeTitle": "Welcome to Moka",
@@ -1312,7 +1313,7 @@
       "likesBrandLabel": "What do you like about their brand?","likesBrandPlaceholder": "What stands out about their brand, positioning, identity...",
       "likesContentLabel": "What do you like about their content?","likesContentPlaceholder": "What kind of content they make that you like, formats, style...",
       "addAnother": "Add another competitor","validCount": "{count, plural, =0 {0 competitors with a name} one {# competitor with a name} other {# competitors with a name}}",
-      "cancel": "Cancel","save": "Save competitors","saving": "Saving..."
+      "cancel": "Cancel","save": "Save competitors","saving": "Saving...","saveError": "Couldn't save. Please try again."
     },
     "docs": {
       "title": "DNA","section1Title": "Your Business","section2Title": "Your Content","section3Title": "Your Market","section4Title": "Your Brand",

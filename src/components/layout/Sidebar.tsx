@@ -59,9 +59,10 @@ const buildNavItems = (t: (key: string) => string): NavItem[] => [
 ];
 
 // "Más herramientas" accordion items
+// YouTube removido del producto (2026-07-02) — no visible en ningún plan.
+// Para revivirlo: restaurar la línea + youtube: true en TIER_CONFIG.
 const buildMasHerramientasItems = (t: (key: string) => string): NavItem[] => [
   { name: t("publicaciones"), href: "/instagram", tab: "publicaciones", LucideIcon: Grid2X2 },
-  { name: "YouTube",          href: "/youtube",   svg: "/svgs/youtube_16.svg" },
   { name: "Meta Ads",         href: "/ads",       svg: "/svgs/meta_logo.svg" },
 ];
 
@@ -73,7 +74,7 @@ const buildSettingsNavItems = (t: (key: string) => string): NavItem[] => [
 ];
 
 // Paths that belong to "Más herramientas" — used for auto-expand
-const MAS_HERRAMIENTAS_HREFS = ["/youtube", "/ads"];
+const MAS_HERRAMIENTAS_HREFS = ["/ads"];
 const MAS_HERRAMIENTAS_IG_TABS = ["publicaciones"];
 
 

@@ -74,7 +74,9 @@ export async function register(formData: FormData) {
     return { confirm: true }
   }
 
-  redirect('/')
+  // A onboarding (conectar Instagram), no al dashboard vacío: la primera
+  // impresión de un demo sin datos era una pantalla de ceros sin CTA.
+  redirect('/onboarding')
 }
 
 export async function registerWithInvite(formData: FormData) {

@@ -148,8 +148,12 @@ export async function updateSession(request: NextRequest) {
     if (!isOnboardingRoute && !isAdminRoute && !isApiRoute) {
       let onboardingDone = request.cookies.get('arko_onboarding_completed')?.value
 
-      // Always re-check DB when cookie is missing or "false" (it may have been completed since last check)
-      if (onboardingDone !== 'true') {
+      // Re-check DB SOLO cuando la cookie falta. La cookie 'false' tiene
+      // maxAge=60s → actúa de rate-limit natural (máx 1 query/min/usuario).
+      // Antes (`!== 'true'`) el 100% de los demos (que nunca completan ADN)
+      // consultaba `workspaces` en CADA navegación, para siempre — el perfil
+      // exacto de la saturación de compute. Staleness máx post-ADN: 60s.
+      if (onboardingDone === undefined) {
         const wsId = request.cookies.get('arko_workspace_id')?.value
         if (wsId) {
           const { data: ws } = await supabase
