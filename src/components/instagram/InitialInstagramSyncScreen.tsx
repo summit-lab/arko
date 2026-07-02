@@ -49,8 +49,12 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
   }, [phaseIndex]);
 
   useEffect(() => {
+    // Timer COSMÉTICO: solo avanza las 2 primeras fases (validar → descargar).
+    // Las fases 3-4 las marca el polling con señales REALES de sync_jobs.
+    // Antes el timer subía hasta la última fase (92%) y el polling la bajaba
+    // a la real (75%) → el porcentaje rebotaba 75 → 92 → 75 en loop.
     const phaseTimer = window.setInterval(() => {
-      setPhaseIndex((current) => (current < PHASES.length - 1 ? current + 1 : current));
+      setPhaseIndex((current) => (current < 1 ? current + 1 : current));
     }, 4500);
 
     const elapsedTimer = window.setInterval(() => {
@@ -130,12 +134,13 @@ export function InitialInstagramSyncScreen({ igUsername, workspaceId }: InitialI
           // Fase 2 = "Descargando contenidos" (cuando account está por terminar)
           // Fase 3 = "Procesando métricas y Ads" (cuando account completó y media arrancó)
           // Fase 4 = "Armando dashboard" (cuando media completó)
+          // MONOTÓNICO: la fase (y el %) nunca retrocede.
           if (mediaJob?.status === "completed") {
-            setPhaseIndex(3);
+            setPhaseIndex((prev) => Math.max(prev, 3));
           } else if (accountJob?.status === "completed") {
-            setPhaseIndex(2);
+            setPhaseIndex((prev) => Math.max(prev, 2));
           } else if (accountJob?.status === "running" || mediaJob?.status === "running") {
-            setPhaseIndex(1);
+            setPhaseIndex((prev) => Math.max(prev, 1));
           }
 
           // Account + media listos → el dashboard tiene todo lo esencial.

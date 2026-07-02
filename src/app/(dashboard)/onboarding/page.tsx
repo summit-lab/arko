@@ -55,7 +55,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const isConnected = connectionStatus === "active";
 
   return (
-    <div className="p-8 max-w-4xl space-y-8">
+    <div className="p-8 max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="page-title">Conectar Instagram</h1>
