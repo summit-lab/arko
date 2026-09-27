@@ -5,6 +5,16 @@
  
 ---
 
+## [unreleased] — 2026-09-27
+
+### Fix — Reenviar invitación a un email con invitación vencida
+
+Request: "a este tipo se le expiró la invitación, no la usó y al reenviarle me da error".
+
+- **Causa:** las invitaciones vencidas por fecha quedaban con `status = 'pending'` en la DB (la UI las muestra "Expirada" por `expires_at`, pero nada las cierra), así que `createInvitation` las contaba como pendientes y bloqueaba el reenvío. Además el botón "Cancelar" no aparece en las vencidas.
+- **Fix:** `createInvitation` marca `expired` las pendientes vencidas del email antes de validar. Si hay una pendiente **vigente**, el form muestra un aviso ("la anterior se cancela") con **Cancelar anterior y generar nueva** / **Mantener la anterior** (`replace=1`).
+- Archivos: `src/app/(admin)/admin/invitations/{actions.ts,InvitationForm.tsx}`, `src/i18n/messages/{es,en}.json`, `docs/features/admin-panel.md`. Sin migración.
+
 ## [unreleased] — 2026-07-02
 
 ### Fix — Verdad de tarifas: constantes verificadas contra cargos REALES + splits medidos

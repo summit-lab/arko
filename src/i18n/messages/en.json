@@ -431,7 +431,10 @@
         "languageHint": "The user can change it later from Settings. The free trial starts when the user signs up.",
         "submit": "Generate Link",
         "copy": "Copy",
-        "copied": "Copied"
+        "copied": "Copied",
+        "pendingConflict": "There is already a pending invitation for this email (expires {date}). Generating a new one will cancel the previous one.",
+        "keepPending": "Keep previous",
+        "replacePending": "Cancel previous and generate new"
       },
       "list": {
         "title": "Invitation History",
