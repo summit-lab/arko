@@ -80,7 +80,8 @@
 
 ## 4. Git — Sesiones de Trabajo
 
-> **NUNCA push directo a `develop` ni `main`** — todo via PR.
+> **Por defecto, todo via PR** — no push directo a `develop` ni `main`.
+> **Excepción:** la IA puede pushear/mergear a `main` SOLO si el humano lo pide explícitamente en ese mismo intercambio (una autorización previa NO habilita futuras).
 
 **Inicio:** `git checkout develop` → `git pull` → `git checkout -b feature/nombre` → reportar estado.
 
@@ -91,7 +92,7 @@ EJECUTAR inmediatamente (no describir):
 1. `git add` → `git commit` (Conventional Commits) → `git push` → `gh pr create` a develop
 2. Reportar: link PR, resumen, pendientes, migraciones DEV pendientes en PROD
 
-**Reglas inviolables:** NUNCA push/merge a main. Solo humano mergea a main. Commits solo después de testear.
+**Reglas inviolables:** NUNCA push/merge a main por iniciativa propia — solo con pedido explícito del humano en ese intercambio. Commits solo después de testear.
 
 **Ramas:** `feature/` | `fix/` | `docs/` | `chore/` | `design/`
 
