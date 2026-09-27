@@ -434,7 +434,12 @@
         "copied": "Copied",
         "pendingConflict": "There is already a pending invitation for this email (expires {date}). Generating a new one will cancel the previous one.",
         "keepPending": "Keep previous",
-        "replacePending": "Cancel previous and generate new"
+        "replacePending": "Cancel previous and generate new",
+        "existingAccount": "This email already has an account (current plan: {current}). No invitation needed: you can switch its plan to {target} and they keep the same email.",
+        "existingAccountTrial": "The {days}-day trial starts now.",
+        "existingAccountCancel": "Cancel",
+        "existingAccountConfirm": "Switch to {target}",
+        "planChanged": "Done: the account is now on {target}. They will see it next time they log in, with the same email."
       },
       "list": {
         "title": "Invitation History",
