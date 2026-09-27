@@ -83,7 +83,7 @@ Usuario se registra
 
 | Action | Archivo | Descripción |
 |--------|---------|-------------|
-| `createInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Crea invitación, valida duplicados |
+| `createInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Crea invitación, valida duplicados. Cierra (status `expired`) las pendientes vencidas por fecha del mismo email antes de validar. Si hay una pendiente vigente devuelve `pendingExpiresAt` y la UI pide confirmar; con `replace=1` la cancela y genera la nueva |
 | `expireInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Marca invitación como expired |
 | `registerWithInvite` | `src/app/(auth)/actions.ts` | Registro con token de invitación |
 

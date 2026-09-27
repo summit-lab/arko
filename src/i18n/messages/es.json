@@ -431,7 +431,10 @@
         "languageHint": "El usuario lo puede cambiar después desde Settings. El trial gratis arranca cuando el usuario se registra.",
         "submit": "Generar Link",
         "copy": "Copiar",
-        "copied": "Copiado"
+        "copied": "Copiado",
+        "pendingConflict": "Ya hay una invitación pendiente para este email (vence el {date}). Si generás una nueva, la anterior se cancela.",
+        "keepPending": "Mantener la anterior",
+        "replacePending": "Cancelar anterior y generar nueva"
       },
       "list": {
         "title": "Historial de Invitaciones",

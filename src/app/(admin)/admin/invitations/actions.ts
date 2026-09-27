@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { isLocale } from "@/i18n/config";
 
-export async function createInvitation(formData: FormData) {
+type CreateInvitationResult =
+  | { token: string; error?: undefined; pendingExpiresAt?: undefined }
+  | { error: string; token?: undefined; pendingExpiresAt?: string };
+
+export async function createInvitation(formData: FormData): Promise<CreateInvitationResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
@@ -27,16 +31,41 @@ export async function createInvitation(formData: FormData) {
   const rawPlan = formData.get("plan");
   const plan = rawPlan === "demo" || rawPlan === "standard" || rawPlan === "pro" ? rawPlan : "standard";
 
-  // Check if there's already a pending invitation for this email
+  // Las pendientes vencidas por fecha nunca se marcan solas: las cerramos acá
+  // para que no bloqueen el reenvío (la UI ya las muestra como "Expirada").
+  const nowIso = new Date().toISOString();
+  await supabase
+    .from("invitations")
+    .update({ status: "expired" })
+    .eq("email", email)
+    .eq("status", "pending")
+    .lt("expires_at", nowIso);
+
+  // Si hay una pendiente vigente, pedimos confirmación antes de reemplazarla.
+  const replace = formData.get("replace") === "1";
   const { data: existing } = await supabase
     .from("invitations")
-    .select("id")
+    .select("id, expires_at")
     .eq("email", email)
     .eq("status", "pending")
     .maybeSingle();
 
-  if (existing) {
-    return { error: "Ya existe una invitación pendiente para este email" };
+  if (existing && !replace) {
+    return {
+      error: "Ya existe una invitación pendiente para este email",
+      pendingExpiresAt: existing.expires_at as string,
+    };
+  }
+
+  if (existing && replace) {
+    const { error: expireError } = await supabase
+      .from("invitations")
+      .update({ status: "expired" })
+      .eq("id", existing.id)
+      .eq("status", "pending");
+    if (expireError) {
+      return { error: "Error al cancelar la invitación anterior: " + expireError.message };
+    }
   }
 
   // Check if the email is already registered

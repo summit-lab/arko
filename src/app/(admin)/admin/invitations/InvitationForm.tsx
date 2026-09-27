@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Mail, Copy, Check, Loader2 } from "lucide-react";
 import { createInvitation } from "./actions";
 import type { Locale } from "@/i18n/config";
 
 export function InvitationForm() {
   const t = useTranslations("admin.invitations.form");
+  const locale = useLocale();
+  const dateLocale = locale === "en" ? "en-US" : "es-AR";
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -16,14 +18,21 @@ export function InvitationForm() {
   const [trialDays, setTrialDays] = useState<30 | 60 | 90>(30);
   const [plan, setPlan] = useState<"demo" | "standard" | "pro">("standard");
 
+  // Si ya hay una invitación pendiente vigente, guardamos el form para reenviarlo
+  // con replace=1 cuando el admin confirma que se cancele la anterior.
+  const [pendingConflict, setPendingConflict] = useState<{ formData: FormData; expiresAt: string } | null>(null);
+
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setError(null);
     setGeneratedLink(null);
+    setPendingConflict(null);
 
     const result = await createInvitation(formData);
 
-    if (result.error) {
+    if (result.pendingExpiresAt) {
+      setPendingConflict({ formData, expiresAt: result.pendingExpiresAt });
+    } else if (result.error) {
       setError(result.error);
     } else if (result.token) {
       const base = window.location.origin;
@@ -31,6 +40,13 @@ export function InvitationForm() {
     }
 
     setLoading(false);
+  }
+
+  async function replacePending() {
+    if (!pendingConflict) return;
+    const formData = pendingConflict.formData;
+    formData.set("replace", "1");
+    await handleSubmit(formData);
   }
 
   async function copyLink() {
@@ -155,6 +171,33 @@ export function InvitationForm() {
       {error && (
         <div className="mt-4 text-[13px] text-red-400 bg-red-400/10 px-4 py-2.5 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {pendingConflict && (
+        <div className="mt-4 flex items-center gap-3 flex-wrap bg-amber-400/5 border border-amber-400/15 rounded-lg px-4 py-3">
+          <p className="flex-1 min-w-[200px] text-[13px] text-amber-400/80">
+            {t("pendingConflict", {
+              date: new Date(pendingConflict.expiresAt).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" }),
+            })}
+          </p>
+          <button
+            type="button"
+            onClick={() => setPendingConflict(null)}
+            disabled={loading}
+            className="shrink-0 h-8 px-3 rounded-md text-white/40 text-[12px] font-medium hover:text-white/70 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t("keepPending")}
+          </button>
+          <button
+            type="button"
+            onClick={replacePending}
+            disabled={loading}
+            className="shrink-0 h-8 px-3 rounded-md bg-amber-400/10 text-amber-400 text-[12px] font-medium hover:bg-amber-400/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {loading && <Loader2 size={12} className="animate-spin" />}
+            {t("replacePending")}
+          </button>
         </div>
       )}
 
