@@ -3,8 +3,13 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Mail, Copy, Check, Loader2 } from "lucide-react";
-import { createInvitation } from "./actions";
+import { createInvitation, changeExistingAccountPlan } from "./actions";
 import type { Locale } from "@/i18n/config";
+import { TIER_LABEL, type Tier } from "@/lib/tier/config";
+
+function tierLabel(plan: FormDataEntryValue | string | null): string {
+  return plan === "demo" || plan === "standard" || plan === "pro" ? TIER_LABEL[plan as Tier] : "—";
+}
 
 export function InvitationForm() {
   const t = useTranslations("admin.invitations.form");
@@ -22,15 +27,28 @@ export function InvitationForm() {
   // con replace=1 cuando el admin confirma que se cancele la anterior.
   const [pendingConflict, setPendingConflict] = useState<{ formData: FormData; expiresAt: string } | null>(null);
 
-  async function handleSubmit(formData: FormData) {
-    setLoading(true);
+  // Si el email ya tiene cuenta (lead de la Demo), en vez de invitar ofrecemos
+  // cambiarle el plan in-place: así no tiene que registrarse con otro email.
+  const [existingAccount, setExistingAccount] = useState<{ formData: FormData; currentPlan: string | null } | null>(null);
+  const [planChanged, setPlanChanged] = useState<string | null>(null);
+
+  function resetFeedback() {
     setError(null);
     setGeneratedLink(null);
     setPendingConflict(null);
+    setExistingAccount(null);
+    setPlanChanged(null);
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setLoading(true);
+    resetFeedback();
 
     const result = await createInvitation(formData);
 
-    if (result.pendingExpiresAt) {
+    if (result.existingAccount) {
+      setExistingAccount({ formData, currentPlan: result.existingAccount.plan });
+    } else if (result.pendingExpiresAt) {
       setPendingConflict({ formData, expiresAt: result.pendingExpiresAt });
     } else if (result.error) {
       setError(result.error);
@@ -47,6 +65,20 @@ export function InvitationForm() {
     const formData = pendingConflict.formData;
     formData.set("replace", "1");
     await handleSubmit(formData);
+  }
+
+  async function changePlan() {
+    if (!existingAccount) return;
+    const { formData } = existingAccount;
+    setLoading(true);
+    const result = await changeExistingAccountPlan(formData);
+    if (result.ok) {
+      resetFeedback();
+      setPlanChanged(tierLabel(formData.get("plan")));
+    } else {
+      setError(result.error);
+    }
+    setLoading(false);
   }
 
   async function copyLink() {
@@ -171,6 +203,43 @@ export function InvitationForm() {
       {error && (
         <div className="mt-4 text-[13px] text-red-400 bg-red-400/10 px-4 py-2.5 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {existingAccount && (
+        <div className="mt-4 flex items-center gap-3 flex-wrap bg-amber-400/5 border border-amber-400/15 rounded-lg px-4 py-3">
+          <p className="flex-1 min-w-[200px] text-[13px] text-amber-400/80">
+            {t("existingAccount", {
+              current: tierLabel(existingAccount.currentPlan),
+              target: tierLabel(existingAccount.formData.get("plan")),
+            })}
+            {existingAccount.formData.get("plan") === "standard" &&
+              ` ${t("existingAccountTrial", { days: String(existingAccount.formData.get("trial_days") ?? 30) })}`}
+          </p>
+          <button
+            type="button"
+            onClick={() => setExistingAccount(null)}
+            disabled={loading}
+            className="shrink-0 h-8 px-3 rounded-md text-white/40 text-[12px] font-medium hover:text-white/70 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t("existingAccountCancel")}
+          </button>
+          <button
+            type="button"
+            onClick={changePlan}
+            disabled={loading}
+            className="shrink-0 h-8 px-3 rounded-md bg-amber-400/10 text-amber-400 text-[12px] font-medium hover:bg-amber-400/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {loading && <Loader2 size={12} className="animate-spin" />}
+            {t("existingAccountConfirm", { target: tierLabel(existingAccount.formData.get("plan")) })}
+          </button>
+        </div>
+      )}
+
+      {planChanged && (
+        <div className="mt-4 flex items-center gap-2 text-[13px] text-emerald-400/80 bg-emerald-400/5 border border-emerald-400/15 rounded-lg px-4 py-3">
+          <Check size={14} />
+          {t("planChanged", { target: planChanged })}
         </div>
       )}
 

@@ -83,8 +83,9 @@ Usuario se registra
 
 | Action | Archivo | Descripción |
 |--------|---------|-------------|
-| `createInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Crea invitación, valida duplicados. Cierra (status `expired`) las pendientes vencidas por fecha del mismo email antes de validar. Si hay una pendiente vigente devuelve `pendingExpiresAt` y la UI pide confirmar; con `replace=1` la cancela y genera la nueva |
+| `createInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Crea invitación, valida duplicados. Si el email ya tiene cuenta devuelve `existingAccount: { plan }` (no invita) y la UI ofrece cambiarle el plan. Cierra (status `expired`) las pendientes vencidas por fecha del mismo email antes de validar. Si hay una pendiente vigente devuelve `pendingExpiresAt` y la UI pide confirmar; con `replace=1` la cancela y genera la nueva |
 | `expireInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Marca invitación como expired |
+| `changeExistingAccountPlan` | `src/app/(admin)/admin/invitations/actions.ts` | Admin-only. Cambia `workspaces.plan` de una cuenta ya registrada (ej. lead Demo → Free Trial/Full) sin nuevo email. `standard` estampa `trial_days/started_at/ends_at` desde ahora (igual que `handle_new_user`); `demo`/`pro` limpian el trial |
 | `registerWithInvite` | `src/app/(auth)/actions.ts` | Registro con token de invitación |
 
 ---

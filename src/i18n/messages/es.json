@@ -434,7 +434,12 @@
         "copied": "Copiado",
         "pendingConflict": "Ya hay una invitación pendiente para este email (vence el {date}). Si generás una nueva, la anterior se cancela.",
         "keepPending": "Mantener la anterior",
-        "replacePending": "Cancelar anterior y generar nueva"
+        "replacePending": "Cancelar anterior y generar nueva",
+        "existingAccount": "Este email ya tiene cuenta (plan actual: {current}). No necesita invitación: le podés cambiar el plan a {target} y entra con el mismo email.",
+        "existingAccountTrial": "El trial de {days} días arranca ahora.",
+        "existingAccountCancel": "Cancelar",
+        "existingAccountConfirm": "Pasar a {target}",
+        "planChanged": "Listo: la cuenta pasó a {target}. Lo ve la próxima vez que entra, con el mismo email."
       },
       "list": {
         "title": "Historial de Invitaciones",

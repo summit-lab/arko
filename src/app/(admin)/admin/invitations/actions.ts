@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { isLocale } from "@/i18n/config";
 
 type CreateInvitationResult =
-  | { token: string; error?: undefined; pendingExpiresAt?: undefined }
-  | { error: string; token?: undefined; pendingExpiresAt?: string };
+  | { token: string; error?: undefined; pendingExpiresAt?: undefined; existingAccount?: undefined }
+  | { error: string; token?: undefined; pendingExpiresAt?: string; existingAccount?: { plan: string | null } };
 
 export async function createInvitation(formData: FormData): Promise<CreateInvitationResult> {
   const supabase = await createClient();
@@ -30,6 +30,28 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
   // El trigger handle_new_user solo estampa el trial si el plan es 'standard'.
   const rawPlan = formData.get("plan");
   const plan = rawPlan === "demo" || rawPlan === "standard" || rawPlan === "pro" ? rawPlan : "standard";
+
+  // Si el email ya tiene cuenta (típico: lead que se registró solo en la Demo)
+  // no se invita: la UI ofrece cambiarle el plan in-place con changeExistingAccountPlan.
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existingProfile) {
+    const { data: ownWorkspace } = await supabase
+      .from("workspaces")
+      .select("plan")
+      .eq("owner_id", existingProfile.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return {
+      error: "Este email ya está registrado",
+      existingAccount: { plan: (ownWorkspace?.plan as string | null) ?? null },
+    };
+  }
 
   // Las pendientes vencidas por fecha nunca se marcan solas: las cerramos acá
   // para que no bloqueen el reenvío (la UI ya las muestra como "Expirada").
@@ -68,17 +90,6 @@ export async function createInvitation(formData: FormData): Promise<CreateInvita
     }
   }
 
-  // Check if the email is already registered
-  const { data: existingProfile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (existingProfile) {
-    return { error: "Este email ya está registrado" };
-  }
-
   const { data, error } = await supabase
     .from("invitations")
     .insert({
@@ -112,4 +123,63 @@ export async function expireInvitation(formData: FormData): Promise<void> {
   if (error) console.error('[admin/invitations] expire error:', error);
 
   revalidatePath("/admin/invitations");
+}
+
+/**
+ * Admin-only: cambia el plan de una cuenta YA registrada (ej. un lead de la
+ * Demo que pasa a Free Trial/Full) sin pedirle otro email. Replica lo que hace
+ * handle_new_user() al registrarse: standard estampa trial_days/started/ends;
+ * demo/pro limpian el trial. El trigger prevent_plan_self_escalation deja pasar
+ * el cambio porque el caller es admin (policy admin_update_workspaces).
+ */
+export async function changeExistingAccountPlan(
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const { data: caller } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (caller?.role !== "admin") return { ok: false, error: "Sin permiso" };
+
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
+  if (!email || !email.includes("@")) return { ok: false, error: "Email inválido" };
+
+  const rawPlan = formData.get("plan");
+  const plan = rawPlan === "demo" || rawPlan === "standard" || rawPlan === "pro" ? rawPlan : null;
+  if (!plan) return { ok: false, error: "Plan inválido" };
+
+  const rawTrial = Number(formData.get("trial_days"));
+  const trialDays = [30, 60, 90].includes(rawTrial) ? (rawTrial as 30 | 60 | 90) : 30;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  if (!profile) return { ok: false, error: "No hay cuenta registrada con este email" };
+
+  const now = new Date();
+  const isTrial = plan === "standard";
+  const { data: updated, error } = await supabase
+    .from("workspaces")
+    .update({
+      plan,
+      trial_days: isTrial ? trialDays : null,
+      trial_started_at: isTrial ? now.toISOString() : null,
+      trial_ends_at: isTrial ? new Date(now.getTime() + trialDays * 86_400_000).toISOString() : null,
+    })
+    .eq("owner_id", profile.id)
+    .select("id");
+
+  if (error) return { ok: false, error: "Error al cambiar el plan: " + error.message };
+  if (!updated || updated.length === 0) return { ok: false, error: "La cuenta no tiene workspace" };
+
+  revalidatePath("/admin/invitations");
+  revalidatePath("/admin/clients");
+  return { ok: true };
 }

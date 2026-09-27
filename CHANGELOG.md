@@ -7,6 +7,15 @@
 
 ## [unreleased] — 2026-09-27
 
+### Fix — Pasar un lead de la Demo a Free Trial/Full con el mismo email
+
+Request: "toda la gente que se registra para la prueba gratis usa un mail... y cuando quieren reclamar Moka [el free trial completo] no pueden usar el mismo mail, tenemos que pedirles que usen otro".
+
+- **Causa:** los leads de la Demo se registran solos (quedan `plan = 'demo'`). Para darles el Free Trial/Full se les mandaba una invitación, pero `createInvitation` corta con "Este email ya está registrado" y no había forma de subirle el plan a una cuenta existente.
+- **Fix:** si el email ya tiene cuenta, el form de Invitaciones muestra su plan actual y ofrece **Pasar a {plan}** (usa el plan/trial elegidos en el form). Nueva action admin-only `changeExistingAccountPlan`: actualiza el workspace del owner replicando `handle_new_user` (standard → trial desde ahora; demo/pro → sin trial). El usuario sigue entrando con el mismo email.
+- Sin migración: la DB ya lo permite (policy `admin_update_workspaces` + `prevent_plan_self_escalation` deja pasar a admin).
+- Archivos: `src/app/(admin)/admin/invitations/{actions.ts,InvitationForm.tsx}`, `src/i18n/messages/{es,en}.json`, `docs/features/admin-panel.md`.
+
 ### Fix — Reenviar invitación a un email con invitación vencida
 
 Request: "a este tipo se le expiró la invitación, no la usó y al reenviarle me da error".
