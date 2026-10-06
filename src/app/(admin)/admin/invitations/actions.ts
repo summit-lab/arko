@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { isLocale } from "@/i18n/config";
 
@@ -123,6 +124,33 @@ export async function expireInvitation(formData: FormData): Promise<void> {
   if (error) console.error('[admin/invitations] expire error:', error);
 
   revalidatePath("/admin/invitations");
+}
+
+/**
+ * Admin-only: borra una invitación del historial (cualquier estado). Si estaba
+ * pendiente, el link deja de funcionar. `invitations` no tiene policy DELETE,
+ * así que el borrado va con service role después de verificar que el caller es admin.
+ */
+export async function deleteInvitation(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const { data: caller } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (caller?.role !== "admin") return { ok: false, error: "Sin permiso" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("invitations").delete().eq("id", id);
+  if (error) return { ok: false, error: "Error al eliminar la invitación: " + error.message };
+
+  revalidatePath("/admin/invitations");
+  return { ok: true };
 }
 
 /**

@@ -75,6 +75,7 @@ Usuario se registra
 | `AdminSidebar` | Client | `src/components/layout/AdminSidebar.tsx` |
 | `InvitationForm` | Client | `src/app/(admin)/admin/invitations/InvitationForm.tsx` |
 | `InvitationList` | Client | `src/app/(admin)/admin/invitations/InvitationList.tsx` |
+| `DeleteClientAccount` | Client | `src/app/(admin)/admin/clients/[id]/DeleteClientAccount.tsx` |
 | `InviteRegisterForm` | Client | `src/app/(auth)/invite/[token]/InviteRegisterForm.tsx` |
 
 ---
@@ -85,6 +86,8 @@ Usuario se registra
 |--------|---------|-------------|
 | `createInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Crea invitación, valida duplicados. Si el email ya tiene cuenta devuelve `existingAccount: { plan }` (no invita) y la UI ofrece cambiarle el plan. Cierra (status `expired`) las pendientes vencidas por fecha del mismo email antes de validar. Si hay una pendiente vigente devuelve `pendingExpiresAt` y la UI pide confirmar; con `replace=1` la cancela y genera la nueva |
 | `expireInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Marca invitación como expired |
+| `deleteInvitation` | `src/app/(admin)/admin/invitations/actions.ts` | Admin-only. Borra la invitación del historial (cualquier estado). Usa service role porque `invitations` no tiene policy DELETE |
+| `deleteClientAccount` | `src/app/(admin)/admin/clients/[id]/actions.ts` | Admin-only. Elimina la cuenta del cliente (ver §10) |
 | `changeExistingAccountPlan` | `src/app/(admin)/admin/invitations/actions.ts` | Admin-only. Cambia `workspaces.plan` de una cuenta ya registrada (ej. lead Demo → Free Trial/Full) sin nuevo email. `standard` estampa `trial_days/started_at/ends_at` desde ahora (igual que `handle_new_user`); `demo`/`pro` limpian el trial |
 | `registerWithInvite` | `src/app/(auth)/actions.ts` | Registro con token de invitación |
 
@@ -146,3 +149,14 @@ Usuario se registra con el link
 - Accent color: amber (en lugar del blanco del dashboard principal)
 - AdminSidebar: 220px, fondo más oscuro (rgba(0,0,0,0.6))
 - Link al admin panel visible en Sidebar principal solo para admins (Shield icon, amber)
+
+---
+
+## 10. Eliminar invitaciones y cuentas
+
+- **Invitación:** papelera en cada fila de `/admin/invitations` → confirmación inline → `deleteInvitation`. Si estaba pendiente, el link deja de funcionar.
+- **Cuenta de cliente:** card "Eliminar cuenta" en `/admin/clients/[id]` (oculta para cuentas admin). Se confirma escribiendo el email del cliente → `deleteClientAccount`:
+  1. Verifica que el caller sea admin, que el target no sea admin y que no sea la propia cuenta.
+  2. Con service role borra las invitaciones con `used_by = user` o con su email (así se lo puede volver a invitar) y pone en NULL `workspace_members.invited_by` (ambas FKs a `auth.users` no tienen `ON DELETE` y bloquearían el borrado).
+  3. `auth.admin.deleteUser()` → cascadea `profiles`, `workspaces` (owner_id) y todas las tablas del workspace.
+- **No se borran** los archivos de Storage del workspace (quedan huérfanos).

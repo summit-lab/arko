@@ -5,6 +5,17 @@
  
 ---
 
+## [unreleased] — 2026-10-06
+
+### Feat — Admin: eliminar invitaciones y cuentas de clientes
+
+Request: "en la parte de admin donde se gestionan las invitaciones y usuarios activos hay que sumar una función para poder eliminar".
+
+- **Invitaciones:** ícono de papelera en cada fila del historial (cualquier estado) con confirmación inline. Nueva action `deleteInvitation`; como `invitations` no tiene policy DELETE, borra con service role después de verificar `role = 'admin'`.
+- **Clientes:** card "Eliminar cuenta" en `/admin/clients/[id]` (no aparece en cuentas admin). Hay que escribir el email del cliente para confirmar. Nueva action `deleteClientAccount`: limpia las FKs a `auth.users` sin `ON DELETE` (`invitations.used_by`, `workspace_members.invited_by`), borra las invitaciones del email (para poder re-invitarlo) y elimina el auth user → cascadea profile, workspace y toda su data. No permite borrar admins ni la propia cuenta.
+- Sin migración.
+- Archivos: `src/app/(admin)/admin/invitations/{actions.ts,InvitationList.tsx}`, `src/app/(admin)/admin/clients/[id]/{actions.ts,page.tsx,DeleteClientAccount.tsx}`, `src/i18n/messages/{es,en}.json`, `docs/features/admin-panel.md`.
+
 ## [unreleased] — 2026-09-27
 
 ### Fix — Pasar un lead de la Demo a Free Trial/Full con el mismo email

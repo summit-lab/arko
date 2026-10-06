@@ -6,6 +6,7 @@ import { ArrowLeft, User, Wifi, Cpu, DollarSign, Zap, Calendar, ChevronLeft, Che
 import { AdnDetailPanel } from "./AdnDetailPanel";
 import { ClientLanguagePicker } from "./ClientLanguagePicker";
 import { CreditAdminControl } from "./CreditAdminControl";
+import { DeleteClientAccount } from "./DeleteClientAccount";
 import { isLocale, type Locale } from "@/i18n/config";
 import { resolveTier, type Tier } from "@/lib/tier/config";
 import type { CreditBalanceRow } from "@/lib/credits";
@@ -494,6 +495,11 @@ export default async function ClientDetailPage({
 
             {/* ADN Panel */}
             <AdnDetailPanel sections={adnSections} data={adnData} />
+
+            {/* Zona de peligro — no se ofrece para cuentas admin */}
+            {profile?.id && profile.role !== "admin" && (
+              <DeleteClientAccount userId={profile.id} email={profile.email} />
+            )}
           </div>
         </div>
       </div>
