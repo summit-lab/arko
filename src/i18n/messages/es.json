@@ -450,6 +450,10 @@
         "headerAction": "Acción",
         "empty": "No hay invitaciones.",
         "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "deleteConfirm": "¿Eliminar?",
+        "deleteYes": "Sí",
+        "deleteNo": "No",
         "status": {
           "pending": "Pendiente",
           "used": "Usada",

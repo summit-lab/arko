@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isLocale, type Locale } from "@/i18n/config";
 
 /**
@@ -72,5 +73,61 @@ export async function adjustCredits(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/admin/clients/${workspaceId}`);
+  return { ok: true };
+}
+
+/**
+ * Admin-only: elimina definitivamente la cuenta de un cliente (auth user).
+ * Borrar el auth user cascadea profile → workspaces → toda la data del
+ * workspace. Antes limpiamos las FKs a auth.users sin ON DELETE que
+ * bloquearían el borrado (invitations.used_by, workspace_members.invited_by).
+ * Las invitaciones de ese email también se borran para poder re-invitarlo limpio.
+ * No permite borrar cuentas admin ni la propia.
+ */
+export async function deleteClientAccount(
+  userId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const { data: caller } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (caller?.role !== "admin") return { ok: false, error: "forbidden" };
+  if (userId === user.id) return { ok: false, error: "No podés eliminar tu propia cuenta" };
+
+  const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("email, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "La cuenta no existe" };
+  if (target.role === "admin") return { ok: false, error: "No se pueden eliminar cuentas admin" };
+
+  const email = (target.email as string).toLowerCase();
+  const [{ error: usedError }, { error: emailError }] = await Promise.all([
+    admin.from("invitations").delete().eq("used_by", userId),
+    admin.from("invitations").delete().eq("email", email),
+  ]);
+  const invError = usedError ?? emailError;
+  if (invError) return { ok: false, error: "Error al limpiar invitaciones: " + invError.message };
+
+  const { error: membersError } = await admin
+    .from("workspace_members")
+    .update({ invited_by: null })
+    .eq("invited_by", userId);
+  if (membersError) return { ok: false, error: "Error al limpiar miembros: " + membersError.message };
+
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { ok: false, error: "Error al eliminar la cuenta: " + error.message };
+
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/invitations");
+  revalidatePath("/admin");
   return { ok: true };
 }

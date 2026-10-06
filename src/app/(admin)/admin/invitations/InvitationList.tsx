@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Clock, CheckCircle, XCircle } from "lucide-react";
-import { expireInvitation } from "./actions";
+import { Clock, CheckCircle, XCircle, Trash2, Loader2 } from "lucide-react";
+import { expireInvitation, deleteInvitation } from "./actions";
 
 interface Invitation {
   id: string;
@@ -65,7 +66,7 @@ export function InvitationList({ invitations }: { invitations: Invitation[] }) {
               <div className="col-span-2 text-center text-[12px] text-white/30">
                 {new Date(inv.expires_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}
               </div>
-              <div className="col-span-2 text-right">
+              <div className="col-span-2 flex items-center justify-end gap-3">
                 {inv.status === "pending" && !isExpired && (
                   <form action={expireInvitation} className="inline">
                     <input type="hidden" name="id" value={inv.id} />
@@ -82,11 +83,60 @@ export function InvitationList({ invitations }: { invitations: Invitation[] }) {
                     {new Date(inv.used_at).toLocaleDateString(dateLocale, { day: "2-digit", month: "short" })}
                   </span>
                 )}
+                <DeleteInvitationButton id={inv.id} />
               </div>
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function DeleteInvitationButton({ id }: { id: string }) {
+  const t = useTranslations("admin.invitations.list");
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleDelete() {
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteInvitation(id);
+      if (!res.ok) {
+        setError(res.error);
+        setConfirming(false);
+      }
+    });
+  }
+
+  if (isPending) {
+    return <Loader2 size={12} className="text-red-400/60 animate-spin" />;
+  }
+
+  if (confirming) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px]">
+        <span className="text-white/40">{t("deleteConfirm")}</span>
+        <button type="button" onClick={handleDelete} className="text-red-400 hover:text-red-300 font-medium cursor-pointer">
+          {t("deleteYes")}
+        </button>
+        <button type="button" onClick={() => setConfirming(false)} className="text-white/40 hover:text-white/70 cursor-pointer">
+          {t("deleteNo")}
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      title={error ?? t("delete")}
+      aria-label={t("delete")}
+      className={`transition-colors cursor-pointer ${error ? "text-red-400" : "text-white/25 hover:text-red-400"}`}
+    >
+      <Trash2 size={12} />
+    </button>
   );
 }
