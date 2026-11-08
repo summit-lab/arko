@@ -5,6 +5,18 @@
  
 ---
 
+## [unreleased] — 2026-11-08
+
+### Chore — Preparar la baja de Apify de Scale a Starter
+
+Request: "fran me dice que apify le esta gastando 200 usd por mes [...] fijate que podemos optimizar y donde se va el gasto".
+
+- **Diagnóstico:** el plan Scale cuesta $199 fijos y el consumo real desde julio es de $29-40/mes. El gasto es el plan, no el uso.
+- **Cron de competidores en 12 tandas:** corre cada 5 min de 04:00 a 04:55 UTC (L/Mi/V). Pico de 64 runs simultáneos → máximo 20 por tanda (Starter permite 32).
+- **Tarifas de log a Bronze:** reel $0.0023, perfil $0.0023, post $0.0015, add-on de shares $0.006. Son del catálogo de Apify; falta verificarlas contra cargos reales después de bajar.
+- Migración: `20261108000000_competitor_cron_stagger.sql` (con rollback).
+- Archivos: `src/services/integration-usage.service.ts`, `supabase/functions/{scrape-competitors,sync-instagram}/index.ts`, `src/app/(admin)/admin/usage/page.tsx`, `docs/features/ig-intelligence.md`.
+
 ## [unreleased] — 2026-10-06
 
 ### Feat — Admin: eliminar invitaciones y cuentas de clientes

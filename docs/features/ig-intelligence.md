@@ -41,7 +41,7 @@ Módulo que conecta con la cuenta de Instagram del usuario y analiza los Reels e
 - Detectar patrones: qué temas/formatos generan más alcance, más guardados, más ventas.
 
 ### 3.1 Análisis de Competidores
-- **Fuente**: Apify actors `apify~instagram-profile-scraper` + `apify~instagram-reel-scraper`. Scrape diario vía pg_cron (4 AM UTC).
+- **Fuente**: Apify actors `apify~instagram-profile-scraper` + `apify~instagram-reel-scraper`. Scrape L/Mi/V vía pg_cron en 12 tandas de 04:00 a 04:55 UTC (una cada 5 min, para no superar los 32 runs simultáneos del plan Starter de Apify).
 - **Volumen**: **50 reels por competidor** por scrape (subido desde 20 en 2026-04-23). Tradeoff: ~2.5× más compute units de Apify por run.
 - **Campos persistidos** en `competitor_reels`: métricas (views/likes/comments/shares), caption, hashtags, mentions, `tagged_users` (colabs), `location_name`, `product_type`, duración, thumbnail + video_url (almacenados en bucket `competitor-assets`), transcript (on-demand), música.
 - **Análisis IA**: una llamada a Gemini 2.5 Flash analiza cada reel y persiste en `competitor_reel_analysis` (hook_text/type, narrative_structure, content_type, cta, topic_cluster, strengths, weaknesses, ai_summary).

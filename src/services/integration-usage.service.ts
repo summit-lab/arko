@@ -12,15 +12,16 @@ interface OperationPricing {
   perCall: number;
 }
 
-// Tarifas VERIFICADAS contra cargos reales de la cuenta (plan Apify SCALE,
+// Tarifas del plan Apify STARTER (tier BRONZE, API de Apify 2026-11-08; las
+// anteriores de SCALE se habían VERIFICADO contra cargos reales,
 // runs del 2026-07-01: 86 reels+shares = $0.5514 exacto; 1 reel = $0.0024;
 // perfil = $0.002). Si el plan de Apify cambia, re-verificar contra
 // usageTotalUsd de runs reales — NO contra el pricing publicado del Store.
 const OPERATION_PRICING: Record<string, OperationPricing> = {
-  'reel-scrape': { perCall: 0.0024 },              // 1 reel: $0.0014 + $0.001 actor-start
-  'competitor-profile-scrape': { perCall: 0.002 }, // perfil (sin start fee)
-  'competitor-reel-scrape': { perCall: 0.0064 },   // $0.0014 reel + $0.005 shares add-on (scrape manual)
-  'competitor-grid-scrape': { perCall: 0.0013 },   // post del grid (trial detection, sin start fee)
+  'reel-scrape': { perCall: 0.0033 },              // 1 reel: $0.0023 + $0.001 actor-start
+  'competitor-profile-scrape': { perCall: 0.0023 }, // perfil (sin start fee)
+  'competitor-reel-scrape': { perCall: 0.0083 },   // $0.0023 reel + $0.006 shares add-on (scrape manual)
+  'competitor-grid-scrape': { perCall: 0.0015 },   // post del grid (trial detection, sin start fee)
 };
 
 /** Costo real de un run de Apify que falló/devolvió 0 items: el actor-start

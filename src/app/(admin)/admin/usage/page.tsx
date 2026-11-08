@@ -492,7 +492,7 @@ export default async function UsagePage({
             </div>
             <p className="text-[10px] text-white/25 leading-relaxed">
               Si la proyección queda muy por debajo de la factura de referencia (~$200 pre-dieta), la dieta Apify está funcionando.
-              Tarifas verificadas contra cargos reales el 2026-07-01 — el logueado debería reconciliar ~100% con la factura nueva.
+              Tarifas del plan Starter (Bronze) según el catálogo de Apify — pendientes de verificar contra cargos reales.
             </p>
           </div>
         </div>
