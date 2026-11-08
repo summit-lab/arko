@@ -210,15 +210,15 @@ async function scrapeOne(
     });
   };
 
-  // Tarifas VERIFICADAS contra cargos reales (plan Apify SCALE, 2026-07-01):
-  // perfil $0.002 (sin start fee, error = $0); reel del cron (sin shares)
-  // $0.0014/reel + $0.001 actor-start por run.
+  // Tarifas del plan Apify STARTER (tier BRONZE, API de Apify 2026-11-08):
+  // perfil $0.0023 (sin start fee, error = $0); reel del cron (sin shares)
+  // $0.0023/reel + $0.001 actor-start por run.
   const profile = await scrapeProfile(username, token);
   if (!profile) {
     logUsage("competitor-profile-scrape", 0, 0, "error");
     return { ok: false, error: "apify_empty" };
   }
-  logUsage("competitor-profile-scrape", 1, 0.002, "success");
+  logUsage("competitor-profile-scrape", 1, 0.0023, "success");
 
   const followerCount = profile.followersCount ?? null;
 
@@ -267,7 +267,7 @@ async function scrapeOne(
   let reelsSnapped = 0;
   try {
     const fresh = await scrapeReelMetrics(username, token, REEL_METRICS_LIMIT);
-    logUsage("competitor-reel-scrape", fresh.length, Number((fresh.length * 0.0014 + 0.001).toFixed(6)), fresh.length > 0 ? "success" : "error");
+    logUsage("competitor-reel-scrape", fresh.length, Number((fresh.length * 0.0023 + 0.001).toFixed(6)), fresh.length > 0 ? "success" : "error");
     if (fresh.length > 0) {
       const shortCodes = fresh.map((r) => r.short_code);
       const { data: existing } = await supabase
