@@ -138,7 +138,7 @@ export function AdnCompetitorModal({
                 {entries.length > 1 && (
                   <button
                     onClick={() => removeEntry(i)}
-                    className="h-6 w-6 rounded-md hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                    className="h-6 w-6 rounded-md hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <Trash2 size={12} className="text-red-400/60" />
                   </button>

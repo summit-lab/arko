@@ -20,15 +20,86 @@ import { logLLMUsage } from '@/services/llm-usage.service';
 import { invalidateWorkspaceCache } from '@/services/arko-ai-context';
 import { getUserLanguage } from '@/i18n/server';
 import type { PromptLocale } from '@/services/arko-ai-prompts';
+import { cfg, type Tier } from '@/lib/tier/config';
+import { isUnlimitedWorkspace } from '@/lib/api/credit-guard';
+import { normalizeIgUsername } from '@/lib/instagram-username';
 
 // ─── Tool execution: save extracted data to DB ───────────────────────────────
 
-async function executeToolCall(
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+type ServerSupabase = ReturnType<typeof createClient> extends Promise<infer T> ? T : never;
+
+/**
+ * save_competitor desde el chat. Antes era un INSERT ciego: cada vez que Moka
+ * "actualizaba" un competidor (modo post-ADN) se creaba un DUPLICADO, y además
+ * se salteaba el tope del plan (standard 3 / pro 5) que sí aplica el modal.
+ * Ahora: si ya existe (mismo username de IG, o mismo nombre sin IG) se
+ * actualiza esa fila; si es nuevo, se respeta el tope del plan.
+ * Devuelve un aviso para el usuario si no se pudo guardar, o null.
+ */
+async function saveCompetitorFromChat(
+  supabase: ServerSupabase,
   workspaceId: string,
+  tier: Tier,
+  data: Record<string, unknown>,
+): Promise<string | null> {
+  const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+  const name = str(data.name);
+  const igUrl = str(data.ig_url);
+  const likesBrand = str(data.likes_brand);
+  const likesContent = str(data.likes_content);
+  const parts: string[] = [];
+  if (likesBrand) parts.push(`[MARCA] ${likesBrand}`);
+  if (likesContent) parts.push(`[CONTENIDO] ${likesContent}`);
+  const whyBetter = parts.length > 0 ? parts.join('\n') : null;
+
+  const { data: existingRows } = await supabase
+    .from('workspace_competitors')
+    .select('id, name, ig_url')
+    .eq('workspace_id', workspaceId);
+  const existing = existingRows ?? [];
+
+  const username = normalizeIgUsername(igUrl);
+  const match = existing.find((c) => {
+    const theirs = normalizeIgUsername(c.ig_url as string | null);
+    if (username && theirs) return theirs === username;
+    return Boolean(name) && str(c.name).toLowerCase() === name.toLowerCase();
+  });
+
+  if (match) {
+    const patch: Record<string, string> = {};
+    if (name) patch.name = name;
+    if (igUrl && !normalizeIgUsername(match.ig_url as string | null)) patch.ig_url = igUrl;
+    if (whyBetter) patch.why_better = whyBetter;
+    if (Object.keys(patch).length > 0) {
+      await supabase
+        .from('workspace_competitors')
+        .update(patch)
+        .eq('id', match.id as string)
+        .eq('workspace_id', workspaceId);
+    }
+    return null;
+  }
+
+  if (!name) return null;
+
+  const cap = cfg(tier).maxCompetitors;
+  if (existing.length >= cap && !(await isUnlimitedWorkspace(supabase, workspaceId))) {
+    return `Tu plan permite seguir hasta ${cap} competidores, así que no agregué a ${name}. Si querés sumarlo, eliminá uno desde la pestaña Competencia.`;
+  }
+
+  await supabase
+    .from('workspace_competitors')
+    .insert({ workspace_id: workspaceId, name, ig_url: igUrl || null, why_better: whyBetter });
+  return null;
+}
+
+async function executeToolCall(
+  supabase: ServerSupabase,
+  workspaceId: string,
+  tier: Tier,
   toolName: string,
   input: Record<string, unknown>
-): Promise<void> {
+): Promise<string | null> {
   // Filter out empty/null values
   const data: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input)) {
@@ -37,7 +108,7 @@ async function executeToolCall(
     }
   }
 
-  if (Object.keys(data).length === 0) return;
+  if (Object.keys(data).length === 0) return null;
 
   switch (toolName) {
     case 'save_profile':
@@ -70,18 +141,8 @@ async function executeToolCall(
         );
       break;
 
-    case 'save_competitor': {
-      // Transform likes_brand/likes_content into why_better DB column
-      const { likes_brand, likes_content, ...rest } = data as Record<string, string>;
-      const parts: string[] = [];
-      if (likes_brand) parts.push(`[MARCA] ${likes_brand}`);
-      if (likes_content) parts.push(`[CONTENIDO] ${likes_content}`);
-      const why_better = parts.length > 0 ? parts.join('\n') : null;
-      await supabase
-        .from('workspace_competitors')
-        .insert({ workspace_id: workspaceId, ...rest, why_better });
-      break;
-    }
+    case 'save_competitor':
+      return saveCompetitorFromChat(supabase, workspaceId, tier, data);
 
     case 'save_brand':
       await supabase
@@ -98,6 +159,7 @@ async function executeToolCall(
         .insert({ workspace_id: workspaceId, ...data });
       break;
   }
+  return null;
 }
 
 // ─── GET: Load state + history ───────────────────────────────────────────────
@@ -210,14 +272,19 @@ export async function POST(request: Request) {
       latencyMs: llmLatency,
     }).catch(() => {});
 
-    // Execute any tool calls (save extracted data)
+    // Execute any tool calls (save extracted data). Los avisos (ej. tope de
+    // competidores del plan) se agregan a la respuesta para que el usuario
+    // sepa que algo NO se guardó — el LLM no se entera de esto.
+    const toolNotices: string[] = [];
     for (const toolCall of response.toolCalls) {
-      await executeToolCall(
+      const notice = await executeToolCall(
         supabase,
         auth.workspaceId,
+        auth.tier,
         toolCall.name,
         toolCall.input
       );
+      if (notice) toolNotices.push(notice);
     }
 
     // If any ADN data was saved, invalidate Arko AI cache
@@ -234,7 +301,7 @@ export async function POST(request: Request) {
         ...llmMessages,
         {
           role: 'assistant' as const,
-          content: `[Datos guardados correctamente: ${response.toolCalls.map(t => t.name).join(', ')}]`,
+          content: `[Datos guardados correctamente: ${response.toolCalls.map(t => t.name).join(', ')}]${toolNotices.length > 0 ? ` [NO guardado: ${toolNotices.join(' ')}]` : ''}`,
         },
         {
           role: 'user' as const,
@@ -264,6 +331,9 @@ export async function POST(request: Request) {
     }
 
     assistantContent = assistantContent || '...';
+    if (toolNotices.length > 0) {
+      assistantContent += `\n\n> ⚠️ ${toolNotices.join('\n> ⚠️ ')}`;
+    }
 
     // Save assistant message
     await supabase.from('chat_messages').insert({

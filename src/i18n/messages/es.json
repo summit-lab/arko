@@ -1257,6 +1257,7 @@
       "global": {"patterns": "Patrones globales — {count} reels analizados","topHook": "Hook top"},
       "sort": {"views": "Views","likes": "Likes","date": "Fecha"},
       "profile": {"followers": "seguidores","posts": "posts","scrape": "Scrape","whyBetter": "Por qué son mejores","whyBetterBrand": "Marca","whyBetterContent": "Contenido"},
+      "delete": {"button": "Eliminar","confirm": "¿Dejar de seguir a {name}? Se borran sus reels y análisis.","confirmYes": "Sí, eliminar","cancel": "Cancelar","deleting": "Eliminando…","failed": "No pudimos eliminar el competidor. Reintentá en unos segundos."},
       "noReels": {"title": "No hay reels scrapeados aún","hint": "Hacé click en \"Scrape + Analizar\""},
       "pagination": {"range": "{from}–{to} de {total}","previous": "← Anterior","next": "Siguiente →"},
       "empty": {"title": "No hay competidores configurados","body": "Agregá competidores en tu ADN de Comunicación para analizar su estrategia.","cta": "Ir al ADN de Comunicación"},

@@ -13,6 +13,7 @@ import { getAdnProgress, getAdnData } from '@/services/adn-progress.service';
 import { invalidateWorkspaceCache } from '@/services/arko-ai-context';
 import { cfg } from '@/lib/tier/config';
 import { isUnlimitedWorkspace } from '@/lib/api/credit-guard';
+import { normalizeIgUsername } from '@/lib/instagram-username';
 
 const ALLOWED_TABLES = ['workspace_profile', 'workspace_market', 'workspace_brand'] as const;
 type AllowedTable = (typeof ALLOWED_TABLES)[number];
@@ -134,6 +135,18 @@ export async function POST(request: Request) {
     const valid = (competitors as CompetitorInput[]).filter(
       (c) => c.name && typeof c.name === 'string' && c.name.trim().length > 0,
     );
+
+    // Sin duplicados: la misma cuenta de IG dos veces = doble costo de Apify y
+    // doble fila en la tab Competencia (pasaba con "@user" vs "user").
+    const seen = new Map<string, string>();
+    for (const c of valid) {
+      const username = normalizeIgUsername(c.ig_url);
+      if (!username) continue;
+      if (seen.has(username)) {
+        return api400(`@${username} aparece dos veces (${seen.get(username)} y ${c.name.trim()}). Eliminá uno de los dos para guardar.`);
+      }
+      seen.set(username, c.name.trim());
+    }
 
     const { data: existing } = await supabase
       .from('workspace_competitors')

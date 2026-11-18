@@ -1257,6 +1257,7 @@
       "global": {"patterns": "Global patterns — {count} reels analyzed","topHook": "Top hook"},
       "sort": {"views": "Views","likes": "Likes","date": "Date"},
       "profile": {"followers": "followers","posts": "posts","scrape": "Scrape","whyBetter": "Why they're better","whyBetterBrand": "Brand","whyBetterContent": "Content"},
+      "delete": {"button": "Remove","confirm": "Stop following {name}? Their reels and analyses will be deleted.","confirmYes": "Yes, remove","cancel": "Cancel","deleting": "Removing…","failed": "We couldn't remove this competitor. Try again in a few seconds."},
       "noReels": {"title": "No reels scraped yet","hint": "Click on \"Scrape + Analyze\""},
       "pagination": {"range": "{from}–{to} of {total}","previous": "← Previous","next": "Next →"},
       "empty": {"title": "No competitors set up","body": "Add competitors in your Communication ADN to analyze their strategy.","cta": "Go to Communication ADN"},

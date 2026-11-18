@@ -43,7 +43,10 @@ Además, todos los endpoints protegidos requieren `workspace_id` via:
 | GET | `/api/v1/chat/messages?session_id=xxx` | Mensajes de una sesión | SI | — |
 | GET | `/api/v1/onboarding/chat` | Estado + historial del onboarding ADN | SI | — |
 | POST | `/api/v1/onboarding/chat` | Procesar mensaje del onboarding ADN | SI | — |
-| POST | `/api/v1/competitors/[id]/scrape` | Scrapear perfil + reels de un competidor via Apify | SI | — |
+| GET | `/api/v1/competitors/[id]` | Estado liviano del scrape/análisis (polling cada 2s) | SI | — |
+| DELETE | `/api/v1/competitors/[id]` | Dejar de seguir a un competidor (cascade: reels, análisis, snapshots) | SI | — |
+| POST | `/api/v1/competitors/[id]/scrape` | Scrapear perfil + reels de un competidor via Apify (fire-and-forget; cooldown 6h desde el último scrape **manual**) | SI | — |
+| DELETE | `/api/v1/competitors/[id]/scrape` | Ack del aviso terminal (`scrape_progress.phase` = `error` o `empty`) | SI | — |
 | POST | `/api/v1/competitors/[id]/analyze` | Analizar reels de un competidor con IA | SI | — |
 
 *El callback es redirigido por Meta, no requiere auth header pero valida state/CSRF.
