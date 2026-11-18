@@ -5,6 +5,21 @@
  
 ---
 
+## [unreleased] — 2026-11-18
+
+### Fix — Competidores: reels nuevos que no aparecían, cooldown engañoso, duplicados y eliminar
+
+Request: consultas de un cliente — "una cuenta pública carga pero no detecta los videos", "no pude eliminarla", "¿solo puedo agregar 3?", "scrapeé hoy y no figuran sus últimos videos, y dice que los datos ya están frescos".
+
+- **Cooldown y ventana desde el scrape manual:** el cron L/Mi/V pisaba `last_scraped_at` sin descubrir reels nuevos. Eso (a) bloqueaba el scrape manual 6h con "los datos ya están frescos" y (b) achicaba la ventana incremental a ~8-10 días, así que los reels publicados antes de esa ventana no se descubrían nunca. Nueva columna `workspace_competitors.last_manual_scrape_at`; el mensaje del cooldown ahora dice cuánto falta.
+- **Trial-detection:** "reel nuevo" = short_code que todavía no está en DB (antes: comparación por fecha contra `last_scraped_at`). Grid de 200 posts también cuando la ventana supera los 14 días.
+- **0 reels ya no es silencioso:** fase terminal `empty` con aviso en la UI. Se filtran los ítems de error de Apify y un upsert fallido se reporta como error.
+- **Duplicados y tope de plan:** el chat del ADN (`save_competitor`) hacía un INSERT ciego (duplicaba al "actualizar" y se salteaba el tope de 3/5). Ahora deduplica por username normalizado y respeta el tope. El modal del ADN rechaza la misma cuenta dos veces.
+- **Eliminar:** botón "Eliminar" con confirmación en la tab Competencia (nuevo `DELETE /api/v1/competitors/[id]`); el tachito del modal del ADN ya no está oculto hasta el hover.
+- **Username:** `src/lib/instagram-username.ts` (normalizador compartido); la UI siempre muestra `@user` y el link a Instagram es válido aunque el `ig_url` venga como `@user`.
+- **Migración:** `20261118000000_competitor_last_manual_scrape.sql` (aditiva, con rollback). Aplicar en Prod ANTES de deployar el código.
+- Archivos: `src/lib/instagram-username.ts`, `src/services/competitor-scraper.service.ts`, `src/app/api/v1/competitors/[id]/{route.ts,scrape/route.ts}`, `src/app/api/v1/onboarding/{chat,adn}/route.ts`, `src/components/instagram/CompetitorTab.tsx`, `src/components/features/onboarding/AdnCompetitorModal.tsx`, `src/i18n/messages/{es,en}.json`, `docs/features/ig-intelligence.md`, `docs/DB_SCHEMA.md`, `docs/API_DOCS.md`.
+
 ## [unreleased] — 2026-10-06
 
 ### Feat — Admin: eliminar invitaciones y cuentas de clientes

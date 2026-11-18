@@ -10,11 +10,12 @@ import {
   Swords, TrendingUp, Brain, BarChart3, BookOpen,
   ArrowUpDown, Calendar, Eye, BookMarked, X, Target, Sparkles,
   Layers, Shield, AlertTriangle, Palette, MousePointerClick,
-  Download, Database, CheckCircle, Loader2,
+  Download, Database, CheckCircle, Loader2, Trash2, Info,
 } from "lucide-react";
 import { useChartTheme } from "@/hooks/useChartTheme";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
 import { CoinCost } from "@/components/common/CoinCost";
+import { normalizeIgUsername, igProfileUrl } from "@/lib/instagram-username";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,15 +181,11 @@ function fmtDate(iso: string | null, dateLocale: string): string {
   return new Date(iso).toLocaleDateString(dateLocale, { day: "numeric", month: "short" });
 }
 
+// Siempre "@user", venga el ig_url como venga ("user", "@user", URL). Antes
+// "user" pelado se mostraba sin @ y parecía otra cuenta distinta.
 function extractUsername(igUrl: string | null): string {
-  if (!igUrl) return "";
-  const clean = igUrl.trim().replace(/\/$/, "");
-  if (clean.startsWith("@")) return clean;
-  try {
-    const parts = new URL(clean.startsWith("http") ? clean : `https://${clean}`)
-      .pathname.split("/").filter(Boolean);
-    return parts[0] ? `@${parts[0]}` : clean;
-  } catch { return clean; }
+  const username = normalizeIgUsername(igUrl);
+  return username ? `@${username}` : "";
 }
 
 function getAnalysis(reel: CompetitorReel): ReelAnalysis | null {
@@ -1512,6 +1509,11 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   const [scraping, setScraping] = useState<string | null>(null);
   const [analyzingReels, setAnalyzingReels] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  // Aviso informativo (no error): ej. scrape terminado sin reels nuevos.
+  const [notice, setNotice] = useState<string | null>(null);
+  // Eliminar competidor: id con la confirmación inline abierta / en curso.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
   const [sort, setSort] = useState<SortKey>("date");
   // Paginación del grid de reels del competidor seleccionado: 20 por página.
   // Reset a 1 cada vez que cambia de competidor o sort.
@@ -1629,9 +1631,32 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [competitorParam, competitors.length]);
 
+  const handleDeleteCompetitor = useCallback((competitorId: string) => {
+    setError(null);
+    startDeleteTransition(async () => {
+      try {
+        const res = await fetch(`/api/v1/competitors/${competitorId}`, { method: "DELETE", headers });
+        if (!res.ok) throw new Error(String(res.status));
+        setConfirmDeleteId(null);
+        const remaining = competitors.filter((c) => c.id !== competitorId);
+        setCompetitors(remaining);
+        setSelectedId((cur) => (cur === competitorId ? remaining[0]?.id ?? null : cur));
+        try {
+          if (sessionStorage.getItem("arko:lastCompetitorId") === competitorId) {
+            sessionStorage.removeItem("arko:lastCompetitorId");
+          }
+        } catch { /* private mode */ }
+        router.refresh();
+      } catch {
+        setError(t("competitor.delete.failed"));
+      }
+    });
+  }, [competitors, headers, router, t]);
+
   const handleScrapeAndAnalyze = useCallback(async (competitorId: string) => {
     setScraping(competitorId);
     setError(null);
+    setNotice(null);
     // Optimistic: marcamos el competidor como 'analyzing' en el state local
     // para que el useEffect de polling arranque YA y el botón empiece a
     // pintar scrape_progress.message en vivo. Sin esto el polling no dispara
@@ -1844,9 +1869,15 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
         // el banner, cortamos el "Analizando..." y ack-eamos con DELETE para
         // que el error no re-aparezca en el próximo load/poll. Antes este caso
         // era INVISIBLE: el cliente quedaba mirando "Analizando..." infinito.
-        if (progress?.phase === "error") {
+        if (progress?.phase === "error" || progress?.phase === "empty") {
           sentFinalLoad = true;
-          setError(progress.message || "No pudimos actualizar este competidor. Reintentá en unos minutos.");
+          if (progress.phase === "empty") {
+            // Terminó OK pero sin reels (cuenta sin reels en la ventana o sin
+            // nuevos): aviso informativo, mismo flujo de ack que el error.
+            setNotice(progress.message);
+          } else {
+            setError(progress.message || "No pudimos actualizar este competidor. Reintentá en unos minutos.");
+          }
           setCompetitors((prev) => prev.map((c) =>
             c.id === pollingCompetitorId ? { ...c, analysis_status: "idle", scrape_progress: null } : c,
           ));
@@ -1954,6 +1985,13 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
             <button onClick={() => setError(null)} className="ml-auto text-white/30 hover:text-white/60 cursor-pointer">✕</button>
           </div>
         )}
+        {notice && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] text-white/60 font-light bg-white/[0.04] border border-white/[0.08]">
+            <Info size={13} className="shrink-0" />
+            {notice}
+            <button onClick={() => setNotice(null)} className="ml-auto text-white/30 hover:text-white/60 cursor-pointer">✕</button>
+          </div>
+        )}
 
         <div className="grid grid-cols-[240px_1fr] gap-4 items-start">
 
@@ -1974,7 +2012,9 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
               {/* Profile header — el overlay de progreso se monta sólo sobre este card */}
               <div className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.08] relative">
                 {(selected.analysis_status === "analyzing" ||
-                  (selected.scrape_progress != null && selected.scrape_progress.phase !== "error")) && (
+                  (selected.scrape_progress != null &&
+                    selected.scrape_progress.phase !== "error" &&
+                    selected.scrape_progress.phase !== "empty")) && (
                   <ScrapeProgressOverlay competitor={selected} />
                 )}
                 <div className="flex items-start gap-3">
@@ -1983,8 +2023,8 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-[15px] font-light text-white/85">{selected.name ?? t("competitor.unnamed")}</h2>
                       {(selected.scraped_data as ScrapedData)?.ig_is_verified && <CheckCircle2 size={13} className="text-sky-400" />}
-                      {selected.ig_url && (
-                        <a href={selected.ig_url.startsWith("http") ? selected.ig_url : `https://instagram.com/${selected.ig_url}`}
+                      {igProfileUrl(selected.ig_url) && (
+                        <a href={igProfileUrl(selected.ig_url) ?? undefined}
                           target="_blank" rel="noopener noreferrer"
                           className="text-[11px] text-white/25 hover:text-white/50 transition-colors flex items-center gap-1">
                           {extractUsername(selected.ig_url)} <ExternalLink size={9} />
@@ -2034,9 +2074,42 @@ export function CompetitorTab({ workspaceId, initialCompetitors, myStats, myReel
                     {scraping !== selected.id && selected.analysis_status !== "analyzing" && (
                       <CoinCost action="competitor-analysis" note="La actualización de datos está incluida en tu plan." />
                     )}
+                    {selected.analysis_status !== "analyzing" && confirmDeleteId !== selected.id && (
+                      <button
+                        onClick={() => setConfirmDeleteId(selected.id)}
+                        className="flex items-center gap-1 text-[10px] text-white/25 hover:text-rose-300 transition-colors cursor-pointer mt-0.5"
+                      >
+                        <Trash2 size={10} /> {t("competitor.delete.button")}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {confirmDeleteId === selected.id && (
+                <div className="flex items-center gap-3 flex-wrap px-4 py-2.5 rounded-xl text-[12px] font-light"
+                  style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                  <span className="text-rose-200/80 flex-1 min-w-0">
+                    {t("competitor.delete.confirm", { name: selected.name ?? extractUsername(selected.ig_url) })}
+                  </span>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    disabled={isDeleting}
+                    className="text-white/40 hover:text-white/70 transition-colors cursor-pointer disabled:opacity-40"
+                  >
+                    {t("competitor.delete.cancel")}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCompetitor(selected.id)}
+                    disabled={isDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-rose-200 bg-rose-500/15 hover:bg-rose-500/25 transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    {isDeleting
+                      ? <><Loader2 size={11} className="animate-spin" /> {t("competitor.delete.deleting")}</>
+                      : <><Trash2 size={11} /> {t("competitor.delete.confirmYes")}</>}
+                  </button>
+                </div>
+              )}
 
               {/* Bulk-analyze progress panel — only when scrape_progress.reels[] is populated.
                   Shows per-reel status (pending/running/done/failed) with mini thumbnails. */}

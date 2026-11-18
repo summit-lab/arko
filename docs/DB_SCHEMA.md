@@ -308,11 +308,12 @@ erDiagram
 | `ig_url` | text | SÍ | — | URL de Instagram |
 | `why_better` | text | SÍ | — | Por qué son mejores |
 | `scraped_data` | jsonb | NO | '{}' | Datos scrapeados |
-| `last_scraped_at` | timestamptz | SÍ | — | Última fecha de scraping |
+| `last_scraped_at` | timestamptz | SÍ | — | Último scrape de cualquier tipo (manual o cron). Se muestra en la UI como "Scrape: fecha". |
+| `last_manual_scrape_at` | timestamptz | SÍ | — | Último scrape **manual** exitoso (el único que descubre reels nuevos). Base del cooldown de 6h y de la ventana incremental. El cron NO lo toca. Migración `20261118000000`. |
 | `created_at` | timestamptz | NO | now() | — |
 | `analysis_status` | text | NO | 'idle' | idle / analyzing — flag UI para spinner de scrape/analyze |
 | `analysis_started_at` | timestamptz | SÍ | — | Timestamp de inicio del scrape/analyze actual. Leído por watchdog pg_cron `competitor-analyzing-watchdog` para desbloquear rows stuck >10min. |
-| `scrape_progress` | jsonb | SÍ | — | Progreso en vivo del scrape/analyze (`{phase, message, current?, total?}`). Polleado por la UI cada 2s desde `GET /api/v1/competitors/[id]`. |
+| `scrape_progress` | jsonb | SÍ | — | Progreso en vivo del scrape/analyze (`{phase, message, current?, total?}`). Polleado por la UI cada 2s desde `GET /api/v1/competitors/[id]`. Fases terminales con aviso: `error` y `empty` (sin reels / sin reels nuevos); la UI las ack-ea con `DELETE /scrape`. |
 
 **RLS:** via is_workspace_member(workspace_id)
 

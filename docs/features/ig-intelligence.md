@@ -41,8 +41,15 @@ Módulo que conecta con la cuenta de Instagram del usuario y analiza los Reels e
 - Detectar patrones: qué temas/formatos generan más alcance, más guardados, más ventas.
 
 ### 3.1 Análisis de Competidores
-- **Fuente**: Apify actors `apify~instagram-profile-scraper` + `apify~instagram-reel-scraper`. Scrape diario vía pg_cron (4 AM UTC).
-- **Volumen**: **50 reels por competidor** por scrape (subido desde 20 en 2026-04-23). Tradeoff: ~2.5× más compute units de Apify por run.
+- **Fuente**: Apify actors `apify~instagram-profile-scraper` + `apify~instagram-reel-scraper` (+ `instagram-post-scraper` para el grid).
+- **Límites por plan** (`src/lib/tier/config.ts`): Free Trial (`standard`) = **3 competidores, 20 reels, ventana de 30 días**; Full (`pro`) = 5 competidores, 100 reels, 90 días. Los reels fijados no se cuentan (`skipPinnedPosts`).
+- **Dos tipos de scrape (actualizado 2026-11-18):**
+  - **Manual** (`POST /api/v1/competitors/[id]/scrape`, botón "Scrape + Analizar"): es el **único que descubre reels nuevos** (sube portadas, detecta trials, encadena el análisis IA). Escribe `last_manual_scrape_at`.
+  - **Cron** `scrape-competitors-daily` (L/Mi/V 04:00 UTC, edge function `scrape-competitors`): refresca perfil, seguidores y **métricas de reels ya guardados** (últimos 14 días). No agrega reels. Toca `last_scraped_at` pero NO `last_manual_scrape_at`.
+- **Cooldown manual**: 6h desde `last_manual_scrape_at` (exento: billetera unlimited). El mensaje dice cuánto falta. Antes se medía desde `last_scraped_at` y el cron bloqueaba el scrape manual con "los datos ya están frescos" sin haber buscado reels nuevos.
+- **Ventana incremental**: días desde el último scrape **manual** + 7 (tope: ventana del tier); ventana completa si nunca hubo scrape manual, si pasaron >30 días o si no hay reels guardados. Antes se medía desde `last_scraped_at` (pisado por el cron) y los reels publicados entre el último scrape manual y esa ventana chica no se descubrían nunca.
+- **Sin reels**: si el scrape termina con 0 reels queda `scrape_progress.phase = 'empty'` y la UI muestra un aviso ("no encontramos reels…") en vez de cerrar en silencio. Los ítems de error que devuelve Apify (`{error, errorDescription}`) se filtran y se loguean.
+- **Alta / baja de competidores**: desde el modal del ADN (tachito siempre visible) o con el botón **Eliminar** de la tab Competencia (`DELETE /api/v1/competitors/[id]`). Usernames normalizados con `src/lib/instagram-username.ts` ("@user", "user" y URL son la misma cuenta): el modal rechaza duplicados y el chat del ADN (`save_competitor`) actualiza el existente en vez de duplicarlo y respeta el tope del plan.
 - **Campos persistidos** en `competitor_reels`: métricas (views/likes/comments/shares), caption, hashtags, mentions, `tagged_users` (colabs), `location_name`, `product_type`, duración, thumbnail + video_url (almacenados en bucket `competitor-assets`), transcript (on-demand), música.
 - **Análisis IA**: una llamada a Gemini 2.5 Flash analiza cada reel y persiste en `competitor_reel_analysis` (hook_text/type, narrative_structure, content_type, cta, topic_cluster, strengths, weaknesses, ai_summary).
 - **Follower tracking**: `competitor_follower_snapshots` guarda un snapshot diario (upsert por `snapshot_date`) para trending histórico.

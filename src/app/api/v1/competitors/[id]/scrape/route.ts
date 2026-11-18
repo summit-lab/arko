@@ -24,9 +24,20 @@ import { logIntegrationUsage } from '@/services/integration-usage.service';
 import { calculateCost } from '@/services/llm-usage.service';
 import { clampReels, cfg } from '@/lib/tier/config';
 
-/** Cooldown entre scrapes manuales: el refresh programado (L/Mi/V) ya mantiene
- *  los datos frescos; cada click re-dispara 3 actors de Apify (~$0.90 real). */
+/** Cooldown entre scrapes MANUALES: cada click re-dispara 3 actors de Apify
+ *  (~$0.90 real). Se mide desde last_manual_scrape_at, NO desde last_scraped_at:
+ *  el cron (L/Mi/V) pisa last_scraped_at pero solo refresca métricas de reels
+ *  ya guardados — no descubre reels nuevos — así que no debe bloquear esto. */
 const MANUAL_SCRAPE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
+/** "3 h 20 min" / "45 min" — tiempo restante del cooldown, para el mensaje. */
+function formatRemaining(ms: number): string {
+  const totalMin = Math.max(1, Math.ceil(ms / 60_000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
 
 export async function POST(
   request: Request,
@@ -46,22 +57,25 @@ export async function POST(
     const over = await assertCredits(supabase, auth);
     if (over) return over;
 
-    // Cooldown 6h: evita que clicks repetidos quemen Apify al pedo. (El
-    // last_scraped_at también lo toca el cron, pero corre 04:00 UTC = 1AM AR
-    // → a la mañana ya está libre.)
+    // Cooldown 6h desde el último scrape MANUAL: evita que clicks repetidos
+    // quemen Apify al pedo.
     const { data: compRow } = await supabase
       .from('workspace_competitors')
-      .select('last_scraped_at')
+      .select('last_manual_scrape_at')
       .eq('id', competitorId)
       .eq('workspace_id', auth.workspaceId)
       .maybeSingle();
+    const sinceManualMs = compRow?.last_manual_scrape_at
+      ? Date.now() - new Date(compRow.last_manual_scrape_at).getTime()
+      : null;
     if (
-      compRow?.last_scraped_at &&
-      Date.now() - new Date(compRow.last_scraped_at).getTime() < MANUAL_SCRAPE_COOLDOWN_MS &&
+      sinceManualMs !== null &&
+      sinceManualMs < MANUAL_SCRAPE_COOLDOWN_MS &&
       // Exento: billetera unlimited (override de admin, ej. Francisco).
       !(await isUnlimitedWorkspace(supabase, auth.workspaceId))
     ) {
-      return api400('Este competidor se actualizó hace poco — los datos ya están frescos. Se refresca automáticamente varias veces por semana.');
+      const remaining = formatRemaining(MANUAL_SCRAPE_COOLDOWN_MS - sinceManualMs);
+      return api400(`Ya buscamos reels nuevos de este competidor hace menos de 6 horas. Podés volver a buscar en ${remaining}.`);
     }
 
     // Marcar 'analyzing' YA (rápido). analysis_started_at lo lee el watchdog
@@ -170,12 +184,8 @@ export async function POST(
           }
           await resetStatus();
         } else {
-          // 0 reels → limpiar el overlay de progress + reset
-          await supabase
-            .from('workspace_competitors')
-            .update({ scrape_progress: null })
-            .eq('id', competitorId)
-            .eq('workspace_id', auth.workspaceId);
+          // 0 reels → el scraper dejó scrape_progress phase 'empty' con el
+          // motivo; la UI lo muestra como aviso y lo ack-ea con DELETE.
           await resetStatus();
         }
       } catch (err) {
